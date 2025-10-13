@@ -49,7 +49,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType, 
+                RolloutExecutionResult, ProxyOverride, EffectiveProxyConfig, ProxyConfig,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -165,9 +166,28 @@ where
     );
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_enabled =
+    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_result =
         should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    
+    let rollout_enabled = rollout_result.should_execute;
+    let shadow_rollout_enabled = shadow_rollout_result.should_execute;
+    
+    // Log proxy URLs if available
+    if let Some(ref proxy_override) = rollout_result.proxy_override {
+        router_env::logger::info!(
+            http_url = ?proxy_override.http_url,
+            https_url = ?proxy_override.https_url,
+            "Main rollout config has proxy URLs"
+        );
+    }
+    if let Some(ref proxy_override) = shadow_rollout_result.proxy_override {
+        router_env::logger::info!(
+            http_url = ?proxy_override.http_url,
+            https_url = ?proxy_override.https_url,
+            "Shadow rollout config has proxy URLs"
+        );
+    }
 
     router_env::logger::debug!(
         "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
@@ -433,9 +453,9 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         connector_name
     );
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    let rollout_result = should_execute_based_on_rollout(state, &config_key).await?;
 
-    Ok(should_execute)
+    Ok(rollout_result.should_execute)
 }
 
 pub fn build_unified_connector_service_payment_method(

@@ -2106,34 +2106,198 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
         .unwrap_or(false)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct RolloutConfig {
+    pub rollout_percent: f64,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+impl Default for RolloutConfig {
+    fn default() -> Self {
+        Self {
+            rollout_percent: 0.0,
+            http_url: None,
+            https_url: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProxyOverride {
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RolloutExecutionResult {
+    pub should_execute: bool,
+    pub proxy_override: Option<ProxyOverride>,
+}
+
+/// Effective proxy configuration with rollout override support
+#[derive(Debug, Clone)]
+pub struct EffectiveProxyConfig<'a> {
+    base_proxy: &'a hyperswitch_interfaces::types::Proxy,
+    proxy_override: Option<&'a ProxyOverride>,
+}
+
+impl<'a> EffectiveProxyConfig<'a> {
+    /// Create a new effective proxy config
+    pub fn new(
+        base_proxy: &'a hyperswitch_interfaces::types::Proxy,
+        proxy_override: Option<&'a ProxyOverride>,
+    ) -> Self {
+        Self {
+            base_proxy,
+            proxy_override,
+        }
+    }
+
+    /// Get HTTP proxy URL (override takes precedence)
+    pub fn http_url(&self) -> Option<&String> {
+        self.proxy_override
+            .and_then(|override_| override_.http_url.as_ref())
+            .or(self.base_proxy.http_url.as_ref())
+    }
+
+    /// Get HTTPS proxy URL (override takes precedence)
+    pub fn https_url(&self) -> Option<&String> {
+        self.proxy_override
+            .and_then(|override_| override_.https_url.as_ref())
+            .or(self.base_proxy.https_url.as_ref())
+    }
+
+    /// Get any proxy URL, preferring HTTPS over HTTP
+    pub fn any_url(&self, prefer_https: bool) -> Option<&String> {
+        if prefer_https {
+            self.https_url().or(self.http_url())
+        } else {
+            self.http_url().or(self.https_url())
+        }
+    }
+
+    /// Get proxy URL for reqwest client (cloned)
+    pub fn for_reqwest(&self, prefer_https: bool) -> Option<String> {
+        self.any_url(prefer_https).cloned()
+    }
+
+    /// Check if any proxy is configured
+    pub fn has_proxy(&self) -> bool {
+        self.http_url().is_some() || self.https_url().is_some()
+    }
+
+    /// Get all proxy configuration details
+    pub fn get_config(&self) -> ProxyConfig {
+        ProxyConfig {
+            http_url: self.http_url().cloned(),
+            https_url: self.https_url().cloned(),
+            idle_pool_connection_timeout: self.base_proxy.idle_pool_connection_timeout,
+            bypass_proxy_hosts: self.base_proxy.bypass_proxy_hosts.clone(),
+            mitm_ca_certificate: self.base_proxy.mitm_ca_certificate.clone(),
+            mitm_enabled: self.base_proxy.mitm_enabled,
+        }
+    }
+}
+
+/// Resolved proxy configuration
+#[derive(Debug, Clone)]
+pub struct ProxyConfig {
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_hosts: Option<String>,
+    pub mitm_ca_certificate: Option<masking::Secret<String>>,
+    pub mitm_enabled: Option<bool>,
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<bool> {
+) -> RouterResult<RolloutExecutionResult> {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
-            Ok(rollout_percent) => {
-                if !(0.0..=1.0).contains(&rollout_percent) {
-                    logger::warn!(
-                        rollout_percent,
-                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
-                    );
-                    return Ok(false);
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config) {
+                Ok(config) => Ok(config),
+                Err(_) => {
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>()
+                        .map(|percent| RolloutConfig {
+                            rollout_percent: percent,
+                            http_url: None,
+                            https_url: None,
+                        })
+                        .map_err(|err| {
+                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
+                            err
+                        })
                 }
+            };
 
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                Ok(sampled_value < rollout_percent)
-            }
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse rollout percent");
-                Ok(false)
+            match config_result {
+                Ok(config) => {
+                    if !(0.0..=1.0).contains(&config.rollout_percent) {
+                        logger::warn!(
+                            rollout_percent = config.rollout_percent,
+                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                        );
+                        let proxy_override = if config.http_url.is_some() || config.https_url.is_some() {
+                            Some(ProxyOverride {
+                                http_url: config.http_url,
+                                https_url: config.https_url,
+                            })
+                        } else {
+                            None
+                        };
+                        
+                        return Ok(RolloutExecutionResult {
+                            should_execute: false,
+                            proxy_override,
+                        });
+                    }
+
+                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                    let should_execute = sampled_value < config.rollout_percent;
+                    
+                    // Create proxy override if URLs are available
+                    let proxy_override = if config.http_url.is_some() || config.https_url.is_some() {
+                        if let Some(ref http_url) = config.http_url {
+                            logger::info!(http_url = %http_url, "Using HTTP proxy URL from rollout config");
+                        }
+                        if let Some(ref https_url) = config.https_url {
+                            logger::info!(https_url = %https_url, "Using HTTPS proxy URL from rollout config");
+                        }
+                        Some(ProxyOverride {
+                            http_url: config.http_url,
+                            https_url: config.https_url,
+                        })
+                    } else {
+                        None
+                    };
+
+                    Ok(RolloutExecutionResult {
+                        should_execute,
+                        proxy_override,
+                    })
+                }
+                Err(err) => {
+                    logger::error!(error = ?err, "Failed to parse rollout config");
+                    Ok(RolloutExecutionResult {
+                        should_execute: false,
+                        proxy_override: None,
+                    })
+                }
             }
         },
         Err(err) => {
             logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(false)
+            Ok(RolloutExecutionResult {
+                should_execute: false,
+                proxy_override: None,
+            })
         }
     }
 }
