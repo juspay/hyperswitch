@@ -52,6 +52,7 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
         self.map_err(|err| {
             let new_err = match err.current_context() {
                 errors::StorageError::ValueNotFound(_) => not_found_response,
+                errors::StorageError::DecryptionError => not_found_response,
                 errors::StorageError::CustomerRedacted => {
                     errors::ApiErrorResponse::CustomerRedacted
                 }
