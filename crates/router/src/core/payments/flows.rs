@@ -26,6 +26,7 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     payments as domain_payments, router_request_types::PaymentsCaptureData,
 };
+use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{
@@ -112,10 +113,10 @@ pub trait Feature<F, T> {
 
     async fn pre_decide_flows<'a>(
         self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
-        pre_decide_inputs: PreDecideFlowInputs<'a>,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _merchant_context: &domain::MerchantContext,
+        _pre_decide_inputs: PreDecideFlowInputs<'a>,
     ) -> RouterResult<(PreDecideFlowOutput, Self)>
     where
         Self: Sized,
@@ -246,6 +247,9 @@ pub trait Feature<F, T> {
     ) {
     }
 
+    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
+        None
+    }
     async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,

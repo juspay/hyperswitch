@@ -66,6 +66,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -4080,7 +4081,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn _call_connector_service<F, RouterDReq, ApiRequest, D>(
+pub async fn call_connector_service_with_pre_decide_flow<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_context: &domain::MerchantContext,
@@ -4097,7 +4098,7 @@ pub async fn _call_connector_service<F, RouterDReq, ApiRequest, D>(
     is_retry_payment: bool,
     return_raw_connector_response: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4728,27 +4729,61 @@ where
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
 
-    call_connector_service(
-        state,
-        req_state,
-        merchant_context,
-        connector,
-        operation,
-        payment_data,
-        customer,
-        call_connector_action,
-        validate_result,
-        schedule_time,
-        header_payload,
-        frm_suggestion,
-        business_profile,
-        is_retry_payment,
-        all_keys_required,
-        merchant_connector_account,
-        router_data,
-        tokenization_action,
-    )
-    .await
+    let should_call_connector_service_with_pre_decide_flow = router_data
+        .get_current_flow_info()
+        .map(|current_flow_info| {
+            connector
+                .connector
+                .should_call_connector_service_with_pre_decide_flow(current_flow_info)
+        })
+        .unwrap_or(false);
+
+    if should_call_connector_service_with_pre_decide_flow {
+        logger::info!("Calling call_connector_service_with_pre_decide_flow");
+        call_connector_service_with_pre_decide_flow(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+        )
+        .await
+    } else {
+        call_connector_service(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -4815,28 +4850,61 @@ where
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
 
+    let should_call_connector_service_with_pre_decide_flow = router_data
+        .get_current_flow_info()
+        .map(|current_flow_info| {
+            connector
+                .connector
+                .should_call_connector_service_with_pre_decide_flow(current_flow_info)
+        })
+        .unwrap_or(false);
     // Call Direct connector service
-    let result = call_connector_service(
-        state,
-        req_state,
-        merchant_context,
-        connector,
-        operation,
-        payment_data,
-        customer,
-        call_connector_action,
-        validate_result,
-        schedule_time,
-        header_payload,
-        frm_suggestion,
-        business_profile,
-        is_retry_payment,
-        all_keys_required,
-        merchant_connector_account,
-        router_data,
-        tokenization_action,
-    )
-    .await?;
+    let result = if should_call_connector_service_with_pre_decide_flow {
+        logger::info!("Calling call_connector_service_with_pre_decide_flow");
+        call_connector_service_with_pre_decide_flow(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+        )
+        .await?
+    } else {
+        call_connector_service(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+        )
+        .await?
+    };
 
     // Spawn shadow UCS call in background
     let direct_router_data = result.0.clone();

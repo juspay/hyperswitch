@@ -249,7 +249,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PaymentsTaxCalculationData,
             TaxCalculationResponseData,
             > for $path::$connector{}
-         impl ConnectorIntegrationV2<
+        impl ConnectorIntegrationV2<
             SdkSessionUpdate,
             PaymentFlowData,
             SdkPaymentsSessionUpdateData,

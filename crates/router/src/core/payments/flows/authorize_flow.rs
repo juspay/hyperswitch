@@ -240,7 +240,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             );
 
         router_data = router_data.preprocessing_steps(state, connector).await?;
-        let should_continue = matches!(
+        let should_continue_further = matches!(
             router_data.response,
             Ok(types::PaymentsResponseData::TransactionResponse {
                 ref redirection_data,
@@ -258,6 +258,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         } else {
             None
         };
+
+        // TODO add logic to do connector specific pre tasks if any
 
         // In case of authorize flow, pre-task and post-tasks are being called in build request
         // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -278,9 +280,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             connector_response_reference_id,
             session_token,
             connector_request,
-            should_continue_further: should_continue,
+            should_continue_further,
         };
         Ok((pre_decide_output, router_data))
+    }
+    fn get_current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo<'_>> {
+        Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: &self.auth_type,
+            request_data: &self.request,
+        })
     }
     async fn decide_flows<'a>(
         mut self,
@@ -476,10 +484,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .connector
             .get_preprocessing_flow_if_needed(current_flow_info);
         match preprocessing_flow_name {
-            Some(api_interface::PreProcessingFlowName::PreProcessing) | None => {
-                // Calling this function for None as well to maintain backward compatibility
+            Some(api_interface::PreProcessingFlowName::PreProcessing) => {
                 authorize_preprocessing_steps(state, &self, true, connector).await
             }
+            None => Ok(self),
         }
     }
 
