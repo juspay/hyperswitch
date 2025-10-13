@@ -6075,6 +6075,8 @@ payment_method_type = "Interac"
 payment_method_type = "Maestro"
 [[finix.wallet]]
   payment_method_type = "google_pay"
+[[finix.wallet]]
+  payment_method_type = "apple_pay"
 
 [loonio]
 [loonio.connector_auth.BodyKey]
