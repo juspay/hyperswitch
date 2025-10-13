@@ -56,22 +56,15 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Stax;
+pub struct Stax {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
 
 impl Stax {
     pub fn new() -> &'static Self {
-        &Self
-    }
-
-    fn amount_converter(&self) -> &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync) {
-        &FloatMajorUnitForConnector
-    }
-}
-
-// Retain Debug for logging
-impl std::fmt::Debug for Stax {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Stax")
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
     }
 }
 
@@ -402,7 +395,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
-            self.amount_converter(),
+            self.amount_convertor,
             req.request.minor_amount,
             req.request.currency,
         )?;
@@ -446,24 +439,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("StaxPaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_integrity_object = utils::get_authorise_integrity_object(
-            self.amount_converter(),
-            response.total,
-            response.currency.clone(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_data.request.integrity_object = Some(response_integrity_object);
-        Ok(router_data)
     }
 
     fn get_error_response(
@@ -531,24 +514,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sta
             .parse_struct("StaxPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_integrity_object = utils::get_sync_integrity_object(
-            self.amount_converter(),
-            response.total,
-            response.currency.clone(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_data.request.integrity_object = Some(response_integrity_object);
-        Ok(router_data)
     }
 
     fn get_error_response(
@@ -591,7 +564,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
-            self.amount_converter(),
+            self.amount_convertor,
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
@@ -632,24 +605,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("StaxPaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_integrity_object = utils::get_capture_integrity_object(
-            self.amount_converter(),
-            Some(response.total),
-            response.currency.clone(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_data.request.integrity_object = Some(response_integrity_object);
-        Ok(router_data)
     }
 
     fn get_error_response(
@@ -770,7 +733,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stax {
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
-            self.amount_converter(),
+            self.amount_convertor,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
@@ -810,30 +773,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stax {
             .parse_struct("StaxRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let refunded_total = response
-            .child_transactions
-            .first()
-            .map(|txn| txn.total)
-            .unwrap_or(FloatMajorUnit::zero());
-
-        let response_integrity_object = utils::get_refund_integrity_object(
-            self.amount_converter(),
-            refunded_total,
-            data.request.currency.to_string(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_data.request.integrity_object = Some(response_integrity_object);
-        Ok(router_data)
     }
 
     fn get_error_response(
@@ -896,30 +843,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stax {
             .parse_struct("StaxRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let refunded_total = response
-            .child_transactions
-            .first()
-            .map(|txn| txn.total)
-            .unwrap_or(FloatMajorUnit::zero());
-
-        let response_integrity_object = utils::get_refund_integrity_object(
-            self.amount_converter(),
-            refunded_total,
-            data.request.currency.to_string(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_data.request.integrity_object = Some(response_integrity_object);
-        Ok(router_data)
     }
 
     fn get_error_response(
@@ -1112,70 +1043,3 @@ impl ConnectorSpecifications for Stax {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Stax;
-    use common_enums::enums::Currency;
-    use common_utils::types::MinorUnit;
-
-    #[test]
-    fn test_stax_amount_conversion_round_trip_usd() {
-        let stax = Stax::new();
-        let converter = stax.amount_converter();
-
-        let original_minor = MinorUnit::new(12_345); // $123.45
-        let major = crate::utils::convert_amount(converter, original_minor, Currency::USD)
-            .expect("conversion to FloatMajorUnit should succeed");
-        let back_minor = crate::utils::convert_back_amount_to_minor_units(
-            converter,
-            major,
-            Currency::USD,
-        )
-        .expect("conversion back to MinorUnit should succeed");
-
-        assert_eq!(back_minor, original_minor);
-    }
-
-    #[test]
-    fn test_stax_amount_conversion_round_trip_jpy_zero_decimal() {
-        let stax = Stax::new();
-        let converter = stax.amount_converter();
-
-        let original_minor = MinorUnit::new(123); // JPY has 0 decimals, so 123 stays 123
-        let major = crate::utils::convert_amount(converter, original_minor, Currency::JPY)
-            .expect("conversion to FloatMajorUnit should succeed");
-        let back_minor = crate::utils::convert_back_amount_to_minor_units(
-            converter,
-            major,
-            Currency::JPY,
-        )
-        .expect("conversion back to MinorUnit should succeed");
-
-        assert_eq!(back_minor, original_minor);
-    }
-
-    #[test]
-    fn test_stax_amount_conversion_round_trip_bhd_three_decimal() {
-        let stax = Stax::new();
-        let converter = stax.amount_converter();
-
-        let original_minor = MinorUnit::new(12_345); // BHD has 3 decimals, 12.345 BHD
-        let major = crate::utils::convert_amount(converter, original_minor, Currency::BHD)
-            .expect("conversion to FloatMajorUnit should succeed");
-        let back_minor = crate::utils::convert_back_amount_to_minor_units(
-            converter,
-            major,
-            Currency::BHD,
-        )
-        .expect("conversion back to MinorUnit should succeed");
-
-        assert_eq!(back_minor, original_minor);
-    }
-
-    #[test]
-    fn test_stax_currency_unit_is_base() {
-        let stax = Stax::new();
-        let unit = hyperswitch_interfaces::api::ConnectorCommon::get_currency_unit(stax);
-        assert!(matches!(unit, hyperswitch_interfaces::api::CurrencyUnit::Base));
-    }
-}

@@ -329,16 +329,16 @@ pub struct StaxChildCapture {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StaxPaymentsResponse {
-    pub success: bool,
-    pub id: String,
-    pub is_captured: i8,
-    pub is_voided: bool,
-    pub child_captures: Vec<StaxChildCapture>,
+    success: bool,
+    id: String,
+    is_captured: i8,
+    is_voided: bool,
+    child_captures: Vec<StaxChildCapture>,
     #[serde(rename = "type")]
-    pub payment_response_type: StaxPaymentResponseTypes,
-    pub total: FloatMajorUnit,
-    pub currency: String,
-    pub idempotency_id: Option<String>,
+    payment_response_type: StaxPaymentResponseTypes,
+    total: FloatMajorUnit,
+    currency: String,
+    idempotency_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -427,16 +427,16 @@ impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundReq
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ChildTransactionsInResponse {
-    pub id: String,
-    pub success: bool,
-    pub created_at: String,
-    pub total: FloatMajorUnit,
+    id: String,
+    success: bool,
+    created_at: String,
+    total: FloatMajorUnit,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
-    pub id: String,
-    pub success: bool,
-    pub child_transactions: Vec<ChildTransactionsInResponse>,
+    id: String,
+    success: bool,
+    child_transactions: Vec<ChildTransactionsInResponse>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
