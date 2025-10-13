@@ -244,6 +244,24 @@ fn get_connector_payment_method_type_fields(
             )
         }
 
+        // Bank Redirect
+        PaymentMethodType::Interac => {
+            common_fields.extend(get_interac_fields());
+            (
+                payment_method_type,
+                ConnectorFields {
+                    fields: HashMap::from([(
+                        connector.into(),
+                        RequiredFieldFinal {
+                            mandate: HashMap::new(),
+                            non_mandate: HashMap::new(),
+                            common: common_fields,
+                        },
+                    )]),
+                },
+            )
+        }
+
         _ => (
             payment_method_type,
             ConnectorFields {
@@ -373,6 +391,38 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
             value: None,
         },
     )])
+}
+
+fn get_interac_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([
+        (
+            "payout_method_data.bank_redirect.interac.email".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
+                display_name: "email".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "billing.address.first_name".to_string(),
+            RequiredFieldInfo {
+                required_field: "billing.address.first_name".to_string(),
+                display_name: "billing_address_first_name".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "billing.address.last_name".to_string(),
+            RequiredFieldInfo {
+                required_field: "billing.address.last_name".to_string(),
+                display_name: "billing_address_last_name".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+    ])
 }
 
 fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2> {

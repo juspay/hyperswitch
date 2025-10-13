@@ -2,8 +2,9 @@ pub mod request;
 pub mod response;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{
         self as flows,
@@ -27,13 +28,28 @@ pub use response::*;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{AddressDetailsData, CardData, RouterData as _},
+    utils::{
+        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        RouterData as _,
+    },
 };
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub amount: MinorUnit,
     pub router_data: &'a RouterData<Flow, Req, Res>,
     pub merchant_id: Secret<String>,
+    pub merchant_identity_id: Secret<String>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FinixMeta {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        Ok(metadata)
+    }
 }
 
 impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
@@ -44,11 +60,13 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     fn try_from(value: (MinorUnit, &'a RouterData<Flow, Req, Res>)) -> Result<Self, Self::Error> {
         let (amount, router_data) = value;
         let auth = FinixAuthType::try_from(&router_data.connector_auth_type)?;
+        let connector_meta = FinixMeta::try_from(&router_data.connector_meta_data)?;
 
         Ok(Self {
             amount,
             router_data,
             merchant_id: auth.merchant_id,
+            merchant_identity_id: connector_meta.merchant_id,
         })
     }
 }
@@ -125,6 +143,15 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("finix"),
+            )
+            .into());
+        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
                 let source = item.router_data.get_payment_method_token()?;
@@ -148,6 +175,28 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                     three_d_secure: None,
                 })
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                let source = item.router_data.get_payment_method_token()?;
+                Ok(Self {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                    source: match source {
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Finix"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Finix"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Finix"))?
+                        }
+                    },
+                    merchant: item.merchant_id.clone(),
+                    tags: None,
+                    three_d_secure: None,
+                })
+            }
             _ => Err(
                 ConnectorError::NotImplemented("Payment method not supported".to_string()).into(),
             ),
@@ -163,7 +212,7 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
         item: &FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            capture_amount: item.router_data.request.minor_amount_to_capture,
         })
     }
 }
@@ -204,6 +253,32 @@ impl
                     card_brand: None, // Finix determines this from the card number
                     card_type: None,  // Finix determines this from the card number
                     additional_data: None,
+                    merchant_identity: None,
+                    third_party_token: None,
+                })
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_wallet_data)) => {
+                let third_party_token = google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "google_pay_token",
+                    })?;
+                Ok(Self {
+                    instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
+                    name: item.router_data.get_optional_billing_full_name(),
+                    identity: item.router_data.get_connector_customer_id()?,
+                    number: None,
+                    security_code: None,
+                    expiration_month: None,
+                    expiration_year: None,
+                    tags: None,
+                    address: None,
+                    card_brand: None,
+                    card_type: None,
+                    additional_data: None,
+                    merchant_identity: Some(item.merchant_identity_id.clone()),
+                    third_party_token: Some(Secret::new(third_party_token)),
                 })
             }
             _ => Err(ConnectorError::NotImplemented(
@@ -269,12 +344,16 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
             AttemptStatus::AuthorizationFailed
         }
-
-        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
+        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::Pending,
         (FinixFlow::Transfer, FinixState::SUCCEEDED) => AttemptStatus::Charged,
         (FinixFlow::Transfer, FinixState::FAILED)
         | (FinixFlow::Transfer, FinixState::CANCELED)
-        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
+        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
+        (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::FAILED)
+        | (FinixFlow::Capture, FinixState::CANCELED)
+        | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,
     }
 }
 
@@ -310,7 +389,12 @@ pub(crate) fn get_finix_response<F, T>(
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    router_data
+                        .response
+                        .transfer
+                        .unwrap_or(router_data.response.id),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,

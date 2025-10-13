@@ -20,6 +20,7 @@ pub struct FinixPaymentsResponse {
     pub failure_code: Option<String>,
     pub messages: Option<Vec<String>>,
     pub failure_message: Option<String>,
+    pub transfer: Option<String>,
     pub tags: FinixTags,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
