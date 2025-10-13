@@ -334,8 +334,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            payment_data.webhook_url
+        }
     };
 
     let router_return_url = payment_data
@@ -587,8 +588,9 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            payment_data.webhook_url.clone()
+        }
     };
 
     let router_return_url = payment_data
@@ -1432,9 +1434,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
-            todo!("Add webhook URL to request for this connector")
+            payment_data.webhook_url
         }
     };
 
@@ -2610,16 +2611,24 @@ where
                 .clone(),
         )?;
 
-        let next_action_containing_wait_screen =
-            wait_screen_next_steps_check(payment_attempt.clone())?;
-
         let next_action = if payment_intent.status.is_in_terminal_state() {
             None
         } else {
+            let next_action_containing_wait_screen =
+                wait_screen_next_steps_check(payment_attempt.clone())?;
+
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                    api_models::payments::NextActionData::SdkUpiIntentInformation {
+                        sdk_uri: sdk_uri_data.sdk_uri,
+                    }
+                }))
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3360,6 +3369,9 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
@@ -3368,6 +3380,7 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
+                || next_action_containing_sdk_upi_intent.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3399,6 +3412,11 @@ where
                             .or(papal_sdk_next_action.map(|paypal_next_action_data| {
                                 api_models::payments::NextActionData::InvokeSdkClient{
                                     next_action_data: paypal_next_action_data
+                                }
+                            }))
+                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                                api_models::payments::NextActionData::SdkUpiIntentInformation {
+                                    sdk_uri: sdk_uri_data.sdk_uri,
                                 }
                             }))
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {
@@ -3819,6 +3837,18 @@ pub fn fetch_qr_code_url_next_steps_check(
 
     let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_fetch_url)
+}
+
+pub fn extract_sdk_uri_information(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
+    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
+
+    let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
+    Ok(sdk_uri_information)
 }
 
 pub fn wait_screen_next_steps_check(

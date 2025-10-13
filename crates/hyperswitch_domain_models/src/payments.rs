@@ -849,7 +849,7 @@ impl PaymentIntent {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub client_source: Option<String>,
@@ -879,7 +879,7 @@ pub struct ClickToPayMetaData {
 
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     /// The source with which the payment is confirmed.
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
@@ -944,6 +944,8 @@ where
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
+    /// The webhook url of the merchant, to which the connector will send the webhook.
+    pub webhook_url: Option<String>,
 }
 
 #[cfg(feature = "v2")]

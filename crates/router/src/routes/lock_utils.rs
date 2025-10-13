@@ -91,6 +91,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ConfirmSubscription
             | Flow::CreateAndConfirmSubscription
             | Flow::GetSubscription
+            | Flow::GetSubscriptionEstimate
             | Flow::GetPlansForSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
@@ -125,6 +126,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::NetworkTokenStatusCheck
             | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
@@ -306,6 +308,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleV2
             | Flow::GetRoleFromToken
             | Flow::GetRoleFromTokenV2
+            | Flow::GetParentGroupsInfoForRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo

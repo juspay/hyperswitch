@@ -7,7 +7,11 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_utils::{
+    ext_traits::ConfigExt,
+    id_type,
+    types::{user::EmailThemeConfig, Url},
+};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -20,6 +24,7 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
 pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::{
@@ -168,8 +173,10 @@ pub struct Settings<S: SecretState> {
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub internal_services: InternalServicesConfig,
+    pub comparison_service: Option<ComparisonServiceConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -196,6 +203,13 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ComparisonServiceConfig {
+    pub url: Url,
+    pub enabled: bool,
+    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1145,6 +1159,11 @@ impl Settings<SecuredSecret> {
             .as_ref()
             .map(|config| config.validate())
             .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition
+            .get_inner()
+            .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())

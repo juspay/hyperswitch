@@ -37,6 +37,10 @@ impl PaymentsApiClient {
                 ),
             ),
             (
+                headers::X_TENANT_ID.to_string(),
+                masking::Maskable::Normal(state.tenant.tenant_id.get_string_repr().to_string()),
+            ),
+            (
                 headers::X_MERCHANT_ID.to_string(),
                 masking::Maskable::Normal(merchant_id.to_string()),
             ),
@@ -187,6 +191,29 @@ impl PaymentsApiClient {
             url,
             None,
             "Sync Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
+
+    pub async fn create_mit_payment(
+        state: &SessionState,
+        request: subscription_types::CreateMitPaymentRequestData,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments", base_url);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Create MIT Payment",
             merchant_id,
             profile_id,
         )
