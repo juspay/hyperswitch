@@ -348,7 +348,7 @@ impl
 
                     Ok(Self {
                         instrument_type: FinixPaymentInstrumentType::ApplePay,
-                        name: None,
+                        name: item.router_data.get_optional_billing_full_name(),
                         number: None,
                         security_code: None,
                         expiration_month: None,
