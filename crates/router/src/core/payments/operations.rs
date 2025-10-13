@@ -32,6 +32,8 @@ pub mod payment_update_metadata;
 #[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
+pub mod payments_extend_authorization;
+#[cfg(feature = "v1")]
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
@@ -86,7 +88,7 @@ pub use self::{
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
-    tax_calculation::PaymentSessionUpdate,
+    tax_calculation::PaymentSessionUpdate, payments_extend_authorization::PaymentExtendAuthorization,
 };
 #[cfg(feature = "v2")]
 pub use self::{

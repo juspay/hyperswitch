@@ -150,6 +150,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
+            | Flow::PaymentsExtendAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo

@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
             PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-            UpdateMetadata, Void,
+            UpdateMetadata, Void, ExtendAuthorization,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -45,7 +45,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, PaymentsExtendAuthorizationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
@@ -110,7 +110,7 @@ use hyperswitch_interfaces::{
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
             PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
             PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2, PaymentsPostProcessingV2,
-            PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentsPreProcessingV2, TaxCalculationV2, PaymentExtendAuthorizationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -144,6 +144,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionV2 for $path::$connector{}
             impl MandateSetupV2 for $path::$connector{}
             impl PaymentIncrementalAuthorizationV2 for $path::$connector{}
+            impl PaymentExtendAuthorizationV2 for $path::$connector{}
             impl PaymentsCompleteAuthorizeV2 for $path::$connector{}
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
@@ -188,6 +189,14 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             IncrementalAuthorization,
                 PaymentFlowData,
                 PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            ExtendAuthorization,
+                PaymentFlowData,
+                PaymentsExtendAuthorizationData,
                 PaymentsResponseData,
             >
             for $path::$connector{}

@@ -7,6 +7,7 @@ pub mod complete_authorize_flow;
 #[cfg(feature = "v2")]
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
+pub mod extend_authorization_flow;
 pub mod post_session_tokens_flow;
 pub mod psync_flow;
 pub mod reject_flow;

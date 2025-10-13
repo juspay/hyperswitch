@@ -38,7 +38,7 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
-        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
+        IncrementalAuthorization, ExtendAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
         PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
         UpdateMetadata, Void,
     },
@@ -76,7 +76,7 @@ pub use hyperswitch_domain_models::{
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData, PaymentsExtendAuthorizationData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
@@ -155,6 +155,10 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsExtendAuthorizationRouterData = RouterData<ExtendAuthorization,
+PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 
@@ -195,6 +199,8 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsExtendAuthorizationResponseRouterData<R> =
+    ResponseRouterData<ExtendAuthorization, R, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type PaymentsBalanceResponseRouterData<R> =
     ResponseRouterData<Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
@@ -646,6 +652,50 @@ impl Capturable for PaymentsSyncData {
             Some(0)
         } else {
             None
+        }
+    }
+}
+impl Capturable for PaymentsExtendAuthorizationData {
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Some(0),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
 }

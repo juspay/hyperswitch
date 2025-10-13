@@ -887,6 +887,14 @@ pub struct PaymentsCancelPostCaptureData {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct PaymentsExtendAuthorizationData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,

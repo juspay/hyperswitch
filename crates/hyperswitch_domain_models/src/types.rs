@@ -12,7 +12,7 @@ use crate::{
         },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
-        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
+        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize, ExtendAuthorization,
         CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy, GiftCardBalanceCheck,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
         PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
@@ -37,7 +37,7 @@ use crate::{
         ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData, PaymentsExtendAuthorizationData,
         PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, SdkPaymentsSessionUpdateData,
@@ -129,6 +129,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsExtendAuthorizationRouterData =
+    RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 

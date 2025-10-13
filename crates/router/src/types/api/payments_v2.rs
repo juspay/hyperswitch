@@ -4,5 +4,5 @@ pub use hyperswitch_interfaces::api::payments_v2::{
     PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2,
     PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2,
     PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
-    TaxCalculationV2,
+    TaxCalculationV2, PaymentExtendAuthorizationV2,
 };

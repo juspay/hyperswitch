@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void, ExtendAuthorization,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
         FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsIncrementalAuthorizationData, PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
@@ -188,6 +188,13 @@ pub type TokenizationType = dyn ConnectorIntegration<
 pub type IncrementalAuthorizationType = dyn ConnectorIntegration<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>`
+pub type ExtendedAuthorizationType = dyn ConnectorIntegration<
+ExtendAuthorization,
+PaymentsExtendAuthorizationData,
     PaymentsResponseData,
 >;
 
