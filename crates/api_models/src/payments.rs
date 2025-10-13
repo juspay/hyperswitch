@@ -1229,48 +1229,59 @@ pub struct PaymentsRequest {
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
+    #[smithy(value_type = "Option<String>")]
     pub payment_link_config_id: Option<String>,
 
     /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<id_type::ProfileId>,
 
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
+    #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
+    #[smithy(value_type = "Option<PaymentType>")]
     pub payment_type: Option<api_enums::PaymentType>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
+    #[smithy(value_type = "Option<bool>")]
     pub request_incremental_authorization: Option<bool>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
+    #[smithy(value_type = "Option<u32>")]
     pub session_expiry: Option<u32>,
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub request_external_three_ds_authentication: Option<bool>,
 
     /// Details required for recurring payment
+    #[smithy(value_type = "Option<RecurringDetails>")]
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
     #[schema(value_type = Option<SplitPaymentsRequest>)]
+    #[smithy(value_type = "Option<SplitPaymentsRequest>")]
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple
     #[schema(value_type = Option<bool>, default = false)]
+    #[smithy(value_type = "Option<bool>")]
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.
@@ -1279,29 +1290,37 @@ pub struct PaymentsRequest {
         max_length = 255,
         example = "Custom_Order_id_123"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_order_reference_id: Option<String>,
 
     /// Whether to calculate tax for this payment intent
+    #[smithy(value_type = "Option<bool>")]
     pub skip_external_tax_calculation: Option<bool>,
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
+    #[smithy(value_type = "Option<ScaExemptionType>")]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
+    #[smithy(value_type = "Option<CtpServiceDetails>")]
     pub ctp_service_details: Option<CtpServiceDetails>,
 
     /// Indicates if 3ds challenge is forced
+    #[smithy(value_type = "Option<bool>")]
     pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if 3DS method data was successfully completed or not
+    #[smithy(value_type = "Option<ThreeDsCompletionIndicator>")]
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[smithy(value_type = "Option<bool>")]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
     pub all_keys_required: Option<bool>,
 
     /// Indicates whether the `payment_id` was provided by the merchant
@@ -1312,20 +1331,25 @@ pub struct PaymentsRequest {
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
     #[schema(value_type = Option<PaymentChannel>)]
+    #[smithy(value_type = "Option<PaymentChannel>")]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 
     /// Your tax status for this order or transaction.
     #[schema(value_type = Option<TaxStatus>)]
+    #[smithy(value_type = "Option<TaxStatus>")]
     pub tax_status: Option<api_enums::TaxStatus>,
 
     /// Total amount of the discount you have applied to the order or transaction.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub discount_amount: Option<MinorUnit>,
 
     /// Tax amount applied to shipping charges.
+    #[smithy(value_type = "Option<i64>")]
     pub shipping_amount_tax: Option<MinorUnit>,
 
     /// Duty or customs fee amount for international transactions.
+    #[smithy(value_type = "Option<i64>")]
     pub duty_amount: Option<MinorUnit>,
 
     /// Date the payer placed the order.
@@ -1334,35 +1358,45 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
+    #[smithy(value_type = "Option<bool>")]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 
     /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
     #[schema(value_type = Option<bool>, example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CtpServiceDetails {
     /// merchant transaction id
+    #[smithy(value_type = "Option<String>")]
     pub merchant_transaction_id: Option<String>,
     /// network transaction correlation id
+    #[smithy(value_type = "Option<String>")]
     pub correlation_id: Option<String>,
     /// session transaction flow id
+    #[smithy(value_type = "Option<String>")]
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
     #[schema(value_type = Option<CtpServiceProvider>)]
+    #[smithy(value_type = "Option<CtpServiceProvider>")]
     pub provider: Option<api_enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub encrypted_payload: Option<Secret<String>>,
 }
 
@@ -1608,11 +1642,14 @@ mod payments_request_test {
 
 /// Details of surcharge applied on this payment, if applicable
 #[derive(
-    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq, SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RequestSurchargeDetails {
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub surcharge_amount: MinorUnit,
+    #[smithy(value_type = "Option<i64>")]
     pub tax_amount: Option<MinorUnit>,
 }
 
@@ -8631,7 +8668,8 @@ pub struct PaymentsManualUpdateResponse {
     pub connector_transaction_id: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Indicates if 3DS method data was successfully completed or not
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed

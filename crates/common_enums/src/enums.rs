@@ -2301,6 +2301,7 @@ pub enum GatewaySystem {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -2308,6 +2309,7 @@ pub enum GatewaySystem {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentType {
     #[default]
     Normal,
@@ -2326,6 +2328,7 @@ pub enum PaymentType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -2333,6 +2336,7 @@ pub enum PaymentType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ScaExemptionType {
     #[default]
     LowValue,
@@ -2350,6 +2354,7 @@ pub enum ScaExemptionType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2359,6 +2364,7 @@ pub enum ScaExemptionType {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Describes the channel through which the payment was initiated.
 pub enum PaymentChannel {
     #[default]
@@ -2381,10 +2387,12 @@ pub enum PaymentChannel {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CtpServiceProvider {
     Visa,
     Mastercard,
@@ -8027,6 +8035,7 @@ pub enum MerchantDecision {
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -8035,6 +8044,7 @@ pub enum MerchantDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum TaxStatus {
     Taxable,
     Exempt,
@@ -9136,9 +9146,12 @@ impl ErrorCategory {
     strum::EnumString,
     ToSchema,
     Hash,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentChargeType {
     #[serde(untagged)]
+    #[smithy(value_type = "StripeChargeType")]
     Stripe(StripeChargeType),
 }
 
@@ -9154,9 +9167,11 @@ pub enum PaymentChargeType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    SmithyModel,
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum StripeChargeType {
     #[default]
     Direct,
@@ -9304,12 +9319,14 @@ pub enum GooglePayAuthMethod {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
 )]
 #[strum(serialize_all = "PascalCase")]
 #[serde(rename_all = "PascalCase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AdyenSplitType {
     /// Books split amount to the specified account.
     BalanceAccount,
@@ -9381,6 +9398,7 @@ pub enum TriggeredBy {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -9388,6 +9406,7 @@ pub enum TriggeredBy {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
     Installment,
