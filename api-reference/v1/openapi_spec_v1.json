@@ -28934,6 +28934,10 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -29290,6 +29294,10 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
             "nullable": true
           }
         }

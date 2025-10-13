@@ -22104,7 +22104,8 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name"
+          "profile_name",
+          "is_l2_l3_enabled"
         ],
         "properties": {
           "profile_name": {
@@ -22348,6 +22349,9 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -22654,6 +22658,10 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
             "nullable": true
           }
         }
