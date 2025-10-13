@@ -5983,6 +5983,11 @@ pub struct ProxyPaymentsRequest {
 
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// Account Updater flag to enable/disable Account Updater for this payment
+    /// When true, the connector will request Account Updater from the payment processor
+    #[schema(example = true)]
+    pub enable_account_updater: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]

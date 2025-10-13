@@ -1,0 +1,1 @@
+ALTER TABLE business_profile DROP COLUMN is_account_updater_enabled;

@@ -95,6 +95,15 @@ pub async fn call_proxy_api(
         processor_payment_token: payment_processor_token.to_string(),
         merchant_connector_id: Some(revenue_recovery.get_merchant_connector_id_for_api_request()),
     };
+    // Check if Account Updater should be enabled
+    let enable_account_updater = crate::core::account_updater::should_enable_account_updater(
+        &revenue_recovery_payment_data.profile,
+        "card", // Revenue Recovery always uses card-based payments
+        "credit", // Default to credit for Revenue Recovery
+        true, // Revenue Recovery payments are MIT (Merchant Initiated Transaction)
+        Some("subsequent"), // Revenue Recovery uses stored cards
+    );
+
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
@@ -103,6 +112,7 @@ pub async fn call_proxy_api(
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
         merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
+        enable_account_updater: Some(enable_account_updater),
     };
     logger::info!(
         "Call made to payments proxy api , with the request body {:?}",

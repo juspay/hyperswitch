@@ -83,6 +83,7 @@ pub struct Profile {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_account_updater_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -145,6 +146,7 @@ pub struct ProfileNew {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_account_updater_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -208,6 +210,7 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_account_updater_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -268,6 +271,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            is_account_updater_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -362,6 +366,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            is_account_updater_enabled: is_account_updater_enabled.or(source.is_account_updater_enabled),
         }
     }
 }
@@ -443,6 +448,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub is_account_updater_enabled: Option<bool>,
 }
 
 impl Profile {
@@ -581,6 +587,7 @@ pub struct ProfileUpdateInternal {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub is_account_updater_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -639,6 +646,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             split_txns_enabled,
+            is_account_updater_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -739,6 +747,7 @@ impl ProfileUpdateInternal {
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            is_account_updater_enabled: is_account_updater_enabled.or(source.is_account_updater_enabled),
         }
     }
 }

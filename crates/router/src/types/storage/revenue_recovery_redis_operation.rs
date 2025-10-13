@@ -28,6 +28,27 @@ pub struct PaymentProcessorTokenDetails {
     pub card_type: Option<String>,
 }
 
+/// Account Updater change tracking
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AccountUpdaterChange {
+    pub change_type: AccountUpdaterChangeType,
+    pub old_value: Option<String>,
+    pub new_value: Option<String>,
+    pub changed_at: PrimitiveDateTime,
+    pub change_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AccountUpdaterChangeType {
+    CardNumberChanged,
+    ExpiryDateChanged,
+    CvvChanged,
+    TokenReplaced,
+    RetryCountIncremented,
+    TokenDeactivated,
+    TokenActivated,
+}
+
 /// Represents the status and retry history of a payment processor token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentProcessorTokenStatus {
@@ -43,6 +64,20 @@ pub struct PaymentProcessorTokenStatus {
     pub scheduled_at: Option<PrimitiveDateTime>,
     /// Indicates if the token is a hard decline (no retries allowed)
     pub is_hard_decline: Option<bool>,
+    /// Indicates if the token is active (for Account Updater)
+    pub is_active: bool,
+    /// Reference to the token that replaced this one (for Account Updater)
+    pub replaced_by_token_id: Option<String>,
+    /// Account Updater changes tracking
+    pub account_updater_changes: Vec<AccountUpdaterChange>,
+    /// Retry count for this token
+    pub retry_count: u32,
+    /// Last retry timestamp
+    pub last_retry_at: Option<PrimitiveDateTime>,
+    /// Maximum retry count allowed
+    pub max_retry_count: u32,
+    /// Account Updater last update timestamp
+    pub account_updater_updated_at: Option<PrimitiveDateTime>,
 }
 
 /// Token retry availability information with detailed wait times
@@ -529,6 +564,13 @@ impl RedisTokenManager {
                         daily_retry_history: status.daily_retry_history.clone(),
                         scheduled_at: None,
                         is_hard_decline: *is_hard_decline,
+                        is_active: status.is_active,
+                        replaced_by_token_id: status.replaced_by_token_id.clone(),
+                        account_updater_changes: status.account_updater_changes.clone(),
+                        retry_count: status.retry_count,
+                        last_retry_at: status.last_retry_at,
+                        max_retry_count: status.max_retry_count,
+                        account_updater_updated_at: status.account_updater_updated_at,
                     })
             }
             None => None,
@@ -606,6 +648,13 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: schedule_time,
                     is_hard_decline: status.is_hard_decline,
+                    is_active: status.is_active,
+                    replaced_by_token_id: status.replaced_by_token_id.clone(),
+                    account_updater_changes: status.account_updater_changes.clone(),
+                    retry_count: status.retry_count,
+                    last_retry_at: status.last_retry_at,
+                    max_retry_count: status.max_retry_count,
+                    account_updater_updated_at: status.account_updater_updated_at,
                 });
 
         match updated_token {

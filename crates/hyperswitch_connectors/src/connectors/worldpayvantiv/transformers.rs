@@ -256,12 +256,21 @@ pub struct Authorization {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_updater_request: Option<AccountUpdaterRequest>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardholderAuthentication {
     authentication_value: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdaterRequest {
+    #[serde(rename = "@allowRealTimeUpdate")]
+    pub allow_real_time_update: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -292,6 +301,8 @@ pub struct Sale {
     pub original_network_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_partial_auth: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_updater_request: Option<AccountUpdaterRequest>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -765,6 +776,15 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                             .and_then(|enable_partial_authorization| {
                                 enable_partial_authorization.then_some(true)
                             }),
+                        account_updater_request: item
+                            .router_data
+                            .request
+                            .enable_account_updater
+                            .and_then(|enable_account_updater| {
+                                enable_account_updater.then_some(AccountUpdaterRequest {
+                                    allow_real_time_update: true,
+                                })
+                            }),
                     }),
                 )
             } else {
@@ -799,6 +819,15 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                             .enable_partial_authorization
                             .and_then(|enable_partial_authorization| {
                                 enable_partial_authorization.then_some(true)
+                            }),
+                        account_updater_request: item
+                            .router_data
+                            .request
+                            .enable_account_updater
+                            .and_then(|enable_account_updater| {
+                                enable_account_updater.then_some(AccountUpdaterRequest {
+                                    allow_real_time_update: true,
+                                })
                             }),
                     }),
                     None,
@@ -1300,6 +1329,16 @@ pub struct PaymentResponse {
     pub network_transaction_id: Option<Secret<String>>,
     pub approved_amount: Option<MinorUnit>,
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
+    pub updated_payment_instrument: Option<UpdatedPaymentInstrument>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatedPaymentInstrument {
+    pub token: Option<Secret<String>>,
+    pub card_number: Option<Secret<String>>,
+    pub exp_date: Option<Secret<String>>,
+    pub account_updater_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
