@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.08.1-hotfix1
+
+### Features
+
+- **migration:** Add connector_customer updation support to batch PM update API ([#9812](https://github.com/juspay/hyperswitch/pull/9812)) ([`cce3ded`](https://github.com/juspay/hyperswitch/commit/cce3ded40b819bf614b7876c011bb9412e86a4a3))
+
+**Full Changelog:** [`2025.10.08.1...2025.10.08.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.08.1...2025.10.08.1-hotfix1)
+
+- - -
+
 ## 2025.10.08.1
 
 ### Bug Fixes
