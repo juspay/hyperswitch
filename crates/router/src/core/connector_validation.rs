@@ -586,6 +586,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Finix => {
+                finix::transformers::FinixAuthType::try_from(self.auth_type)?;
+                finix::transformers::FinixMeta::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
         }
     }
 }

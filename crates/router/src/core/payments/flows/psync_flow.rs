@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
+use common_enums::{self, enums};
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
@@ -233,6 +234,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         let connector_name = self.connector.clone();
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -284,7 +286,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
