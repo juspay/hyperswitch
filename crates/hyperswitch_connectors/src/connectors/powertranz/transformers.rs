@@ -4,11 +4,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::Execute,
-    router_request_types::{
-        BrowserInformation, PaymentsCancelData, PaymentsCaptureData, ResponseId,
-    },
+    router_request_types::{BrowserInformation, PaymentsCancelData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};

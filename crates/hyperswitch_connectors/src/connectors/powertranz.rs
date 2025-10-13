@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::enums::AuthenticationType;
 use common_enums::enums;
