@@ -416,36 +416,172 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     merchant_context: &MerchantContext,
     connector_name: &str,
-) -> RouterResult<bool> {
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        logger::debug!(
-            connector = connector_name.to_string(),
-            "Unified Connector Service client is not available for webhooks"
-        );
-        return Ok(false);
-    }
+) -> RouterResult<GatewaySystem> {
 
-    let ucs_config_key = consts::UCS_ENABLED;
-
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        return Ok(false);
-    }
-
+    println!("should_call_unified_connector_service_for_webhooks() starts");
+    // Extract context information
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let config_key = format!(
-        "{}_{}_{}_Webhooks",
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
+
+    // Compute all relevant conditions
+    let ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
+    let ucs_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+
+    // Log if UCS client is not available
+    if !ucs_client_available {
+        router_env::logger::debug!(
+            "UCS client not available for webhooks - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    // Log if UCS is not enabled
+    if !ucs_enabled {
+        router_env::logger::debug!(
+            "UCS not enabled in configuration for webhooks - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
+
+    // Log if UCS configuration is missing
+    if ucs_config.is_none() {
+        router_env::logger::debug!(
+            "UCS configuration not found for webhooks - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    let ucs_only_connector =
+        ucs_config.is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+
+    let rollout_key = format!(
+        "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name,
+        "Webhooks"
+    );
+    let shadow_rollout_key = format!("{}_shadow", rollout_key);
+    println!("shadow_rollout_key: {:?}", shadow_rollout_key);
+
+    let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_enabled =
+        should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    println!("shadow_rollout_enabled: {:?}", shadow_rollout_enabled);
+
+    router_env::logger::debug!(
+        "Webhook rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
+        rollout_enabled,
+        shadow_rollout_enabled,
+        rollout_key,
         merchant_id,
         connector_name
     );
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    // Single decision point using pattern matching for webhooks
+    // For webhooks, we don't have previous gateway system to consider, so we simplify the logic
+    // Tuple structure: (ucs_infrastructure_ready, ucs_only_connector, shadow_rollout_enabled, rollout_enabled)
+    let decision = match (
+        ucs_client_available && ucs_enabled,
+        ucs_only_connector,
+        shadow_rollout_enabled,
+        rollout_enabled,
+    ) {
+        // ==================== DIRECT GATEWAY DECISIONS ====================
+        // All patterns that result in Direct routing
 
-    Ok(should_execute)
+        // UCS infrastructure not available (any configuration)
+        // - Client not available OR not enabled
+        // - Regardless of: ucs_only_connector, rollouts
+        (false, _, _, _) |
+
+        // UCS available but no rollouts active
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - No shadow rollout
+        // - No full rollout
+        (true, false, false, false) => {
+            router_env::logger::debug!(
+                "Routing webhooks to Direct: ucs_ready={}, ucs_only={}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::Direct
+        }
+
+        // ==================== SHADOW UCS DECISIONS ====================
+        // All patterns that result in Shadow UCS routing
+
+        // Shadow rollout enabled
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Shadow rollout enabled
+        // - Full rollout: any (false or true, shadow takes precedence)
+        (true, false, true, _) => {
+            router_env::logger::debug!(
+                "Routing webhooks to ShadowUnifiedConnectorService: ucs_ready={}, ucs_only={}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::ShadowUnifiedConnectorService
+        }
+
+        // ==================== UNIFIED CONNECTOR SERVICE DECISIONS ====================
+        // All patterns that result in UCS routing
+
+        // UCS-only connector (mandatory UCS)
+        // - Infrastructure ready
+        // - UCS-only connector flag set
+        // - Any shadow rollout state
+        // - Any full rollout state
+        (true, true, _, _) |
+
+        // Full rollout enabled
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - No shadow rollout (shadow would take precedence)
+        // - Full rollout enabled
+        (true, false, false, true) => {
+            router_env::logger::debug!(
+                "Routing webhooks to UnifiedConnectorService: ucs_ready={}, ucs_only={}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::UnifiedConnectorService
+        }
+    };
+
+    router_env::logger::info!(
+        "Webhook gateway system decision: {:?} - merchant_id={}, connector={}",
+        decision,
+        merchant_id,
+        connector_name
+    );
+
+    Ok(decision)
 }
 
 pub fn build_unified_connector_service_payment_method(

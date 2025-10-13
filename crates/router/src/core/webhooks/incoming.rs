@@ -231,15 +231,16 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         fetch_optional_mca_and_connector(&state, &merchant_context, connector_name_or_mca_id)
             .await?;
 
-    // Determine webhook processing path (UCS vs non-UCS) and handle event type extraction
-    let webhook_processing_result =
-        match if unified_connector_service::should_call_unified_connector_service_for_webhooks(
-            &state,
-            &merchant_context,
-            &connector_name,
-        )
-        .await?
-        {
+    // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
+    let gateway_system = unified_connector_service::should_call_unified_connector_service_for_webhooks(
+        &state,
+        &merchant_context,
+        &connector_name,
+    )
+    .await?;
+
+    let webhook_processing_result = match gateway_system {
+        common_enums::GatewaySystem::UnifiedConnectorService => {
             logger::info!(
                 connector = connector_name,
                 "Using Unified Connector Service for webhook processing",
@@ -253,8 +254,29 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 merchant_connector_account.as_ref(),
             )
             .await
-        } else {
-            // NON-UCS PATH: Need to decode body first
+        }
+        common_enums::GatewaySystem::ShadowUnifiedConnectorService => {
+            logger::info!(
+                connector = connector_name,
+                "Using Shadow Unified Connector Service for webhook processing",
+            );
+            process_shadow_ucs_webhook_transform(
+                &state,
+                &merchant_context,
+                &connector,
+                &connector_name,
+                &body,
+                &request_details,
+                merchant_connector_account.as_ref(),
+            )
+            .await
+        }
+        common_enums::GatewaySystem::Direct => {
+            logger::info!(
+                connector = connector_name,
+                "Using Direct connector processing for webhook",
+            );
+            // DIRECT PATH: Need to decode body first
             let decoded_body = connector
                 .decode_webhook_body(
                     &request_details,
@@ -268,7 +290,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .switch()
                 .attach_printable("There was an error in incoming webhook body decoding")?;
 
-            process_non_ucs_webhook(
+            process_non_ucs_webhook_transform(
                 &state,
                 &merchant_context,
                 &connector,
@@ -277,7 +299,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &request_details,
             )
             .await
-        } {
+        }
+    };
+
+    let webhook_processing_result = match webhook_processing_result {
             Ok(result) => result,
             Err(error) => {
                 let error_result = handle_incoming_webhook_error(
@@ -435,6 +460,214 @@ async fn process_ucs_webhook_transform(
         decoded_body: None, // UCS path uses raw body
     })
 }
+
+/// Process webhook using Shadow UCS - executes both UCS and Direct paths for comparison
+async fn process_shadow_ucs_webhook_transform(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    connector: &ConnectorEnum,
+    connector_name: &str,
+    body: &actix_web::web::Bytes,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
+) -> errors::RouterResult<WebhookProcessingResult> {
+
+    println!("process_shadow_ucs_webhook_transform() starts");
+    // Execute UCS path
+    let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
+        state,
+        merchant_context,
+        connector_name,
+        body,
+        request_details,
+        merchant_connector_account,
+    )
+    .await;
+
+    // Execute Direct path for comparison
+    let direct_result = async {
+        // Decode body for direct processing
+        let decoded_body = connector
+            .decode_webhook_body(
+                request_details,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_connector_account
+                    .and_then(|mca| mca.connector_webhook_details.clone()),
+                connector_name,
+            )
+            .await
+            .switch()
+            .attach_printable("There was an error in incoming webhook body decoding for shadow processing")?;
+
+        // Create request_details with decoded body for connector processing
+        let updated_request_details = IncomingWebhookRequestDetails {
+            method: request_details.method.clone(),
+            uri: request_details.uri.clone(),
+            headers: request_details.headers,
+            query_params: request_details.query_params.clone(),
+            body: &decoded_body,
+        };
+
+        // Get event type from direct connector
+        let event_type_result = connector
+            .get_webhook_event_type(&updated_request_details)
+            .allow_webhook_event_type_not_found(
+                state
+                    .clone()
+                    .conf
+                    .webhooks
+                    .ignore_error
+                    .event_type
+                    .unwrap_or(true),
+            )
+            .switch()
+            .attach_printable("Could not find event type in incoming webhook body for shadow processing");
+
+        match event_type_result {
+            Ok(Some(event_type)) => Ok(WebhookProcessingResult {
+                event_type,
+                source_verified: false,
+                transform_data: None,
+                decoded_body: Some(decoded_body.into()),
+            }),
+            Ok(None) => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to identify event type in incoming webhook body for shadow processing"),
+            Err(e) => Err(e),
+        }
+    }.await;
+
+    // Handle results and comparison
+    match (ucs_result, direct_result) {
+        (Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)), Ok(direct_processing_result)) => {
+            // Both paths succeeded - send comparison data
+            let comparison_data = unified_connector_service::ComparisonData {
+                hyperswitch_data: masking::Secret::new(serde_json::json!({
+                    "event_type": direct_processing_result.event_type,
+                    "source_verified": direct_processing_result.source_verified,
+                    "decoded_body_length": direct_processing_result.decoded_body.as_ref().map(|b| b.len()),
+                    "processing_path": "direct"
+                })),
+                unified_connector_service_data: masking::Secret::new(serde_json::json!({
+                    "event_type": ucs_event_type,
+                    "source_verified": ucs_source_verified,
+                    "is_transformation_complete": ucs_transform_data.is_transformation_complete,
+                    "processing_path": "ucs"
+                })),
+            };
+
+            // Send comparison data asynchronously (don't block on failure)
+            let _comparison_result = unified_connector_service::send_comparison_data(state, comparison_data).await;
+            
+            logger::info!(
+                connector = connector_name,
+                ucs_event_type = ?ucs_event_type,
+                direct_event_type = ?direct_processing_result.event_type,
+                ucs_source_verified = ucs_source_verified,
+                direct_source_verified = direct_processing_result.source_verified,
+                "Shadow UCS webhook processing: both paths succeeded, comparison data sent"
+            );
+
+            // Return UCS result as primary
+            Ok(WebhookProcessingResult {
+                event_type: ucs_event_type,
+                source_verified: ucs_source_verified,
+                transform_data: Some(Box::new(ucs_transform_data)),
+                decoded_body: None, // UCS path uses raw body
+            })
+        }
+        (Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)), Err(direct_error)) => {
+            // UCS succeeded, Direct failed
+            logger::warn!(
+                connector = connector_name,
+                direct_error = ?direct_error,
+                "Shadow UCS webhook processing: UCS succeeded but Direct path failed"
+            );
+
+            let comparison_data = unified_connector_service::ComparisonData {
+                hyperswitch_data: masking::Secret::new(serde_json::json!({
+                    "error": direct_error.to_string(),
+                    "processing_path": "direct",
+                    "status": "failed"
+                })),
+                unified_connector_service_data: masking::Secret::new(serde_json::json!({
+                    "event_type": ucs_event_type,
+                    "source_verified": ucs_source_verified,
+                    "is_transformation_complete": ucs_transform_data.is_transformation_complete,
+                    "processing_path": "ucs",
+                    "status": "success"
+                })),
+            };
+
+            // Send comparison data asynchronously
+            let _comparison_result = unified_connector_service::send_comparison_data(state, comparison_data).await;
+
+            // Return UCS result as primary
+            Ok(WebhookProcessingResult {
+                event_type: ucs_event_type,
+                source_verified: ucs_source_verified,
+                transform_data: Some(Box::new(ucs_transform_data)),
+                decoded_body: None,
+            })
+        }
+        (Err(ucs_error), Ok(direct_processing_result)) => {
+            // UCS failed, Direct succeeded
+            logger::warn!(
+                connector = connector_name,
+                ucs_error = ?ucs_error,
+                "Shadow UCS webhook processing: UCS failed but Direct path succeeded"
+            );
+
+            let comparison_data = unified_connector_service::ComparisonData {
+                hyperswitch_data: masking::Secret::new(serde_json::json!({
+                    "event_type": direct_processing_result.event_type,
+                    "source_verified": direct_processing_result.source_verified,
+                    "decoded_body_length": direct_processing_result.decoded_body.as_ref().map(|b| b.len()),
+                    "processing_path": "direct",
+                    "status": "success"
+                })),
+                unified_connector_service_data: masking::Secret::new(serde_json::json!({
+                    "error": ucs_error.to_string(),
+                    "processing_path": "ucs",
+                    "status": "failed"
+                })),
+            };
+
+            // Send comparison data asynchronously
+            let _comparison_result = unified_connector_service::send_comparison_data(state, comparison_data).await;
+
+            // In shadow mode, if UCS fails, fall back to Direct result
+            Ok(direct_processing_result)
+        }
+        (Err(ucs_error), Err(direct_error)) => {
+            // Both paths failed
+            logger::error!(
+                connector = connector_name,
+                ucs_error = ?ucs_error,
+                direct_error = ?direct_error,
+                "Shadow UCS webhook processing: both UCS and Direct paths failed"
+            );
+
+            let comparison_data = unified_connector_service::ComparisonData {
+                hyperswitch_data: masking::Secret::new(serde_json::json!({
+                    "error": direct_error.to_string(),
+                    "processing_path": "direct",
+                    "status": "failed"
+                })),
+                unified_connector_service_data: masking::Secret::new(serde_json::json!({
+                    "error": ucs_error.to_string(),
+                    "processing_path": "ucs",
+                    "status": "failed"
+                })),
+            };
+
+            // Send comparison data asynchronously
+            let _comparison_result = unified_connector_service::send_comparison_data(state, comparison_data).await;
+
+            // Return the UCS error as primary (shadow mode preference)
+            Err(ucs_error)
+        }
+    }
+}
 /// Result type for webhook processing path determination
 pub struct WebhookProcessingResult {
     event_type: webhooks::IncomingWebhookEvent,
@@ -444,7 +677,7 @@ pub struct WebhookProcessingResult {
 }
 
 /// Process non-UCS webhook using traditional connector processing
-async fn process_non_ucs_webhook(
+async fn process_non_ucs_webhook_transform(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     connector: &ConnectorEnum,
