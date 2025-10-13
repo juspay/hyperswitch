@@ -187,7 +187,6 @@ pub async fn trigger_refund_to_gateway(
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
-        merchant_context,
         &router_data,
         creds_identifier.as_deref(),
     ))
@@ -621,7 +620,6 @@ pub async fn sync_refund_with_gateway(
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
-        merchant_context,
         &router_data,
         creds_identifier.as_deref(),
     ))

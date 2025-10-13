@@ -4063,6 +4063,224 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+pub async fn _call_connector_service<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: &domain::MerchantContext,
+    connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    customer: &Option<domain::Customer>,
+    call_connector_action: CallConnectorAction,
+    validate_result: &operations::ValidateResult,
+    schedule_time: Option<time::PrimitiveDateTime>,
+    header_payload: HeaderPayload,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &domain::Profile,
+    is_retry_payment: bool,
+    return_raw_connector_response: Option<bool>,
+    merchant_connector_account: helpers::MerchantConnectorAccountType,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    tokenization_action: TokenizationAction,
+) -> RouterResult<(
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    helpers::MerchantConnectorAccountType,
+)>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    // let add_access_token_result = router_data
+    //     .add_access_token(
+    //         state,
+    //         &connector,
+    //         merchant_context,
+    //         payment_data.get_creds_identifier(),
+    //     )
+    //     .await?;
+
+    // router_data = router_data.add_session_token(state, &connector).await?;
+
+    // let should_continue_further = access_token::update_router_data_with_access_token_result(
+    //     &add_access_token_result,
+    //     &mut router_data,
+    //     &call_connector_action,
+    // );
+    // let should_continue_further = true;
+
+    // let should_continue_further = match router_data
+    //     .create_order_at_connector(state, &connector, should_continue_further)
+    //     .await?
+    // {
+    //     Some(create_order_response) => {
+    //         if let Ok(order_id) = create_order_response.clone().create_order_result {
+    //             payment_data.set_connector_response_reference_id(Some(order_id.clone()))
+    //         }
+
+    //         // Set the response in routerdata response to carry forward
+    //         router_data
+    //             .update_router_data_with_create_order_response(create_order_response.clone());
+    //         create_order_response.create_order_result.ok().is_some()
+    //     }
+    //     // If create order is not required, then we can proceed with further processing
+    //     None => true,
+    // };
+    let pre_decide_inputs = flows::PreDecideFlowInputs {
+        call_connector_action: &call_connector_action,
+        tokenization_action: &tokenization_action,
+        is_retry_payment,
+        creds_identifier: payment_data.get_creds_identifier(),
+    };
+    let (
+        flows::PreDecideFlowOutput {
+            connector_response_reference_id,
+            session_token,
+            connector_request,
+            should_continue_further,
+        },
+        mut router_data,
+    ) = router_data
+        .pre_decide_flows(state, &connector, merchant_context, pre_decide_inputs)
+        .await?;
+
+    if let Some(session_token) = session_token {
+        payment_data.push_sessions_token(session_token);
+    };
+    if let Some(connector_response_reference_id) = connector_response_reference_id {
+        payment_data.set_connector_response_reference_id(Some(connector_response_reference_id))
+    }
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_context,
+        &merchant_connector_account,
+        payment_data,
+        router_data.access_token.as_ref(),
+    )
+    .await?;
+
+    if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
+        router_data.connector_customer = Some(connector_customer_id);
+    }
+
+    router_data.payment_method_token = payment_data.get_payment_method_token().cloned();
+
+    // let payment_method_token_response = router_data
+    //     .add_payment_method_token(
+    //         state,
+    //         &connector,
+    //         &tokenization_action,
+    //         should_continue_further,
+    //     )
+    //     .await?;
+
+    // let mut should_continue_further =
+    //     tokenization::update_router_data_with_payment_method_token_result(
+    //         payment_method_token_response,
+    //         &mut router_data,
+    //         is_retry_payment,
+    //         should_continue_further,
+    //     );
+
+    // (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+    //     state,
+    //     &connector,
+    //     payment_data,
+    //     router_data,
+    //     operation,
+    //     should_continue_further,
+    // )
+    // .await?;
+
+    // should move to pre_decide flow
+    // if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+    //     session_token: Some(session_token),
+    //     ..
+    // }) = router_data.response.to_owned()
+    // {
+    //     payment_data.push_sessions_token(session_token);
+    // };
+
+    // This too
+    // In case of authorize flow, pre-task and post-tasks are being called in build request
+    // if we do not want to proceed further, then the function will return Ok(None, false)
+    // let (connector_request, should_continue_further) = if should_continue_further {
+    //     // Check if the actual flow specific request can be built with available data
+    //     router_data
+    //         .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
+    //         .await?
+    // } else {
+    //     (None, false)
+    // };
+
+    if should_add_task_to_process_tracker(payment_data) {
+        operation
+            .to_domain()?
+            .add_task_to_process_tracker(
+                state,
+                payment_data.get_payment_attempt(),
+                validate_result.requeue,
+                schedule_time,
+            )
+            .await
+            .map_err(|error| logger::error!(process_tracker_error=?error))
+            .ok();
+    }
+
+    // Update the payment trackers just before calling the connector
+    // Since the request is already built in the previous step,
+    // there should be no error in request construction from hyperswitch end
+    (_, *payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data.clone(),
+            customer.clone(),
+            merchant_context.get_merchant_account().storage_scheme,
+            updated_customer,
+            merchant_context.get_merchant_key_store(),
+            frm_suggestion,
+            header_payload.clone(),
+        )
+        .await?;
+
+    let router_data = if should_continue_further {
+        // The status of payment_attempt and intent will be updated in the previous step
+        // update this in router_data.
+        // This is added because few connector integrations do not update the status,
+        // and rely on previous status set in router_data
+        router_data.status = payment_data.get_payment_attempt().status;
+        router_data
+            .decide_flows(
+                state,
+                &connector,
+                call_connector_action,
+                connector_request,
+                business_profile,
+                header_payload.clone(),
+                return_raw_connector_response,
+            )
+            .await
+    } else {
+        Ok(router_data)
+    }?;
+
+    Ok((router_data, merchant_connector_account))
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,

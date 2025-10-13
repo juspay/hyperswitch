@@ -98,6 +98,123 @@ pub enum ConnectorIntegrationEnum<'a, F, ResourceCommonData, Req, Resp> {
     New(BoxedConnectorIntegrationV2<'a, F, ResourceCommonData, Req, Resp>),
 }
 
+// impl<F, ResourceCommonData, Req, Resp> ConnectorSpecifications for ConnectorIntegrationEnum<'_, F, ResourceCommonData, Req, Resp> {
+//     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+//         match self {
+//             Self::Old(connector) => connector.get_supported_payment_methods(),
+//             Self::New(connector) => connector.get_supported_payment_methods(),
+//         }
+//     }
+
+//     /// Supported webhooks flows
+//     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+//         match self {
+//             Self::Old(connector) => connector.get_supported_webhook_flows(),
+//             Self::New(connector) => connector.get_supported_webhook_flows(),
+//         }
+//     }
+
+//     /// Details related to connector
+//     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+//         match self {
+//             Self::Old(connector) => connector.get_connector_about(),
+//             Self::New(connector) => connector.get_connector_about(),
+//         }
+//     }
+
+//     /// Check if connector supports authentication token
+//     fn authentication_token_for_token_creation(&self) -> bool {
+//         match self {
+//             Self::Old(connector) => connector.authentication_token_for_token_creation(),
+//             Self::New(connector) => connector.authentication_token_for_token_creation(),
+//         }
+//     }
+
+//     /// If connector supports session token generation
+//     fn is_sdk_client_token_generation_enabled(&self) -> bool {
+//         match self {
+//             Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
+//             Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
+//         }
+//     }
+
+//     /// Supported payment methods for session token generation
+//     fn supported_payment_method_types_for_sdk_client_token_generation(
+//         &self,
+//     ) -> Vec<common_enums::PaymentMethodType> {
+//         match self {
+//             Self::Old(connector) => {
+//                 connector.supported_payment_method_types_for_sdk_client_token_generation()
+//             }
+//             Self::New(connector) => {
+//                 connector.supported_payment_method_types_for_sdk_client_token_generation()
+//             }
+//         }
+//     }
+
+//     /// Validate whether session token is generated for payment payment type
+//     fn validate_sdk_session_token_for_payment_method(
+//         &self,
+//         current_core_payment_method_type: &common_enums::PaymentMethodType,
+//     ) -> bool {
+//         match self {
+//             Self::Old(connector) => connector
+//                 .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
+//             Self::New(connector) => connector
+//                 .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
+//         }
+//     }
+
+//     #[cfg(feature = "v1")]
+//     fn generate_connector_request_reference_id(
+//         &self,
+//         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+//         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+//         is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+//     ) -> String {
+//         match self {
+//             Self::Old(connector) => connector.generate_connector_request_reference_id(
+//                 payment_intent,
+//                 payment_attempt,
+//                 is_config_enabled_to_send_payment_id_as_connector_request_id,
+//             ),
+//             Self::New(connector) => connector.generate_connector_request_reference_id(
+//                 payment_intent,
+//                 payment_attempt,
+//                 is_config_enabled_to_send_payment_id_as_connector_request_id,
+//             ),
+//         }
+//     }
+
+//     #[cfg(feature = "v2")]
+//     /// Generate connector request reference ID
+//     fn generate_connector_request_reference_id(
+//         &self,
+//         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+//         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+//     ) -> String {
+//         match self {
+//             Self::Old(connector) => {
+//                 connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
+//             }
+//             Self::New(connector) => {
+//                 connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
+//             }
+//         }
+//     }
+
+//     /// Check if connector requires create customer call
+//     fn should_call_connector_customer(
+//         &self,
+//         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+//     ) -> bool {
+//         match self {
+//             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
+//             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+//         }
+//     }
+// }
+
 /// Alias for Box<dyn ConnectorIntegrationInterface>
 pub type BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp> =
     Box<dyn ConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp> + Send + Sync>;

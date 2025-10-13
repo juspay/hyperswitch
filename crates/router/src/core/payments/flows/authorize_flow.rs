@@ -9,8 +9,10 @@ use external_services::grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
+    errors::api_error_response::ApiErrorResponse, payments as domain_payments, router_flow_types,
+    router_request_types,
 };
+use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::{ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -21,7 +23,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, flows, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
@@ -183,6 +185,103 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    async fn pre_decide_flows<'a>(
+        mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        merchant_context: &domain::MerchantContext,
+        pre_decide_inputs: flows::PreDecideFlowInputs<'a>,
+    ) -> RouterResult<(flows::PreDecideFlowOutput, Self)> {
+        let call_connector_action = pre_decide_inputs.call_connector_action;
+        let tokenization_action = pre_decide_inputs.tokenization_action;
+        let is_retry_payment = pre_decide_inputs.is_retry_payment;
+        let creds_identifier = pre_decide_inputs.creds_identifier;
+        let mut router_data = self;
+        let add_access_token_result = router_data
+            .add_access_token(state, connector, merchant_context, creds_identifier)
+            .await?;
+        router_data = router_data.add_session_token(state, connector).await?;
+        let should_continue_further = access_token::update_router_data_with_access_token_result(
+            &add_access_token_result,
+            &mut router_data,
+            call_connector_action,
+        );
+        let mut connector_response_reference_id = None;
+        let should_continue_further = match router_data
+            .create_order_at_connector(state, connector, should_continue_further)
+            .await?
+        {
+            Some(create_order_response) => {
+                if let Ok(order_id) = create_order_response.clone().create_order_result {
+                    connector_response_reference_id = Some(order_id.clone())
+                }
+                // Set the response in routerdata response to carry forward
+                router_data
+                    .update_router_data_with_create_order_response(create_order_response.clone());
+                create_order_response.create_order_result.is_ok()
+            }
+            // If create order is not required, then we can proceed with further processing
+            None => true,
+        };
+        let payment_method_token_response = router_data
+            .add_payment_method_token(
+                state,
+                connector,
+                tokenization_action,
+                should_continue_further,
+            )
+            .await?;
+        let should_continue_further =
+            tokenization::update_router_data_with_payment_method_token_result(
+                payment_method_token_response,
+                &mut router_data,
+                is_retry_payment,
+                should_continue_further,
+            );
+
+        router_data = router_data.preprocessing_steps(state, connector).await?;
+        let should_continue = matches!(
+            router_data.response,
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                ref redirection_data,
+                ..
+            }) if redirection_data.is_none()
+        ) && router_data.status
+            != common_enums::AttemptStatus::AuthenticationFailed;
+
+        let session_token = if let Ok(types::PaymentsResponseData::PreProcessingResponse {
+            session_token: Some(session_token),
+            ..
+        }) = router_data.response.to_owned()
+        {
+            Some(session_token)
+        } else {
+            None
+        };
+
+        // In case of authorize flow, pre-task and post-tasks are being called in build request
+        // if we do not want to proceed further, then the function will return Ok(None, false)
+        let (connector_request, should_continue_further) = if should_continue_further {
+            // Check if the actual flow specific request can be built with available data
+            router_data
+                .build_flow_specific_connector_request(
+                    state,
+                    connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, false)
+        };
+
+        let pre_decide_output = flows::PreDecideFlowOutput {
+            connector_response_reference_id,
+            session_token,
+            connector_request,
+            should_continue_further: should_continue,
+        };
+        Ok((pre_decide_output, router_data))
+    }
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -193,61 +292,107 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
+        let alternate_flow = connector.connector.get_alternate_flow_if_needed(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        );
+        match alternate_flow {
+            Some(api_interface::AlternateFlow::PreAuthenticate) => {
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                    router_flow_types::PreAuthenticate,
+                    router_request_types::PaymentsPreAuthenticateData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+                let authorize_request = self.request.clone();
+                let pre_auth_request = router_request_types::PaymentsPreAuthenticateData::try_from(
+                    self.request.clone(),
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while converting to PaymentsPreAuthenticateData")?;
+                let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+                    self.response.clone();
+                let pre_authn_router_data =
+                    helpers::router_data_type_conversion(self, pre_auth_request, response_data);
+                let pre_authn_router_data = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    &pre_authn_router_data,
+                    call_connector_action.clone(),
+                    connector_request,
+                    return_raw_connector_response,
+                )
+                .await
+                .to_payment_failed_response()?;
+                let response_data = pre_authn_router_data.response.clone();
+                // TODO: add integrity check if required
+                let authorize_router_data = helpers::router_data_type_conversion(
+                    pre_authn_router_data,
+                    authorize_request,
+                    response_data,
+                );
+                Ok(authorize_router_data)
+            }
+            None => {
+                // default flow
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                    api::Authorize,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
 
-        if self.should_proceed_with_authorize() {
-            self.decide_authentication_type();
-            logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await
-            .to_payment_failed_response()?;
+                if self.should_proceed_with_authorize() {
+                    self.decide_authentication_type();
+                    logger::debug!(auth_type=?self.auth_type);
+                    let mut auth_router_data = services::execute_connector_processing_step(
+                        state,
+                        connector_integration,
+                        &self,
+                        call_connector_action.clone(),
+                        connector_request,
+                        return_raw_connector_response,
+                    )
+                    .await
+                    .to_payment_failed_response()?;
 
-            // Initiating Integrity check
-            let integrity_result = helpers::check_integrity_based_on_flow(
-                &auth_router_data.request,
-                &auth_router_data.response,
-            );
-            auth_router_data.integrity_check = integrity_result;
-            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+                    // Initiating Integrity check
+                    let integrity_result = helpers::check_integrity_based_on_flow(
+                        &auth_router_data.request,
+                        &auth_router_data.response,
+                    );
+                    auth_router_data.integrity_check = integrity_result;
+                    metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
-            match auth_router_data.response.clone() {
-                Err(_) => Ok(auth_router_data),
-                Ok(authorize_response) => {
-                    // Check if the Capture API should be called based on the connector and other parameters
-                    if super::should_initiate_capture_flow(
-                        &connector.connector_name,
-                        self.request.customer_acceptance,
-                        self.request.capture_method,
-                        self.request.setup_future_usage,
-                        auth_router_data.status,
-                    ) {
-                        auth_router_data = Box::pin(process_capture_flow(
-                            auth_router_data,
-                            authorize_response,
-                            state,
-                            connector,
-                            call_connector_action.clone(),
-                            business_profile,
-                            header_payload,
-                        ))
-                        .await?;
+                    match auth_router_data.response.clone() {
+                        Err(_) => Ok(auth_router_data),
+                        Ok(authorize_response) => {
+                            // Check if the Capture API should be called based on the connector and other parameters
+                            if super::should_initiate_capture_flow(
+                                &connector.connector_name,
+                                self.request.customer_acceptance,
+                                self.request.capture_method,
+                                self.request.setup_future_usage,
+                                auth_router_data.status,
+                            ) {
+                                auth_router_data = Box::pin(process_capture_flow(
+                                    auth_router_data,
+                                    authorize_response,
+                                    state,
+                                    connector,
+                                    call_connector_action.clone(),
+                                    business_profile,
+                                    header_payload,
+                                ))
+                                .await?;
+                            }
+                            Ok(auth_router_data)
+                        }
                     }
-                    Ok(auth_router_data)
+                } else {
+                    Ok(self.clone())
                 }
             }
-        } else {
-            Ok(self.clone())
         }
     }
 
@@ -255,13 +400,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -324,7 +468,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
-        authorize_preprocessing_steps(state, &self, true, connector).await
+        let current_flow_info = api_interface::CurrentFlowInfo::Authorize {
+            request_data: &self.request,
+            auth_type: &self.auth_type,
+        };
+        let preprocessing_flow_name = connector
+            .connector
+            .get_preprocessing_flow_if_needed(current_flow_info);
+        match preprocessing_flow_name {
+            Some(api_interface::PreProcessingFlowName::PreProcessing) | None => {
+                // Calling this function for None as well to maintain backward compatibility
+                authorize_preprocessing_steps(state, &self, true, connector).await
+            }
+        }
     }
 
     async fn postprocessing_steps<'a>(

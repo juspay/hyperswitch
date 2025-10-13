@@ -77,6 +77,20 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     }
 }
 
+pub struct PreDecideFlowOutput {
+    pub connector_response_reference_id: Option<String>,
+    pub session_token: Option<api::SessionToken>,
+    pub connector_request: Option<services::Request>,
+    pub should_continue_further: bool,
+}
+
+pub struct PreDecideFlowInputs<'a> {
+    pub call_connector_action: &'a payments::CallConnectorAction,
+    pub tokenization_action: &'a payments::TokenizationAction,
+    pub is_retry_payment: bool,
+    pub creds_identifier: Option<&'a str>,
+}
+
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
@@ -94,6 +108,29 @@ pub trait Feature<F, T> {
         Self: Sized,
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn pre_decide_flows<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        merchant_context: &domain::MerchantContext,
+        pre_decide_inputs: PreDecideFlowInputs<'a>,
+    ) -> RouterResult<(PreDecideFlowOutput, Self)>
+    where
+        Self: Sized,
+        F: Clone,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok((
+            PreDecideFlowOutput {
+                connector_response_reference_id: None,
+                session_token: None,
+                connector_request: None,
+                should_continue_further: true,
+            },
+            self,
+        ))
+    }
 
     async fn add_access_token<'a>(
         &self,
