@@ -3,14 +3,11 @@ const keyPrefixes = {
     publishable_key: "pk_dev_",
     key_id: "dev_",
   },
-  integ: {
+  hyperswitch: {
     publishable_key: "pk_snd_",
     key_id: "snd_",
   },
-  sandbox: {
-    publishable_key: "pk_snd_",
-    key_id: "snd_",
-  },
+
 };
 
 export const setClientSecret = (requestBody, clientSecret) => {
@@ -65,6 +62,7 @@ export function validateEnv(baseUrl, keyIdType) {
   if (!environment) {
     throw new Error("Unsupported baseUrl");
   }
+  
 
   const prefix = keyPrefixes[environment][keyIdType];
 
