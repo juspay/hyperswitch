@@ -909,7 +909,7 @@ connector_list = "tokenio"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource"
+connector_list = "cybersource,peachpayments"
 
 [platform]
 enabled = false
