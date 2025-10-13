@@ -10698,7 +10698,6 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v1")]
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
-
 }
 
 pub trait OperationSessionSetters<F> {
