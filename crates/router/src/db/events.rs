@@ -964,6 +964,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )
@@ -1081,6 +1082,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )
@@ -1179,6 +1181,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             sub_merchants_enabled: None,
             parent_merchant_id: None,
@@ -1246,6 +1249,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             metadata: None,
             routing_algorithm: None,

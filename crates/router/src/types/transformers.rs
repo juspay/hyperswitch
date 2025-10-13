@@ -2014,6 +2014,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: None,
         }
     }
 }
