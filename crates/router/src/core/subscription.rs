@@ -7,7 +7,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext,
 };
-use masking::PeekInterface;
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -377,11 +376,7 @@ pub async fn confirm_subscription(
     let invoice_details = subscription_create_response.invoice_details;
 
     let update_request = InvoiceUpdateRequest::update_payment_and_status(
-        payment_response
-            .payment_method_id
-            .as_ref()
-            .map(|id| id.peek())
-            .cloned(),
+        payment_response.payment_method_id.clone(),
         Some(payment_response.payment_id.clone()),
         invoice_details
             .clone()

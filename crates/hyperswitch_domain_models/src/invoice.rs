@@ -7,7 +7,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use utoipa::ToSchema;
 
 use crate::merchant_key_store::MerchantKeyStore;
@@ -205,7 +205,7 @@ pub struct ConnectorAndStatusUpdate {
 
 #[derive(Debug, Clone)]
 pub struct PaymentAndStatusUpdate {
-    pub payment_method_id: Option<String>,
+    pub payment_method_id: Option<Secret<String>>,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub status: common_enums::connector_enums::InvoiceStatus,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
@@ -241,7 +241,7 @@ impl InvoiceUpdateRequest {
 
     /// Create a combined payment and status update request
     pub fn update_payment_and_status(
-        payment_method_id: Option<String>,
+        payment_method_id: Option<Secret<String>>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: common_enums::connector_enums::InvoiceStatus,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
@@ -280,7 +280,11 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
             },
             InvoiceUpdateRequest::PaymentStatus(update) => Self {
                 status: Some(update.status),
-                payment_method_id: update.payment_method_id,
+                payment_method_id: update
+                    .payment_method_id
+                    .as_ref()
+                    .map(|id| id.peek())
+                    .cloned(),
                 connector_invoice_id: update.connector_invoice_id,
                 modified_at: now,
                 payment_intent_id: update.payment_intent_id,
