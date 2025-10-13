@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 use crate::{
     enums as api_enums,
     mandates::RecurringDetails,
-    payments::{Address, PaymentMethodDataRequest},
+    payments::{Address, NextActionData, PaymentMethodDataRequest},
 };
 
 /// Request payload for creating a subscription.
@@ -212,10 +212,12 @@ impl ApiEventMetric for GetPlansResponse {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
     pub shipping: Option<Address>,
+    pub billing: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -224,6 +226,7 @@ pub struct CreateSubscriptionPaymentDetails {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub authentication_type: Option<api_enums::AuthenticationType>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -236,6 +239,7 @@ pub struct PaymentDetails {
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub authentication_type: Option<api_enums::AuthenticationType>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 // Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
@@ -247,6 +251,7 @@ pub struct CreatePaymentsRequestData {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
@@ -257,10 +262,12 @@ pub struct CreatePaymentsRequestData {
 pub struct ConfirmPaymentsRequestData {
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -271,6 +278,7 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub confirm: bool,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
@@ -279,6 +287,7 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -287,13 +296,19 @@ pub struct PaymentResponseData {
     pub status: api_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub connector: Option<String>,
     pub payment_method_id: Option<Secret<String>>,
+    pub return_url: Option<common_utils::types::Url>,
+    pub next_action: Option<NextActionData>,
     pub payment_experience: Option<api_enums::PaymentExperience>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub client_secret: Option<Secret<String>>,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -304,6 +319,7 @@ pub struct CreateMitPaymentRequestData {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub recurring_details: Option<RecurringDetails>,
     pub off_session: Option<bool>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -333,16 +349,13 @@ impl ConfirmSubscriptionRequest {
         ))
     }
 
-    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
+    pub fn get_billing_address(&self) -> Option<Address> {
         self.payment_details
             .payment_method_data
             .billing
-            .clone()
-            .ok_or(error_stack::report!(
-                ValidationError::MissingRequiredField {
-                    field_name: "billing".to_string()
-                }
-            ))
+            .as_ref()
+            .or(self.payment_details.billing.as_ref())
+            .cloned()
     }
 }
 
@@ -379,6 +392,16 @@ pub struct CreateAndConfirmSubscriptionRequest {
 
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
+}
+
+impl CreateAndConfirmSubscriptionRequest {
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.payment_details
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.billing.clone())
+            .or(self.billing.clone())
+    }
 }
 
 impl ApiEventMetric for CreateAndConfirmSubscriptionRequest {}
@@ -452,7 +475,7 @@ pub struct Invoice {
     pub currency: api_enums::Currency,
 
     /// Status of the invoice.
-    pub status: String,
+    pub status: common_enums::connector_enums::InvoiceStatus,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}

@@ -581,7 +581,7 @@ impl Capturable for PaymentsSyncData {
     #[cfg(feature = "v1")]
     fn get_captured_amount<F>(
         &self,
-        _amount_captured: Option<i64>,
+        amount_captured: Option<i64>,
         payment_data: &PaymentData<F>,
     ) -> Option<i64>
     where
@@ -591,6 +591,7 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or(payment_data.payment_intent.amount_captured)
+            .or(amount_captured.map(MinorUnit::new))
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }

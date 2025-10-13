@@ -9,14 +9,17 @@ use common_utils::{consts, ext_traits::OptionExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_response_types::subscriptions as subscription_response_types,
+    router_response_types::{self, subscriptions as subscription_response_types},
     subscription::{Subscription, SubscriptionStatus},
 };
 use masking::Secret;
 
 use super::errors;
 use crate::{
-    core::{errors::StorageErrorExt, subscription::invoice_handler::InvoiceHandler},
+    core::{
+        errors::StorageErrorExt, payments as payments_core,
+        subscription::invoice_handler::InvoiceHandler,
+    },
     db::CustomResult,
     routes::SessionState,
     types::{domain, transformers::ForeignTryFrom},
@@ -108,6 +111,64 @@ impl<'a> SubscriptionHandler<'a> {
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
             .attach_printable("subscriptions: unable to fetch customer from database")
+    }
+    pub async fn update_connector_customer_id_in_customer(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        customer: &hyperswitch_domain_models::customer::Customer,
+        customer_create_response: Option<router_response_types::ConnectorCustomerResponseData>,
+    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        match customer_create_response {
+            Some(customer_response) => {
+                match payments_core::customers::update_connector_customer_in_customers(
+                    merchant_connector_id.get_string_repr(),
+                    Some(customer),
+                    Some(customer_response.connector_customer_id),
+                )
+                .await
+                {
+                    Some(customer_update) => Self::update_customer(
+                        state,
+                        merchant_context,
+                        customer.clone(),
+                        customer_update,
+                    )
+                    .await
+                    .attach_printable("Failed to update customer with connector customer ID"),
+                    None => Ok(customer.clone()),
+                }
+            }
+            None => Ok(customer.clone()),
+        }
+    }
+
+    pub async fn update_customer(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        customer: hyperswitch_domain_models::customer::Customer,
+        customer_update: domain::CustomerUpdate,
+    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        let key_manager_state = &(state).into();
+        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let db = state.store.as_ref();
+
+        let updated_customer = db
+            .update_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                customer.customer_id.clone(),
+                merchant_id.clone(),
+                customer,
+                customer_update,
+                merchant_key_store,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to update customer entry in database")?;
+
+        Ok(updated_customer)
     }
 
     /// Helper function to find business profile.
@@ -227,16 +288,18 @@ impl SubscriptionWithHandler<'_> {
         invoice: &hyperswitch_domain_models::invoice::Invoice,
         payment_response: &subscription_types::PaymentResponseData,
         status: subscription_response_types::SubscriptionStatus,
+        plan_id: Option<String>,
+        price_id: Option<String>,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
             status: subscription_types::SubscriptionStatus::from(status),
-            plan_id: None,
+            plan_id,
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
-            price_id: None,
+            price_id,
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
@@ -304,6 +367,11 @@ impl SubscriptionWithHandler<'_> {
             subscription: self.subscription.clone(),
             merchant_account: self.merchant_account.clone(),
             profile,
+            merchant_key_store: self
+                .handler
+                .merchant_context
+                .get_merchant_key_store()
+                .clone(),
         }
     }
     pub async fn get_mca(
