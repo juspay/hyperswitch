@@ -97,6 +97,11 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 /// URL Safe base64 engine
 pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
+
+/// URL Safe base64 engine without padding
+pub const BASE64_ENGINE_URL_SAFE_NO_PAD: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
 /// Regex for matching a domain
 /// Eg -
 /// http://www.example.com
@@ -152,6 +157,15 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
 
+/// Flow name
+pub const X_FLOW_NAME: &str = "x-flow";
+
+/// Connector name
+pub const X_CONNECTOR_NAME: &str = "x-connector";
+
+/// Unified Connector Service Mode
+pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
+
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
 
@@ -197,3 +211,9 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 
 /// API client request timeout for ai service (in seconds)
 pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
+
+/// Default limit for list operations (can be used across different entities)
+pub const DEFAULT_LIST_LIMIT: i64 = 100;
+
+/// Default offset for list operations (can be used across different entities)
+pub const DEFAULT_LIST_OFFSET: i64 = 0;

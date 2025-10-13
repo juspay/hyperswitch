@@ -6,6 +6,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
@@ -88,6 +89,23 @@ impl Customer {
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalCustomerId {
         &self.id
+    }
+
+    /// Get the connector customer ID for the specified connector label, if present
+    #[cfg(feature = "v1")]
+    pub fn get_connector_customer_map(
+        &self,
+    ) -> FxHashMap<id_type::MerchantConnectorAccountId, String> {
+        use masking::PeekInterface;
+        if let Some(connector_customer_value) = &self.connector_customer {
+            connector_customer_value
+                .peek()
+                .clone()
+                .parse_value("ConnectorCustomerMap")
+                .unwrap_or_default()
+        } else {
+            FxHashMap::default()
+        }
     }
 
     /// Get the connector customer ID for the specified connector label, if present
@@ -538,6 +556,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
 pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
@@ -545,6 +564,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
+            customer_id: value.customer_id,
         }
     }
 }

@@ -301,4 +301,18 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .into())
     }
+
+    /// get subscription MIT payment data from webhook
+    fn get_subscription_mit_payment_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_subscription_mit_payment_data method".to_string(),
+        )
+        .into())
+    }
 }

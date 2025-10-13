@@ -10,7 +10,7 @@ license.workspace = true
 
 [features]
 default = ["common_default", "v1"]
-common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id"]
+common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
@@ -89,8 +89,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "142cb5a23d302e5d39c4da8d280edababe0691fe", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "142cb5a23d302e5d39c4da8d280edababe0691fe", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "f719688943adf7bc17bb93dcb43f27485c17a96e", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "f719688943adf7bc17bb93dcb43f27485c17a96e", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"

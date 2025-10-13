@@ -49,6 +49,7 @@ pub struct AdyenTransferRequest {
 pub enum AdyenPayoutMethod {
     Bank,
     Card,
+    PlatformPayment,
 }
 
 #[derive(Debug, Serialize)]
@@ -205,7 +206,7 @@ pub enum AdyenTransactionDirection {
     Outgoing,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum AdyenTransferStatus {
     Authorised,
@@ -457,9 +458,11 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
         let request = &raw_payment.item.router_data.request;
 
         match raw_payment.raw_payout_method_data {
-            payouts::PayoutMethodData::Wallet(_) => Err(ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
-            ))?,
+            payouts::PayoutMethodData::Wallet(_) | payouts::PayoutMethodData::BankRedirect(_) => {
+                Err(ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
+                ))?
+            }
             payouts::PayoutMethodData::Card(c) => {
                 let card_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &c).try_into()?;
@@ -581,10 +584,27 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
         let response: AdyenTransferResponse = item.response;
         let status = enums::PayoutStatus::from(response.status);
 
-        let error_code = match status {
-            enums::PayoutStatus::Ineligible => Some(response.reason),
-            _ => None,
-        };
+        if matches!(status, enums::PayoutStatus::Failed) {
+            return Ok(Self {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: response.status.to_string(),
+                    message: if !response.reason.is_empty() {
+                        response.reason
+                    } else {
+                        response.status.to_string()
+                    },
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(response.id),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            });
+        }
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
@@ -592,7 +612,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
-                error_code,
+                error_code: None,
                 error_message: None,
             }),
             ..item.data
@@ -604,8 +624,7 @@ impl From<AdyenTransferStatus> for enums::PayoutStatus {
     fn from(adyen_status: AdyenTransferStatus) -> Self {
         match adyen_status {
             AdyenTransferStatus::Authorised => Self::Initiated,
-            AdyenTransferStatus::Refused => Self::Ineligible,
-            AdyenTransferStatus::Error => Self::Failed,
+            AdyenTransferStatus::Error | AdyenTransferStatus::Refused => Self::Failed,
         }
     }
 }
@@ -644,10 +663,12 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
         match payout_type {
             enums::PayoutType::Bank => Ok(Self::Bank),
             enums::PayoutType::Card => Ok(Self::Card),
-            enums::PayoutType::Wallet => Err(report!(ConnectorError::NotSupported {
-                message: "Card or wallet payouts".to_string(),
-                connector: "Adyenplatform",
-            })),
+            enums::PayoutType::Wallet | enums::PayoutType::BankRedirect => {
+                Err(report!(ConnectorError::NotSupported {
+                    message: "Bakredirect or wallet payouts".to_string(),
+                    connector: "Adyenplatform",
+                }))
+            }
         }
     }
 }
@@ -726,7 +747,7 @@ pub fn get_adyen_webhook_event(
             AdyenplatformWebhookStatus::Booked => match category {
                 Some(AdyenPayoutMethod::Card) => webhooks::IncomingWebhookEvent::PayoutSuccess,
                 Some(AdyenPayoutMethod::Bank) => webhooks::IncomingWebhookEvent::PayoutProcessing,
-                None => webhooks::IncomingWebhookEvent::PayoutProcessing,
+                _ => webhooks::IncomingWebhookEvent::PayoutProcessing,
             },
             AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
             AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,

@@ -140,6 +140,8 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Network token status check flow.
+    NetworkTokenStatusCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.
@@ -263,6 +265,18 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Subscription create flow,
+    CreateSubscription,
+    /// Subscription get plans flow,
+    GetPlansForSubscription,
+    /// Subscription confirm flow,
+    ConfirmSubscription,
+    /// Subscription create and confirm flow,
+    CreateAndConfirmSubscription,
+    /// Get Subscription flow
+    GetSubscription,
+    /// Get Subscription estimate flow
+    GetSubscriptionEstimate,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -357,6 +371,8 @@ pub enum Flow {
     GsmRuleDelete,
     /// Get data from embedded flow
     GetDataFromHyperswitchAiFlow,
+    // List all chat interactions
+    ListAllChatInteractions,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -417,6 +433,8 @@ pub enum Flow {
     GetRoleFromToken,
     /// Get resources and groups for role from token
     GetRoleFromTokenV2,
+    /// Get parent groups info for role from token
+    GetParentGroupsInfoForRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
@@ -616,6 +634,8 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Process Tracker Revenue Recovery Workflow Resume
+    RevenueRecoveryResume,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
@@ -650,6 +670,12 @@ pub enum Flow {
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
     TokenizationDelete,
+    /// Payment method data backfill flow
+    RecoveryDataBackfill,
+    /// Revenue recovery Redis operations flow
+    RevenueRecoveryRedis,
+    /// Gift card balance check flow
+    GiftCardBalanceCheck,
 }
 
 /// Trait for providing generic behaviour to flow metric

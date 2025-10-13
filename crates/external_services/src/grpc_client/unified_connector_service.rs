@@ -446,6 +446,33 @@ pub fn build_unified_connector_service_grpc_headers(
         parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
 
+    if let Some(reference_id) = grpc_headers.merchant_reference_id {
+        metadata.append(
+            consts::UCS_HEADER_REFERENCE_ID,
+            parse(
+                consts::UCS_HEADER_REFERENCE_ID,
+                reference_id.get_string_repr(),
+            )?,
+        );
+    };
+
+    if let Some(request_id) = grpc_headers.request_id {
+        metadata.append(
+            common_utils_consts::X_REQUEST_ID,
+            parse(common_utils_consts::X_REQUEST_ID, &request_id)?,
+        );
+    };
+
+    if let Some(shadow_mode) = grpc_headers.shadow_mode {
+        metadata.append(
+            common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+            parse(
+                common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+                &shadow_mode.to_string(),
+            )?,
+        );
+    }
+
     if let Err(err) = grpc_headers
         .tenant_id
         .parse()

@@ -24,6 +24,7 @@ use crate::{
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
+        X_REFERENCE_ID,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -1194,6 +1195,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
+            api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
+                Self::foreign_from(bank_redirect)
+            }
         }
     }
 }
@@ -1221,12 +1225,22 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
+        match value {
+            api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1238,6 +1252,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::
             api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1249,6 +1264,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
+            api_models::enums::PayoutType::BankRedirect => Self::BankRedirect,
         }
     }
 }
@@ -1339,6 +1355,8 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+        let x_reference_id =
+            get_header_value_by_key(X_REFERENCE_ID.into(), headers)?.map(|val| val.to_string());
 
         Ok(Self {
             payment_confirm_source,
@@ -1351,6 +1369,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
+            x_reference_id,
         })
     }
 }
@@ -1427,6 +1446,8 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+        let x_reference_id =
+            get_header_value_by_key(X_REFERENCE_ID.into(), headers)?.map(|val| val.to_string());
 
         Ok(Self {
             payment_confirm_source,
@@ -1439,6 +1460,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
+            x_reference_id,
         })
     }
 }

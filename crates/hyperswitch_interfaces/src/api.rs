@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 
@@ -79,8 +81,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -104,6 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + Subscriptions
 {
 }
 
@@ -126,7 +129,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + Subscriptions,
     > Connector for T
 {
 }
@@ -395,6 +399,38 @@ pub trait ConnectorSpecifications {
     /// Connectors should override this method if they require an authentication token to create a new access token
     fn authentication_token_for_token_creation(&self) -> bool {
         false
+    }
+
+    /// Check if connector should make another request to create an customer
+    /// Connectors should override this method if they require to create a connector customer
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        false
+    }
+
+    /// Whether SDK session token generation is enabled for this connector
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        false
+    }
+
+    /// Payment method types that support SDK session token generation
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<PaymentMethodType> {
+        vec![]
+    }
+
+    /// Validate if SDK session token generation is allowed for given payment method type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &PaymentMethodType,
+    ) -> bool {
+        self.is_sdk_client_token_generation_enabled()
+            && self
+                .supported_payment_method_types_for_sdk_client_token_generation()
+                .contains(current_core_payment_method_type)
     }
 
     #[cfg(not(feature = "v2"))]

@@ -7,7 +7,11 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_utils::{
+    ext_traits::ConfigExt,
+    id_type,
+    types::{user::EmailThemeConfig, Url},
+};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -20,6 +24,7 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
 pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::{
@@ -71,7 +76,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: ChatSettings,
+    pub chat: SecretStateContainer<ChatSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -163,11 +168,15 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub internal_services: InternalServicesConfig,
+    pub comparison_service: Option<ComparisonServiceConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -196,6 +205,13 @@ pub struct CloneConnectorAllowlistConfig {
     pub connector_names: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct ComparisonServiceConfig {
+    pub url: Url,
+    pub enabled: bool,
+    pub timeout_secs: Option<u64>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
@@ -207,6 +223,7 @@ pub struct Platform {
 pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
+    pub encryption_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -532,8 +549,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -637,6 +652,7 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,
     pub flow: Option<PaymentFlow>,
 }
 
@@ -649,6 +665,14 @@ pub enum PaymentFlow {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
     NetworkTokenization,
@@ -850,6 +874,13 @@ pub struct MerchantIdAuthSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct InternalMerchantIdProfileIdAuthSettings {
+    pub enabled: bool,
+    pub internal_api_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
 }
@@ -956,6 +987,12 @@ pub struct NetworkTokenizationSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct InternalServicesConfig {
+    pub payments_base_url: String,
+}
+
 impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -1048,8 +1085,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.validate()?;
-
+        self.chat.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1123,6 +1159,11 @@ impl Settings<SecuredSecret> {
             .as_ref()
             .map(|config| config.validate())
             .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition
+            .get_inner()
+            .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())

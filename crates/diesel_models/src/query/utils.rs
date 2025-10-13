@@ -52,6 +52,12 @@ mod composite_key {
             self.0
         }
     }
+    impl CompositeKey for <schema::hyperswitch_ai_interaction::table as diesel::Table>::PrimaryKey {
+        type UK = schema::hyperswitch_ai_interaction::dsl::id;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.0
+        }
+    }
     impl CompositeKey for <schema_v2::incremental_authorization::table as diesel::Table>::PrimaryKey {
         type UK = schema_v2::incremental_authorization::dsl::authorization_id;
         fn get_local_unique_key(&self) -> Self::UK {
@@ -97,6 +103,7 @@ impl_get_primary_key!(
     schema::events::table,
     schema::merchant_account::table,
     schema::process_tracker::table,
+    schema::invoice::table,
     // v2 tables
     schema_v2::dashboard_metadata::table,
     schema_v2::merchant_connector_account::table,
@@ -139,6 +146,7 @@ impl_get_primary_key_for_composite!(
     schema::customers::table,
     schema::blocklist::table,
     schema::incremental_authorization::table,
+    schema::hyperswitch_ai_interaction::table,
     schema_v2::incremental_authorization::table,
     schema_v2::blocklist::table
 );

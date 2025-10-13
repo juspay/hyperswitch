@@ -173,6 +173,17 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
+    pub fn get_connector_name_as_string(&self) -> String {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.connector_name.to_string()
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details.connector_name.to_string()
+            }
+        }
+    }
+
     pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
@@ -255,6 +266,11 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone().to_string()
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
     }
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(

@@ -20,7 +20,9 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
+    consts::{
+        DEFAULT_TENANT, TENANT_HEADER, X_CONNECTOR_NAME, X_FLOW_NAME, X_HS_LATENCY, X_REQUEST_ID,
+    },
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -61,7 +63,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, CustomResult},
-        payments, unified_connector_service,
+        payments, unified_connector_service, utils as core_utils,
     },
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
@@ -106,6 +108,12 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -126,6 +134,9 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
     >;
 pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
+
+pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GiftCardBalanceCheckFlowData, Req, Res>;
 
 /// Handle UCS webhook response processing
 fn handle_ucs_response<T, Req, Resp>(
@@ -157,13 +168,16 @@ where
         Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
             Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
         },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete transformation but payment processing was expected".to_string().into())).into())
+        },
         None => {
             Err(errors::ConnectorError::ResponseDeserializationFailed)
                 .attach_printable("UCS webhook content missing payments_response")
         }
     }?;
 
-    let (status, router_data_response, status_code) =
+    let (router_data_response, status_code) =
         unified_connector_service::handle_unified_connector_service_response_for_payment_get(
             payment_get_response.clone(),
         )
@@ -171,7 +185,10 @@ where
         .attach_printable("Failed to process UCS webhook response using PSync handler")?;
 
     let mut updated_router_data = router_data;
-    updated_router_data.status = status;
+    let router_data_response = router_data_response.map(|(response, status)| {
+        updated_router_data.status = status;
+        response
+    });
 
     let _ = router_data_response.map_err(|error_response| {
         updated_router_data.response = Err(error_response);
@@ -203,6 +220,9 @@ where
     }
     Ok(())
 }
+
+pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -278,10 +298,8 @@ where
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
-                        std::any::type_name::<T>()
-                            .split("::")
-                            .last()
-                            .unwrap_or_default()
+                        core_utils::get_flow_name::<T>()
+                            .unwrap_or_else(|_| "UnknownFlow".to_string())
                     ),
                 ),
             );
@@ -308,7 +326,7 @@ where
             };
 
             match connector_request {
-                Some(request) => {
+                Some(mut request) => {
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
@@ -316,11 +334,34 @@ where
                             | RequestContent::Xml(i) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::FormData((_, i)) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,
                     };
+                    let flow_name = core_utils::get_flow_name::<T>()
+                        .unwrap_or_else(|_| "UnknownFlow".to_string());
+
+                    request.headers.insert((
+                        X_FLOW_NAME.to_string(),
+                        Maskable::Masked(Secret::new(flow_name.to_string())),
+                    ));
+
+                    let connector_name = req.connector.clone();
+                    request.headers.insert((
+                        X_CONNECTOR_NAME.to_string(),
+                        Maskable::Masked(Secret::new(connector_name.clone().to_string())),
+                    ));
+                    state.request_id.as_ref().map(|id| {
+                        let request_id = id.to_string();
+                        request.headers.insert((
+                            X_REQUEST_ID.to_string(),
+                            Maskable::Normal(request_id.clone()),
+                        ));
+                        request_id
+                    });
                     let request_url = request.url.clone();
                     let request_method = request.method;
                     let current_time = Instant::now();
