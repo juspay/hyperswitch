@@ -1622,18 +1622,15 @@ pub async fn update_default_routing_config_for_profile(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile  = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
-    )
-    .await?
-    .get_required_value("Profile")
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        &profile_id,
+    ).await.change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
+
     let default_config = helpers::get_merchant_default_config(
         db,
         business_profile.get_id().get_string_repr(),
