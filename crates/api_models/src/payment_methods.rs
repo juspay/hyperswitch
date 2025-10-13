@@ -16,7 +16,6 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 use smithy::SmithyModel;
-use smithy_core::SmithyModel as SmithyModelStruct;
 
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
@@ -2175,10 +2174,12 @@ pub struct PaymentMethodDeleteResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.api.payment_methods")]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[smithy(value_type = "String", required)]
     pub id: id_type::GlobalPaymentMethodId,
 }
 
