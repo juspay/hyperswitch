@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCaptureData, RefundsData, ResponseId,
+        PaymentsCaptureData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
@@ -258,12 +258,88 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsRes
         item: ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::Charged,
+            status: AttemptStatus::Pending,
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.id,
             }),
             ..item.data
         })
+    }
+}
+
+pub(crate) fn get_setup_mandate_router_data<Request>(
+    item: ResponseRouterData<
+        flows::SetupMandate,
+        FinixInstrumentResponse,
+        Request,
+        PaymentsResponseData,
+    >,
+) -> Result<
+    RouterData<flows::SetupMandate, Request, PaymentsResponseData>,
+    error_stack::Report<ConnectorError>,
+> {
+    Ok(RouterData {
+        status: AttemptStatus::Charged,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(Some(MandateReference {
+                connector_mandate_id: Some(item.response.id),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            })),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..item.data
+    })
+}
+
+//setup mandate
+
+impl
+    TryFrom<
+        &FinixRouterData<'_, flows::SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+    > for FinixCreatePaymentInstrumentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<
+            '_,
+            flows::SetupMandate,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let tokenization_data = &item.router_data.request;
+
+        match &tokenization_data.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                Ok(Self {
+                    instrument_type: FinixPaymentInstrumentType::PaymentCard,
+                    name: card_data.card_holder_name.clone(),
+                    number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
+                    security_code: Some(card_data.card_cvc.clone()),
+                    expiration_month: Some(card_data.get_expiry_month_as_i8()?),
+                    expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
+                    identity: item.router_data.get_connector_customer_id()?, // This would come from a previously created identity
+                    tags: None,
+                    address: None,
+                    card_brand: None, // Finix determines this from the card number
+                    card_type: None,  // Finix determines this from the card number
+                    additional_data: None,
+                })
+            }
+
+            _ => Err(ConnectorError::NotImplemented(
+                "Payment method not supported for tokenization".to_string(),
+            )
+            .into()),
+        }
     }
 }
 
