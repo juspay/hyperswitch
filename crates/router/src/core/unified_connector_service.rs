@@ -50,7 +50,7 @@ use crate::{
         payments::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType, 
-                RolloutExecutionResult, ProxyOverride, EffectiveProxyConfig, ProxyConfig,
+                RolloutExecutionResult, ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -81,7 +81,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
-) -> RouterResult<GatewaySystem>
+) -> RouterResult<(GatewaySystem, SessionState)>
 where
     D: OperationSessionGetters<F>,
 {
@@ -170,10 +170,7 @@ where
     let shadow_rollout_result =
         should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
     
-    let rollout_enabled = rollout_result.should_execute;
-    let shadow_rollout_enabled = shadow_rollout_result.should_execute;
-    
-    // Log proxy URLs if available
+    // Log proxy URLs if available (before moving values)
     if let Some(ref proxy_override) = rollout_result.proxy_override {
         router_env::logger::info!(
             http_url = ?proxy_override.http_url,
@@ -188,6 +185,18 @@ where
             "Shadow rollout config has proxy URLs"
         );
     }
+    
+    // Create updated SessionState with proxy override (prioritize main rollout over shadow)
+    let updated_state = if let Some(ref proxy_override) = rollout_result.proxy_override {
+        create_updated_session_state_with_proxy(state, proxy_override)
+    } else if let Some(ref proxy_override) = shadow_rollout_result.proxy_override {
+        create_updated_session_state_with_proxy(state, proxy_override)
+    } else {
+        state.clone()
+    };
+    
+    let rollout_enabled = rollout_result.should_execute;
+    let shadow_rollout_enabled = shadow_rollout_result.should_execute;
 
     router_env::logger::debug!(
         "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
@@ -355,7 +364,39 @@ where
         flow_name
     );
 
-    Ok(decision)
+    // Log proxy configuration when overrides are used
+    if rollout_result.proxy_override.is_some() || shadow_rollout_result.proxy_override.is_some() {
+        router_env::logger::info!(
+            "Using updated SessionState with proxy configuration overrides"
+        );
+    }
+
+    Ok((decision, updated_state))
+}
+
+/// Creates a new SessionState with proxy configuration updated from the override
+fn create_updated_session_state_with_proxy(
+    state: &SessionState,
+    proxy_override: &ProxyOverride,
+) -> SessionState {
+    let mut updated_state = state.clone();
+    
+    // Update the proxy configuration with overrides
+    let updated_proxy = hyperswitch_interfaces::types::Proxy {
+        http_url: proxy_override.http_url.clone().or(state.conf.proxy.http_url.clone()),
+        https_url: proxy_override.https_url.clone().or(state.conf.proxy.https_url.clone()),
+        idle_pool_connection_timeout: state.conf.proxy.idle_pool_connection_timeout,
+        bypass_proxy_hosts: state.conf.proxy.bypass_proxy_hosts.clone(),
+        mitm_ca_certificate: state.conf.proxy.mitm_ca_certificate.clone(),
+        mitm_enabled: state.conf.proxy.mitm_enabled,
+    };
+    
+    // Create updated configuration
+    let mut updated_conf = (*state.conf).clone();
+    updated_conf.proxy = updated_proxy;
+    updated_state.conf = std::sync::Arc::new(updated_conf);
+    
+    updated_state
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -1135,3 +1176,4 @@ pub async fn send_comparison_data(
 
     Ok(())
 }
+

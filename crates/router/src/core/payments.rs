@@ -4274,7 +4274,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, _updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -5176,7 +5176,7 @@ where
         .await?;
 
     // do order creation
-    let should_call_unified_connector_service = should_call_unified_connector_service(
+    let (should_call_unified_connector_service, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -5311,7 +5311,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution = should_call_unified_connector_service(
+        let (execution, updated_state) = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
@@ -5384,7 +5384,7 @@ where
             }
 
             call_connector_service(
-                state,
+                &updated_state,
                 req_state,
                 merchant_context,
                 connector,

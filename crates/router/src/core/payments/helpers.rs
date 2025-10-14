@@ -2123,11 +2123,8 @@ impl Default for RolloutConfig {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ProxyOverride {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-}
+// Re-export ProxyOverride from hyperswitch_interfaces
+pub use hyperswitch_interfaces::types::ProxyOverride;
 
 #[derive(Debug, Clone)]
 pub struct RolloutExecutionResult {
@@ -2135,81 +2132,7 @@ pub struct RolloutExecutionResult {
     pub proxy_override: Option<ProxyOverride>,
 }
 
-/// Effective proxy configuration with rollout override support
-#[derive(Debug, Clone)]
-pub struct EffectiveProxyConfig<'a> {
-    base_proxy: &'a hyperswitch_interfaces::types::Proxy,
-    proxy_override: Option<&'a ProxyOverride>,
-}
 
-impl<'a> EffectiveProxyConfig<'a> {
-    /// Create a new effective proxy config
-    pub fn new(
-        base_proxy: &'a hyperswitch_interfaces::types::Proxy,
-        proxy_override: Option<&'a ProxyOverride>,
-    ) -> Self {
-        Self {
-            base_proxy,
-            proxy_override,
-        }
-    }
-
-    /// Get HTTP proxy URL (override takes precedence)
-    pub fn http_url(&self) -> Option<&String> {
-        self.proxy_override
-            .and_then(|override_| override_.http_url.as_ref())
-            .or(self.base_proxy.http_url.as_ref())
-    }
-
-    /// Get HTTPS proxy URL (override takes precedence)
-    pub fn https_url(&self) -> Option<&String> {
-        self.proxy_override
-            .and_then(|override_| override_.https_url.as_ref())
-            .or(self.base_proxy.https_url.as_ref())
-    }
-
-    /// Get any proxy URL, preferring HTTPS over HTTP
-    pub fn any_url(&self, prefer_https: bool) -> Option<&String> {
-        if prefer_https {
-            self.https_url().or(self.http_url())
-        } else {
-            self.http_url().or(self.https_url())
-        }
-    }
-
-    /// Get proxy URL for reqwest client (cloned)
-    pub fn for_reqwest(&self, prefer_https: bool) -> Option<String> {
-        self.any_url(prefer_https).cloned()
-    }
-
-    /// Check if any proxy is configured
-    pub fn has_proxy(&self) -> bool {
-        self.http_url().is_some() || self.https_url().is_some()
-    }
-
-    /// Get all proxy configuration details
-    pub fn get_config(&self) -> ProxyConfig {
-        ProxyConfig {
-            http_url: self.http_url().cloned(),
-            https_url: self.https_url().cloned(),
-            idle_pool_connection_timeout: self.base_proxy.idle_pool_connection_timeout,
-            bypass_proxy_hosts: self.base_proxy.bypass_proxy_hosts.clone(),
-            mitm_ca_certificate: self.base_proxy.mitm_ca_certificate.clone(),
-            mitm_enabled: self.base_proxy.mitm_enabled,
-        }
-    }
-}
-
-/// Resolved proxy configuration
-#[derive(Debug, Clone)]
-pub struct ProxyConfig {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
-    pub mitm_ca_certificate: Option<masking::Secret<String>>,
-    pub mitm_enabled: Option<bool>,
-}
 
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
