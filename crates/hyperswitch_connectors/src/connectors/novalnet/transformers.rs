@@ -536,6 +536,7 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
+    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -556,7 +557,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure => Self::Failure,
+            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
         }
     }
 }
@@ -905,6 +906,7 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -993,7 +995,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
     status: NovalnetTransactionStatus,
-    tid: Secret<String>,
+    tid: Option<Secret<String>>,
 }
 
 impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
@@ -1012,12 +1014,19 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
                 .clone()
                 .get_required_value("encoded_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
             let novalnet_redirection_response =
                 serde_urlencoded::from_str::<NovolnetRedirectionResponse>(encoded_data.as_str())
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            NovalnetSyncTransaction {
-                tid: novalnet_redirection_response.tid.expose(),
-            }
+
+            let tid = novalnet_redirection_response
+                .tid
+                .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "tid",
+                })?
+                .expose();
+
+            NovalnetSyncTransaction { tid }
         } else {
             NovalnetSyncTransaction {
                 tid: item
