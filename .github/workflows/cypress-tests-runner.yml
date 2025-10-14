@@ -122,7 +122,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 3
+        run: cargo build --package router --bin router
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -154,11 +154,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -286,7 +289,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel-all 2
 
           kill "${{ env.PID }}"
 
@@ -320,11 +323,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -469,7 +475,7 @@ jobs:
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel-all 2
 
           # Cleanup
           kill "${{ env.PID }}"
@@ -506,11 +512,14 @@ jobs:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
           POSTGRES_DB: hyperswitch_db
+          POSTGRES_MAX_CONNECTIONS: 200
+          POSTGRES_SHARED_BUFFERS: 256MB
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --shm-size=512m
         ports:
           - 5432:5432
 
@@ -624,7 +633,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2 --jobs 3
+        run: just build_v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
