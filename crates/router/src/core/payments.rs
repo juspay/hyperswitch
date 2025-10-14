@@ -4117,41 +4117,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    // let add_access_token_result = router_data
-    //     .add_access_token(
-    //         state,
-    //         &connector,
-    //         merchant_context,
-    //         payment_data.get_creds_identifier(),
-    //     )
-    //     .await?;
-
-    // router_data = router_data.add_session_token(state, &connector).await?;
-
-    // let should_continue_further = access_token::update_router_data_with_access_token_result(
-    //     &add_access_token_result,
-    //     &mut router_data,
-    //     &call_connector_action,
-    // );
-    // let should_continue_further = true;
-
-    // let should_continue_further = match router_data
-    //     .create_order_at_connector(state, &connector, should_continue_further)
-    //     .await?
-    // {
-    //     Some(create_order_response) => {
-    //         if let Ok(order_id) = create_order_response.clone().create_order_result {
-    //             payment_data.set_connector_response_reference_id(Some(order_id.clone()))
-    //         }
-
-    //         // Set the response in routerdata response to carry forward
-    //         router_data
-    //             .update_router_data_with_create_order_response(create_order_response.clone());
-    //         create_order_response.create_order_result.ok().is_some()
-    //     }
-    //     // If create order is not required, then we can proceed with further processing
-    //     None => true,
-    // };
     let pre_decide_inputs = flows::PreDecideFlowInputs {
         call_connector_action: &call_connector_action,
         tokenization_action: &tokenization_action,
@@ -4192,54 +4157,6 @@ where
     }
 
     router_data.payment_method_token = payment_data.get_payment_method_token().cloned();
-
-    // let payment_method_token_response = router_data
-    //     .add_payment_method_token(
-    //         state,
-    //         &connector,
-    //         &tokenization_action,
-    //         should_continue_further,
-    //     )
-    //     .await?;
-
-    // let mut should_continue_further =
-    //     tokenization::update_router_data_with_payment_method_token_result(
-    //         payment_method_token_response,
-    //         &mut router_data,
-    //         is_retry_payment,
-    //         should_continue_further,
-    //     );
-
-    // (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-    //     state,
-    //     &connector,
-    //     payment_data,
-    //     router_data,
-    //     operation,
-    //     should_continue_further,
-    // )
-    // .await?;
-
-    // should move to pre_decide flow
-    // if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
-    //     session_token: Some(session_token),
-    //     ..
-    // }) = router_data.response.to_owned()
-    // {
-    //     payment_data.push_sessions_token(session_token);
-    // };
-
-    // This too
-    // In case of authorize flow, pre-task and post-tasks are being called in build request
-    // if we do not want to proceed further, then the function will return Ok(None, false)
-    // let (connector_request, should_continue_further) = if should_continue_further {
-    //     // Check if the actual flow specific request can be built with available data
-    //     router_data
-    //         .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-    //         .await?
-    // } else {
-    //     (None, false)
-    // };
 
     if should_add_task_to_process_tracker(payment_data) {
         operation
