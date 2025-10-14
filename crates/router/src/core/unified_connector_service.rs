@@ -49,8 +49,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType, 
-                RolloutExecutionResult, ProxyOverride, EffectiveProxyConfig, ProxyConfig,
+                is_ucs_enabled, should_execute_based_on_rollout, EffectiveProxyConfig,
+                MerchantConnectorAccountType, ProxyConfig, ProxyOverride, RolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -167,12 +167,11 @@ where
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result =
-        should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
-    
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+
     let rollout_enabled = rollout_result.should_execute;
     let shadow_rollout_enabled = shadow_rollout_result.should_execute;
-    
+
     // Log proxy URLs if available
     if let Some(ref proxy_override) = rollout_result.proxy_override {
         router_env::logger::info!(
