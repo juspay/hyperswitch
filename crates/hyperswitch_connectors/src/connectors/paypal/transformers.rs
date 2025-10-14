@@ -12,16 +12,19 @@ use hyperswitch_domain_models::{
         BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
-    router_data::{AccessToken, ConnectorAuthType, RouterData, ExtendedAuthorizationResponseData, ConnectorResponseData},
+    router_data::{
+        AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
+        RouterData,
+    },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
         refunds::{Execute, RSync},
         VerifyWebhookSource,
     },
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId, PaymentsExtendAuthorizationData,
-        VerifyWebhookSourceRequestData,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData, PaymentsSyncData,
+        ResponseId, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -29,9 +32,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
-        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsPostSessionTokensRouterData, RefreshTokenRouterData, RefundsRouterData,
+        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -915,8 +918,9 @@ pub struct PaypalExtendAuthorizationRequest {
     amount: OrderAmount,
 }
 
-
-impl TryFrom<&PaypalRouterData<&PaymentsExtendAuthorizationRouterData>> for PaypalExtendAuthorizationRequest {
+impl TryFrom<&PaypalRouterData<&PaymentsExtendAuthorizationRouterData>>
+    for PaypalExtendAuthorizationRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PaypalRouterData<&PaymentsExtendAuthorizationRouterData>,
@@ -926,7 +930,6 @@ impl TryFrom<&PaypalRouterData<&PaymentsExtendAuthorizationRouterData>> for Payp
             value: item.amount.clone(),
         };
         Ok(Self { amount })
-
     }
 }
 
@@ -1629,16 +1632,19 @@ impl<F>
         let extended_authentication_applied = match item.response.status {
             PaypalIncrementalStatus::CREATED
             | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true)),
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => {
+                Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
+            }
             PaypalIncrementalStatus::PENDING => None,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false)),
+            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Some(
+                common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false),
+            ),
         };
 
         let extend_authorization_response = ExtendedAuthorizationResponseData {
             extended_authentication_applied,
             capture_before: item.response.expiration_time,
         };
-
 
         let connector_response = Some(ConnectorResponseData::new(
             None,
@@ -1933,7 +1939,6 @@ pub enum PaypalAuthResponse {
     PaypalRedirectResponse(PaypalRedirectResponse),
     PaypalThreeDsResponse(PaypalThreeDsResponse),
 }
-
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
 #[derive(Debug, Deserialize)]

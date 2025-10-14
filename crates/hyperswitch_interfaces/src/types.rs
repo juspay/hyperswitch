@@ -10,9 +10,10 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void, ExtendAuthorization,
+            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
+            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
+            UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -50,10 +51,10 @@ use hyperswitch_domain_models::{
         FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
         VerifyWebhookSourceRequestData,
@@ -193,8 +194,8 @@ pub type IncrementalAuthorizationType = dyn ConnectorIntegration<
 
 /// Type alias for `ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>`
 pub type ExtendedAuthorizationType = dyn ConnectorIntegration<
-ExtendAuthorization,
-PaymentsExtendAuthorizationData,
+    ExtendAuthorization,
+    PaymentsExtendAuthorizationData,
     PaymentsResponseData,
 >;
 

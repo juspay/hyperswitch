@@ -2298,7 +2298,6 @@ pub async fn payments_incremental_authorization(
     .await
 }
 
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
 pub async fn payments_extend_authorization(

@@ -924,7 +924,7 @@ pub fn payments_incremental_authorization() {}
 /// Payments - Extended Authorization
 ///
 /// Extended authorization is available for payments currently in the `requires_capture` status
-/// Call this endpoint to increase the authorization validity period 
+/// Call this endpoint to increase the authorization validity period
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/extend_authorization",

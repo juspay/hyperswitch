@@ -8411,7 +8411,6 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub cancellation_reason: Option<String>,
 }
 
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 /// Request to extend the authorization period for a payment
 pub struct PaymentsExtendAuthorizationRequest {

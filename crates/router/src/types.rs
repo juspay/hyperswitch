@@ -37,10 +37,10 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
-        IncrementalAuthorization, ExtendAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
-        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-        UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -76,9 +76,9 @@ pub use hyperswitch_domain_models::{
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData, PaymentsExtendAuthorizationData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -155,10 +155,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
-pub type PaymentsExtendAuthorizationRouterData = RouterData<ExtendAuthorization,
-PaymentsExtendAuthorizationData,
-    PaymentsResponseData,
->;
+pub type PaymentsExtendAuthorizationRouterData =
+    RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 
@@ -199,8 +197,12 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
-pub type PaymentsExtendAuthorizationResponseRouterData<R> =
-    ResponseRouterData<ExtendAuthorization, R, PaymentsExtendAuthorizationData, PaymentsResponseData>;
+pub type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
+    ExtendAuthorization,
+    R,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsBalanceResponseRouterData<R> =
     ResponseRouterData<Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =

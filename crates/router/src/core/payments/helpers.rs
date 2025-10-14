@@ -3806,7 +3806,6 @@ pub(crate) fn validate_payment_status_against_allowed_statuses(
     })
 }
 
-
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],

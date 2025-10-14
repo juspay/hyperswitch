@@ -20,18 +20,20 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken, ExtendAuthorization,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate, Void,
+            Authorize, Capture, ExtendAuthorization, IncrementalAuthorization, PSync,
+            PaymentMethodToken, PostSessionTokens, PreProcessing, SdkSessionUpdate, Session,
+            SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         CompleteAuthorize, VerifyWebhookSource,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, ResponseId, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -39,10 +41,11 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -63,10 +66,11 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType, ExtendedAuthorizationType,
-        PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
-        Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
+        ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
+        VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -1095,8 +1099,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-
-impl ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData> for Paypal {
+impl
+    ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>
+    for Paypal
+{
     fn get_headers(
         &self,
         req: &PaymentsExtendAuthorizationRouterData,
@@ -1140,7 +1146,8 @@ impl ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, 
 
         let connector_router_data =
             paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
-        let connector_req = paypal::PaypalExtendAuthorizationRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            paypal::PaypalExtendAuthorizationRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1149,15 +1156,19 @@ impl ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, 
         req: &PaymentsExtendAuthorizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some( RequestBuilder::new()
+        Ok(Some(
+            RequestBuilder::new()
                 .method(Method::Post)
                 .url(&ExtendedAuthorizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(ExtendedAuthorizationType::get_headers(self, req, connectors)?)
+                .headers(ExtendedAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
                 .set_body(ExtendedAuthorizationType::get_request_body(
                     self, req, connectors,
                 )?)
-                .build()))
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -1167,18 +1178,18 @@ impl ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, 
         res: Response,
     ) -> CustomResult<PaymentsExtendAuthorizationRouterData, errors::ConnectorError> {
         let response: paypal::PaypalExtendedAuthResponse = res
-        .response
-        .parse_struct("Paypal PaypalExtendedAuthResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    event_builder.map(|i| i.set_response_body(&response));
-    router_env::logger::info!(connector_response=?response);
-    RouterData::try_from(ResponseRouterData {
-        response,
-        data: data.clone(),
-        http_code: res.status_code,
-    })
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)
-}
+            .response
+            .parse_struct("Paypal PaypalExtendedAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 
     fn get_error_response(
         &self,

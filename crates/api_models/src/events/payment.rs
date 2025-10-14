@@ -31,11 +31,12 @@ use crate::{
         PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest, PaymentsExtendAuthorizationRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
+        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
+        PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
+        PaymentsUpdateMetadataResponse,
     },
 };
 
