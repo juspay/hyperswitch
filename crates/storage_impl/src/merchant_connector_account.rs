@@ -28,12 +28,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         connector_label: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        self.router_store.find_merchant_connector_account_by_merchant_id_connector_label(
-            state,
-            merchant_id,
-            connector_label,
-            key_store,
-        ).await
+        self.router_store
+            .find_merchant_connector_account_by_merchant_id_connector_label(
+                state,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
+            .await
     }
 
     #[cfg(feature = "v1")]
@@ -45,12 +47,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        self.router_store.find_merchant_connector_account_by_profile_id_connector_name(
-            state,
-            profile_id,
-            connector_name,
-            key_store,
-        ).await
+        self.router_store
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                state,
+                profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
     }
 
     #[cfg(feature = "v1")]
@@ -62,12 +66,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        self.router_store.find_merchant_connector_account_by_merchant_id_connector_name(
-            state,
-            merchant_id,
-            connector_name,
-            key_store,
-        ).await
+        self.router_store
+            .find_merchant_connector_account_by_merchant_id_connector_name(
+                state,
+                merchant_id,
+                connector_name,
+                key_store,
+            )
+            .await
     }
 
     #[instrument(skip_all)]
@@ -79,12 +85,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        self.router_store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            state,
-            merchant_id,
-            merchant_connector_id,
-            key_store,
-        ).await
+        self.router_store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                state,
+                merchant_id,
+                merchant_connector_id,
+                key_store,
+            )
+            .await
     }
 
     #[instrument(skip_all)]
@@ -183,12 +191,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .update_merchant_connector_account(
-                state,
-                this,
-                merchant_connector_account,
-                key_store,
-            )
+            .update_merchant_connector_account(state, this, merchant_connector_account, key_store)
             .await
     }
 
@@ -201,12 +204,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        self.update_merchant_connector_account(
-            state,
-            this,
-            merchant_connector_account,
-            key_store,
-        ).await
+        self.update_merchant_connector_account(state, this, merchant_connector_account, key_store)
+            .await
     }
 
     #[instrument(skip_all)]
