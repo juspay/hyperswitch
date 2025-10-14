@@ -91,7 +91,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        if !payment_attempt.request_extended_authorization.is_some_and(|request_extended_authorization| request_extended_authorization.is_true()) {
+        if !payment_attempt
+            .request_extended_authorization
+            .is_some_and(|request_extended_authorization| request_extended_authorization.is_true())
+        {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                     message:
                         "You cannot extend the authorization for this payment because authorization extension is not enabled.".to_owned(),
