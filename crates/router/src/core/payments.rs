@@ -2104,7 +2104,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
+pub async fn payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
