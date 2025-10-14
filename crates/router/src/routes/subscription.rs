@@ -311,3 +311,42 @@ pub async fn get_estimate(
     ))
     .await
 }
+
+#[instrument(skip_all)]
+pub async fn update_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+    json_payload: web::Json<subscription_types::UpdateSubscriptionRequest>,
+) -> impl Responder {
+    let flow = Flow::UpdateSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::update_subscription(
+                state,
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+                payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
