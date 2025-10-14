@@ -369,7 +369,6 @@ impl TryFrom<&PaymentsCancelRouterData> for PeachpaymentsVoidRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PeachPaymentsConnectorMetadataObject {
     pub client_merchant_reference_id: Secret<String>,
     pub name: Secret<String>,
