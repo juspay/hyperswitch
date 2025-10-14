@@ -49,8 +49,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType, 
-                RolloutExecutionResult, ProxyOverride,
+                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                ProxyOverride, RolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -167,9 +167,8 @@ where
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result =
-        should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
-    
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+
     // Log proxy URLs if available (before moving values)
     if let Some(ref proxy_override) = rollout_result.proxy_override {
         router_env::logger::info!(
@@ -185,7 +184,7 @@ where
             "Shadow rollout config has proxy URLs"
         );
     }
-    
+
     // Create updated SessionState with proxy override (prioritize main rollout over shadow)
     let updated_state = if let Some(ref proxy_override) = rollout_result.proxy_override {
         create_updated_session_state_with_proxy(state, proxy_override)
@@ -194,7 +193,7 @@ where
     } else {
         state.clone()
     };
-    
+
     let rollout_enabled = rollout_result.should_execute;
     let shadow_rollout_enabled = shadow_rollout_result.should_execute;
 
@@ -366,9 +365,7 @@ where
 
     // Log proxy configuration when overrides are used
     if rollout_result.proxy_override.is_some() || shadow_rollout_result.proxy_override.is_some() {
-        router_env::logger::info!(
-            "Using updated SessionState with proxy configuration overrides"
-        );
+        router_env::logger::info!("Using updated SessionState with proxy configuration overrides");
     }
 
     Ok((decision, updated_state))
@@ -380,22 +377,28 @@ fn create_updated_session_state_with_proxy(
     proxy_override: &ProxyOverride,
 ) -> SessionState {
     let mut updated_state = state.clone();
-    
+
     // Update the proxy configuration with overrides
     let updated_proxy = hyperswitch_interfaces::types::Proxy {
-        http_url: proxy_override.http_url.clone().or(state.conf.proxy.http_url.clone()),
-        https_url: proxy_override.https_url.clone().or(state.conf.proxy.https_url.clone()),
+        http_url: proxy_override
+            .http_url
+            .clone()
+            .or(state.conf.proxy.http_url.clone()),
+        https_url: proxy_override
+            .https_url
+            .clone()
+            .or(state.conf.proxy.https_url.clone()),
         idle_pool_connection_timeout: state.conf.proxy.idle_pool_connection_timeout,
         bypass_proxy_hosts: state.conf.proxy.bypass_proxy_hosts.clone(),
         mitm_ca_certificate: state.conf.proxy.mitm_ca_certificate.clone(),
         mitm_enabled: state.conf.proxy.mitm_enabled,
     };
-    
+
     // Create updated configuration
     let mut updated_conf = (*state.conf).clone();
     updated_conf.proxy = updated_proxy;
     updated_state.conf = std::sync::Arc::new(updated_conf);
-    
+
     updated_state
 }
 
@@ -1176,4 +1179,3 @@ pub async fn send_comparison_data(
 
     Ok(())
 }
-

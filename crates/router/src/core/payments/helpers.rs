@@ -2132,8 +2132,6 @@ pub struct RolloutExecutionResult {
     pub proxy_override: Option<ProxyOverride>,
 }
 
-
-
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
