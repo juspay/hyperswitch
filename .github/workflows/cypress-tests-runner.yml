@@ -258,6 +258,7 @@ jobs:
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -435,6 +436,7 @@ jobs:
       - name: Setup Local Server with Alpha Connector Configs
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -638,6 +640,7 @@ jobs:
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
           LLVM_PROFILE_FILE: "coverage.profraw"
         run: |
           # Start the server in the background
