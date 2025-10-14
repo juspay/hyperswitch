@@ -284,6 +284,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     &connector,
                     connector_name.as_str(),
                     &request_details,
+                    merchant_context.get_merchant_account().get_id(),
                 );
                 match error_result {
                     Ok((response, webhook_tracker, serialized_request)) => {
@@ -373,6 +374,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         &connector,
                         connector_name.as_str(),
                         &final_request_details,
+                        merchant_context.get_merchant_account().get_id(),
                     );
                     match error_result {
                         Ok((_, webhook_tracker, _)) => webhook_tracker,
@@ -559,8 +561,13 @@ async fn process_webhook_business_logic(
     {
         Ok(mca) => mca,
         Err(error) => {
-            let result =
-                handle_incoming_webhook_error(error, connector, connector_name, request_details);
+            let result = handle_incoming_webhook_error(
+                error,
+                connector,
+                connector_name,
+                request_details,
+                merchant_context.get_merchant_account().get_id(),
+            );
             match result {
                 Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
                 Err(e) => return Err(e),
@@ -850,8 +857,13 @@ async fn process_webhook_business_logic(
     match result_response {
         Ok(response) => Ok(response),
         Err(error) => {
-            let result =
-                handle_incoming_webhook_error(error, connector, connector_name, request_details);
+            let result = handle_incoming_webhook_error(
+                error,
+                connector,
+                connector_name,
+                request_details,
+                merchant_context.get_merchant_account().get_id(),
+            );
             match result {
                 Ok((_, webhook_tracker, _)) => Ok(webhook_tracker),
                 Err(e) => Err(e),
@@ -865,6 +877,7 @@ fn handle_incoming_webhook_error(
     connector: &ConnectorEnum,
     connector_name: &str,
     request_details: &IncomingWebhookRequestDetails<'_>,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -881,6 +894,13 @@ fn handle_incoming_webhook_error(
 
     // get the error response from the connector
     if connector_enum.should_acknowledge_webhook_for_resource_not_found_errors() {
+        metrics::WEBHOOK_FLOW_FAILED_BUT_ACKNOWLEDGED.add(
+            1,
+            router_env::metric_attributes!(
+                ("connector", connector_name.to_string()),
+                ("merchant_id", merchant_id.get_string_repr().to_string())
+            ),
+        );
         let response = connector
             .get_webhook_api_response(
                 request_details,

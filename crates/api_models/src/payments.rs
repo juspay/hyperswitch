@@ -3112,6 +3112,7 @@ impl GetPaymentMethodType for UpiData {
         match self {
             Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
             Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
+            Self::UpiQr(_) => api_enums::PaymentMethodType::UpiQr,
         }
     }
 }
@@ -3661,6 +3662,7 @@ pub struct CryptoData {
 pub enum UpiData {
     UpiCollect(UpiCollectData),
     UpiIntent(UpiIntentData),
+    UpiQr(UpiQrData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3669,6 +3671,9 @@ pub struct UpiCollectData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct UpiQrData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct UpiIntentData {}
@@ -5069,6 +5074,11 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         qr_code_fetch_url: Url,
     },
+    /// Contains the SDK UPI intent URI for payment processing
+    SdkUpiIntentInformation {
+        #[schema(value_type = String)]
+        sdk_uri: Url,
+    },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
@@ -5202,6 +5212,11 @@ pub struct SdkNextActionData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct FetchQrCodeInformation {
     pub qr_code_fetch_url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SdkUpiIntentInformation {
+    pub sdk_uri: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

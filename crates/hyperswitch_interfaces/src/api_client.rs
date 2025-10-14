@@ -6,6 +6,7 @@ use crate::{configs, consts, metrics};
 use common_utils::request::RequestContent;
 use hyperswitch_domain_models::router_data::ErrorResponse;
 use hyperswitch_domain_models::router_data::RouterData;
+use hyperswitch_domain_models::errors::api_error_response;
 use router_env::{instrument, logger, tracing};
 use serde_json::json;
 use std::fmt::Debug;
@@ -21,7 +22,9 @@ use router_env::tracing_actix_web::RequestId;
 use crate::{connector_integration_interface::ConnectorEnum, types::Proxy};
 use crate::{events, types, unified_connector_service};
 use common_enums::ApiClientError;
-use common_utils::{errors::CustomResult, request::Request};
+use common_utils::{errors::CustomResult, request::Request, consts::{
+         X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID,
+    },};
 use masking::Maskable;
 
 /// A trait representing a converter for connector names to their corresponding enum variants.
@@ -32,7 +35,7 @@ pub trait ConnectorConverter: Send + Sync {
         connector: &str,
     ) -> CustomResult<
         ConnectorEnum,
-        hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse,
+        api_error_response::ApiErrorResponse,
     >;
 }
 /// A trait representing a builder for HTTP requests.
@@ -120,122 +123,6 @@ pub trait ApiClientWrapper: Send + Sync {
     fn event_handler(&self) -> &dyn events::EventHandlerInterface;
 }
 
-/// Calls the connector API and handles the response
-#[instrument(skip_all)]
-pub async fn call_connector_api(
-    state: &dyn ApiClientWrapper,
-    request: Request,
-    flow_name: &str,
-) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
-    let current_time = Instant::now();
-    let headers = request.headers.clone();
-    let url = request.url.clone();
-    let response = state
-        .get_api_client()
-        .send_request(state, request, None, true)
-        .await;
-
-    match response.as_ref() {
-        Ok(resp) => {
-            let status_code = resp.status().as_u16();
-            let elapsed_time = current_time.elapsed();
-            logger::info!(
-                ?headers,
-                url,
-                status_code,
-                flow=?flow_name,
-                ?elapsed_time
-            );
-        }
-        Err(err) => {
-            logger::info!(
-                call_connector_api_error=?err
-            );
-        }
-    }
-
-    handle_response(response).await
-}
-
-/// Handle the response from the API call
-#[instrument(skip_all)]
-pub async fn handle_response(
-    response: CustomResult<reqwest::Response, ApiClientError>,
-) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
-    response
-        .map(|response| async {
-            logger::info!(?response);
-            let status_code = response.status().as_u16();
-            let headers = Some(response.headers().to_owned());
-            match status_code {
-                200..=202 | 302 | 204 => {
-                    // If needed add log line
-                    // logger:: error!( error_parsing_response=?err);
-                    let response = response
-                        .bytes()
-                        .await
-                        .change_context(ApiClientError::ResponseDecodingFailed)
-                        .attach_printable("Error while waiting for response")?;
-                    Ok(Ok(types::Response {
-                        headers,
-                        response,
-                        status_code,
-                    }))
-                }
-
-                status_code @ 500..=599 => {
-                    let bytes = response.bytes().await.map_err(|error| {
-                        report!(error)
-                            .change_context(ApiClientError::ResponseDecodingFailed)
-                            .attach_printable("Client error response received")
-                    })?;
-                    // let error = match status_code {
-                    //     500 => ApiClientError::InternalServerErrorReceived,
-                    //     502 => ApiClientError::BadGatewayReceived,
-                    //     503 => ApiClientError::ServiceUnavailableReceived,
-                    //     504 => ApiClientError::GatewayTimeoutReceived,
-                    //     _ => ApiClientError::UnexpectedServerResponse,
-                    // };
-                    Ok(Err(types::Response {
-                        headers,
-                        response: bytes,
-                        status_code,
-                    }))
-                }
-
-                status_code @ 400..=499 => {
-                    let bytes = response.bytes().await.map_err(|error| {
-                        report!(error)
-                            .change_context(ApiClientError::ResponseDecodingFailed)
-                            .attach_printable("Client error response received")
-                    })?;
-                    /* let error = match status_code {
-                        400 => ApiClientError::BadRequestReceived(bytes),
-                        401 => ApiClientError::UnauthorizedReceived(bytes),
-                        403 => ApiClientError::ForbiddenReceived,
-                        404 => ApiClientError::NotFoundReceived(bytes),
-                        405 => ApiClientError::MethodNotAllowedReceived,
-                        408 => ApiClientError::RequestTimeoutReceived,
-                        422 => ApiClientError::UnprocessableEntityReceived(bytes),
-                        429 => ApiClientError::TooManyRequestsReceived,
-                        _ => ApiClientError::UnexpectedServerResponse,
-                    };
-                    Err(report!(error).attach_printable("Client error response received"))
-                        */
-                    Ok(Err(types::Response {
-                        headers,
-                        response: bytes,
-                        status_code,
-                    }))
-                }
-
-                _ => Err(report!(ApiClientError::UnexpectedServerResponse)
-                    .attach_printable("Unexpected response from server")),
-            }
-        })?
-        .await
-}
-
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
@@ -310,10 +197,8 @@ where
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
-                        std::any::type_name::<T>()
-                            .split("::")
-                            .last()
-                            .unwrap_or_default()
+                        get_flow_name::<T>()
+                            .unwrap_or_else(|_| "UnknownFlow".to_string())
                     ),
                 ),
             );
@@ -340,7 +225,7 @@ where
             };
 
             match connector_request {
-                Some(request) => {
+                Some(mut request) => {
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
@@ -355,6 +240,26 @@ where
                         },
                         None => serde_json::Value::Null,
                     };
+                    let flow_name = get_flow_name::<T>()
+
+                        .unwrap_or_else(|_| "UnknownFlow".to_string());
+                    request.headers.insert((
+                        X_FLOW_NAME.to_string(),
+                        Maskable::Masked(masking::Secret::new(flow_name.to_string())),
+                    ));
+                    let connector_name = req.connector.clone();
+                    request.headers.insert((
+                        X_CONNECTOR_NAME.to_string(),
+                        Maskable::Masked(masking::Secret::new(connector_name.clone().to_string())),
+                    ));
+                    state.get_request_id().as_ref().map(|id| {
+                        let request_id = id.to_string();
+                        request.headers.insert((
+                            X_REQUEST_ID.to_string(),
+                            Maskable::Normal(request_id.clone()),
+                        ));
+                        request_id
+                    });
                     let request_url = request.url.clone();
                     let request_method = request.method;
                     let current_time = Instant::now();
@@ -600,6 +505,122 @@ where
     Ok(updated_router_data)
 }
 
+/// Calls the connector API and handles the response
+#[instrument(skip_all)]
+pub async fn call_connector_api(
+    state: &dyn ApiClientWrapper,
+    request: Request,
+    flow_name: &str,
+) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
+    let current_time = Instant::now();
+    let headers = request.headers.clone();
+    let url = request.url.clone();
+    let response = state
+        .get_api_client()
+        .send_request(state, request, None, true)
+        .await;
+
+    match response.as_ref() {
+        Ok(resp) => {
+            let status_code = resp.status().as_u16();
+            let elapsed_time = current_time.elapsed();
+            logger::info!(
+                ?headers,
+                url,
+                status_code,
+                flow=?flow_name,
+                ?elapsed_time
+            );
+        }
+        Err(err) => {
+            logger::info!(
+                call_connector_api_error=?err
+            );
+        }
+    }
+
+    handle_response(response).await
+}
+
+/// Handle the response from the API call
+#[instrument(skip_all)]
+pub async fn handle_response(
+    response: CustomResult<reqwest::Response, ApiClientError>,
+) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
+    response
+        .map(|response| async {
+            logger::info!(?response);
+            let status_code = response.status().as_u16();
+            let headers = Some(response.headers().to_owned());
+            match status_code {
+                200..=202 | 302 | 204 => {
+                    // If needed add log line
+                    // logger:: error!( error_parsing_response=?err);
+                    let response = response
+                        .bytes()
+                        .await
+                        .change_context(ApiClientError::ResponseDecodingFailed)
+                        .attach_printable("Error while waiting for response")?;
+                    Ok(Ok(types::Response {
+                        headers,
+                        response,
+                        status_code,
+                    }))
+                }
+
+                status_code @ 500..=599 => {
+                    let bytes = response.bytes().await.map_err(|error| {
+                        report!(error)
+                            .change_context(ApiClientError::ResponseDecodingFailed)
+                            .attach_printable("Client error response received")
+                    })?;
+                    // let error = match status_code {
+                    //     500 => ApiClientError::InternalServerErrorReceived,
+                    //     502 => ApiClientError::BadGatewayReceived,
+                    //     503 => ApiClientError::ServiceUnavailableReceived,
+                    //     504 => ApiClientError::GatewayTimeoutReceived,
+                    //     _ => ApiClientError::UnexpectedServerResponse,
+                    // };
+                    Ok(Err(types::Response {
+                        headers,
+                        response: bytes,
+                        status_code,
+                    }))
+                }
+
+                status_code @ 400..=499 => {
+                    let bytes = response.bytes().await.map_err(|error| {
+                        report!(error)
+                            .change_context(ApiClientError::ResponseDecodingFailed)
+                            .attach_printable("Client error response received")
+                    })?;
+                    /* let error = match status_code {
+                        400 => ApiClientError::BadRequestReceived(bytes),
+                        401 => ApiClientError::UnauthorizedReceived(bytes),
+                        403 => ApiClientError::ForbiddenReceived,
+                        404 => ApiClientError::NotFoundReceived(bytes),
+                        405 => ApiClientError::MethodNotAllowedReceived,
+                        408 => ApiClientError::RequestTimeoutReceived,
+                        422 => ApiClientError::UnprocessableEntityReceived(bytes),
+                        429 => ApiClientError::TooManyRequestsReceived,
+                        _ => ApiClientError::UnexpectedServerResponse,
+                    };
+                    Err(report!(error).attach_printable("Client error response received"))
+                        */
+                    Ok(Err(types::Response {
+                        headers,
+                        response: bytes,
+                        status_code,
+                    }))
+                }
+
+                _ => Err(report!(ApiClientError::UnexpectedServerResponse)
+                    .attach_printable("Unexpected response from server")),
+            }
+        })?
+        .await
+}
+
 /// Store the raw connector response in the router data if required
 pub fn store_raw_connector_response_if_required<T, Req, Resp>(
     return_raw_connector_response: Option<bool>,
@@ -620,4 +641,16 @@ where
         router_data.raw_connector_response = Some(masking::Secret::new(decoded));
     }
     Ok(())
+}
+
+/// Get the flow name from the type
+#[inline]
+pub fn get_flow_name<F>() -> CustomResult<String, api_error_response::ApiErrorResponse> {
+    Ok(std::any::type_name::<F>()
+        .to_string()
+        .rsplit("::")
+        .next()
+        .ok_or(api_error_response::ApiErrorResponse::InternalServerError)
+        .attach_printable("Flow stringify failed")?
+        .to_string())
 }

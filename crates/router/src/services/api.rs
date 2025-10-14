@@ -20,7 +20,9 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
+    consts::{
+        DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY,
+    },
     errors::{ErrorSwitch, ReportSwitchExt},
 };
 use error_stack::{report, Report, ResultExt};
