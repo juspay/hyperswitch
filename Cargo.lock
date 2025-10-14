@@ -2063,7 +2063,6 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "diesel",
- "dyn-clone",
  "error-stack 0.4.1",
  "fake",
  "futures 0.3.31",
