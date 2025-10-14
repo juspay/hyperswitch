@@ -618,6 +618,7 @@ pub async fn list_customers(
 
     Ok(services::ApplicationResponse::Json(customers))
 }
+
 #[instrument(skip(state))]
 pub async fn list_customers_with_count(
     state: SessionState,

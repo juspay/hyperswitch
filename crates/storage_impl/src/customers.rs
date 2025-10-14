@@ -288,6 +288,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
             .await
     }
+
     #[instrument(skip_all)]
     async fn list_customers_by_merchant_id_with_count(
         &self,
@@ -864,6 +865,7 @@ impl domain::CustomerInterface for MockDb {
 
         Ok(customers)
     }
+    
     async fn list_customers_by_merchant_id_with_count(
         &self,
         state: &KeyManagerState,

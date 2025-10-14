@@ -74,10 +74,21 @@ impl ApiEventMetric for CustomerUpdateRequestInternal {
         })
     }
 }
-
+#[cfg(feature = "v2")]
 impl ApiEventMetric for CustomerListRequestWithConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Customer {
+            customer_id: Some(self.id.clone())?,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for CustomerListRequestWithConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Customer {
+            customer_id: self.customer_id.clone()?,
+        })
     }
 }
 
