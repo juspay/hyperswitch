@@ -74,6 +74,7 @@ impl ApiEventMetric for CustomerUpdateRequestInternal {
         })
     }
 }
+
 #[cfg(feature = "v2")]
 impl ApiEventMetric for CustomerListRequestWithConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

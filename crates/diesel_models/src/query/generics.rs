@@ -444,6 +444,7 @@ where
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering records by predicate")
 }
+
 pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,

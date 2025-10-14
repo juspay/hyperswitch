@@ -79,6 +79,7 @@ impl Customer {
             .await
         }
     }
+    
     #[cfg(feature = "v1")]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,

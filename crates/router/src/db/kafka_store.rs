@@ -503,6 +503,7 @@ impl CustomerInterface for KafkaStore {
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
             .await
     }
+    
     async fn list_customers_by_merchant_id_with_count(
         &self,
         state: &KeyManagerState,
