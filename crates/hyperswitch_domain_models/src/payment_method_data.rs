@@ -633,6 +633,7 @@ pub struct CryptoData {
 pub enum UpiData {
     UpiCollect(UpiCollectData),
     UpiIntent(UpiIntentData),
+    UpiQr(UpiQrData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -643,6 +644,9 @@ pub struct UpiCollectData {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiIntentData {}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct UpiQrData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1484,6 +1488,7 @@ impl From<api_models::payments::UpiData> for UpiData {
                 Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
             }
             api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
+            api_models::payments::UpiData::UpiQr(_) => Self::UpiQr(UpiQrData {}),
         }
     }
 }
@@ -1499,6 +1504,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiIntent(_) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
             }
+            UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
         }
     }
 }
@@ -2193,6 +2199,7 @@ impl GetPaymentMethodType for UpiData {
         match self {
             Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
             Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
+            Self::UpiQr(_) => api_enums::PaymentMethodType::UpiQr,
         }
     }
 }
