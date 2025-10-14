@@ -4275,7 +4275,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (gateway_system, execution_path) = should_call_unified_connector_service(
+    let execution_path = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4289,9 +4289,9 @@ where
     );
 
     record_time_taken_with(|| async {
-        match (gateway_system, execution_path, is_handle_response_action) {
+        match (execution_path, is_handle_response_action) {
             // Process through UCS when system is UCS and not handling response
-            (GatewaySystem::UnifiedConnectorService, ExecutionPath::UnifiedConnectorService, false) => {
+            (ExecutionPath::UnifiedConnectorService, false) => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4311,7 +4311,7 @@ where
             }
 
             // Process through Direct with Shadow UCS
-            (GatewaySystem::Direct, ExecutionPath::ShadowUnifiedConnectorService, _) => {
+            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
@@ -4336,37 +4336,9 @@ where
             }
 
             // Process through Direct gateway
-            (GatewaySystem::Direct, ExecutionPath::Direct, _) | (GatewaySystem::UnifiedConnectorService, ExecutionPath::UnifiedConnectorService, true) => {
-                process_through_direct(
-                    state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
-                )
-                .await
-            }
-
-            // Catch-all for unexpected combinations
-            _ => {
-                router_env::logger::error!(
-                    "Unexpected gateway/execution path combination: gateway={:?}, execution_path={:?}",
-                    gateway_system,
-                    execution_path
-                );
+            (ExecutionPath::Direct, _)
+            | (ExecutionPath::UnifiedConnectorService, true)
+            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4838,7 +4810,7 @@ where
         .await?;
 
     // do order creation
-    let (gateway_system, _execution_path) = should_call_unified_connector_service(
+    let execution_path = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4847,7 +4819,7 @@ where
     .await?;
 
     let (connector_request, should_continue_further) =
-        if matches!(gateway_system, GatewaySystem::Direct) {
+        if matches!(execution_path, ExecutionPath::Direct) {
             let mut should_continue_further = true;
 
             let should_continue = match router_data
@@ -4905,7 +4877,7 @@ where
         .await?;
 
     record_time_taken_with(|| async {
-        if matches!(gateway_system, GatewaySystem::UnifiedConnectorService) {
+        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -4972,14 +4944,14 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let (gateway_system, execution_path) = should_call_unified_connector_service(
+        let execution_path = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
         )
         .await?;
-        if matches!(gateway_system, GatewaySystem::UnifiedConnectorService) {
+        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),

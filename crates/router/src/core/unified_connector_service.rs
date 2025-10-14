@@ -144,7 +144,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
-) -> RouterResult<(GatewaySystem, ExecutionPath)>
+) -> RouterResult<ExecutionPath>
 where
     D: OperationSessionGetters<F>,
 {
@@ -213,7 +213,7 @@ where
         flow_name
     );
 
-    Ok((gateway_system, execution_path))
+    Ok(execution_path)
 }
 
 fn decide_execution_path(
