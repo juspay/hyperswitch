@@ -865,7 +865,7 @@ impl domain::CustomerInterface for MockDb {
 
         Ok(customers)
     }
-    
+
     async fn list_customers_by_merchant_id_with_count(
         &self,
         state: &KeyManagerState,

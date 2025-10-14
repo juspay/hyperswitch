@@ -114,7 +114,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
             | Flow::CustomersList => Self::Customers,
-            | Flow::CustomersListWithSearchAndPagination => Self::Customers,
+            Flow::CustomersListWithSearchAndPagination => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
