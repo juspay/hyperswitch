@@ -246,7 +246,7 @@ async fn build_list_routing_result(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().get_id(),
-                &profile_id,
+                profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
