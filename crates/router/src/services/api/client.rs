@@ -4,7 +4,10 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 pub use external_services::http_client::{self, client};
 use http::{HeaderValue, Method};
-pub use hyperswitch_interfaces::{api_client::{ApiClient,RequestBuilder, ApiClientWrapper}, types::Proxy};
+pub use hyperswitch_interfaces::{
+    api_client::{ApiClient, ApiClientWrapper, RequestBuilder},
+    types::Proxy,
+};
 use masking::PeekInterface;
 use reqwest::multipart::Form;
 use router_env::tracing_actix_web::RequestId;

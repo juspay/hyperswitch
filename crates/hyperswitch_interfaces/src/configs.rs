@@ -1,11 +1,8 @@
-use common_utils::crypto::Encryptable;
-use common_utils::errors::CustomResult;
-use common_utils::id_type;
+use common_utils::{crypto::Encryptable, errors::CustomResult, id_type};
 pub use hyperswitch_domain_models::{
     connector_endpoints::Connectors, errors::api_error_response, merchant_connector_account,
 };
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::Deserialize;
 
 #[allow(missing_docs)]

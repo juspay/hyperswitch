@@ -1,31 +1,38 @@
-use crate::connector_integration_interface::BoxedConnectorIntegrationInterface;
-use crate::connector_integration_interface::RouterDataConversion;
-use crate::errors::ConnectorError;
-use crate::events::connector_api_logs::ConnectorEvent;
-use crate::{configs, consts, metrics};
-use common_utils::request::RequestContent;
-use hyperswitch_domain_models::router_data::ErrorResponse;
-use hyperswitch_domain_models::router_data::RouterData;
-use hyperswitch_domain_models::errors::api_error_response;
-use router_env::{instrument, logger, tracing};
-use serde_json::json;
-use std::fmt::Debug;
-use std::time::Duration;
-use std::time::Instant;
+use std::{
+    fmt::Debug,
+    time::{Duration, Instant},
+};
 
-use error_stack::report;
-use error_stack::ResultExt;
-use http::Method;
-use reqwest::multipart::Form;
-use router_env::tracing_actix_web::RequestId;
-
-use crate::{connector_integration_interface::ConnectorEnum, types::Proxy};
-use crate::{events, types, unified_connector_service};
 use common_enums::ApiClientError;
-use common_utils::{errors::CustomResult, request::Request, consts::{
-         X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID,
-    },};
+use common_utils::{
+    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
+    errors::CustomResult,
+    request::{Request, RequestContent},
+};
+use error_stack::{report, ResultExt};
+use http::Method;
+use hyperswitch_domain_models::{
+    errors::api_error_response,
+    router_data::{ErrorResponse, RouterData},
+};
 use masking::Maskable;
+use reqwest::multipart::Form;
+use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
+use serde_json::json;
+
+use crate::{
+    configs,
+    connector_integration_interface::{
+        BoxedConnectorIntegrationInterface, ConnectorEnum, RouterDataConversion,
+    },
+    consts,
+    errors::ConnectorError,
+    events,
+    events::connector_api_logs::ConnectorEvent,
+    metrics, types,
+    types::Proxy,
+    unified_connector_service,
+};
 
 /// A trait representing a converter for connector names to their corresponding enum variants.
 pub trait ConnectorConverter: Send + Sync {
@@ -33,10 +40,7 @@ pub trait ConnectorConverter: Send + Sync {
     fn get_connector_enum_by_name(
         &self,
         connector: &str,
-    ) -> CustomResult<
-        ConnectorEnum,
-        api_error_response::ApiErrorResponse,
-    >;
+    ) -> CustomResult<ConnectorEnum, api_error_response::ApiErrorResponse>;
 }
 /// A trait representing a builder for HTTP requests.
 pub trait RequestBuilder: Send + Sync {
@@ -197,8 +201,7 @@ where
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
-                        get_flow_name::<T>()
-                            .unwrap_or_else(|_| "UnknownFlow".to_string())
+                        get_flow_name::<T>().unwrap_or_else(|_| "UnknownFlow".to_string())
                     ),
                 ),
             );
@@ -240,9 +243,8 @@ where
                         },
                         None => serde_json::Value::Null,
                     };
-                    let flow_name = get_flow_name::<T>()
-
-                        .unwrap_or_else(|_| "UnknownFlow".to_string());
+                    let flow_name =
+                        get_flow_name::<T>().unwrap_or_else(|_| "UnknownFlow".to_string());
                     request.headers.insert((
                         X_FLOW_NAME.to_string(),
                         Maskable::Masked(masking::Secret::new(flow_name.to_string())),

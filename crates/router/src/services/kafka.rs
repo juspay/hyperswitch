@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::errors::CustomResult;
-use common_utils::types::TenantConfig;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use num_traits::ToPrimitive;
