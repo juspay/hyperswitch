@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.08.1-hotfix3
+
+### Bug Fixes
+
+- **connector:**
+  - [adyenplatform] use YYYY format for expiry year ([#9829](https://github.com/juspay/hyperswitch/pull/9829)) ([`588afb2`](https://github.com/juspay/hyperswitch/commit/588afb2133cbe1bdd42beecd8986768e08aa6621))
+  - [Peach Payments] fix connector metadata deserialization ([#9827](https://github.com/juspay/hyperswitch/pull/9827)) ([`e66bc8b`](https://github.com/juspay/hyperswitch/commit/e66bc8ba2730613ed5e4244c293011306d7aa637))
+
+**Full Changelog:** [`2025.10.08.1-hotfix2...2025.10.08.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.10.08.1-hotfix2...2025.10.08.1-hotfix3)
+
+- - -
+
 ## 2025.10.08.1-hotfix2
 
 ### Features
