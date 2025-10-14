@@ -50,7 +50,8 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             // if the status is `Failed`` we would want to Update few intent fields to perform a Revenue Recovery retry
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Conflicted => Ok(()),
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
@@ -385,6 +386,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 force_3ds_challenge: intent.force_3ds_challenge,
                 is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
                 enable_partial_authorization: intent.enable_partial_authorization,
+                active_attempts_group_id: intent.active_attempts_group_id,
+                active_attempt_id_type: Some(intent.active_attempt_id_type),
             }));
 
         let new_payment_intent = db

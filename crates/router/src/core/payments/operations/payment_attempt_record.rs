@@ -77,7 +77,8 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
         match intent_status {
             // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
@@ -124,7 +125,6 @@ impl<F: Send + Clone + Sync>
     ) -> RouterResult<operations::GetTrackerResponse<PaymentAttemptRecordData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
-
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
@@ -259,10 +259,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         F: 'b + Send,
     {
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
-        let active_attempt_id = match payment_data.revenue_recovery_data.triggered_by {
-            common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
-            common_enums::TriggeredBy::External => None,
-        };
+        let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
+        let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::AttemptsGroupID);
         let payment_intent_update =
 
     hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
@@ -270,7 +268,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
-            active_attempt_id
+            active_attempt_id_type,
+            active_attempts_group_id,
         }
     ;
         payment_data.payment_intent = state

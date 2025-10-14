@@ -42,7 +42,8 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Processing => Ok(()),
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Ok(()),
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
@@ -397,12 +398,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Merchant connector id is none when constructing response")?,
         );
-
+        let active_attempt_id = payment_data.payment_intent.get_active_attempt_id().cloned();
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
+                active_attempt_id,
             };
 
         let authentication_type = payment_data

@@ -6103,7 +6103,10 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         .first_payment_attempt_pg_error_code
                         .clone(),
                     invoice_billing_started_at_time: payment_revenue_recovery_metadata
-                        .invoice_billing_started_at_time,
+                        .invoice_billing_started_at_time
+                        .clone(),
+                    current_working_attempt_id: payment_revenue_recovery_metadata
+                        .current_working_attempt_id.clone(),
                 }
             });
         let apple_pay_details = feature_metadata

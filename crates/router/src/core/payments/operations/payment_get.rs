@@ -38,6 +38,7 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
@@ -176,7 +177,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
 
         self.validate_status_for_operation(payment_intent.status)?;
 
-        let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
+        let active_attempt_id = payment_intent.get_active_attempt_id().ok_or_else(|| {
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: ("active_attempt_id"),
             }

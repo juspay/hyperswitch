@@ -341,6 +341,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
+            current_working_attempt_id: from.current_working_attempt_id,
         }
     }
 
@@ -366,6 +367,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
+            current_working_attempt_id: self.current_working_attempt_id,
         }
     }
 }

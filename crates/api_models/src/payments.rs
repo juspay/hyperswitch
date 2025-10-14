@@ -9694,6 +9694,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Current working payment attempt id
+    pub current_working_attempt_id: Option<id_type::GlobalAttemptId>,
 }
 
 #[cfg(feature = "v2")]
@@ -9730,6 +9732,13 @@ impl PaymentRevenueRecoveryMetadata {
         payment_connector_transmission: PaymentConnectorTransmission,
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
+    }
+
+    pub fn set_current_working_attempt_id_for_api_request(
+        &mut self,
+        current_working_attempt_id: Option<id_type::GlobalAttemptId>,
+    ) {
+        self.current_working_attempt_id = current_working_attempt_id;
     }
     pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {

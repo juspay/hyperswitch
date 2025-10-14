@@ -472,7 +472,7 @@ pub struct PaymentIntent {
     /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
     /// The ID of the active attempt group for the payment intent
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -606,6 +606,16 @@ impl PaymentIntent {
         self.feature_metadata.as_ref().and_then(|feature_metadata| {
             feature_metadata.get_billing_merchant_connector_account_id()
         })
+    }
+
+    pub fn get_active_attempt_id(&self) -> Option<&id_type::GlobalAttemptId> {
+        let current_working_attempt_id = self
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.get_current_working_attempt_id());
+        self.active_attempt_id
+            .as_ref()
+            .or(current_working_attempt_id)
     }
 
     fn get_request_incremental_authorization_value(
@@ -1070,6 +1080,10 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let active_attempt_id = match self.revenue_recovery_data.triggered_by {
+            common_enums::TriggeredBy::Internal => Some(self.payment_attempt.id.clone()),
+            common_enums::TriggeredBy::External => None,
+        };
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()
@@ -1160,6 +1174,7 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
+                current_working_attempt_id: active_attempt_id,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,
