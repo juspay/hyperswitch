@@ -2063,6 +2063,7 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "diesel",
+ "dyn-clone",
  "error-stack 0.4.1",
  "fake",
  "futures 0.3.31",
@@ -4427,6 +4428,7 @@ dependencies = [
  "mime",
  "reqwest 0.11.27",
  "router_env",
+ "rust-grpc-client",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -7358,6 +7360,7 @@ dependencies = [
  "sha2",
  "storage_impl",
  "strum 0.26.3",
+ "subscription",
  "tera",
  "test_utils",
  "thiserror 1.0.69",
@@ -8878,6 +8881,34 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "subscription"
+version = "0.1.0"
+dependencies = [
+ "actix-multipart",
+ "actix-web",
+ "api_models",
+ "async-trait",
+ "bytes 1.10.1",
+ "common_enums",
+ "common_types",
+ "common_utils",
+ "csv",
+ "dyn-clone",
+ "error-stack 0.4.1",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking 0.1.0",
+ "rdkafka",
+ "router_env",
+ "scheduler",
+ "serde",
+ "serde_json",
+ "storage_impl",
+ "thiserror 1.0.69",
+ "time",
 ]
 
 [[package]]

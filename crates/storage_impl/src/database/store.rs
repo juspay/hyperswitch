@@ -3,9 +3,10 @@ use bb8::CustomizeConnection;
 use common_utils::DbConnectionParams;
 use diesel::PgConnection;
 use error_stack::ResultExt;
+use common_utils::types::TenantConfig;
 
 use crate::{
-    config::{Database, TenantConfig},
+    config::Database,
     errors::{StorageError, StorageResult},
 };
 

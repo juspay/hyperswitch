@@ -8,9 +8,10 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap", "oltp"]
+default = ["olap", "oltp", "accounts_cache"]
 dynamic_routing = []
 oltp = []
+accounts_cache = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
 v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]

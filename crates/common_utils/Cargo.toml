@@ -30,6 +30,7 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = "1.10.1"
 diesel = "2.2.10"
+dyn-clone = "1.0.19"
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"

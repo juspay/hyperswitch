@@ -45,6 +45,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
+    id_type,
     consts::{
         self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
@@ -1441,3 +1442,12 @@ impl_enum_str!(
         },
     }
 );
+
+#[allow(missing_docs)]
+pub trait TenantConfig: Send + Sync {
+    fn get_tenant_id(&self) -> &id_type::TenantId;
+    fn get_schema(&self) -> &str;
+    fn get_accounts_schema(&self) -> &str;
+    fn get_redis_key_prefix(&self) -> &str;
+    fn get_clickhouse_database(&self) -> &str;
+}

@@ -23,6 +23,7 @@ mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
 use common_utils::errors::CustomResult;
+use common_utils::types::TenantConfig;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
@@ -66,7 +67,7 @@ use router_env::{
     tracing::{self, instrument},
     types::FlowMetric,
 };
-use storage_impl::config::Database;
+use storage_impl::config::{Database};
 use strum::Display;
 
 use self::{
@@ -969,10 +970,7 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(
-        config: &AnalyticsConfig,
-        tenant: &dyn storage_impl::config::TenantConfig,
-    ) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant: &dyn TenantConfig) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx, .. } => {
                 Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)
