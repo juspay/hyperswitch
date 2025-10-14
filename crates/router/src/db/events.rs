@@ -964,7 +964,6 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
-                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )
@@ -1082,7 +1081,6 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
-                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )

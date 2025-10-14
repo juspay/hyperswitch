@@ -71,9 +71,6 @@ pub struct Event {
 
     /// Indicates whether the event was ultimately delivered.
     pub is_overall_delivery_successful: Option<bool>,
-
-    /// The identifier for the outgoing webhook endpoint.
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Debug)]
@@ -97,7 +94,6 @@ impl From<EventUpdate> for EventUpdateInternal {
                 is_webhook_notified: Some(is_webhook_notified),
                 response: response.map(Into::into),
                 is_overall_delivery_successful: None,
-                webhook_endpoint_id: None,
             },
             EventUpdate::OverallDeliveryStatusUpdate {
                 is_overall_delivery_successful,
@@ -105,7 +101,6 @@ impl From<EventUpdate> for EventUpdateInternal {
                 is_webhook_notified: None,
                 response: None,
                 is_overall_delivery_successful: Some(is_overall_delivery_successful),
-                webhook_endpoint_id: None,
             },
         }
     }
@@ -135,7 +130,6 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
-            webhook_endpoint_id: None,
         })
     }
 
@@ -186,7 +180,6 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: item.delivery_attempt,
             metadata: item.metadata,
             is_overall_delivery_successful: item.is_overall_delivery_successful,
-            webhook_endpoint_id: None,
         })
     }
 
@@ -209,7 +202,6 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
-            webhook_endpoint_id: None,
         })
     }
 }

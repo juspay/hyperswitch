@@ -142,7 +142,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
-        webhook_endpoint_id: None,
     };
 
     let lock_value = utils::perform_redis_lock(

@@ -310,7 +310,6 @@ pub async fn retry_delivery_attempt(
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
         is_overall_delivery_successful: Some(false),
-        webhook_endpoint_id: None,
     };
 
     let event = store

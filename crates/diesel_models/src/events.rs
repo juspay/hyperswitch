@@ -27,7 +27,6 @@ pub struct EventNew {
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
     pub is_overall_delivery_successful: Option<bool>,
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -36,7 +35,6 @@ pub struct EventUpdateInternal {
     pub is_webhook_notified: Option<bool>,
     pub response: Option<Encryption>,
     pub is_overall_delivery_successful: Option<bool>,
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, Selectable)]
@@ -62,7 +60,6 @@ pub struct Event {
     pub delivery_attempt: Option<storage_enums::WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
     pub is_overall_delivery_successful: Option<bool>,
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]
