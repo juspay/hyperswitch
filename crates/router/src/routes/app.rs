@@ -8,8 +8,7 @@ use api_models::routing::RuleMigrationQuery;
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::id_type;
-use common_utils::types::TenantConfig;
+use common_utils::{id_type, types::TenantConfig};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -263,7 +262,8 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
         self.request_id
     }
     fn get_request_id_str(&self) -> Option<String> {
-        self.request_id.map(|req_id| req_id.as_hyphenated().to_string())
+        self.request_id
+            .map(|req_id| req_id.as_hyphenated().to_string())
     }
     fn get_tenant(&self) -> Tenant {
         self.tenant.clone()

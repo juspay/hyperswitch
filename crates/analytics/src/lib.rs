@@ -22,8 +22,7 @@ pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
-use common_utils::errors::CustomResult;
-use common_utils::types::TenantConfig;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
@@ -67,7 +66,7 @@ use router_env::{
     tracing::{self, instrument},
     types::FlowMetric,
 };
-use storage_impl::config::{Database};
+use storage_impl::config::Database;
 use strum::Display;
 
 use self::{

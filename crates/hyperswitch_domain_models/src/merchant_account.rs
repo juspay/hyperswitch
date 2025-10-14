@@ -1,4 +1,3 @@
-use crate::behaviour::Conversion;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -16,6 +15,7 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
+    behaviour::Conversion,
     merchant_key_store,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };

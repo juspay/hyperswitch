@@ -26,9 +26,11 @@ use external_services::{
     },
     superposition::SuperpositionClientConfig,
 };
-pub use hyperswitch_interfaces::configs::Connectors;
 pub use hyperswitch_interfaces::{
-    configs::{InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig, Tenant, TenantUserConfig, GlobalTenant},
+    configs::{
+        Connectors, GlobalTenant, InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig,
+        Tenant, TenantUserConfig,
+    },
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },

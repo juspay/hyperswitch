@@ -17,8 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::ExposeOptionInterface;
-use masking::{PeekInterface, Secret, SwitchStrategy};
+use masking::{ExposeOptionInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;

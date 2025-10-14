@@ -20,9 +20,7 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{
-        DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY,
-    },
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
 };
 use error_stack::{report, Report, ResultExt};
@@ -42,7 +40,10 @@ pub use hyperswitch_interfaces::{
         ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation,
     },
-    api_client::{call_connector_api, handle_response, execute_connector_processing_step, handle_ucs_response, store_raw_connector_response_if_required},
+    api_client::{
+        call_connector_api, execute_connector_processing_step, handle_response,
+        handle_ucs_response, store_raw_connector_response_if_required,
+    },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
@@ -62,17 +63,13 @@ use crate::{
         api_locking,
         errors::{self, CustomResult},
     },
-    events::{
-        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
-    },
+    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
     headers, logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
     },
-    services::{
-        generic_link_response::build_generic_link_html,
-    },
+    services::generic_link_response::build_generic_link_html,
     types::api,
     utils,
 };

@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, user::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -42,7 +42,6 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use common_utils::types::TenantConfig;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 

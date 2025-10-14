@@ -1,21 +1,20 @@
-use crate::redis::cache;
-use crate::{
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
-};
 use async_bb8_diesel::AsyncConnection;
-use common_utils::encryption::Encryption;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_connector_account::{self as domain, MerchantConnectorAccountInterface},
     merchant_key_store::MerchantKeyStore,
 };
 use router_env::{instrument, tracing};
+
+use crate::{
+    kv_router_store,
+    redis::cache,
+    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
+    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KVRouterStore<T> {
