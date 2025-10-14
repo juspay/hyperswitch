@@ -39,7 +39,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsExtendAuthorizationRequest,
+        _request: &api::PaymentsExtendAuthorizationRequest,
         merchant_context: &domain::MerchantContext,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
@@ -78,12 +78,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
                 enums::IntentStatus::PartiallyCapturedAndCapturable,
                 enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
             ],
-            "extend_authorization",
+            "extend authorization",
         )?;
 
-        //todo: / validation for extended authorization api
-
-        let mut payment_attempt = db
+        let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
@@ -92,6 +90,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if payment_attempt.request_extended_authorization != Some(true) {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "You cannot extend the authorization for this payment because authorization extension is not enabled.".to_owned(),
+                })?
+        }
 
         let shipping_address = helpers::get_address_by_id(
             state,

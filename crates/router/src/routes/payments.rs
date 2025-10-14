@@ -2299,7 +2299,7 @@ pub async fn payments_incremental_authorization(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsExtendAuthorization, payment_id))]
 pub async fn payments_extend_authorization(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

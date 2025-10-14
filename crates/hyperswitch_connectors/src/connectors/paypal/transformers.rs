@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
-        RouterData,
+        RouterData, ErrorResponse,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -54,9 +54,7 @@ use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsPostSessionTokensRequestData,
-        RouterData as OtherRouterData,
+        self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, PaymentsPostSessionTokensRequestData, RouterData as OtherRouterData
     },
 };
 
@@ -1512,6 +1510,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>>
 #[serde(rename_all = "snake_case")]
 pub struct PaypalExtendedAuthResponse {
     status: PaypalIncrementalStatus,
+    status_details: Option<PaypalIncrementalAuthStatusDetails>,
     id: String,
     links: Vec<PaypalLinks>,
     expiration_time: Option<PrimitiveDateTime>,
@@ -1538,7 +1537,7 @@ pub struct PaypalIncrementalAuthResponse {
     message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalIncrementalStatus {
     CREATED,
@@ -1556,10 +1555,10 @@ pub struct PaypalNetworkTransactionReference {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaypalIncrementalAuthStatusDetails {
-    reason: PaypalStatusPendingReason,
+    reason: Option<PaypalStatusPendingReason>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalStatusPendingReason {
     PENDINGREVIEW,
@@ -1575,6 +1574,28 @@ impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
             PaypalIncrementalStatus::PENDING => Self::Processing,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
         }
+    }
+}
+
+impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
+    fn from(item: PaypalIncrementalStatus) -> Self {
+        match item {
+            PaypalIncrementalStatus::CREATED 
+            | PaypalIncrementalStatus::CAPTURED
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
+            PaypalIncrementalStatus::PENDING => Self::Pending,
+            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+        }
+    }
+}
+
+fn is_extend_authorization_applied(item: PaypalIncrementalStatus) -> Option<common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool> {
+        match item {
+            PaypalIncrementalStatus::CREATED
+            | PaypalIncrementalStatus::CAPTURED
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true)),
+            PaypalIncrementalStatus::PENDING => None,
+            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false)),
     }
 }
 
@@ -1629,20 +1650,8 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let extended_authentication_applied = match item.response.status {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => {
-                Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
-            }
-            PaypalIncrementalStatus::PENDING => None,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Some(
-                common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false),
-            ),
-        };
-
         let extend_authorization_response = ExtendedAuthorizationResponseData {
-            extended_authentication_applied,
+            extended_authentication_applied: is_extend_authorization_applied(item.response.status.clone()),
             capture_before: item.response.expiration_time,
         };
 
@@ -1652,7 +1661,38 @@ impl<F>
             Some(extend_authorization_response),
         ));
 
+        let status= common_enums::AttemptStatus::from(item.response.status.clone());
+        let reason =  item.response.status_details.and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
+
+        let response = if is_payment_failure(status) {
+            Err(ErrorResponse {
+                code: reason.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                message: reason.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: reason,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        };
+
         Ok(Self {
+            status,
+            response,
             connector_response,
             ..item.data
         })

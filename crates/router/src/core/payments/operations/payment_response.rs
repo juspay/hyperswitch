@@ -1572,7 +1572,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             None =>
                             // mark previous attempt status for technical failures in PSync flow
                             {
-                                if flow_name == "PSync" {
+                                if flow_name == "PSync" || flow_name == "ExtendAuthorization" {
                                     match err.status_code {
                                         // marking failure for 2xx because this is genuine payment failure
                                         200..=299 => enums::AttemptStatus::Failure,

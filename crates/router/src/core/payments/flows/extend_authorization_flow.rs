@@ -83,6 +83,11 @@ impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
+        metrics::PAYMENT_EXTEND_AUTHORIZATION_COUNT.add(
+            1,
+            router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+        );
+
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::ExtendAuthorization,
             types::PaymentsExtendAuthorizationData,
