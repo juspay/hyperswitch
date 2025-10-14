@@ -123,7 +123,7 @@ mod merchant_connector_account_cache_tests {
         core::errors,
         db::{
             merchant_connector_account::MerchantConnectorAccountInterface,
-            merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
+            merchant_key_store::MerchantKeyStoreInterface, MockDb,
         },
         routes::{
             self,

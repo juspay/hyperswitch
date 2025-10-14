@@ -863,8 +863,7 @@ mod tests {
     use crate::{
         core::webhooks as webhooks_core,
         db::{
-            events::EventInterface, merchant_key_store::MerchantKeyStoreInterface,
-            MasterKeyInterface, MockDb,
+            events::EventInterface, merchant_key_store::MerchantKeyStoreInterface,MockDb,
         },
         routes::{
             self,

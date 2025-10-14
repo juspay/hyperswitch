@@ -260,7 +260,7 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
         self.conf.proxy.clone()
     }
     fn get_request_id(&self) -> Option<RequestId> {
-        self.request_id.clone()
+        self.request_id
     }
     fn get_request_id_str(&self) -> Option<String> {
         self.request_id.map(|req_id| req_id.as_hyphenated().to_string())

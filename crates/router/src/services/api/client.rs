@@ -148,7 +148,7 @@ impl ApiClient for ProxyClient {
     }
 
     fn get_request_id(&self) -> Option<RequestId> {
-        self.request_id.clone()
+        self.request_id
     }
 
     fn get_request_id_str(&self) -> Option<String> {

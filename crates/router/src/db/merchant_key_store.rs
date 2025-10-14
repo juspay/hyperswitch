@@ -9,7 +9,7 @@ mod tests {
     use tokio::sync::oneshot;
 
     use crate::{
-        db::{merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb},
+        db::{merchant_key_store::MerchantKeyStoreInterface, MockDb},
         routes::{
             self,
             app::{settings::Settings, StorageImpl},
