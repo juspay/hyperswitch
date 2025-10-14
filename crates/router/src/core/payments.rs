@@ -105,12 +105,12 @@ use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
-use crate::core::routing::helpers as routing_helpers;
-#[cfg(feature = "v1")]
 use crate::core::payments::helpers::{
     process_through_direct, process_through_direct_with_shadow_unified_connector_service,
     process_through_ucs,
 };
+#[cfg(feature = "v1")]
+use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{

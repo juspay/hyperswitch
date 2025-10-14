@@ -11,6 +11,8 @@ use api_models::{
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
 use base64::Engine;
+#[cfg(feature = "v1")]
+use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -29,6 +31,8 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use external_services::grpc_client;
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -66,6 +70,21 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(feature = "v1")]
+use crate::core::{
+    payments::{
+        call_connector_service,
+        flows::{ConstructFlowSpecificData, Feature},
+        operations::ValidateResult as OperationsValidateResult,
+        should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
+        TokenizationAction,
+    },
+    unified_connector_service::{
+        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
+    },
+};
+#[cfg(feature = "v1")]
+use crate::routes;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -106,24 +125,6 @@ use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
-#[cfg(feature = "v1")]
-use crate::core::{
-    payments::{
-        call_connector_service, should_add_task_to_process_tracker,
-        flows::{ConstructFlowSpecificData, Feature},
-        operations::ValidateResult as OperationsValidateResult,
-        OperationSessionGetters, OperationSessionSetters, TokenizationAction,
-    },
-    unified_connector_service::{
-        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
-    },
-};
-#[cfg(feature = "v1")]
-use crate::routes;
-#[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
-#[cfg(feature = "v1")]
-use external_services::grpc_client;
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -7974,8 +7975,7 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
     RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     router_env::logger::info!(
         "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
@@ -8077,8 +8077,7 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
     RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     router_env::logger::info!(
         "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
@@ -8155,8 +8154,7 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
     RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     router_env::logger::info!(
         "Processing payment through Direct gateway system with UCS in shadow mode - payment_id={}, attempt_id={}",
@@ -8226,11 +8224,7 @@ where
 // Helper function to execute shadow UCS call
 pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     state: SessionState,
-    mut unified_connector_service_router_data: RouterData<
-        F,
-        RouterDReq,
-        PaymentsResponseData,
-    >,
+    mut unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     direct_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
     header_payload: domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
@@ -8241,8 +8235,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
     RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
     // Call UCS in shadow mode
     let _unified_connector_service_result = unified_connector_service_router_data
@@ -8274,11 +8267,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
 pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
     state: &SessionState,
     hyperswitch_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<
-        F,
-        RouterDReq,
-        PaymentsResponseData,
-    >,
+    unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync + 'static,
