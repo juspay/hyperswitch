@@ -1,10 +1,3 @@
-#[cfg(feature = "accounts_cache")]
-use crate::redis::cache;
-use crate::{
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
-};
 use async_bb8_diesel::AsyncConnection;
 use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
@@ -15,6 +8,14 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use router_env::{instrument, tracing};
+
+#[cfg(feature = "accounts_cache")]
+use crate::redis::cache;
+use crate::{
+    kv_router_store,
+    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
+    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KVRouterStore<T> {
