@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.14.0
+
+### Features
+
+- **connector:** [Peach Payments] add network token support for connector ([#9754](https://github.com/juspay/hyperswitch/pull/9754)) ([`c2da9db`](https://github.com/juspay/hyperswitch/commit/c2da9db91f2984e72ac3013ba28b818766b76a35))
+- **core:** Add support for upi_intent and upi_qr ([#9716](https://github.com/juspay/hyperswitch/pull/9716)) ([`5c7a607`](https://github.com/juspay/hyperswitch/commit/5c7a607326c15eaaf474940f579f76db6e37342c))
+
+### Bug Fixes
+
+- **router:** Fixed click to pay metadata parsing issue ([#9784](https://github.com/juspay/hyperswitch/pull/9784)) ([`951f4c2`](https://github.com/juspay/hyperswitch/commit/951f4c29d667083e665fc18755993c63e50a1394))
+
+### Refactors
+
+- Refactored Response types for subscription APIs ([#9788](https://github.com/juspay/hyperswitch/pull/9788)) ([`435bc11`](https://github.com/juspay/hyperswitch/commit/435bc117764515fac5e0cdcd30a1f268c335afef))
+
+**Full Changelog:** [`2025.10.13.0...2025.10.14.0`](https://github.com/juspay/hyperswitch/compare/2025.10.13.0...2025.10.14.0)
+
+- - -
+
 ## 2025.10.13.0
 
 ### Features
