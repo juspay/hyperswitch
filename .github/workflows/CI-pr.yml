@@ -126,8 +126,7 @@ jobs:
         with:
           save-if: false
 
-      - name: Cargo build release
-        if: ${{ github.event_name == 'merge_group' }}
+      - name: Run cargo check
         shell: bash
         run: cargo check --features "release"
 
