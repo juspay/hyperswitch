@@ -1528,7 +1528,6 @@ default_imp_for_extend_authorization!(
     connectors::Katapult,
     connectors::Klarna,
     connectors::Loonio,
-    connectors::Paypal,
     connectors::Paysafe,
     connectors::Rapyd,
     connectors::Razorpay,

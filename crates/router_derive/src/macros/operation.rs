@@ -143,7 +143,7 @@ impl Conversion {
                 syn::Ident::new("PaymentsExtendAuthorizationRequest", Span::call_site())
             }
             Derives::ExtendAuthorizationData => {
-                syn::Ident::new("ExtendAuthorizationData", Span::call_site())
+                syn::Ident::new("PaymentsExtendAuthorizationData", Span::call_site())
             }
         }
     }

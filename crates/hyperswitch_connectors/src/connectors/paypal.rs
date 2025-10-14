@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken,
+            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken, ExtendAuthorization,
             PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
@@ -40,7 +40,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData, PaymentsExtendAuthorizationRouterData,
         PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
         SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
@@ -63,7 +63,7 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType, ExtendedAuthorizationType,
         PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType, PaymentsPreProcessingType,
         PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
         Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
@@ -119,6 +119,7 @@ impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
 impl api::PaymentPostSessionTokens for Paypal {}
 impl api::PaymentSessionUpdate for Paypal {}
+impl api::PaymentExtendAuthorization for Paypal {}
 
 impl api::Payouts for Paypal {}
 #[cfg(feature = "payouts")]
@@ -1091,6 +1092,100 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.get_order_error_response(res, event_builder)
+    }
+}
+
+
+impl ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData> for Paypal {
+    fn get_headers(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let incremental_authorization_id = paypal_meta.incremental_authorization_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing incremental_authorization_id id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}v2/payments/authorizations/{}/reauthorize",
+            self.base_url(connectors),
+            incremental_authorization_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
+        let connector_req = paypal::PaypalExtendAuthorizationRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some( RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ExtendedAuthorizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(ExtendedAuthorizationType::get_headers(self, req, connectors)?)
+                .set_body(ExtendedAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build()))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsExtendAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsExtendAuthorizationRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalExtendedAuthResponse = res
+        .response
+        .parse_struct("Paypal PaypalExtendedAuthResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    event_builder.map(|i| i.set_response_body(&response));
+    router_env::logger::info!(connector_response=?response);
+    RouterData::try_from(ResponseRouterData {
+        response,
+        data: data.clone(),
+        http_code: res.status_code,
+    })
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
