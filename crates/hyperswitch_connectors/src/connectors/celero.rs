@@ -271,7 +271,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let response_integrity_object = if let Some(resp_data) = response.data.as_ref() {
             Some(utils::get_authorise_integrity_object(
                 self.amount_converter,
-                resp_data.amount,
+                MinorUnit::new(resp_data.amount),
                 resp_data.currency.clone(),
             )?)
         } else {
@@ -371,7 +371,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
         let response_integrity_object = if let Some(resp_data) = response.data.as_ref() {
             Some(utils::get_sync_integrity_object(
                 self.amount_converter,
-                resp_data.amount,
+                MinorUnit::new(resp_data.amount),
                 resp_data.currency.clone(),
             )?)
         } else {
@@ -645,7 +645,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
             match (amount_opt, currency_opt) {
                 (Some(a), Some(c)) => Some(utils::get_refund_integrity_object(
                     self.amount_converter,
-                    a,
+                    MinorUnit::new(a),
                     c.to_string(),
                 )?),
                 _ => None,
@@ -750,7 +750,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
             match (amount_opt, currency_opt) {
                 (Some(a), Some(c)) => Some(utils::get_refund_integrity_object(
                     self.amount_converter,
-                    a,
+                    MinorUnit::new(a),
                     c.to_string(),
                 )?),
                 _ => None,
