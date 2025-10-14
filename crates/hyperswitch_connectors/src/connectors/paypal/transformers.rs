@@ -1685,7 +1685,7 @@ impl<F>
                 message: reason
                     .clone()
                     .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-                reason: reason,
+                reason,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
