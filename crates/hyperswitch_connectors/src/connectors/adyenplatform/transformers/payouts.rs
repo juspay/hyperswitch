@@ -12,7 +12,8 @@ use crate::{
     connectors::adyen::transformers as adyen,
     types::PayoutsResponseRouterData,
     utils::{
-        self, AddressDetailsData, PayoutFulfillRequestData, PayoutsData as _, RouterData as _,
+        self, AddressDetailsData, CardData, PayoutFulfillRequestData, PayoutsData as _,
+        RouterData as _,
     },
 };
 
@@ -467,9 +468,9 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
 
                 let card_identification =
                     AdyenCardIdentification::Card(AdyenRawCardIdentification {
+                        expiry_year: c.get_expiry_year_4_digit(),
                         card_number: c.card_number,
                         expiry_month: c.expiry_month,
-                        expiry_year: c.expiry_year,
                         issue_number: None,
                         start_month: None,
                         start_year: None,
