@@ -235,7 +235,7 @@ pub enum StripeErrorCode {
     FileValidationFailed,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not found in the request")]
     MissingFile,
-    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File puropse not found in the request")]
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File purpose not found in the request")]
     MissingFilePurpose,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File content type not found")]
     MissingFileContentType,
