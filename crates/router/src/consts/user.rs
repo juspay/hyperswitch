@@ -14,7 +14,7 @@ pub const RECOVERY_CODE_LENGTH: usize = 8; // This is without counting the hyphe
 pub const TOTP_DIGITS: usize = 6;
 /// Duration in seconds of a step.
 pub const TOTP_VALIDITY_DURATION_IN_SECONDS: u64 = 30;
-/// Number of totps allowed as network delay. 1 would mean one totp before current totp and one totp after are valids.
+/// Number of totps allowed as network delay. 1 would mean one totp before current totp and one totp after are valid.
 pub const TOTP_TOLERANCE: u8 = 1;
 /// Number of maximum attempts user has for totp
 pub const TOTP_MAX_ATTEMPTS: u8 = 4;
