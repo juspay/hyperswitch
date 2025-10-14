@@ -17,7 +17,7 @@ let make = (~field: dynamicField, ~value: string, ~onChange: string => unit, ~on
   let validationResult = if isTouched {
     validateFieldValue(field, localValue)
   } else {
-    Valid
+    {isValid: true, errorMessage: None}
   }
 
   let handleChange = (event: ReactEvent.Form.t) => {
@@ -35,19 +35,38 @@ let make = (~field: dynamicField, ~value: string, ~onChange: string => unit, ~on
   | UserEmailAddress => "email"
   | UserPhoneNumber => "tel"
   | UserPaymentAmount => "number"
+  | UserCardNumber => "text"
+  | UserCardCvc => "password"
   | _ => "text"
   }
 
-  let inputClassName = switch validationResult {
-  | Invalid(_) => "dynamic-field-input error"
-  | Valid => "dynamic-field-input"
+  let inputClassName = if validationResult.isValid {
+    "dynamic-field-input"
+  } else {
+    "dynamic-field-input error"
   }
 
   <div className="dynamic-field-container">
     <label className="dynamic-field-label">
-      {React.string(field.label)}
+      {React.string(field.displayName)}
       {field.required ? <span className="required-asterisk"> {React.string("*")} </span> : React.null}
     </label>
+
+    <input
+      type_=inputType
+      value=localValue
+      placeholder=?{field.placeholder}
+      onChange=handleChange
+      onBlur=handleBlur
+      className=inputClassName
+    />
+
+    {switch validationResult.errorMessage {
+    | Some(errorMsg) => <div className="dynamic-field-error"> {React.string(errorMsg)} </div>
+    | None => React.null
+    }}
+  </div>
+}
 
     <input
       type_=inputType

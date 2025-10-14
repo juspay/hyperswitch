@@ -1,77 +1,47 @@
-// DynamicFieldTypes.res// Field types that can be rendered dynamically
+// DynamicFieldTypes.res
+// Type definitions for dynamic field rendering in Hyperswitch WebSDK
 
-// Type definitions for dynamic field rendering in Hyperswitch WebSDKtype fieldType = 
-
+type fieldType =
   | UserFullName
-
-type fieldType =  | UserEmailAddress  
-
-  | UserFullName  | UserPhoneNumber
-
-  | UserEmailAddress  | UserAddress
-
-  | UserPhoneNumber  | UserCountry
-
-  | UserAddressLine1  | UserText
-
-  | UserAddressLine2  | UserNumber
-
-  | UserCity  | UserSelect
-
-  | UserState  | UserCheckbox
-
-  | UserCountry  | UserDate
-
+  | UserEmailAddress
+  | UserPhoneNumber
+  | UserAddressLine1
+  | UserAddressLine2
+  | UserCity
+  | UserState
+  | UserCountry
   | UserZipCode
+  | UserBankAccountNumber
+  | UserBankCode
+  | UserBankAccountHolderName
+  | UserMandiriVaNumber
+  | UserPaymentAmount
+  | UserPaymentCurrency
+  | UserPaymentDescription
+  | UserPaymentReference
+  | UserCardNumber
+  | UserCardCvc
 
-  | UserBankAccountNumber// Individual field configuration
-
-  | UserBankCodetype dynamicField = {
-
-  | UserBankAccountHolderName  requiredField: string,
-
-  | UserMandiriVaNumber  displayName: string,
-
-  | UserPaymentAmount  fieldType: fieldType,
-
-  | UserPaymentCurrency  value: option<string>,
-
-  | UserPaymentDescription  required: bool,
-
-  | UserPaymentReference  placeholder: option<string>,
-
+type dynamicField = {
+  requiredField: string,
+  displayName: string,
+  fieldType: fieldType,
+  value: option<string>,
+  required: bool,
+  placeholder: option<string>,
   validation: option<string>,
-
-type dynamicField = {  options: option<array<string>>, // For select dropdowns
-
-  fieldType: fieldType,}
-
-  label: string,
-
-  placeholder: string,// Payment method dynamic configuration
-
-  required: bool,type dynamicFieldConfig = {
-
-  validationRegex: option<string>,  paymentMethod: string,
-
-  errorMessage: option<string>,  paymentMethodType: string,
-
-  maxLength: option<int>,  requiredFields: Dict.t<dynamicField>,
-
-  minLength: option<int>,}
-
+  options: option<array<string>>, // For select dropdowns
 }
 
-// Field validation result
+type dynamicFieldConfig = {
+  paymentMethod: string,
+  paymentMethodType: string,
+  requiredFields: Js.Dict.t<dynamicField>,
+}
 
-type dynamicFieldConfig = {type fieldValidation = {
-
-  fields: array<dynamicField>,  isValid: bool,
-
-  submitButtonText: string,  errorMessage: option<string>,
-
-  onSubmit: array<(string, string)> => unit, // Array of (fieldType, value) tuples}
-
+type fieldValidation = {
+  isValid: bool,
+  errorMessage: option<string>,
 }
 
 let fieldTypeToString = (fieldType: fieldType): string => {
@@ -93,6 +63,8 @@ let fieldTypeToString = (fieldType: fieldType): string => {
   | UserPaymentCurrency => "user_payment_currency"
   | UserPaymentDescription => "user_payment_description"
   | UserPaymentReference => "user_payment_reference"
+  | UserCardNumber => "user_card_number"
+  | UserCardCvc => "user_card_cvc"
   }
 }
 
@@ -115,6 +87,8 @@ let stringToFieldType = (str: string): option<fieldType> => {
   | "user_payment_currency" => Some(UserPaymentCurrency)
   | "user_payment_description" => Some(UserPaymentDescription)
   | "user_payment_reference" => Some(UserPaymentReference)
+  | "user_card_number" => Some(UserCardNumber)
+  | "user_card_cvc" => Some(UserCardCvc)
   | _ => None
   }
 }
