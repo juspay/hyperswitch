@@ -8,9 +8,13 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{Card, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::ResponseId,
-    router_response_types::PaymentsResponseData,
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{RefundsData, ResponseId},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -94,7 +98,7 @@ pub struct CardOnFileData {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyTransactionData {
     pub merchant_information: MerchantInformation,
     pub routing: Routing,
@@ -104,7 +108,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub merchant_information: MerchantInformation,
     pub routing: Routing,
@@ -121,7 +125,7 @@ pub enum EcommercePaymentOnlyTransactionData {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct MerchantInformation {
     pub client_merchant_reference_id: Secret<String>,
     pub name: Secret<String>,
@@ -147,7 +151,7 @@ pub struct MerchantInformation {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "lowercase"]]
+#[serde(rename_all = "lowercase")]
 pub enum MerchantType {
     Standard,
     Sub,
@@ -155,7 +159,7 @@ pub enum MerchantType {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct Routing {
     pub route: Route,
     pub mid: Secret<String>,
@@ -171,7 +175,7 @@ pub struct Routing {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "snake_case"]]
+#[serde(rename_all = "snake_case")]
 pub enum Route {
     ExipayEmulator,
     AbsaBase24,
@@ -187,7 +191,7 @@ pub enum Route {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct CardDetails {
     pub pan: CardNumber,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,7 +203,7 @@ pub struct CardDetails {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkTokenDetails {
     pub token: NetworkTokenNumber,
     pub expiry_year: Secret<String>,
@@ -210,7 +214,7 @@ pub struct NetworkTokenDetails {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "lowercase"]]
+#[serde(rename_all = "lowercase")]
 pub enum CardNetworkLowercase {
     Visa,
     Mastercard,
@@ -252,7 +256,7 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct AmountDetails {
     pub amount: MinorUnit,
     pub currency_code: String,
@@ -262,9 +266,33 @@ pub struct AmountDetails {
 
 // Confirm Transaction Request (for capture)
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsConfirmRequest {
     pub ecommerce_card_payment_only_confirmation_data: EcommerceCardPaymentOnlyConfirmationData,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundRequest {
+    pub reference_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pos_data: Option<PosData>,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PosData {
+    pub referral: String,
+}
+
+impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefundsRouterData<Execute>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            reference_id: item.request.refund_id.clone(),
+            pos_data: None,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -662,8 +690,24 @@ pub enum PeachpaymentsPaymentsResponse {
     WebhookResponse(Box<PeachpaymentsIncomingWebhook>),
 }
 
+impl From<PeachpaymentsRefundStatus> for common_enums::RefundStatus {
+    fn from(item: PeachpaymentsRefundStatus) -> Self {
+        match item {
+            PeachpaymentsRefundStatus::Successful
+            | PeachpaymentsRefundStatus::ApprovedConfirmed
+            | PeachpaymentsRefundStatus::Approved
+            | PeachpaymentsRefundStatus::Authorized => Self::Success,
+            PeachpaymentsRefundStatus::Failed
+            | PeachpaymentsRefundStatus::Declined
+            | PeachpaymentsRefundStatus::Voided
+            | PeachpaymentsRefundStatus::Reversed => Self::Failure,
+            PeachpaymentsRefundStatus::Pending => Self::Pending,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsPaymentsData {
     pub transaction_id: String,
     pub response_code: Option<ResponseCode>,
@@ -671,9 +715,130 @@ pub struct PeachpaymentsPaymentsData {
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRsyncResponse {
+    pub original_transaction_id: String,
+    pub refund_balance_data: RefundBalanceData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundResponse {
+    pub transaction_id: String,
+    pub original_transaction_id: String,
+    pub reference_id: String,
+    pub transaction_result: PeachpaymentsRefundStatus,
+    pub response_code: ResponseCode,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub transaction_time: Option<OffsetDateTime>,
+    pub refund_balance_data: Option<RefundBalanceData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PeachpaymentsRefundStatus {
+    Successful,
+    Pending,
+    Authorized,
+    Approved,
+    ApprovedConfirmed,
+    Declined,
+    Failed,
+    Reversed,
+    Voided,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundBalanceData {
+    pub amount: AmountDetails,
+    pub balance: AmountDetails,
+    pub refund_history: Vec<RefundHistory>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundHistory {
+    pub transaction_id: String,
+    pub reference_id: String,
+    pub amount: AmountDetails,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub transaction_time: Option<OffsetDateTime>,
+}
+
+impl<F>
+    TryFrom<ResponseRouterData<F, PeachpaymentsRefundResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsRefundResponse, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = common_enums::RefundStatus::from(item.response.transaction_result);
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<ResponseRouterData<RSync, PeachpaymentsRsyncResponse, RefundsData, RefundsResponseData>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            RSync,
+            PeachpaymentsRsyncResponse,
+            RefundsData,
+            RefundsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let connector_refund_id = item
+            .data
+            .request
+            .connector_refund_id
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+
+        let refund_info = item
+            .response
+            .refund_balance_data
+            .refund_history
+            .iter()
+            .find(|&refund| &refund.transaction_id == connector_refund_id);
+
+        let response = match refund_info {
+            Some(refund) => Ok(RefundsResponseData {
+                connector_refund_id: refund.transaction_id.clone(),
+                refund_status: common_enums::RefundStatus::Success,
+            }),
+            None => Ok(RefundsResponseData {
+                connector_refund_id: item
+                    .data
+                    .request
+                    .connector_refund_id
+                    .clone()
+                    .unwrap_or_else(|| item.data.request.refund_id.clone()),
+                refund_status: common_enums::RefundStatus::Failure,
+            }),
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
 // Confirm Transaction Response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsConfirmResponse {
     pub transaction_id: String,
     pub response_code: Option<ResponseCode>,
@@ -682,7 +847,7 @@ pub struct PeachpaymentsConfirmResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ResponseCode {
     Text(String),
@@ -718,7 +883,7 @@ impl ResponseCode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyResponseData {
     pub amount: Option<AmountDetails>,
     pub stan: Option<Secret<String>>,
