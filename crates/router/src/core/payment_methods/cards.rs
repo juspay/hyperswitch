@@ -4616,7 +4616,9 @@ pub async fn get_card_details_from_locker(
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "Card not found in vault".to_string(),
+    })
     .attach_printable("Error getting card from card vault")?;
 
     payment_methods::get_card_detail(pm, card)
