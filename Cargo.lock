@@ -7360,7 +7360,6 @@ dependencies = [
  "sha2",
  "storage_impl",
  "strum 0.26.3",
- "subscription",
  "tera",
  "test_utils",
  "thiserror 1.0.69",
