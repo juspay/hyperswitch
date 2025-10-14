@@ -1,7 +1,20 @@
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
+#[cfg(feature = "accounts_cache")]
+use crate::RedisConnInterface;
+use crate::{
+    kv_router_store,
+    store::MerchantAccountUpdateInternal,
+    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
+    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+};
 use common_utils::ext_traits::AsyncExt;
+#[cfg(feature = "accounts_cache")]
+use crate::redis::{
+    cache,
+    cache::{CacheKind, ACCOUNTS_CACHE},
+};
 use diesel_models::merchant_account as storage;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -11,18 +24,6 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-
-use crate::{
-    kv_router_store,
-    redis::{
-        cache,
-        cache::{CacheKind, ACCOUNTS_CACHE},
-    },
-    store::MerchantAccountUpdateInternal,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RedisConnInterface, RouterStore,
-    StorageError,
-};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterStore<T> {

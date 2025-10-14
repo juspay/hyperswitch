@@ -9,12 +9,13 @@ use router_env::{instrument, tracing};
 
 use crate::{
     kv_router_store,
-    redis::{
-        cache,
-        cache::{CacheKind, ACCOUNTS_CACHE},
-    },
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+};
+#[cfg(feature = "accounts_cache")]
+use crate::redis::{
+    cache,
+    cache::{CacheKind, ACCOUNTS_CACHE},
 };
 
 #[async_trait::async_trait]
