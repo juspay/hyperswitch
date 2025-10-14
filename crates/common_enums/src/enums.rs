@@ -2350,31 +2350,6 @@ pub enum ShadowRolloutAvailability {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum UCSRolloutAvailability {
-    IsAvailable,
-    NotAvailable,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum UcsAvailability {
     Enabled,
     Disabled,
@@ -2427,8 +2402,8 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
-    UcsOnlyConnector,
-    DirectAndUcsConnector,
+    UcsConnector,
+    DirectConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.

@@ -107,7 +107,7 @@ use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v1")]
-use crate::core::utils::{
+use crate::core::payments::helpers::{
     process_through_direct, process_through_direct_with_shadow_unified_connector_service,
     process_through_ucs,
 };
