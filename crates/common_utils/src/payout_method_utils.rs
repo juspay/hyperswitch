@@ -25,6 +25,8 @@ pub enum AdditionalPayoutMethodData {
     Wallet(Box<WalletAdditionalData>),
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
+    /// Additional data for Connector Mandate Id payout method
+    ConnectorToken(Box<ConnectorTokenAddtionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -261,4 +263,14 @@ pub struct InteracAdditionalData {
     /// Email linked with interac account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
     pub email: Option<MaskedEmail>,
+}
+
+/// additional payout method details for connector_mandate_id payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ConnectorTokenAddtionalData {
+    /// Additional data for connector_mandate_id payout method
+    pub token: Secret<String>,
 }

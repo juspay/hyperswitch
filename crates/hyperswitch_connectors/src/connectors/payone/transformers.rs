@@ -164,7 +164,8 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                     },
                     PayoutMethodData::Bank(_)
                     | PayoutMethodData::Wallet(_)
-                    | PayoutMethodData::BankRedirect(_) => Err(ConnectorError::NotImplemented(
+                    | PayoutMethodData::BankRedirect(_)
+                    | PayoutMethodData::ConnectorToken(_) => Err(ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Payone"),
                     ))?,
                 };

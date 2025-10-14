@@ -243,6 +243,7 @@ pub enum PayoutMethodData {
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
+    ConnectorToken(ConnectorToken),
 }
 
 impl Default for PayoutMethodData {
@@ -390,6 +391,13 @@ pub struct Interac {
     /// Customer email linked with interac account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Email,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ConnectorToken {
+    /// PSP token generated for the payout method
+    pub token: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -618,6 +626,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
+    #[schema(value_type = ConnectorTokenAddtionalData)]
+    ConnectorToken(Box<payout_method_utils::ConnectorTokenAddtionalData>),
 }
 
 #[derive(
@@ -1016,6 +1026,14 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
     }
 }
 
+impl From<ConnectorToken> for payout_method_utils::ConnectorTokenAddtionalData {
+    fn from(connector_token: ConnectorToken) -> Self {
+        Self {
+            token: connector_token.token,
+        }
+    }
+}
+
 impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
@@ -1030,6 +1048,9 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::BankRedirect(bank_redirect)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::ConnectorToken(connector_token) => {
+                Self::ConnectorToken(connector_token)
             }
         }
     }

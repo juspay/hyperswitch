@@ -4818,6 +4818,12 @@ pub async fn get_bank_from_hs_locker(
             }
             .into())
         }
+        api::PayoutMethodData::ConnectorToken(_) => {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Expected bank details, found connector token details instead".to_string(),
+            }
+            .into())
+        }
     }
 }
 
