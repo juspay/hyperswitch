@@ -236,6 +236,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
             api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
             api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+            api_enums::PaymentMethodType::UpiQr => Ok(dirval!(UpiType = UpiQr)),
             api_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
             api_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
             api_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
