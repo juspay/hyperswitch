@@ -615,23 +615,7 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let transaction = webhook_body
-            .transaction
-            .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        let payments_response = peachpayments::PeachpaymentsPaymentsResponse {
-            transaction_id: transaction.transaction_id.clone(),
-            response_code: transaction.response_code,
-            transaction_result: transaction.transaction_result,
-            ecommerce_card_payment_only_transaction_data: transaction
-                .ecommerce_card_payment_only_transaction_data,
-            original_transaction_id: transaction.original_transaction_id,
-            reference_id: Some(transaction.reference_id),
-            error_message: transaction.error_message,
-            payment_method: Some(transaction.payment_method),
-        };
-
-        Ok(Box::new(payments_response))
+        Ok(Box::new(webhook_body))
     }
 
     async fn verify_webhook_source(
