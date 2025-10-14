@@ -241,15 +241,13 @@ async fn build_list_routing_result(
             |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
         let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
         let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
-        let business_profile = core_utils::validate_and_get_business_profile(
-            db,
+        let business_profile = db.find_business_profile_by_merchant_id_profile_id(
             key_manager_state,
             merchant_context.get_merchant_key_store(),
-            Some(profile_id),
             merchant_context.get_merchant_account().get_id(),
+            &profile_id,
         )
-        .await?
-        .get_required_value("Profile")
+        .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
@@ -388,15 +386,16 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Profile_id not provided")?;
 
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")?;
+    .await
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
@@ -609,7 +608,7 @@ pub async fn link_routing_config(
         )
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
+    
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -1410,24 +1409,22 @@ pub async fn retrieve_linked_routing_config(
 
     // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
-        core_utils::validate_and_get_business_profile(
-            db,
+        db.find_business_profile_by_merchant_id_profile_id(
             key_manager_state,
             merchant_key_store,
-            Some(&profile_id),
             merchant_id,
+            &profile_id,
         )
-        .await?
+        .await
         .map(|profile| vec![profile])
-        .get_required_value("Profile")
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
         let business_profile = db
             .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
             authentication_profile_id.map(|profile_id| vec![profile_id]),
             business_profile,
@@ -1714,15 +1711,13 @@ pub async fn toggle_specific_dynamic_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile: domain::Profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
@@ -1789,15 +1784,13 @@ pub async fn create_specific_dynamic_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile: domain::Profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
@@ -1864,15 +1857,13 @@ pub async fn configure_dynamic_routing_volume_split(
         },
     )?;
 
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile: domain::Profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
@@ -1911,15 +1902,13 @@ pub async fn retrieve_dynamic_routing_volume_split(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile: domain::Profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
@@ -2158,15 +2147,13 @@ pub async fn contract_based_dynamic_routing_setup(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile: domain::Profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
         merchant_context.get_merchant_account().get_id(),
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
@@ -2633,15 +2620,13 @@ pub async fn migrate_rules_for_profile(
     let merchant_key_store = merchant_context.get_merchant_key_store();
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+    let business_profile = db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
         merchant_key_store,
-        Some(&profile_id),
         merchant_id,
+        &profile_id,
     )
-    .await?
-    .get_required_value("Profile")
+    .await
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
