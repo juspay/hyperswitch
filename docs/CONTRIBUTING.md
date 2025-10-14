@@ -96,7 +96,7 @@ should be introduced, checking it agrees with the actual structure -->
 │   ├── diesel_models                  : Database models shared across `router` and other crates
 │   ├── drainer                        : Application that reads Redis streams and executes queries in database
 │   ├── external_services              : Interactions with external systems like emails, AWS KMS, etc.
-│   ├── masking                        : Personal Identifiable Information protection
+│   ├── masking                        : Personally Identifiable Information protection
 │   ├── redis_interface                : A user-friendly interface to Redis
 │   ├── router                         : Main crate of the project
 │   ├── router_derive                  : Utility macros for the `router` crate
