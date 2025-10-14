@@ -290,7 +290,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel-all 2
+          scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
 
           kill "${{ env.PID }}"
 
@@ -477,7 +477,7 @@ jobs:
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
-          scripts/execute_cypress.sh --parallel-all 2
+          scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
 
           # Cleanup
           kill "${{ env.PID }}"
