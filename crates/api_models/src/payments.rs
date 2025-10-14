@@ -9299,6 +9299,7 @@ pub struct ClickToPaySessionResponse {
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityRequest {
     /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
     /// Token used for client side verification
