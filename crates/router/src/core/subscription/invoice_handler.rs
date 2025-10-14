@@ -6,7 +6,6 @@ use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
-use masking::{PeekInterface, Secret};
 
 use super::errors;
 use crate::{
@@ -82,17 +81,10 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
-        payment_method_id: Option<Secret<String>>,
-        payment_intent_id: Option<common_utils::id_type::PaymentId>,
-        status: connector_enums::InvoiceStatus,
-        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        update_request: hyperswitch_domain_models::invoice::InvoiceUpdateRequest,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
-        let update_invoice = hyperswitch_domain_models::invoice::InvoiceUpdate::new(
-            payment_method_id.as_ref().map(|id| id.peek()).cloned(),
-            Some(status),
-            connector_invoice_id,
-            payment_intent_id,
-        );
+        let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
+            update_request.into();
         let key_manager_state = &(state).into();
         state
             .store
@@ -331,6 +323,36 @@ impl InvoiceHandler {
         payments_api_client::PaymentsApiClient::create_mit_payment(
             state,
             mit_payment_request,
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
+    }
+
+    pub async fn update_payment(
+        &self,
+        state: &SessionState,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+        payment_id: common_utils::id_type::PaymentId,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let payment_update_request = subscription_types::CreatePaymentsRequestData {
+            amount,
+            currency,
+            customer_id: None,
+            billing: None,
+            shipping: None,
+            profile_id: None,
+            setup_future_usage: None,
+            return_url: None,
+            capture_method: None,
+            authentication_type: None,
+        };
+
+        payments_api_client::PaymentsApiClient::update_payment(
+            state,
+            payment_update_request,
+            payment_id.get_string_repr().to_string(),
             self.merchant_account.get_id().get_string_repr(),
             self.profile.get_id().get_string_repr(),
         )
