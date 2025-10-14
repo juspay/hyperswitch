@@ -13,8 +13,8 @@ use hyperswitch_domain_models::{
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
-        RouterData, ErrorResponse,
+        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
+        ExtendedAuthorizationResponseData, RouterData,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -54,7 +54,9 @@ use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, PaymentsPostSessionTokensRequestData, RouterData as OtherRouterData
+        self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo,
+        AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsPostSessionTokensRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -1580,7 +1582,7 @@ impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
 impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
     fn from(item: PaypalIncrementalStatus) -> Self {
         match item {
-            PaypalIncrementalStatus::CREATED 
+            PaypalIncrementalStatus::CREATED
             | PaypalIncrementalStatus::CAPTURED
             | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
             PaypalIncrementalStatus::PENDING => Self::Pending,
@@ -1589,13 +1591,19 @@ impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
     }
 }
 
-fn is_extend_authorization_applied(item: PaypalIncrementalStatus) -> Option<common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool> {
-        match item {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true)),
-            PaypalIncrementalStatus::PENDING => None,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false)),
+fn is_extend_authorization_applied(
+    item: PaypalIncrementalStatus,
+) -> Option<common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool> {
+    match item {
+        PaypalIncrementalStatus::CREATED
+        | PaypalIncrementalStatus::CAPTURED
+        | PaypalIncrementalStatus::PARTIALLYCAPTURED => {
+            Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
+        }
+        PaypalIncrementalStatus::PENDING => None,
+        PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => {
+            Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false))
+        }
     }
 }
 
@@ -1651,7 +1659,9 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let extend_authorization_response = ExtendedAuthorizationResponseData {
-            extended_authentication_applied: is_extend_authorization_applied(item.response.status.clone()),
+            extended_authentication_applied: is_extend_authorization_applied(
+                item.response.status.clone(),
+            ),
             capture_before: item.response.expiration_time,
         };
 
@@ -1661,13 +1671,20 @@ impl<F>
             Some(extend_authorization_response),
         ));
 
-        let status= common_enums::AttemptStatus::from(item.response.status.clone());
-        let reason =  item.response.status_details.and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
+        let status = common_enums::AttemptStatus::from(item.response.status.clone());
+        let reason = item
+            .response
+            .status_details
+            .and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
 
         let response = if is_payment_failure(status) {
             Err(ErrorResponse {
-                code: reason.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-                message: reason.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                code: reason
+                    .clone()
+                    .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                message: reason
+                    .clone()
+                    .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
                 reason: reason,
                 status_code: item.http_code,
                 attempt_status: None,
