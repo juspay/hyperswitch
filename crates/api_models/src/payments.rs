@@ -8417,6 +8417,8 @@ pub struct PaymentsExtendAuthorizationRequest {
     /// The identifier for the payment
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
+    /// The reason for extending authorization
+    pub extend_authorization_reason: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
