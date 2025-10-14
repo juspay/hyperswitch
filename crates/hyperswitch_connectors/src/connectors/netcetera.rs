@@ -389,18 +389,15 @@ impl
         let currency = req
             .request
             .currency
-            .ok_or(ConnectorError::MissingRequiredField { field_name: "currency" })?;
-        let amount_i64 = req
-            .request
-            .amount
-            .ok_or(ConnectorError::MissingRequiredField { field_name: "amount" })?;
-
-        // Convert from core MinorUnit to connector-required amount (MinorUnit) and pass i64 to transformers
-        let converted_minor_unit = crate::utils::convert_amount(
-            self.amount_converter,
-            MinorUnit::new(amount_i64),
-            currency,
-        )?;
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+        let converted_minor_unit =
+            req.request
+                .minor_amount
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
 
         let connector_router_data = netcetera::NetceteraRouterData::try_from((
             &self.get_currency_unit(),

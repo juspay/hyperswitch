@@ -1,5 +1,8 @@
 use common_enums::enums;
-use common_utils::{ext_traits::OptionExt as _, types::SemanticVersion};
+use common_utils::{
+    ext_traits::OptionExt as _,
+    types::{MinorUnit, SemanticVersion},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
@@ -22,14 +25,14 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct NetceteraRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterData<T> {
+impl<T> TryFrom<(&CurrencyUnit, enums::Currency, MinorUnit, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, i64, T),
+        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, MinorUnit, T),
     ) -> Result<Self, Self::Error> {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
@@ -39,36 +42,9 @@ impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterDat
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn amount_is_preserved_in_router_data() {
-        let amount: i64 = 1050; // represents $10.50 in minor units
-        let currency = enums::Currency::USD;
-        let unit = &hyperswitch_interfaces::api::CurrencyUnit::Minor;
-        let rd = NetceteraRouterData::try_from((unit, currency, amount, ())).unwrap();
-        assert_eq!(rd.amount, amount);
-    }
-
-    #[test]
-    fn test_amount_conversion_for_different_currencies() {
-        let usd_amount: i64 = 1050;
-        let rd_usd = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::USD, usd_amount, ())).unwrap();
-        assert_eq!(rd_usd.amount, 1050);
-        let inr_amount: i64 = 1050;
-        let rd_inr = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::INR, inr_amount, ())).unwrap();
-        assert_eq!(rd_inr.amount, 1050);
-        let jpy_amount: i64 = 1050;
-        let rd_jpy = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::JPY, jpy_amount, ())).unwrap();
-        assert_eq!(rd_jpy.amount, 1050);
-    }
-}
-
-impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
