@@ -2143,7 +2143,8 @@ pub async fn should_execute_based_on_rollout(
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
             // Try to parse as JSON first (new format), fallback to float (legacy format)
-            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config) {
+            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+            {
                 Ok(config) => Ok(config),
                 Err(_) => {
                     // Fallback to legacy format (simple float)
@@ -2167,15 +2168,16 @@ pub async fn should_execute_based_on_rollout(
                             rollout_percent = config.rollout_percent,
                             "Rollout percent out of bounds. Must be between 0.0 and 1.0"
                         );
-                        let proxy_override = if config.http_url.is_some() || config.https_url.is_some() {
-                            Some(ProxyOverride {
-                                http_url: config.http_url,
-                                https_url: config.https_url,
-                            })
-                        } else {
-                            None
-                        };
-                        
+                        let proxy_override =
+                            if config.http_url.is_some() || config.https_url.is_some() {
+                                Some(ProxyOverride {
+                                    http_url: config.http_url,
+                                    https_url: config.https_url,
+                                })
+                            } else {
+                                None
+                            };
+
                         return Ok(RolloutExecutionResult {
                             should_execute: false,
                             proxy_override,
@@ -2184,9 +2186,10 @@ pub async fn should_execute_based_on_rollout(
 
                     let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
                     let should_execute = sampled_value < config.rollout_percent;
-                    
+
                     // Create proxy override if URLs are available
-                    let proxy_override = if config.http_url.is_some() || config.https_url.is_some() {
+                    let proxy_override = if config.http_url.is_some() || config.https_url.is_some()
+                    {
                         if let Some(ref http_url) = config.http_url {
                             logger::info!(http_url = %http_url, "Using HTTP proxy URL from rollout config");
                         }
@@ -2214,7 +2217,7 @@ pub async fn should_execute_based_on_rollout(
                     })
                 }
             }
-        },
+        }
         Err(err) => {
             logger::error!(error = ?err, "Failed to fetch rollout config from DB");
             Ok(RolloutExecutionResult {
