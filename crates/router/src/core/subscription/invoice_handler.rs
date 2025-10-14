@@ -20,9 +20,9 @@ pub struct InvoiceHandler {
     pub merchant_key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 }
 
-#[allow(clippy::todo)]
 impl InvoiceHandler {
-    pub fn new(
+    #[inline]
+    pub const fn new(
         subscription: hyperswitch_domain_models::subscription::Subscription,
         merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
         profile: hyperswitch_domain_models::business_profile::Profile,
@@ -35,6 +35,29 @@ impl InvoiceHandler {
             merchant_key_store,
         }
     }
+
+    // Extract common key_manager_state creation to avoid repetition
+    #[inline]
+    fn get_key_manager_state(state: &SessionState) -> impl std::ops::Deref {
+        state.into()
+    }
+
+    // Extract common merchant/profile IDs to reduce repeated method calls
+    #[inline]
+    fn get_merchant_id(&self) -> &str {
+        self.merchant_account.get_id().get_string_repr()
+    }
+
+    #[inline]
+    fn get_profile_id(&self) -> &str {
+        self.profile.get_id().get_string_repr()
+    }
+
+    #[inline]
+    fn get_subscription_id_str(&self) -> String {
+        self.subscription.id.get_string_repr().to_string()
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn create_invoice_entry(
         &self,
@@ -49,13 +72,13 @@ impl InvoiceHandler {
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let invoice_new = hyperswitch_domain_models::invoice::Invoice::to_invoice(
-            self.subscription.id.to_owned(),
-            self.subscription.merchant_id.to_owned(),
-            self.subscription.profile_id.to_owned(),
+            self.subscription.id.clone(),
+            self.subscription.merchant_id.clone(),
+            self.subscription.profile_id.clone(),
             merchant_connector_id,
             payment_intent_id,
             self.subscription.payment_method_id.clone(),
-            self.subscription.customer_id.to_owned(),
+            self.subscription.customer_id.clone(),
             amount,
             currency.to_string(),
             status,
@@ -64,17 +87,15 @@ impl InvoiceHandler {
             connector_invoice_id,
         );
 
-        let key_manager_state = &(state).into();
-        let invoice = state
+        let key_manager_state = &Self::get_key_manager_state(state);
+        state
             .store
             .insert_invoice_entry(key_manager_state, &self.merchant_key_store, invoice_new)
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Create Invoice".to_string(),
             })
-            .attach_printable("invoices: unable to insert invoice entry to database")?;
-
-        Ok(invoice)
+            .attach_printable("invoices: unable to insert invoice entry to database")
     }
 
     pub async fn update_invoice(
@@ -85,7 +106,8 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
             update_request.into();
-        let key_manager_state = &(state).into();
+        let key_manager_state = &Self::get_key_manager_state(state);
+        
         state
             .store
             .update_invoice_entry(
@@ -101,17 +123,18 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to update invoice entry in database")
     }
 
+    #[inline]
     pub fn get_amount_and_currency(
         request: (Option<MinorUnit>, Option<api_enums::Currency>),
         invoice_details: Option<subscription_response_types::SubscriptionInvoiceData>,
     ) -> (MinorUnit, api_enums::Currency) {
-        // Use request amount and currency if provided, else fallback to invoice details from connector response
-        request.0.zip(request.1).unwrap_or(
-            invoice_details
-                .clone()
+        // Use request amount and currency if provided, else fallback to invoice details
+        match (request.0, request.1) {
+            (Some(amount), Some(currency)) => (amount, currency),
+            _ => invoice_details
                 .map(|invoice| (invoice.total, invoice.currency_code))
-                .unwrap_or((MinorUnit::new(0), api_enums::Currency::default())),
-        ) // Default to 0 and a default currency if not provided
+                .unwrap_or_else(|| (MinorUnit::new(0), api_enums::Currency::default())),
+        }
     }
 
     pub async fn create_payment_with_confirm_false(
@@ -132,11 +155,12 @@ impl InvoiceHandler {
             capture_method: payment_details.capture_method,
             authentication_type: payment_details.authentication_type,
         };
+        
         payments_api_client::PaymentsApiClient::create_cit_payment(
             state,
             payment_request,
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
@@ -149,8 +173,8 @@ impl InvoiceHandler {
         payments_api_client::PaymentsApiClient::sync_payment(
             state,
             payment_id.get_string_repr().to_string(),
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
@@ -181,11 +205,12 @@ impl InvoiceHandler {
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
         };
+        
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
             payment_request,
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
@@ -199,7 +224,7 @@ impl InvoiceHandler {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
             billing: request.get_billing_address(),
-            shipping: request.payment_details.shipping.clone(),
+            shipping: payment_details.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
@@ -207,12 +232,13 @@ impl InvoiceHandler {
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
         };
+        
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
             cit_payment_request,
             payment_id.get_string_repr().to_string(),
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
@@ -221,13 +247,14 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
-        let key_manager_state = &(state).into();
+        let key_manager_state = &Self::get_key_manager_state(state);
+        
         state
             .store
             .get_latest_invoice_for_subscription(
                 key_manager_state,
                 &self.merchant_key_store,
-                self.subscription.id.get_string_repr().to_string(),
+                self.get_subscription_id_str(),
             )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
@@ -241,7 +268,8 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
-        let key_manager_state = &(state).into();
+        let key_manager_state = &Self::get_key_manager_state(state);
+        
         state
             .store
             .find_invoice_by_invoice_id(
@@ -262,7 +290,8 @@ impl InvoiceHandler {
         subscription_id: common_utils::id_type::SubscriptionId,
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::RouterResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
-        let key_manager_state = &(state).into();
+        let key_manager_state = &Self::get_key_manager_state(state);
+        
         state
             .store
             .find_invoice_by_subscription_id_connector_invoice_id(
@@ -286,19 +315,18 @@ impl InvoiceHandler {
         connector_name: connector_enums::Connector,
     ) -> errors::RouterResult<()> {
         let request = storage_types::invoice_sync::InvoiceSyncRequest::new(
-            self.subscription.id.to_owned(),
-            invoice.id.to_owned(),
-            self.subscription.merchant_id.to_owned(),
-            self.subscription.profile_id.to_owned(),
-            self.subscription.customer_id.to_owned(),
+            self.subscription.id.clone(),
+            invoice.id.clone(),
+            self.subscription.merchant_id.clone(),
+            self.subscription.profile_id.clone(),
+            self.subscription.customer_id.clone(),
             connector_invoice_id,
             connector_name,
         );
 
         invoice_sync_workflow::create_invoice_sync_job(state, request)
             .await
-            .attach_printable("invoices: unable to create invoice sync job in database")?;
-        Ok(())
+            .attach_printable("invoices: unable to create invoice sync job in database")
     }
 
     pub async fn create_mit_payment(
@@ -323,8 +351,8 @@ impl InvoiceHandler {
         payments_api_client::PaymentsApiClient::create_mit_payment(
             state,
             mit_payment_request,
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
@@ -353,8 +381,8 @@ impl InvoiceHandler {
             state,
             payment_update_request,
             payment_id.get_string_repr().to_string(),
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            self.get_merchant_id(),
+            self.get_profile_id(),
         )
         .await
     }
