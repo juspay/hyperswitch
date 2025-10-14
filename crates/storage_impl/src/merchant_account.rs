@@ -1,3 +1,4 @@
+#[cfg(feature = "olap")]
 use std::collections::HashMap;
 
 use common_utils::ext_traits::AsyncExt;
