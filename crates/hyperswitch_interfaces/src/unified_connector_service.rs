@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::{
     router_data::ErrorResponse, router_response_types::PaymentsResponseData,
 };
-use unified_connector_service_client::payments::{self as payments_grpc};
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::helpers::ForeignTryFrom;
 

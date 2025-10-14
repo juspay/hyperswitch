@@ -165,7 +165,7 @@ impl MerchantConnectorAccountType {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_connector_name(&self) -> Option<api_enums::Connector> {
+    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
         match self {
             Self::DbVal(db_val) => Some(db_val.connector_name),
             Self::CacheVal(_) => None,

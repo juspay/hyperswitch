@@ -717,12 +717,12 @@ pub async fn update_connector_customer_in_customers(
 #[cfg(feature = "v2")]
 #[instrument]
 pub async fn update_connector_customer_in_customers(
-    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-    customer: Option<&domain::Customer>,
+    merchant_connector_account: &MerchantConnectorAccountTypeDetails,
+    customer: Option<&Customer>,
     connector_customer_id: Option<String>,
 ) -> Option<CustomerUpdate> {
     match merchant_connector_account {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
+        MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
             connector_customer_id.map(|new_conn_cust_id| {
                 let connector_account_id = account.get_id().clone();
                 let mut connector_customer_map = customer
@@ -735,7 +735,7 @@ pub async fn update_connector_customer_in_customers(
             })
         }
         // TODO: Construct connector_customer for MerchantConnectorDetails if required by connector.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+        MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
             todo!("Handle connector_customer construction for MerchantConnectorDetails");
         }
     }

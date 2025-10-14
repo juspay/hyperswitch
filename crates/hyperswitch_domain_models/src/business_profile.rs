@@ -2261,7 +2261,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Profile {
+impl Conversion for Profile {
     type DstType = diesel_models::business_profile::Profile;
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
