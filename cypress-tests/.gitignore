@@ -9,8 +9,5 @@ videos/
 creds.json
 run_all.sh
 
-# Cypress global state files (generated during test execution)
-cypress/globalState_*.json
-
 # Cypress Dashboard build
 **/dist

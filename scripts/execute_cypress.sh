@@ -79,7 +79,8 @@ function execute_test() {
 }
 export -f execute_test
 
-# NEW: Function to execute tests with parallel batches (setup + parallel execution)
+# Function to execute tests with parallel batches
+# Each batch now includes setup tests (00000-00003), so they run independently
 function execute_test_parallel_batches() {
   if [[ $# -lt 4 ]]; then
     print_color "red" "ERROR: Insufficient arguments provided to execute_test_parallel_batches."
@@ -91,34 +92,14 @@ function execute_test_parallel_batches() {
   local tmp_file="$3"
   local parallel_workers="${4:-4}"
 
-  print_color "yellow" "[${connector}] Phase 1: Running setup tests sequentially..."
+  print_color "yellow" "[${connector}] Running ${parallel_workers} test batches in parallel (each includes setup)..."
 
-  # Phase 1: Run setup tests sequentially
-  export REPORT_NAME="${service}_${connector}_setup_report"
-
-  if npm run "cypress:${service}:setup" 2>&1 | grep -q "Missing script"; then
-    # Script doesn't exist, skip setup phase
-    print_color "yellow" "[${connector}] No setup script found, skipping setup phase..."
-  else
-    if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:${service}:setup"; then
-      echo "${service}-${connector}-setup" >> "${tmp_file}"
-      print_color "red" "[${connector}] Setup tests failed!"
-      return 1
-    fi
-    print_color "green" "[${connector}] Setup tests completed successfully!"
-  fi
-
-  # Phase 2: Run parallel batches
-  print_color "yellow" "[${connector}] Phase 2: Running ${parallel_workers} test batches in parallel..."
-
-  local failed=0
-
-  # Run batches in parallel
+  # Run batches in parallel - each batch includes setup tests (00000-00003)
   seq 1 "$parallel_workers" | parallel --jobs "$parallel_workers" \
     "CYPRESS_CONNECTOR=${connector} REPORT_NAME=${service}_${connector}_batch{}_report npm run cypress:${service}:batch{} || echo ${service}-${connector}-batch{} >> ${tmp_file}"
 
   # Check if any batches failed
-  if [[ -s "${tmp_file}" ]]; then
+  if grep -q "${service}-${connector}-batch" "${tmp_file}" 2>/dev/null; then
     print_color "red" "[${connector}] Some test batches failed!"
     return 1
   fi

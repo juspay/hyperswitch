@@ -3,13 +3,12 @@ import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
+let globalState;
+
 // Fetch from environment variable
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
-
-// File path for persisting globalState across Cypress processes
-const globalStateFilePath = `cypress/globalState_${connectorId}.json`;
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
@@ -21,30 +20,10 @@ export default defineConfig({
 
       on("task", {
         setGlobalState: (val) => {
-          try {
-            const stateData = val || {};
-            fs.writeFileSync(
-              globalStateFilePath,
-              JSON.stringify(stateData, null, 2)
-            );
-            return stateData;
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("Failed to save globalState to file:", error);
-            return val || {};
-          }
+          return (globalState = val || {});
         },
         getGlobalState: () => {
-          try {
-            if (fs.existsSync(globalStateFilePath)) {
-              const fileContent = fs.readFileSync(globalStateFilePath, "utf8");
-              return JSON.parse(fileContent);
-            }
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("Failed to load globalState from file:", error);
-          }
-          return {};
+          return globalState || {};
         },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
