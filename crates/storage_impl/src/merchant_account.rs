@@ -33,21 +33,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         merchant_account: domain::MerchantAccount,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-        merchant_account
-            .construct_new()
+        self.router_store
+            .insert_merchant(state, merchant_account, merchant_key_store)
             .await
-            .change_context(StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -57,43 +45,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-        };
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
-                .convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_id.to_owned().into(),
-                )
-                .await
-                .change_context(StorageError::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            cache::get_or_populate_in_memory(
-                self,
-                merchant_id.get_string_repr(),
-                fetch_func,
-                &ACCOUNTS_CACHE,
-            )
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
+        self.router_store
+            .find_merchant_account_by_merchant_id(state, merchant_id, merchant_key_store)
             .await
-            .change_context(StorageError::DecryptionError)
-        }
     }
 
     #[instrument(skip_all)]
@@ -104,27 +58,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-
-        let updated_merchant_account = Conversion::convert(this)
+        self.router_store
+            .update_merchant(state, this, merchant_account, merchant_key_store)
             .await
-            .change_context(StorageError::EncryptionError)?
-            .update(&conn, merchant_account.into())
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?;
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
-        }
-        updated_merchant_account
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -135,27 +71,14 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-        let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
-            &conn,
-            merchant_id,
-            merchant_account.into(),
-        )
-        .await
-        .map_err(|error| report!(StorageError::from(error)))?;
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
-        }
-        updated_merchant_account
-            .convert(
+        self.router_store
+            .update_specific_fields_in_merchant(
                 state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
+                merchant_id,
+                merchant_account,
+                merchant_key_store,
             )
             .await
-            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -164,46 +87,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         state: &KeyManagerState,
         publishable_key: &str,
     ) -> CustomResult<(domain::MerchantAccount, MerchantKeyStore), StorageError> {
-        let fetch_by_pub_key_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-
-            storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-        };
-
-        let merchant_account;
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            merchant_account = fetch_by_pub_key_func().await?;
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            merchant_account = cache::get_or_populate_in_memory(
-                self,
-                publishable_key,
-                fetch_by_pub_key_func,
-                &ACCOUNTS_CACHE,
-            )
-            .await?;
-        }
-        let key_store = self
-            .get_merchant_key_store_by_merchant_id(
-                state,
-                merchant_account.get_id(),
-                &self.master_key().peek().to_vec().into(),
-            )
-            .await?;
-        let domain_merchant_account = merchant_account
-            .convert(
-                state,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
-            )
+        self.router_store
+            .find_merchant_account_by_publishable_key(state, publishable_key)
             .await
-            .change_context(StorageError::DecryptionError)?;
-        Ok((domain_merchant_account, key_store))
     }
 
     #[cfg(feature = "olap")]
@@ -213,44 +99,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         state: &KeyManagerState,
         organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
-        use futures::future::try_join_all;
-        let conn = pg_accounts_connection_read(self).await?;
-
-        let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))?;
-
-        let db_master_key = self.master_key().peek().to_vec().into();
-
-        let merchant_key_stores =
-            try_join_all(encrypted_merchant_accounts.iter().map(|merchant_account| {
-                self.get_merchant_key_store_by_merchant_id(
-                    state,
-                    merchant_account.get_id(),
-                    &db_master_key,
-                )
-            }))
-            .await?;
-
-        let merchant_accounts = try_join_all(
-            encrypted_merchant_accounts
-                .into_iter()
-                .zip(merchant_key_stores.iter())
-                .map(|(merchant_account, key_store)| async {
-                    merchant_account
-                        .convert(
-                            state,
-                            key_store.key.get_inner(),
-                            key_store.merchant_id.clone().into(),
-                        )
-                        .await
-                        .change_context(StorageError::DecryptionError)
-                }),
-        )
-        .await?;
-
-        Ok(merchant_accounts)
+        self.router_store
+            .list_merchant_accounts_by_organization_id(state, organization_id)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -258,34 +109,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-
-        let is_deleted_func = || async {
-            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-        };
-
-        let is_deleted;
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            is_deleted = is_deleted_func().await?;
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            let merchant_account =
-                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-                    .await
-                    .map_err(|error| report!(StorageError::from(error)))?;
-
-            is_deleted = is_deleted_func().await?;
-
-            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
-        }
-
-        Ok(is_deleted)
+        self.router_store
+            .delete_merchant_account_by_merchant_id(merchant_id)
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -295,54 +121,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-
-        let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))?;
-
-        let db_master_key = self.master_key().peek().to_vec().into();
-
-        let merchant_key_stores = self
-            .list_multiple_key_stores(
-                state,
-                encrypted_merchant_accounts
-                    .iter()
-                    .map(|merchant_account| merchant_account.get_id())
-                    .cloned()
-                    .collect(),
-                &db_master_key,
-            )
-            .await?;
-
-        let key_stores_by_id: HashMap<_, _> = merchant_key_stores
-            .iter()
-            .map(|key_store| (key_store.merchant_id.to_owned(), key_store))
-            .collect();
-
-        let merchant_accounts =
-            futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
-                |merchant_account| async {
-                    let key_store = key_stores_by_id.get(merchant_account.get_id()).ok_or(
-                        StorageError::ValueNotFound(format!(
-                            "merchant_key_store with merchant_id = {:?}",
-                            merchant_account.get_id()
-                        )),
-                    )?;
-                    merchant_account
-                        .convert(
-                            state,
-                            key_store.key.get_inner(),
-                            key_store.merchant_id.clone().into(),
-                        )
-                        .await
-                        .change_context(StorageError::DecryptionError)
-                },
-            ))
-            .await?;
-
-        Ok(merchant_accounts)
+        self.router_store
+            .list_multiple_merchant_accounts(state, merchant_ids)
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -359,53 +140,18 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
         )>,
         StorageError,
     > {
-        let conn = pg_accounts_connection_read(self).await?;
-        let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))?;
-
-        let merchant_and_org_ids = encrypted_merchant_accounts
-            .into_iter()
-            .map(|merchant_account| {
-                let merchant_id = merchant_account.get_id().clone();
-                let org_id = merchant_account.organization_id;
-                (merchant_id, org_id)
-            })
-            .collect();
-        Ok(merchant_and_org_ids)
+        self.router_store
+            .list_merchant_and_org_ids(_state, limit, offset)
+            .await
     }
 
     async fn update_all_merchant_account(
         &self,
         merchant_account: domain::MerchantAccountUpdate,
     ) -> CustomResult<usize, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-
-        let db_func = || async {
-            storage::MerchantAccount::update_all_merchant_accounts(
-                &conn,
-                MerchantAccountUpdateInternal::from(merchant_account),
-            )
+        self.router_store
+            .update_all_merchant_account(merchant_account)
             .await
-            .map_err(|error| report!(StorageError::from(error)))
-        };
-
-        let total;
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            let ma = db_func().await?;
-            total = ma.len();
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            let ma = db_func().await?;
-            publish_and_redact_all_merchant_account_cache(self, &ma).await?;
-            total = ma.len();
-        }
-
-        Ok(total)
     }
 }
 

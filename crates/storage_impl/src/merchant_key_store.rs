@@ -27,18 +27,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
-        let merchant_id = merchant_key_store.merchant_id.clone();
-        merchant_key_store
-            .construct_new()
+        self.router_store
+            .insert_merchant_key_store(state, merchant_key_store, key)
             .await
-            .change_context(Self::Error::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))?
-            .convert(state, key, merchant_id.into())
-            .await
-            .change_context(Self::Error::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -48,41 +39,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
-        let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-
-            diesel_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
-                &conn,
-                merchant_id,
-            )
+        self.router_store
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, key)
             .await
-            .map_err(|error| report!(Self::Error::from(error)))
-        };
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
-                .convert(state, key, merchant_id.clone().into())
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            let key_store_cache_key =
-                format!("merchant_key_store_{}", merchant_id.get_string_repr());
-            cache::get_or_populate_in_memory(
-                self,
-                &key_store_cache_key,
-                fetch_func,
-                &ACCOUNTS_CACHE,
-            )
-            .await?
-            .convert(state, key, merchant_id.clone().into())
-            .await
-            .change_context(Self::Error::DecryptionError)
-        }
     }
 
     #[instrument(skip_all)]
@@ -90,32 +49,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, Self::Error> {
-        let delete_func = || async {
-            let conn = pg_accounts_connection_write(self).await?;
-            diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
-                &conn,
-                merchant_id,
-            )
+        self.router_store
+            .delete_merchant_key_store_by_merchant_id(merchant_id)
             .await
-            .map_err(|error| report!(Self::Error::from(error)))
-        };
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            delete_func().await
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            let key_store_cache_key =
-                format!("merchant_key_store_{}", merchant_id.get_string_repr());
-            cache::publish_and_redact(
-                self,
-                CacheKind::Accounts(key_store_cache_key.into()),
-                delete_func,
-            )
-            .await
-        }
     }
 
     #[cfg(feature = "olap")]
@@ -126,25 +62,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
-        let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-
-            diesel_models::merchant_key_store::MerchantKeyStore::list_multiple_key_stores(
-                &conn,
-                merchant_ids,
-            )
+        self.router_store
+            .list_multiple_key_stores(state, merchant_ids, key)
             .await
-            .map_err(|error| report!(Self::Error::from(error)))
-        };
-
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
-            let merchant_id = key_store.merchant_id.clone();
-            key_store
-                .convert(state, key, merchant_id.into())
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }))
-        .await
     }
 
     async fn get_all_key_stores(
@@ -154,21 +74,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
-            &conn, from, to,
-        )
-        .await
-        .map_err(|err| report!(Self::Error::from(err)))?;
-
-        futures::future::try_join_all(stores.into_iter().map(|key_store| async {
-            let merchant_id = key_store.merchant_id.clone();
-            key_store
-                .convert(state, key, merchant_id.into())
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }))
-        .await
+        self.router_store
+            .get_all_key_stores(state, key, from, to)
+            .await
     }
 }
 

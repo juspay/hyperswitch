@@ -23,16 +23,7 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, Self::Error> {
-        let conn = connection::pg_connection_write(self).await?;
-        let inserted = config
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?;
-
-        cache::redact_from_redis_and_publish(self, [CacheKind::Config((&inserted.key).into())])
-            .await?;
-
-        Ok(inserted)
+        self.router_store.insert_config(config).await
     }
 
     #[instrument(skip_all)]
@@ -41,10 +32,9 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::update_by_key(&conn, key, config_update)
+        self.router_store
+            .update_config_in_database(key, config_update)
             .await
-            .map_err(|error| report!(StorageError::from(error)))
     }
 
     //update in DB and remove in redis and cache
@@ -54,10 +44,9 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, StorageError> {
-        cache::publish_and_redact(self, CacheKind::Config(key.into()), || {
-            self.update_config_in_database(key, config_update)
-        })
-        .await
+        self.router_store
+            .update_config_by_key(key, config_update)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -65,22 +54,15 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::find_by_key(&conn, key)
+        self.router_store
+            .find_config_by_key_from_db(key)
             .await
-            .map_err(|error| report!(StorageError::from(error)))
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
     #[instrument(skip_all)]
     async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
-        let find_config_by_key_from_db = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            storage::Config::find_by_key(&conn, key)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-        };
-        cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
+        self.router_store.find_config_by_key(key).await
     }
 
     #[instrument(skip_all)]
@@ -90,45 +72,14 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         // If the config is not found it will be cached with the default value.
         default_config: Option<String>,
     ) -> CustomResult<storage::Config, StorageError> {
-        let find_else_unwrap_or = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            match storage::Config::find_by_key(&conn, key)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-            {
-                Ok(a) => Ok(a),
-                Err(err) => {
-                    if err.current_context().is_db_not_found() {
-                        default_config
-                            .map(|c| {
-                                storage::ConfigNew {
-                                    key: key.to_string(),
-                                    config: c,
-                                }
-                                .into()
-                            })
-                            .ok_or(err)
-                    } else {
-                        Err(err)
-                    }
-                }
-            }
-        };
-
-        cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
+        self.router_store
+            .find_config_by_key_unwrap_or(key, default_config)
+            .await
     }
 
     #[instrument(skip_all)]
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        let deleted = storage::Config::delete_by_key(&conn, key)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?;
-
-        cache::redact_from_redis_and_publish(self, [CacheKind::Config((&deleted.key).into())])
-            .await?;
-
-        Ok(deleted)
+        self.router_store.delete_config_by_key(key).await
     }
 }
 
