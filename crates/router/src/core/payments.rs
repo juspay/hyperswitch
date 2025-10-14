@@ -4274,7 +4274,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (execution_path, _updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4292,7 +4292,7 @@ where
             // Process through UCS when system is UCS and not handling response
             (GatewaySystem::UnifiedConnectorService, false) => {
                 process_through_ucs(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     operation,
@@ -4312,7 +4312,7 @@ where
             // Process through Direct gateway
             (GatewaySystem::Direct, _) | (GatewaySystem::UnifiedConnectorService, true) => {
                 process_through_direct(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     connector,
@@ -4337,7 +4337,7 @@ where
             // Process through Direct with Shadow UCS
             (GatewaySystem::ShadowUnifiedConnectorService, _) => {
                 process_through_direct_with_shadow_unified_connector_service(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     connector,
