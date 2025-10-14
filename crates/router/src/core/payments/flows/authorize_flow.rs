@@ -231,13 +231,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 should_continue_further,
             )
             .await?;
-        let should_continue_further =
-            tokenization::update_router_data_with_payment_method_token_result(
-                payment_method_token_response,
-                &mut router_data,
-                is_retry_payment,
-                should_continue_further,
-            );
+        tokenization::update_router_data_with_payment_method_token_result(
+            payment_method_token_response,
+            &mut router_data,
+            is_retry_payment,
+            should_continue_further,
+        );
 
         router_data = router_data.preprocessing_steps(state, connector).await?;
         let should_continue_further = matches!(
