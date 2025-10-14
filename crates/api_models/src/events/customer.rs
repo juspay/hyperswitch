@@ -79,7 +79,7 @@ impl ApiEventMetric for CustomerUpdateRequestInternal {
 impl ApiEventMetric for CustomerListRequestWithConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
-            customer_id: Some(self.id.clone())?,
+            customer_id: self.customer_id.clone()?,
         })
     }
 }
