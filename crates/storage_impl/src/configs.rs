@@ -54,9 +54,7 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, StorageError> {
-        self.router_store
-            .find_config_by_key_from_db(key)
-            .await
+        self.router_store.find_config_by_key_from_db(key).await
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
