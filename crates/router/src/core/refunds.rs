@@ -222,33 +222,33 @@ pub async fn trigger_refund_to_gateway(
         // Execute refund based on gateway system decision
         match gateway_system {
             common_enums::GatewaySystem::UnifiedConnectorService => {
-                execute_refund_execute_via_ucs(
+                Box::pin(execute_refund_execute_via_ucs(
                     state,
                     &connector,
                     merchant_context,
                     router_data,
                     ExecutionMode::Primary,
-                )
+                ))
                 .await?
             }
             common_enums::GatewaySystem::Direct => {
-                execute_refund_execute_via_direct(
+                Box::pin(execute_refund_execute_via_direct(
                     state,
                     &connector,
                     merchant_context,
                     refund,
                     router_data,
-                )
+                ))
                 .await?
             }
             common_enums::GatewaySystem::ShadowUnifiedConnectorService => {
-                execute_refund_execute_via_direct_with_ucs_shadow(
+                Box::pin(execute_refund_execute_via_direct_with_ucs_shadow(
                     state,
                     &connector,
                     merchant_context,
                     refund,
                     router_data,
-                )
+                ))
                 .await?
             }
         }
@@ -578,13 +578,13 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     );
 
     // Execute Direct connector (PRIMARY)
-    let direct_result = execute_refund_execute_via_direct(
+    let direct_result = Box::pin(execute_refund_execute_via_direct(
         state,
         connector,
         merchant_context,
         refund,
         router_data.clone(),
-    )
+    ))
     .await;
 
     // Execute UCS in parallel (SHADOW - for comparison only)
@@ -597,13 +597,13 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
     tokio::spawn(async move {
-        let ucs_result = execute_refund_execute_via_ucs(
+        let ucs_result = Box::pin(execute_refund_execute_via_ucs(
             &ucs_state,
             &ucs_connector,
             &ucs_merchant_context,
             ucs_router_data,
             ExecutionMode::Shadow,
-        )
+        ))
         .await;
 
         match ucs_result {
@@ -862,25 +862,30 @@ pub async fn sync_refund_with_gateway(
     // Execute refund sync based on gateway system decision
     let router_data_res = match gateway_system {
         common_enums::GatewaySystem::UnifiedConnectorService => {
-            execute_refund_sync_via_ucs(
+            Box::pin(execute_refund_sync_via_ucs(
                 state,
                 &connector,
                 merchant_context,
                 router_data,
                 ExecutionMode::Primary,
-            )
+            ))
             .await?
         }
         common_enums::GatewaySystem::Direct => {
-            execute_refund_sync_via_direct(state, &connector, router_data).await?
+            Box::pin(execute_refund_sync_via_direct(
+                state,
+                &connector,
+                router_data,
+            ))
+            .await?
         }
         common_enums::GatewaySystem::ShadowUnifiedConnectorService => {
-            execute_refund_sync_via_direct_with_ucs_shadow(
+            Box::pin(execute_refund_sync_via_direct_with_ucs_shadow(
                 state,
                 &connector,
                 merchant_context,
                 router_data,
-            )
+            ))
             .await?
         }
     };
@@ -1107,7 +1112,12 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     );
 
     // Execute Direct connector (PRIMARY)
-    let direct_result = execute_refund_sync_via_direct(state, connector, router_data.clone()).await;
+    let direct_result = Box::pin(execute_refund_sync_via_direct(
+        state,
+        connector,
+        router_data.clone(),
+    ))
+    .await;
 
     // Execute UCS in parallel (SHADOW - for comparison only)
     let ucs_router_data = router_data.clone();
@@ -1119,13 +1129,13 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
     tokio::spawn(async move {
-        let ucs_result = execute_refund_sync_via_ucs(
+        let ucs_result = Box::pin(execute_refund_sync_via_ucs(
             &ucs_state,
             &ucs_connector,
             &ucs_merchant_context,
             ucs_router_data,
             ExecutionMode::Shadow,
-        )
+        ))
         .await;
 
         match ucs_result {

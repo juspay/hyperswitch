@@ -1209,7 +1209,7 @@ pub fn build_webhook_transform_request(
 // ============================================================================
 
 /// Transform RouterData for Execute refund into UCS PaymentServiceRefundRequest
-impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
+impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
     for payments_grpc::PaymentServiceRefundRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
@@ -1322,7 +1322,7 @@ impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
 }
 
 /// Transform RouterData for RSync refund into UCS RefundServiceGetRequest
-impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
+impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
     for payments_grpc::RefundServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
@@ -1368,7 +1368,9 @@ impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
 }
 
 /// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>
-impl ForeignTryFrom<payments_grpc::RefundResponse> for Result<RefundsResponseData, ErrorResponse> {
+impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
+    for Result<RefundsResponseData, ErrorResponse>
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {

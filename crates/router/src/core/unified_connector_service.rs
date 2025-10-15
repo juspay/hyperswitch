@@ -172,7 +172,7 @@ where
         merchant_id,
         connector_name,
         &flow_name,
-        &router_data.payment_method,
+        router_data.payment_method,
     );
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
@@ -353,7 +353,7 @@ fn build_rollout_keys(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
-    payment_method: &common_enums::PaymentMethod,
+    payment_method: common_enums::PaymentMethod,
 ) -> (String, String) {
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
@@ -380,7 +380,7 @@ fn build_rollout_keys(
         )
     };
 
-    let shadow_rollout_key = format!("{}_shadow", rollout_key);
+    let shadow_rollout_key = format!("{rollout_key}_shadow");
     (rollout_key, shadow_rollout_key)
 }
 
@@ -1338,10 +1338,7 @@ pub async fn should_call_unified_connector_service_for_refunds(
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed to parse connector name for refunds: {}",
-                connector_name
-            )
+            format!("Failed to parse connector name for refunds: {connector_name}")
         })?;
 
     let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
@@ -1357,7 +1354,7 @@ pub async fn should_call_unified_connector_service_for_refunds(
         merchant_id,
         connector_name
     );
-    let shadow_rollout_key = format!("{}_shadow", rollout_key);
+    let shadow_rollout_key = format!("{rollout_key}_shadow");
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
     let shadow_rollout_enabled =
@@ -1471,7 +1468,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         .merchant_reference_id(None);
 
     // Make UCS refund call with logging wrapper
-    ucs_logging_wrapper(
+    Box::pin(ucs_logging_wrapper(
         router_data,
         state,
         ucs_refund_request,
@@ -1498,7 +1495,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
             Ok((updated_router_data, grpc_response))
         },
-    )
+    ))
     .await
 }
 
@@ -1541,7 +1538,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         .merchant_reference_id(None);
 
     // Make UCS refund sync call with logging wrapper
-    ucs_logging_wrapper(
+    Box::pin(ucs_logging_wrapper(
         router_data,
         state,
         ucs_refund_sync_request,
@@ -1568,6 +1565,6 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
             Ok((updated_router_data, grpc_response))
         },
-    )
+    ))
     .await
 }
