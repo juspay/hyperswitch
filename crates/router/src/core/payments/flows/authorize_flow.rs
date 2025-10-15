@@ -878,6 +878,7 @@ async fn call_unified_connector_service_authorize(
     let merchant_order_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or_else(|| router_data.request.merchant_order_reference_id.clone())
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -968,6 +969,7 @@ async fn call_unified_connector_service_repeat_payment(
     let merchant_order_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or_else(|| router_data.request.merchant_order_reference_id.clone())
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))

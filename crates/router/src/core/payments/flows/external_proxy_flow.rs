@@ -410,6 +410,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
             .ok()
             .flatten()
+            .or_else(|| self.request.merchant_order_reference_id.clone())
             .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
