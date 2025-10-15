@@ -11532,6 +11532,12 @@
             "description": "The country where that particular card was issued",
             "example": "US",
             "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "VISA",
+            "nullable": true
           }
         },
         "additionalProperties": false
