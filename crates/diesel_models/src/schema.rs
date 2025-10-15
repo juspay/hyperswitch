@@ -750,6 +750,8 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 64]
+        connector_invoice_id -> Nullable<Varchar>,
     }
 }
 
@@ -1604,6 +1606,10 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 128]
         merchant_reference_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        plan_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        item_price_id -> Nullable<Varchar>,
     }
 }
 

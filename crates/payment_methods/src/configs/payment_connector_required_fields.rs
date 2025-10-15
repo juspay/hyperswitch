@@ -1550,6 +1550,19 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Paysafe,
+            fields(
+                vec![
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    RequiredField::BillingEmail,
+                    RequiredField::BillingAddressZip,
+                    RequiredField::BillingAddressState,
+                ],
+                vec![],
+                vec![],
+            ),
+        ),
+        (
             Connector::Payload,
             fields(
                 vec![],
@@ -3576,7 +3589,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
                 (
-                    Connector::Bluecode,
+                    Connector::Calida,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),

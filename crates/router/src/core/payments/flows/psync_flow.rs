@@ -1,10 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
+use common_enums::{self, enums};
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -15,8 +17,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_get, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -234,6 +235,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         let connector_name = self.connector.clone();
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -285,7 +287,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
