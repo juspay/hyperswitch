@@ -970,7 +970,6 @@ pub struct SantanderPixDueDateCalendarRequest {
     pub validity_after_expiration: Option<i32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct SantanderPixQRCodePaymentsResponse {
     pub status: SantanderPaymentStatus,
     #[serde(rename = "calendario")]
@@ -1005,7 +1004,7 @@ pub struct SantanderPixQRCodeSyncResponse {
     #[serde(rename = "txid")]
     pub transaction_id: String,
     #[serde(rename = "revisao")]
-    pub revision: String,
+    pub revision: Value,
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     pub location: Option<String>,
@@ -1047,11 +1046,11 @@ pub struct SantanderPixVoidResponse {
     #[serde(rename = "txid")]
     pub transaction_id: String,
     #[serde(rename = "revisao")]
-    pub revision: i32,
+    pub revision: Value,
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     #[serde(rename = "recebedor")]
-    pub recipient: Recipient,
+    pub recebedor: Recipient,
     pub status: SantanderPaymentStatus,
     #[serde(rename = "valor")]
     pub value: ValueResponse,
@@ -1142,7 +1141,7 @@ pub struct SantanderCalendarResponse {
     #[serde(rename = "dataDeVencimento")]
     pub due_date: Option<String>,
     #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_due: Option<String>,
+    pub validity_after_due: Option<i64>,        // changed this from String to i64
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

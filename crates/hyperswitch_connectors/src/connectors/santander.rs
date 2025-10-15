@@ -576,6 +576,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Santander {
@@ -765,6 +773,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -987,6 +1003,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("Entered get_error_response");
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1124,6 +1149,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander {
@@ -1203,6 +1236,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
