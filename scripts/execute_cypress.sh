@@ -95,9 +95,9 @@ function execute_test_parallel_batches() {
   print_color "yellow" "[${connector}] Running ${parallel_workers} test batches in parallel (each includes setup)..."
 
   # Run batches in parallel - each batch includes setup tests (00000-00003)
-  # Use spec reporter instead of mochawesome to avoid report merge errors
+  # Skip mochawesome reporter completely to avoid report merge errors
   seq 1 "$parallel_workers" | parallel --jobs "$parallel_workers" \
-    "CYPRESS_CONNECTOR=${connector} CYPRESS_REPORTER=spec REPORT_NAME=${service}_${connector}_batch{}_report npm run cypress:${service}:batch{} || echo ${service}-${connector}-batch{} >> ${tmp_file}"
+    "CYPRESS_CONNECTOR=${connector} SKIP_REPORTER=true npm run cypress:${service}:batch{} || echo ${service}-${connector}-batch{} >> ${tmp_file}"
 
   # Check if any batches failed
   if grep -q "${service}-${connector}-batch" "${tmp_file}" 2>/dev/null; then

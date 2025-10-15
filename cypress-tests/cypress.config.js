@@ -16,7 +16,10 @@ const timeoutMultiplier = getTimeoutMultiplier();
 export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      mochawesome(on);
+      // Skip mochawesome reporter in batch mode to avoid report merge errors
+      if (process.env.SKIP_REPORTER !== "true") {
+        mochawesome(on);
+      }
 
       on("task", {
         setGlobalState: (val) => {
