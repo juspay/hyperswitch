@@ -38,6 +38,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
+        self as router_types,
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
@@ -1642,4 +1643,10 @@ pub async fn resolve_billing_address_for_payout(
 
         (None, None, None) => Ok((None, None)),
     }
+}
+
+pub fn should_continue_payout<F: Clone + 'static>(
+    router_data: &router_types::PayoutsRouterData<F>,
+) -> bool {
+    router_data.response.is_ok()
 }

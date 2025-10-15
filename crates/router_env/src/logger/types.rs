@@ -140,6 +140,8 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Network token status check flow.
+    NetworkTokenStatusCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.
@@ -273,6 +275,8 @@ pub enum Flow {
     CreateAndConfirmSubscription,
     /// Get Subscription flow
     GetSubscription,
+    /// Update Subscription flow
+    UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
     /// Create dynamic routing

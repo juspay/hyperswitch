@@ -12178,6 +12178,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -19694,6 +19695,25 @@
           },
           {
             "type": "object",
+            "description": "Contains the SDK UPI intent URI for payment processing",
+            "required": [
+              "sdk_uri",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sdk_upi_intent_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -22555,6 +22575,7 @@
           "twint",
           "upi_collect",
           "upi_intent",
+          "upi_qr",
           "vipps",
           "viet_qr",
           "venmo",
@@ -28195,6 +28216,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -28225,6 +28252,40 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Authorization token used by client to initiate sdk",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/PaypalFlow"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "38.02"
           }
         }
       },
@@ -30623,6 +30684,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -32896,6 +32958,17 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
@@ -32943,10 +33016,24 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
       "UpiIntentData": {
+        "type": "object"
+      },
+      "UpiQrData": {
         "type": "object"
       },
       "UpiResponse": {

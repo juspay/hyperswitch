@@ -21,7 +21,6 @@ pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 pub mod hyperswitch_ai_interaction;
-pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -36,7 +35,6 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
-pub mod subscription;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -99,7 +97,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface
+    + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
@@ -111,9 +109,9 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
@@ -126,12 +124,12 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::ProfileInterface
+    + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
@@ -147,8 +145,8 @@ pub trait StorageInterface:
     + payment_method_session::PaymentMethodsSessionInterface
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
-    + subscription::SubscriptionInterface
-    + invoice::InvoiceInterface
+    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
+    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -177,10 +175,10 @@ pub trait AccountsStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + OrganizationInterface
-    + merchant_account::MerchantAccountInterface
-    + business_profile::ProfileInterface
-    + merchant_connector_account::MerchantConnectorAccountInterface
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + 'static
 {
