@@ -669,10 +669,6 @@ pub struct PeachpaymentsPaymentsData {
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
-    pub original_transaction_id: Option<String>,
-    pub reference_id: Option<String>,
-    pub error_message: Option<String>,
-    pub payment_method: Option<Secret<String>>,
 }
 
 // Confirm Transaction Response
