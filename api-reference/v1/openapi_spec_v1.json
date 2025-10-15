@@ -8334,6 +8334,14 @@
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
           "client_secret": {
             "type": "string",
             "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
