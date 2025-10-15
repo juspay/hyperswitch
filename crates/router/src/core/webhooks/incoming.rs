@@ -17,6 +17,7 @@ use common_utils::{
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    invoice::InvoiceUpdateRequest,
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
@@ -2620,10 +2621,6 @@ async fn subscription_incoming_webhook_flow(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to extract MIT payment data from subscription webhook")?;
 
-    if mit_payment_data.first_invoice {
-        return Ok(WebhookResponseTracker::NoEffect);
-    }
-
     let profile_id = business_profile.get_id().clone();
 
     let profile =
@@ -2638,11 +2635,29 @@ async fn subscription_incoming_webhook_flow(
     let subscription_id = mit_payment_data.subscription_id.clone();
 
     let subscription_with_handler = handler
-        .find_subscription(subscription_id)
+        .find_subscription(subscription_id.clone())
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
     let invoice_handler = subscription_with_handler.get_invoice_handler(profile.clone());
+    let invoice = invoice_handler
+        .find_invoice_by_subscription_id_connector_invoice_id(
+            &state,
+            subscription_id,
+            mit_payment_data.invoice_id.clone(),
+        )
+        .await
+        .attach_printable(
+            "subscriptions: failed to get invoice by subscription id and connector invoice id",
+        )?;
+    if let Some(invoice) = invoice {
+        // During CIT payment we would have already created invoice entry with status as PaymentPending or Paid.
+        // So we skip incoming webhook for the already processed invoice
+        if invoice.status != InvoiceStatus::InvoiceCreated {
+            logger::info!("Invoice is already being processed, skipping MIT payment creation");
+            return Ok(WebhookResponseTracker::NoEffect);
+        }
+    }
 
     let payment_method_id = subscription_with_handler
         .subscription
@@ -2655,17 +2670,36 @@ async fn subscription_incoming_webhook_flow(
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 
+    let payment_id = generate_id(consts::ID_LENGTH, "pay");
+    let payment_id = common_utils::id_type::PaymentId::wrap(payment_id).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_id",
+        },
+    )?;
+
+    // Multiple MIT payments for the same invoice_generated event is avoided by having the unique constraint on (subscription_id, connector_invoice_id) in the invoices table
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
             billing_connector_mca_id.clone(),
-            None,
+            Some(payment_id),
             mit_payment_data.amount_due,
             mit_payment_data.currency_code,
             InvoiceStatus::PaymentPending,
             connector,
             None,
-            None,
+            Some(mit_payment_data.invoice_id.clone()),
+        )
+        .await?;
+
+    // Create a sync job for the invoice with generated payment_id before initiating MIT payment creation.
+    // This ensures that if payment creation call fails, the sync job can still retrieve the payment status
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &invoice_entry,
+            Some(mit_payment_data.invoice_id.clone()),
+            connector,
         )
         .await?;
 
@@ -2678,24 +2712,15 @@ async fn subscription_incoming_webhook_flow(
         )
         .await?;
 
-    let updated_invoice = invoice_handler
-        .update_invoice(
-            &state,
-            invoice_entry.id.clone(),
-            payment_response.payment_method_id.clone(),
-            Some(payment_response.payment_id.clone()),
-            InvoiceStatus::from(payment_response.status),
-            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
-        )
-        .await?;
+    let update_request = InvoiceUpdateRequest::update_payment_and_status(
+        payment_response.payment_method_id,
+        Some(payment_response.payment_id.clone()),
+        InvoiceStatus::from(payment_response.status),
+        Some(mit_payment_data.invoice_id.clone()),
+    );
 
-    invoice_handler
-        .create_invoice_sync_job(
-            &state,
-            &updated_invoice,
-            mit_payment_data.invoice_id.get_string_repr().to_string(),
-            connector,
-        )
+    let _updated_invoice = invoice_handler
+        .update_invoice(&state, invoice_entry.id.clone(), update_request)
         .await?;
 
     Ok(WebhookResponseTracker::NoEffect)

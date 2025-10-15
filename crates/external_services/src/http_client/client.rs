@@ -29,7 +29,8 @@ pub fn create_client(
         }
 
         logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder = get_client_builder(proxy_config)?;
+        let client_builder =
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config);
 
         let identity = create_identity_from_certificate_and_key(
             encoded_certificate.clone(),
@@ -56,7 +57,9 @@ pub fn create_client(
         let cert = reqwest::Certificate::from_pem(pem.as_bytes())
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
-        let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
+        let client_builder =
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                .add_root_certificate(cert);
         return client_builder
             .use_rustls_tls()
             .build()
@@ -145,10 +148,32 @@ pub fn create_certificate(
         .change_context(HttpClientError::CertificateDecodeFailed)
 }
 
+fn apply_mitm_certificate(
+    mut client_builder: reqwest::ClientBuilder,
+    proxy_config: &Proxy,
+) -> reqwest::ClientBuilder {
+    if let Some(mitm_ca_cert) = &proxy_config.mitm_ca_certificate {
+        let pem = mitm_ca_cert.clone().expose().replace("\\r\\n", "\n");
+        match reqwest::Certificate::from_pem(pem.as_bytes()) {
+            Ok(cert) => {
+                logger::debug!("Successfully added MITM CA certificate");
+                client_builder = client_builder.add_root_certificate(cert);
+            }
+            Err(err) => {
+                logger::error!(
+                    "Failed to parse MITM CA certificate: {}, continuing without MITM support",
+                    err
+                );
+            }
+        }
+    }
+    client_builder
+}
+
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     Ok(DEFAULT_CLIENT
         .get_or_try_init(|| {
-            get_client_builder(proxy_config)?
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
                 .build()
                 .change_context(HttpClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct base client")

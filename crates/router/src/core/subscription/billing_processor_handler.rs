@@ -31,7 +31,6 @@ pub struct BillingHandler {
     pub connector_data: api_types::ConnectorData,
     pub connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub customer: Option<hyperswitch_domain_models::customer::Customer>,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
@@ -41,7 +40,6 @@ impl BillingHandler {
         state: &SessionState,
         merchant_account: &hyperswitch_domain_models::merchant_account::MerchantAccount,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        customer: Option<hyperswitch_domain_models::customer::Customer>,
         profile: hyperswitch_domain_models::business_profile::Profile,
     ) -> errors::RouterResult<Self> {
         let merchant_connector_id = profile.get_billing_processor_id()?;
@@ -102,24 +100,22 @@ impl BillingHandler {
             connector_data,
             connector_params,
             connector_metadata: billing_processor_mca.metadata.clone(),
-            customer,
             merchant_connector_id,
         })
     }
     pub async fn create_customer_on_connector(
         &self,
         state: &SessionState,
+        customer: hyperswitch_domain_models::customer::Customer,
         customer_id: common_utils::id_type::CustomerId,
         billing_address: Option<api_models::payments::Address>,
         payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    ) -> errors::RouterResult<ConnectorCustomerResponseData> {
-        let customer =
-            self.customer
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
-                })?;
-
+    ) -> errors::RouterResult<Option<ConnectorCustomerResponseData>> {
+        let connector_customer_map = customer.get_connector_customer_map();
+        if connector_customer_map.contains_key(&self.merchant_connector_id) {
+            // Customer already exists on the connector, no need to create again
+            return Ok(None);
+        }
         let customer_req = ConnectorCustomerData {
             email: customer.email.clone().map(pii::Email::from),
             payment_method_data: payment_method_data.clone().map(|pmd| pmd.into()),
@@ -156,7 +152,7 @@ impl BillingHandler {
         match response {
             Ok(response_data) => match response_data {
                 PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
-                    Ok(customer_response)
+                    Ok(Some(customer_response))
                 }
                 _ => Err(errors::ApiErrorResponse::SubscriptionError {
                     operation: "Subscription Customer Create".to_string(),
@@ -233,7 +229,7 @@ impl BillingHandler {
     pub async fn record_back_to_billing_processor(
         &self,
         state: &SessionState,
-        invoice_id: String,
+        invoice_id: common_utils::id_type::InvoiceId,
         payment_id: common_utils::id_type::PaymentId,
         payment_status: common_enums::AttemptStatus,
         amount: common_utils::types::MinorUnit,
@@ -245,10 +241,12 @@ impl BillingHandler {
             currency,
             payment_method_type,
             attempt_status: payment_status,
-            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&invoice_id)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "invoice_id",
-                })?,
+            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(
+                invoice_id.get_string_repr(),
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "invoice_id",
+            })?,
             connector_params: self.connector_params.clone(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
                 payment_id.get_string_repr().to_string(),
@@ -392,7 +390,6 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
-
         match response {
             Ok(resp) => Ok(resp),
             Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {

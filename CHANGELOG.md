@@ -4,6 +4,52 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.14.0
+
+### Features
+
+- **connector:** [Peach Payments] add network token support for connector ([#9754](https://github.com/juspay/hyperswitch/pull/9754)) ([`c2da9db`](https://github.com/juspay/hyperswitch/commit/c2da9db91f2984e72ac3013ba28b818766b76a35))
+- **core:** Add support for upi_intent and upi_qr ([#9716](https://github.com/juspay/hyperswitch/pull/9716)) ([`5c7a607`](https://github.com/juspay/hyperswitch/commit/5c7a607326c15eaaf474940f579f76db6e37342c))
+
+### Bug Fixes
+
+- **router:** Fixed click to pay metadata parsing issue ([#9784](https://github.com/juspay/hyperswitch/pull/9784)) ([`951f4c2`](https://github.com/juspay/hyperswitch/commit/951f4c29d667083e665fc18755993c63e50a1394))
+
+### Refactors
+
+- Refactored Response types for subscription APIs ([#9788](https://github.com/juspay/hyperswitch/pull/9788)) ([`435bc11`](https://github.com/juspay/hyperswitch/commit/435bc117764515fac5e0cdcd30a1f268c335afef))
+
+**Full Changelog:** [`2025.10.13.0...2025.10.14.0`](https://github.com/juspay/hyperswitch/compare/2025.10.13.0...2025.10.14.0)
+
+- - -
+
+## 2025.10.13.0
+
+### Features
+
+- **connector:**
+  - [Finix] Add Google Pay Connector Tokenization Flow ([#9734](https://github.com/juspay/hyperswitch/pull/9734)) ([`e68b151`](https://github.com/juspay/hyperswitch/commit/e68b151dede97be6270e59502c8b4ec562a549d4))
+  - [Gigadat] Add Payments Webhook ([#9775](https://github.com/juspay/hyperswitch/pull/9775)) ([`0bc0c00`](https://github.com/juspay/hyperswitch/commit/0bc0c004ffabf47c63ff7c5eeafeb6d14fb932f0))
+- **core:** [NETWORK TOKENIZATION] Check Network Token Status API ([#9443](https://github.com/juspay/hyperswitch/pull/9443)) ([`d9d4b2e`](https://github.com/juspay/hyperswitch/commit/d9d4b2e5e4265f729c69ed871475bc0c91135efa))
+- **framework:** Added diff-checker required code and running ucs in shadow mode ([#9684](https://github.com/juspay/hyperswitch/pull/9684)) ([`115ef10`](https://github.com/juspay/hyperswitch/commit/115ef10aef06d4b0c6460c8f476d4da360839446))
+- **migration:** Add connector_customer updation support to batch PM update API ([#9791](https://github.com/juspay/hyperswitch/pull/9791)) ([`c4720c8`](https://github.com/juspay/hyperswitch/commit/c4720c806bfa146d21a05be3b050ffc06d6fe164))
+- **subscription:** Add support to create subscription with trial plans ([#9721](https://github.com/juspay/hyperswitch/pull/9721)) ([`c2a9ce7`](https://github.com/juspay/hyperswitch/commit/c2a9ce788d29f58573a6f75311da31ad53751505))
+
+### Bug Fixes
+
+- **connector:** [Cryptopay] fix amount_captured population logic in response handling ([#9674](https://github.com/juspay/hyperswitch/pull/9674)) ([`a4bf608`](https://github.com/juspay/hyperswitch/commit/a4bf608b7ddfdbb9906521b3e815f4b69fa4442d))
+- **nuvei:** For NTID/proxy flow `is_rebilling` should always be sent 1 & pass customer_details in proxy flow + Add US as supported countries for GOOGLEPAY ([#9738](https://github.com/juspay/hyperswitch/pull/9738)) ([`0181cd7`](https://github.com/juspay/hyperswitch/commit/0181cd7f9288770fdc8e614b7f932f8bf29cd1b6))
+- **payouts:** Add should_continue flag for propagating error for each call ([#9531](https://github.com/juspay/hyperswitch/pull/9531)) ([`f95c976`](https://github.com/juspay/hyperswitch/commit/f95c976c42d49dcdd1c5f30d495cc02e5f56f306))
+- Fixed the just install error in migration-runner ([#9745](https://github.com/juspay/hyperswitch/pull/9745)) ([`e04c1f9`](https://github.com/juspay/hyperswitch/commit/e04c1f97e8e808a178abce211362533f64f7bef3))
+
+### Miscellaneous Tasks
+
+- **webhooks:** Add metric to track failed webhooks acknowledged with 200 ([#9763](https://github.com/juspay/hyperswitch/pull/9763)) ([`b3a4eb9`](https://github.com/juspay/hyperswitch/commit/b3a4eb918d9bef5c773bfed6401dc6713b488efd))
+
+**Full Changelog:** [`2025.10.10.0...2025.10.13.0`](https://github.com/juspay/hyperswitch/compare/2025.10.10.0...2025.10.13.0)
+
+- - -
+
 ## 2025.10.10.0
 
 ### Features
