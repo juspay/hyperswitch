@@ -196,7 +196,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
-            source: source,
+            source,
             merchant: item.merchant_id.clone(),
             tags: None,
             three_d_secure: None,
