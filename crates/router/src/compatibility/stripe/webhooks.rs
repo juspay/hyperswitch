@@ -90,6 +90,7 @@ pub enum StripeWebhookObject {
     Mandate(StripeMandateResponse),
     #[cfg(feature = "payouts")]
     Payout(StripePayoutResponse),
+    Subscriptions,
 }
 
 #[derive(Serialize, Debug)]
@@ -345,7 +346,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             }
             #[cfg(feature = "payouts")]
             api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
-            api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => todo!(), // implement this
+            api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => {
+                Self::Subscriptions
+            }
         }
     }
 }
