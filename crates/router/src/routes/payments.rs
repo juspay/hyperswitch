@@ -2313,9 +2313,7 @@ pub async fn payments_extend_authorization(
     let payment_id = path.into_inner();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
-    let payload = payment_types::PaymentsExtendAuthorizationRequest {
-        payment_id,
-    };
+    let payload = payment_types::PaymentsExtendAuthorizationRequest { payment_id };
 
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
