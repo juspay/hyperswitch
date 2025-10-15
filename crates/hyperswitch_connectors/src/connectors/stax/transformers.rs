@@ -336,8 +336,6 @@ pub struct StaxPaymentsResponse {
     child_captures: Vec<StaxChildCapture>,
     #[serde(rename = "type")]
     payment_response_type: StaxPaymentResponseTypes,
-    total: FloatMajorUnit,
-    currency: String,
     idempotency_id: Option<String>,
 }
 
