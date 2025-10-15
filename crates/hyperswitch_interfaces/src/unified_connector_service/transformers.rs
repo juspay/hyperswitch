@@ -98,6 +98,7 @@ pub struct WebhookTransformData {
     pub source_verified: bool,
     pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
     pub response_ref_id: Option<String>,
+    pub is_transformation_complete: bool,
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>

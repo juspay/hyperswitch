@@ -49,6 +49,8 @@ impl
             common_enums::CallConnectorAction,
         ),
     ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -95,6 +97,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            amount: router_data.request.amount.get_amount_as_i64(),
+            currency: currency.into(),
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
@@ -203,11 +207,12 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata
@@ -333,11 +338,12 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata
@@ -489,6 +495,7 @@ impl
                     connector_mandate_id,
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
+                    payment_method_id: connector_mandate_id.get_payment_method_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {

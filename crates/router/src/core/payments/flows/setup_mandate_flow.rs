@@ -275,8 +275,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
-        _call_connector_action: common_enums::CallConnectorAction,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -328,7 +328,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
                 let payment_register_response = response.into_inner();
 
-                let (router_data_response, status_code) =
+                let (router_data_response, status_code, _) =
                     handle_unified_connector_service_response_for_payment_register(
                         payment_register_response.clone(),
                     )

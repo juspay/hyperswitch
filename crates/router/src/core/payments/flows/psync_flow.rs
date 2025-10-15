@@ -253,7 +253,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         .attach_printable("Unexpected webhook transform response from UCS"),
                 }?;
 
-                let (router_data_response, status_code, amount_captured, minor_amount_captured) =
+                let (router_data_response, status_code, router_data_update) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
                     )
@@ -265,8 +265,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     response
                 });
                 self.response = router_data_response;
-                self.amount_captured = amount_captured;
-                self.minor_amount_captured = minor_amount_captured;
+                self.amount_captured = router_data_update.amount_captured;
+                self.minor_amount_captured = router_data_update.minor_amount_captured;
                 self.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()
@@ -350,16 +350,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                         let payment_get_response = response.into_inner();
 
-                        let (
-                            router_data_response,
-                            status_code,
-                            amount_captured,
-                            minor_amount_captured,
-                        ) = handle_unified_connector_service_response_for_payment_get(
-                            payment_get_response.clone(),
-                        )
-                        .change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to deserialize UCS response")?;
+                        let (router_data_response, status_code, router_data_update) =
+                            handle_unified_connector_service_response_for_payment_get(
+                                payment_get_response.clone(),
+                            )
+                            .change_context(ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to deserialize UCS response")?;
 
                         let router_data_response =
                             router_data_response.map(|(response, status)| {
@@ -367,8 +363,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                                 response
                             });
                         router_data.response = router_data_response;
-                        router_data.amount_captured = amount_captured;
-                        router_data.minor_amount_captured = minor_amount_captured;
+                        router_data.amount_captured = router_data_update.amount_captured;
+                        router_data.minor_amount_captured =
+                            router_data_update.minor_amount_captured;
                         router_data.raw_connector_response = payment_get_response
                             .raw_connector_response
                             .clone()

@@ -13,7 +13,8 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
     request::{Method, RequestBuilder, RequestContent},
-, types::MinorUnit};
+    types::MinorUnit,
+};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
 use external_services::{
@@ -66,21 +67,18 @@ pub mod transformers;
 // Re-export webhook transformer types for easier access
 pub use transformers::WebhookTransformData;
 
+#[derive(Debug)]
+pub struct RouterDataUpdate {
+    pub amount_captured: Option<i64>,
+    pub minor_amount_captured: Option<MinorUnit>,
+}
+
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<
     (
         Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
         u16,
-    ),
-    UnifiedConnectorServiceError,
->;
-
-type UnifiedConnectorServiceResultForPaymentGet = CustomResult<
-    (
-        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
-        u16,
-        Option<i64>,
-        Option<MinorUnit>,
+        RouterDataUpdate,
     ),
     UnifiedConnectorServiceError,
 >;
@@ -760,10 +758,15 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
+    let router_data_update = RouterDataUpdate {
+        amount_captured: response.captured_amount,
+        minor_amount_captured: response.minor_captured_amount.map(MinorUnit::new),
+    };
+
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok((router_data_response, status_code, router_data_update))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
@@ -774,7 +777,12 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    let router_data_update = RouterDataUpdate {
+        amount_captured: None,
+        minor_amount_captured: None,
+    };
+
+    Ok((router_data_response, status_code, router_data_update))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
@@ -785,7 +793,12 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    let router_data_update = RouterDataUpdate {
+        amount_captured: None,
+        minor_amount_captured: None,
+    };
+
+    Ok((router_data_response, status_code, router_data_update))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(

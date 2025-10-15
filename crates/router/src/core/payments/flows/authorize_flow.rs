@@ -908,7 +908,7 @@ async fn call_unified_connector_service_authorize(
 
             let payment_authorize_response = response.into_inner();
 
-            let (router_data_response, status_code) =
+            let (router_data_response, status_code, router_data_update) =
                 handle_unified_connector_service_response_for_payment_authorize(
                     payment_authorize_response.clone(),
                 )
@@ -920,6 +920,8 @@ async fn call_unified_connector_service_authorize(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = router_data_update.amount_captured;
+            router_data.minor_amount_captured = router_data_update.minor_amount_captured;
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
@@ -998,7 +1000,7 @@ async fn call_unified_connector_service_repeat_payment(
 
             let payment_repeat_response = response.into_inner();
 
-            let (router_data_response, status_code) =
+            let (router_data_response, status_code, _) =
                 handle_unified_connector_service_response_for_payment_repeat(
                     payment_repeat_response.clone(),
                 )
