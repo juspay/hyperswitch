@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, user::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -42,7 +42,7 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
+use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
 use super::{
@@ -318,6 +318,7 @@ impl CardsInfoInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ConfigInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -1060,6 +1061,7 @@ impl PaymentLinkInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant(
         &self,
         state: &KeyManagerState,
@@ -1237,6 +1239,7 @@ impl FileMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn update_multiple_merchant_connector_accounts(
         &self,
         merchant_connector_accounts: Vec<(
@@ -2948,6 +2951,7 @@ impl RefundInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant_key_store(
         &self,
         state: &KeyManagerState,
@@ -3005,6 +3009,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
