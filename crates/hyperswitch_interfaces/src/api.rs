@@ -429,7 +429,7 @@ pub trait ConnectorSpecifications {
     ) -> Option<PreProcessingFlowName> {
         Some(PreProcessingFlowName::default())
     }
-    /// Is Some is returned, the returned api flow must be made instead of the current flow.
+    /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
         &self,
         _current_flow: CurrentFlowInfo<'_>,
