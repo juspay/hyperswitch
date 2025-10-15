@@ -152,27 +152,33 @@ pub struct CustomerDetails {
 #[cfg(feature = "v1")]
 /// Details of customer attached to this payment
 #[derive(
-    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter,
+    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter, SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetailsResponse {
     /// The identifier for the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
     pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
 
     /// The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub phone: Option<Secret<String>>,
 
     /// The country code for the customer's phone number
     #[schema(max_length = 2, example = "+1")]
+    #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
 }
 
@@ -1743,71 +1749,97 @@ impl RequestSurchargeDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
+#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentAttemptResponse {
     /// A unique identifier for this specific payment attempt.
+    #[smithy(value_type = "String")]
     pub attempt_id: String,
     /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
+    #[smithy(value_type = "AttemptStatus")]
     pub status: enums::AttemptStatus,
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     /// The payment attempt tax_amount.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub order_tax_amount: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
+    #[smithy(value_type = "Option<Currency>")]
     pub currency: Option<enums::Currency>,
     /// The name of the payment connector (e.g., 'stripe', 'adyen') used for this attempt.
+    #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
     /// A human-readable message from the connector explaining the error, if one occurred during this payment attempt.
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
+    #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<enums::PaymentMethod>,
     /// A unique identifier for a payment provided by the connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_transaction_id: Option<String>,
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
     #[schema(value_type = Option<CaptureMethod>, example = "scheduled")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<enums::CaptureMethod>,
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<enums::AuthenticationType>,
     /// Time at which the payment attempt was created
     #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[smithy(value_type = "String")]
     pub created_at: PrimitiveDateTime,
     /// Time at which the payment attempt was last modified
     #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[smithy(value_type = "String")]
     pub modified_at: PrimitiveDateTime,
     /// If the payment was cancelled the reason will be provided here
+    #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
     /// If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.
+    #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
     /// The error code returned by the connector if this payment attempt failed. This code is specific to the connector.
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
     /// If a tokenized (saved) payment method was used for this attempt, this field contains the payment token representing that payment method.
+    #[smithy(value_type = "Option<String>")]
     pub payment_token: Option<String>,
     /// Additional data related to some connectors
+    #[smithy(value_type = "Option<Object>")]
     pub connector_metadata: Option<serde_json::Value>,
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<enums::PaymentExperience>,
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
+    #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<enums::PaymentMethodType>,
     /// The connector's own reference or transaction ID for this specific payment attempt. Useful for reconciliation with the connector.
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    #[smithy(value_type = "Option<String>")]
     pub reference_id: Option<String>,
     /// (This field is not live yet)Error code unified across the connectors is received here if there was an error while calling connector
+    #[smithy(value_type = "Option<String>")]
     pub unified_code: Option<String>,
     /// (This field is not live yet)Error message unified across the connectors is received here if there was an error while calling connector
+    #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
+    #[smithy(value_type = "Option<String>")]
     pub client_source: Option<String>,
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
+    #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
 }
 
@@ -1962,35 +1994,48 @@ pub struct PaymentAttemptRevenueRecoveryData {
 }
 
 #[derive(
-    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema, SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CaptureResponse {
     /// A unique identifier for this specific capture operation.
+    #[smithy(value_type = "String")]
     pub capture_id: String,
     /// The status of the capture
     #[schema(value_type = CaptureStatus, example = "charged")]
+    #[smithy(value_type = "CaptureStatus")]
     pub status: enums::CaptureStatus,
     /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     /// The currency of the amount of the capture
     #[schema(value_type = Option<Currency>, example = "USD")]
+    #[smithy(value_type = "Option<Currency>")]
     pub currency: Option<enums::Currency>,
     /// The name of the payment connector that processed this capture.
+    #[smithy(value_type = "String")]
     pub connector: String,
     /// The ID of the payment attempt that was successfully authorized and subsequently captured by this operation.
+    #[smithy(value_type = "String")]
     pub authorized_attempt_id: String,
     /// A unique identifier for this capture provided by the connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_capture_id: Option<String>,
     /// Sequence number of this capture, in the series of captures made for the parent attempt
+    #[smithy(value_type = "i16")]
     pub capture_sequence: i16,
     /// A human-readable message from the connector explaining why this capture operation failed, if applicable.
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
     /// The error code returned by the connector if this capture operation failed. This code is connector-specific.
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
     /// A more detailed reason from the connector explaining the capture failure, if available.
+    #[smithy(value_type = "Option<String>")]
     pub error_reason: Option<String>,
     /// The connector's own reference or transaction ID for this specific capture operation. Useful for reconciliation.
+    #[smithy(value_type = "Option<String>")]
     pub reference_id: Option<String>,
 }
 
@@ -5493,8 +5538,9 @@ pub struct ReceiverDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema, SmithyModel)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5504,52 +5550,64 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
+    #[smithy(value_type = "String")]
     pub payment_id: id_type::PaymentId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
+    #[smithy(value_type = "String")]
     pub merchant_id: id_type::MerchantId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[smithy(value_type = "IntentStatus")]
     pub status: api_enums::IntentStatus,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
 
     /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,
     /// If no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub net_amount: MinorUnit,
 
     /// The shipping cost for the payment.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub shipping_cost: Option<MinorUnit>,
 
     /// The amount (in minor units) that can still be captured for this payment. This is relevant when `capture_method` is `manual`. Once fully captured, or if `capture_method` is `automatic` and payment succeeded, this will be 0.
     #[schema(value_type = i64, minimum = 100, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount_capturable: MinorUnit,
 
     /// The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.
     #[schema(value_type = Option<i64>, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
 
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
+    #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
 
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[smithy(value_type = "Option<String>")]
     pub client_secret: Option<Secret<String>>,
 
     /// Timestamp indicating when this payment intent was created, in ISO 8601 format.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub created: Option<PrimitiveDateTime>,
 
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency: String,
 
     /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
@@ -5561,45 +5619,56 @@ pub struct PaymentsResponse {
         deprecated,
         value_type = Option<String>,
     )]
+    #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
+    #[smithy(value_type = "Option<CustomerDetailsResponse>")]
     pub customer: Option<CustomerDetailsResponse>,
 
     /// An arbitrary string providing a description for the payment, often useful for display or internal record-keeping.
     #[schema(example = "It's my first payment request")]
+    #[smithy(value_type = "Option<String>")]
     pub description: Option<String>,
 
     /// An array of refund objects associated with this payment. Empty or null if no refunds have been processed.
     #[schema(value_type = Option<Vec<RefundResponse>>)]
+    #[smithy(value_type = "Option<Vec<RefundResponse>>")]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
     /// List of disputes that happened on this intent
     #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
+    #[smithy(value_type = "Option<Vec<DisputeResponsePaymentsRetrieve>>")]
     pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
     /// List of attempts that happened on this intent
     #[schema(value_type = Option<Vec<PaymentAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<Vec<PaymentAttemptResponse>>")]
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
 
     /// List of captures done on latest attempt
     #[schema(value_type = Option<Vec<CaptureResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<Vec<CaptureResponse>>")]
     pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[smithy(value_type = "Option<FutureUsage>")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with confirm=true.
     #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub off_session: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -5607,14 +5676,17 @@ pub struct PaymentsResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[smithy(value_type = "Option<String>")]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// The payment method information provided for making a payment
@@ -5624,12 +5696,15 @@ pub struct PaymentsResponse {
 
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    #[smithy(value_type = "Option<String>")]
     pub payment_token: Option<String>,
 
     /// The shipping address for the payment
+    #[smithy(value_type = "Option<Address>")]
     pub shipping: Option<Address>,
 
     /// The billing address for the payment
+    #[smithy(value_type = "Option<Address>")]
     pub billing: Option<Address>,
 
     /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
@@ -5638,85 +5713,105 @@ pub struct PaymentsResponse {
         "quantity": 15,
         "amount" : 900
     }]"#)]
+    #[smithy(value_type = "Option<Vec<OrderDetailsWithAmount>>")]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// description: The customer's email address
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
+    #[smithy(value_type = "Option<String>")]
     pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
+    #[smithy(value_type = "Option<String>")]
     pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
+    #[smithy(value_type = "Option<String>")]
     pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
+    #[smithy(value_type = "Option<String>")]
     pub return_url: Option<String>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS, as the 3DS method helps with more robust payer authentication
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 255, example = "Hyperswitch Router")]
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_name: Option<String>,
 
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
 
     /// If the payment requires further action from the customer (e.g., 3DS authentication, redirect to a bank page), this object will contain the necessary information for the client to proceed. Null if no further action is needed from the customer at this stage.
     pub next_action: Option<NextActionData>,
 
     /// If the payment intent was cancelled, this field provides a textual reason for the cancellation (e.g., "requested_by_customer", "abandoned").
+    #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
 
     /// The connector-specific error code from the last failed payment attempt associated with this payment intent.
     #[schema(example = "E0001")]
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
 
     /// A human-readable error message from the last failed payment attempt associated with this payment intent.
     #[schema(example = "Failed while verifying the card")]
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[smithy(value_type = "Option<String>")]
     pub unified_code: Option<String>,
 
     /// error message unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
+    #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
 
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// The specific payment method subtype used for this payment (e.g., 'credit_card', 'klarna', 'gpay'). This provides more granularity than the 'payment_method' field.
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
+    #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// A label identifying the specific merchant connector account (MCA) used for this payment. This often combines the connector name, business country, and a custom label (e.g., "stripe_US_primary").
     #[schema(example = "stripe_US_food")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_label: Option<String>,
 
     /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed.
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The label identifying the specific business unit or profile under which this payment was processed by the merchant.
+    #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
 
     /// An optional sub-label for further categorization of the business unit or profile used for this payment.
+    #[smithy(value_type = "Option<String>")]
     pub business_sub_label: Option<String>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
 
     /// ephemeral_key for the customer_id mentioned
