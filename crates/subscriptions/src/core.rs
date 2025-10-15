@@ -4,20 +4,20 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext,
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext};
 
-use super::errors::{self, RouterResponse};
+pub type RouterResponse<T> =
+    Result<ApplicationResponse<T>, error_stack::Report<errors::ApiErrorResponse>>;
 use crate::{
-    core::subscription::{
+    core::{
         billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
         subscription_handler::SubscriptionHandler,
     },
-    routes::SessionState,
+    state::SubscriptionState as SessionState,
 };
 
 pub mod billing_processor_handler;
+pub mod errors;
 pub mod invoice_handler;
 pub mod payments_api_client;
 pub mod subscription_handler;
@@ -54,7 +54,7 @@ pub async fn create_subscription(
         .create_subscription_entry(
             subscription_id,
             &request.customer_id,
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
             billing_handler.merchant_connector_id.clone(),
             request.merchant_reference_id.clone(),
             &profile.clone(),
@@ -76,7 +76,7 @@ pub async fn create_subscription(
             request.amount,
             request.currency,
             connector_enums::InvoiceStatus::InvoiceCreated,
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
             None,
             None,
         )
@@ -181,7 +181,7 @@ pub async fn create_and_confirm_subscription(
         .create_subscription_entry(
             subscription_id.clone(),
             &request.customer_id,
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
             billing_handler.merchant_connector_id.clone(),
             request.merchant_reference_id.clone(),
             &profile.clone(),
@@ -197,7 +197,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             customer.clone(),
             request.customer_id.clone(),
-            request.get_billing_address(),
+            request.billing.clone(),
             request
                 .payment_details
                 .payment_method_data
@@ -220,7 +220,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             subs_handler.subscription.clone(),
             request.item_price_id.clone(),
-            request.get_billing_address(),
+            request.billing.clone(),
         )
         .await?;
 
@@ -245,7 +245,7 @@ pub async fn create_and_confirm_subscription(
                 .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
             None,
             invoice_details.clone().map(|invoice| invoice.id),
         )
@@ -256,7 +256,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             &invoice_entry,
             invoice_details.clone().map(|details| details.id),
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
         )
         .await?;
 
@@ -351,8 +351,7 @@ pub async fn confirm_subscription(
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data
-                .clone(),
+                .payment_method_data.clone(),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
@@ -375,7 +374,6 @@ pub async fn confirm_subscription(
         .await?;
 
     let invoice_details = subscription_create_response.invoice_details;
-
     let update_request = InvoiceUpdateRequest::update_payment_and_status(
         payment_response.payment_method_id.clone(),
         Some(payment_response.payment_id.clone()),
@@ -394,7 +392,7 @@ pub async fn confirm_subscription(
             &state,
             &invoice_entry,
             invoice_details.map(|invoice| invoice.id),
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_name,
         )
         .await?;
 

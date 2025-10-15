@@ -379,7 +379,7 @@ disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
 [scheduler.server]
-port = 3000
+port = 3001
 host = "127.0.0.1"
 workers = 1
 
@@ -1408,7 +1408,7 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
-enabled = false
+enabled = true
 internal_api_key = "test_internal_api_key"
 
 [internal_services]

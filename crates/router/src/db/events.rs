@@ -856,7 +856,9 @@ mod tests {
         events::EventMetadata,
     };
     use futures::future::join_all;
-    use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
+    use hyperswitch_domain_models::{
+        merchant_account::MerchantAccountSetter, routing::MasterKeyInterface,
+    };
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};
 

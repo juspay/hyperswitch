@@ -4,10 +4,6 @@ pub use hyperswitch_domain_models::merchant_key_store::{self, MerchantKeyStoreIn
 mod tests {
     use std::{borrow::Cow, sync::Arc};
 
-    use common_utils::{type_name, types::keymanager::Identifier};
-    use time::macros::datetime;
-    use tokio::sync::oneshot;
-
     use crate::{
         db::{merchant_key_store::MerchantKeyStoreInterface, MockDb},
         routes::{
@@ -17,6 +13,10 @@ mod tests {
         services,
         types::domain,
     };
+    use common_utils::{type_name, types::keymanager::Identifier};
+    use hyperswitch_domain_models::routing::MasterKeyInterface;
+    use time::macros::datetime;
+    use tokio::sync::oneshot;
 
     #[allow(clippy::unwrap_used, clippy::expect_used)]
     #[tokio::test]
