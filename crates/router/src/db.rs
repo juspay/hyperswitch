@@ -97,7 +97,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface
+    + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
@@ -109,9 +109,9 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
@@ -124,12 +124,12 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::ProfileInterface
+    + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
@@ -175,10 +175,10 @@ pub trait AccountsStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + OrganizationInterface
-    + merchant_account::MerchantAccountInterface
-    + business_profile::ProfileInterface
-    + merchant_connector_account::MerchantConnectorAccountInterface
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + 'static
 {
