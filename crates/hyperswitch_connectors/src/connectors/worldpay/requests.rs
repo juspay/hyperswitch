@@ -331,50 +331,5 @@ pub struct WorldpayCompleteAuthorizationRequest {
     pub collection_reference: Option<String>,
 }
 
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayPayoutRequest {
-    pub transaction_reference: String,
-    pub merchant: Merchant,
-    pub instruction: PayoutInstruction,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PayoutInstruction {
-    pub payout_instrument: PayoutInstrument,
-    pub narrative: InstructionNarrative,
-    pub value: PaymentValue,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PayoutInstrument {
-    ApplePayDecrypt(ApplePayDecrypt),
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayDecrypt {
-    #[serde(rename = "type")]
-    pub payout_type: PayoutType,
-    pub dpan: cards::CardNumber,
-    pub card_expiry_date: ExpiryDate,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_name: Option<Secret<String>>,
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PayoutType {
-    #[serde(rename = "card/networkToken+applepay")]
-    ApplePayDecrypt,
-}
-
 pub(super) const THREE_DS_MODE: &str = "always";
 pub(super) const THREE_DS_TYPE: &str = "integrated";

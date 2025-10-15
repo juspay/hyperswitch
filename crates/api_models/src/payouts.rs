@@ -375,9 +375,9 @@ pub struct PixBankTransfer {
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
+    ApplePayDecrypt(ApplePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
-    ApplePayDecrypt(ApplePayDecrypt),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]

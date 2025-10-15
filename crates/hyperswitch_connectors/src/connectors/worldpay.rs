@@ -1,6 +1,12 @@
 mod requests;
 mod response;
+#[cfg(feature = "payouts")]
+mod payout_requests;
+#[cfg(feature = "payouts")]
+mod payout_response;
 pub mod transformers;
+#[cfg(feature = "payouts")]
+pub mod payout_transformers;
 
 use std::sync::LazyLock;
 
@@ -57,16 +63,21 @@ use hyperswitch_interfaces::{
 use masking::Mask;
 use requests::{
     WorldpayCompleteAuthorizationRequest, WorldpayPartialRequest, WorldpayPaymentsRequest,
-    WorldpayPayoutRequest,
 };
 use response::{
     EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
-    WorldpayPaymentsResponse, WorldpayPayoutResponse, WorldpayWebhookEventType,
+    WorldpayPaymentsResponse, WorldpayWebhookEventType,
     WorldpayWebhookTransactionId, WP_CORRELATION_ID,
 };
 use ring::hmac;
 
 use self::transformers as worldpay;
+#[cfg(feature = "payouts")]
+use self::payout_transformers as worldpay_payout;
+#[cfg(feature = "payouts")]
+use payout_requests::WorldpayPayoutRequest;
+#[cfg(feature = "payouts")]
+use payout_response::WorldpayPayoutResponse;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -75,6 +86,8 @@ use crate::{
         PaymentMethodDataType, RefundsRequestData,
     },
 };
+
+const WORLDPAY_PAYOUT_CONTENT_TYPE: &str = "application/vnd.worldpay.payouts-v4+json";
 
 #[derive(Clone)]
 pub struct Worldpay {
@@ -1116,23 +1129,28 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
         req: &PayoutsRouterData<PoFulfill>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = vec![
+        let auth = worldpay_payout::WorldpayPayoutAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let headers = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.api_key.into_masked(),
+            ),
             (
                 headers::ACCEPT.to_string(),
-                "application/vnd.worldpay.payouts-v4+json"
+                WORLDPAY_PAYOUT_CONTENT_TYPE
                     .to_string()
                     .into(),
             ),
             (
                 headers::CONTENT_TYPE.to_string(),
-                "application/vnd.worldpay.payouts-v4+json"
+                WORLDPAY_PAYOUT_CONTENT_TYPE
                     .to_string()
                     .into(),
             ),
             (headers::WP_API_VERSION.to_string(), "2024-06-01".into()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
+        
         Ok(headers)
     }
 
@@ -1141,13 +1159,13 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
         req: &PayoutsRouterData<PoFulfill>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = worldpay::WorldpayRouterData::try_from((
+        let connector_router_data = worldpay_payout::WorldpayPayoutRouterData::try_from((
             &self.get_currency_unit(),
             req.request.destination_currency,
             req.request.minor_amount,
             req,
         ))?;
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
+        let auth = worldpay_payout::WorldpayPayoutAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_req =
             WorldpayPayoutRequest::try_from((&connector_router_data, &auth.entity_id))?;
