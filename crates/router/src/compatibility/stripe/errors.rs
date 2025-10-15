@@ -861,6 +861,7 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
         match self {
             Self::CustomerRedacted => SC::CustomerRedacted,
             Self::InternalServerError => SC::InternalServerError,
+            Self::InvalidRequestData { message } => SC::InvalidRequestData { message: message.clone() },
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
             Self::CustomerAlreadyExists => SC::DuplicateCustomer,
