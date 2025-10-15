@@ -16,7 +16,7 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
-    ProfileUpdateInternal, WebhookDetails,
+    MultipleWebhookDetail, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -89,6 +89,21 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct WebhookDetail {
+    pub webhook_version: Option<String>,
+    pub webhook_username: Option<String>,
+    pub webhook_password: Option<Secret<String>>,
+    pub payment_created_enabled: Option<bool>,
+    pub payment_succeeded_enabled: Option<bool>,
+    pub payment_failed_enabled: Option<bool>,
+    pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
 #[cfg(feature = "v1")]
