@@ -290,6 +290,18 @@ jobs:
           Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
           XVFB_PID=$!
           echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
           export DISPLAY=:99
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
@@ -298,6 +310,7 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
@@ -486,6 +499,18 @@ jobs:
           Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
           XVFB_PID=$!
           echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
           export DISPLAY=:99
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
@@ -495,6 +520,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: ${{ env.ALPHA_PAYMENTS_CONNECTORS }}
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
@@ -691,6 +717,18 @@ jobs:
           Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
           XVFB_PID=$!
           echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+
+          # Wait for Xvfb to be ready before proceeding
+          echo "Waiting for Xvfb to be ready..."
+          for i in {1..15}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "Xvfb is ready"
+              break
+            fi
+            echo "Attempt $i/15 - waiting for Xvfb..."
+            sleep 1
+          done
+
           export DISPLAY=:99
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
@@ -700,6 +738,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: ${{ env.PAYMENTS_CONNECTORS }}
+          DISPLAY: ":99"
         shell: bash -leuo pipefail {0}
         continue-on-error: true
         # We aren't specifying `command` and `jobs` arguments currently
