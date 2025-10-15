@@ -50,7 +50,7 @@ use crate::{
         payments::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
-                ProxyOverride, RolloutExecutionResult,
+                ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
