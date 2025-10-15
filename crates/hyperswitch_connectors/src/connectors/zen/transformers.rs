@@ -43,7 +43,9 @@ pub struct ZenRouterData<T> {
 
 impl<T> TryFrom<(common_utils::types::StringMajorUnit, T)> for ZenRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (common_utils::types::StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (amount, item): (common_utils::types::StringMajorUnit, T),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: amount.get_amount_as_string(),
             router_data: item,
