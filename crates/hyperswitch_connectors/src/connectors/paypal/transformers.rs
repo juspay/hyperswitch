@@ -1999,15 +1999,6 @@ pub enum PaypalAuthResponse {
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum PaypalExtendedAuth {
-    PaypalOrdersResponse(PaypalOrdersResponse),
-    PaypalRedirectResponse(PaypalRedirectResponse),
-    PaypalThreeDsResponse(PaypalThreeDsResponse),
-}
-
-// Note: Don't change order of deserialization of variant, priority is in descending order
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaypalSyncResponse {
