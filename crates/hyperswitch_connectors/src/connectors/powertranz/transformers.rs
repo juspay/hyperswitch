@@ -159,7 +159,7 @@ impl TryFrom<&PowertranzRouterData<&PaymentsAuthorizeRouterData>> for Powertranz
         };
         Ok(Self {
             transaction_identifier: Uuid::new_v4().to_string(),
-            total_amount: item.amount.clone(),
+            total_amount: item.amount,
             currency_code: item.router_data.request.currency.iso_4217().to_string(),
             three_d_secure,
             source,
@@ -402,7 +402,7 @@ impl TryFrom<&PowertranzRouterData<&PaymentsCaptureRouterData>> for PowertranzBa
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             transaction_identifier: item.router_data.request.connector_transaction_id.clone(),
-            total_amount: Some(item.amount.clone()),
+            total_amount: Some(item.amount),
             refund: None,
         })
     }
@@ -413,7 +413,7 @@ impl<F> TryFrom<&PowertranzRouterData<&RefundsRouterData<F>>> for PowertranzBase
     fn try_from(item: &PowertranzRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             transaction_identifier: item.router_data.request.connector_transaction_id.clone(),
-            total_amount: Some(item.amount.clone()),
+            total_amount: Some(item.amount),
             refund: Some(true),
         })
     }
