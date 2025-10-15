@@ -1,8 +1,7 @@
 pub mod request;
 pub mod response;
-use api_models::payments as payment_types;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
-use common_utils::{ext_traits::ValueExt, types::MinorUnit};
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -22,7 +21,7 @@ use hyperswitch_domain_models::{
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 pub use request::*;
 pub use response::*;
 
@@ -39,6 +38,7 @@ pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub amount: MinorUnit,
     pub router_data: &'a RouterData<Flow, Req, Res>,
     pub merchant_id: Secret<String>,
+    pub merchant_identity_id: Secret<String>,
 }
 
 impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
@@ -54,6 +54,7 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
             amount,
             router_data,
             merchant_id: auth.merchant_id,
+            merchant_identity_id: auth.merchant_identity_id,
         })
     }
 }
@@ -251,30 +252,6 @@ impl
                     .change_context(ConnectorError::MissingRequiredField {
                         field_name: "google_pay_token",
                     })?;
-                let gpay_data: payment_types::GpaySessionTokenData =
-                    if let Some(connector_meta) = item.router_data.connector_meta_data.clone() {
-                        connector_meta
-                            .expose()
-                            .parse_value("GpaySessionTokenData")
-                            .change_context(ConnectorError::ParsingFailed)
-                            .attach_printable("Failed to parse gpay metadata")?
-                    } else {
-                        return Err(ConnectorError::NoConnectorMetaData)
-                            .attach_printable("connector_meta_data is None");
-                    };
-                let merchant_identity_id = gpay_data
-                    .data
-                    .allowed_payment_methods
-                    .first()
-                    .ok_or(ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to parse allowed_payment_methods")?
-                    .tokenization_specification
-                    .parameters
-                    .gateway_merchant_id
-                    .clone()
-                    .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "gateway_merchant_id",
-                    })?;
                 Ok(Self {
                     instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
                     name: item.router_data.get_optional_billing_full_name(),
@@ -288,7 +265,7 @@ impl
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
-                    merchant_identity: Some(Secret::new(merchant_identity_id)),
+                    merchant_identity: Some(item.merchant_identity_id.clone()),
                     third_party_token: Some(Secret::new(third_party_token)),
                 })
             }
@@ -324,14 +301,16 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
+                key2,
             } => Ok(Self {
                 finix_user_name: api_key.clone(),
                 finix_password: api_secret.clone(),
                 merchant_id: key1.clone(),
+                merchant_identity_id: key2.clone(),
             }),
             _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
