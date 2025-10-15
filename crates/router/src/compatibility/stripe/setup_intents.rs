@@ -80,6 +80,7 @@ pub async fn setup_intents_create(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -161,6 +162,7 @@ pub async fn setup_intents_retrieve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -244,6 +246,7 @@ pub async fn setup_intents_update(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -328,6 +331,7 @@ pub async fn setup_intents_confirm(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,

@@ -1421,3 +1421,35 @@ org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[proxy]
+http_url = "http://localhost:8081"
+https_url = "http://localhost:8081"
+bypass_proxy_hosts = ""
+mitm_enabled = true
+mitm_ca_certificate = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIUWmTl6acEgKNS7E7zTqstCv3U/Q8wDQYJKoZIhvcNAQEL
+BQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN
+MjUxMDA4MDUzODU0WhcNMzUxMDA4MDUzODU0WjAoMRIwEAYDVQQDDAltaXRtcHJv
+eHkxEjAQBgNVBAoMCW1pdG1wcm94eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+AQoCggEBAMLg3w+WVuwTcQhTBB0k+dslLQne55Twh/ncp3nTLBR+MRSlfq5HklLq
+ozlR0bqcZy6WOxrZSJUgvX+aoo+P4Lezi5zdhc/sPMlP8S32kDsOTl85cjeEFF7v
+aWEPPXg/pR9RX4xXW83qiez6dCtXoXhFQ2WGwNmdNW4mr165BDP9BZBKsDURLQQ0
+2TFuT3Rg/XVJV+uz+H3YcZxLCK1wkXc/u4tF0os0OSXmf9igxBT4Odun9VhASNtL
+sCOuZU+uovaieAC/autoL1iNTrMZgOzETN3kBG/F0pEtrLWRt/RGAlrGe75BOJHm
+Ga9uZU8FRwlJjbC7FbAK90VHNg31XfkCAwEAAaNXMFUwDwYDVR0TAQH/BAUwAwEB
+/zATBgNVHSUEDDAKBggrBgEFBQcDATAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
+FHCcztWhD6LMeMtUzGcOW+dcl6duMA0GCSqGSIb3DQEBCwUAA4IBAQBJ+aRC41sy
+zyoMikZTaqpKNulEjKvTzdNlfycdgcFqpL3HyZ+9jyln6qEBSIs2W/6BJlPCTqPa
+l6xIVdjyAm32OjEmJ87KMvxUsd1CxADEzeQNWAFQL67InBA99yrHndq/XgMQF9ce
+e1IMhZkqTSNFl+Lf6BHK2i/tumK0oWl7o4jY6zl3inj5Dtejf8XVU2mh0ffnOK8h
+Q3l4S70OCO8eUnwF6WkoCLre4EySJsWW6Zx/LzS6iR8archRYKVqfzZ1+DPoeNUA
+VokzSfJ3im9vTsY0Pk4Cqrwy1q7Wl0ZgWD4SmJKdfTuTQ1vTXrX8Fmm8wAz4S+re
+IK2shf1gVaWh
+-----END CERTIFICATE-----"""
+
+
+[comparison_service]
+url = "http://app:9000/receive"
+enabled = true
+timeout_secs = 90

@@ -473,7 +473,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             true => 0,
         };
         let notification_url = Some(
-            Url::parse(&item.router_data.request.get_webhook_url()?)
+            Url::parse("https://d5e255a742fe.ngrok-free.app/webhooks/merchant_1752766461/mca_RCS5mk81PcRIdx4e1vYl")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         );
         let payment_method_data = match item
@@ -950,7 +950,7 @@ impl<F>
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
-                                Ok(enums::AttemptStatus::Charged)
+                                Ok(enums::AttemptStatus::Pending)
                             } else {
                                 Ok(enums::AttemptStatus::Authorized)
                             }

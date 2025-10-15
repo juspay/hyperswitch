@@ -98,6 +98,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 services::AuthFlow::Client,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None, // shadow_ucs_call_connector_action
             ))
             .await?;
 

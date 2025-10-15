@@ -3457,6 +3457,7 @@ async fn create_zero_auth_payment(
         profile,
         request,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None, // shadow_ucs_call_connector_action
     ))
     .await?;
 

@@ -162,6 +162,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(
     D,
     Req,
@@ -269,6 +270,7 @@ where
                 router_data,
                 updated_customer,
                 tokenization_action,
+                shadow_ucs_call_connector_action,
             )
             .await?;
 
@@ -350,6 +352,7 @@ where
                 router_data,
                 updated_customer,
                 tokenization_action,
+                shadow_ucs_call_connector_action,
             )
             .await?;
 
@@ -434,6 +437,7 @@ pub async fn internal_payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(
     D,
     Req,
@@ -503,6 +507,7 @@ where
         profile,
         req.should_return_raw_response(),
         merchant_connector_account,
+        shadow_ucs_call_connector_action,
     )
     .await?;
 
@@ -549,6 +554,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + 'static + 'a,
@@ -849,6 +855,7 @@ where
                         merchant_connector_account,
                         router_data,
                         tokenization_action,
+                        shadow_ucs_call_connector_action,
                     )
                     .await?;
 
@@ -982,6 +989,7 @@ where
                         merchant_connector_account,
                         router_data,
                         tokenization_action,
+                        shadow_ucs_call_connector_action,
                     )
                     .await?;
 
@@ -2103,6 +2111,7 @@ pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + 'static + 'a,
@@ -2139,6 +2148,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
+            shadow_ucs_call_connector_action,
         )
         .await?;
 
@@ -2671,6 +2681,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -2735,6 +2746,7 @@ where
                 get_tracker_response,
                 call_connector_action,
                 header_payload.clone(),
+                shadow_ucs_call_connector_action,
             )
             .await?;
             (
@@ -2761,6 +2773,7 @@ where
                 get_tracker_response,
                 call_connector_action,
                 header_payload.clone(),
+                shadow_ucs_call_connector_action,
             )
             .await?;
             (
@@ -2879,6 +2892,7 @@ async fn decide_authorize_or_setup_intent_flow(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
+            None, // shadow_ucs_call_connector_action
         ))
         .await
     } else {
@@ -3125,6 +3139,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             connector_action,
             None,
             HeaderPayload::default(),
+            None,
         ))
         .await?;
         let payments_response = match response {
@@ -3285,6 +3300,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 connector_action,
                 None,
                 HeaderPayload::default(),
+                None,
             ),
         )
         .await?;
@@ -3629,6 +3645,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 connector_action,
                 None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                None,
             ))
             .await?
         } else {
@@ -3661,6 +3678,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     connector_action,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ),
             )
             .await?
@@ -4245,6 +4263,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4344,6 +4363,7 @@ where
                     merchant_connector_account,
                     router_data,
                     tokenization_action,
+                    shadow_ucs_call_connector_action,
                 )
                 .await
             }
@@ -4553,6 +4573,7 @@ async fn process_through_direct_with_shadow_unified_connector_service<
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4623,6 +4644,7 @@ where
             unified_connector_service_merchant_connector_account,
             unified_connector_service_merchant_context,
             call_connector_action,
+            shadow_ucs_call_connector_action,
         )
         .await
     });
@@ -4647,6 +4669,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     merchant_context: domain::MerchantContext,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
@@ -4655,6 +4678,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    println!("BBBBBBBBBBBBBBB");
     // Call UCS in shadow mode
     let _unified_connector_service_result = unified_connector_service_router_data
         .call_unified_connector_service(
@@ -4664,7 +4688,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             merchant_connector_account,
             &merchant_context,
             ExecutionMode::Shadow, // Shadow mode for UCS
-            call_connector_action,
+            shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
         )
         .await
         .map_err(|e| logger::debug!("Shadow UCS call failed: {:?}", e));
@@ -5144,6 +5168,7 @@ pub async fn connector_service_decider<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,

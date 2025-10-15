@@ -12,7 +12,8 @@ use common_utils::{
     consts::X_FLOW_NAME,
     errors::CustomResult,
     ext_traits::ValueExt,
-    request::{Method, RequestBuilder, RequestContent}, types::MinorUnit
+    request::{Method, RequestBuilder, RequestContent},
+    types::MinorUnit,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -174,6 +175,8 @@ where
         flow_name
     );
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
+
+    println!("VVVVVVVVVVVVVVV {:?}", shadow_rollout_key);
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
     let shadow_rollout_enabled =
@@ -417,7 +420,6 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     merchant_context: &MerchantContext,
     connector_name: &str,
 ) -> RouterResult<GatewaySystem> {
-
     println!("should_call_unified_connector_service_for_webhooks() starts");
     // Extract context information
     let merchant_id = merchant_context

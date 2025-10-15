@@ -419,6 +419,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 CallConnectorAction::Avoid,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None, // shadow_ucs_call_connector_action
             ))
             .await?
             {

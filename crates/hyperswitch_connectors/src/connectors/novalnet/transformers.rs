@@ -239,7 +239,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             .get_optional_language_from_browser_info()
             .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
         let custom = NovalnetCustom { lang };
-        let hook_url = item.router_data.request.get_webhook_url()?;
+        let hook_url = "https://d5e255a742fe.ngrok-free.app/webhooks/merchant_1752766461/mca_5fi6s8OnHtSYpz29RTCw".to_string();
         let return_url = item.router_data.request.get_router_return_url()?;
         let create_token = if item.router_data.request.is_mandate_payment() {
             Some(CREATE_TOKEN_REQUIRED)
@@ -671,7 +671,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     });
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: common_enums::AttemptStatus::Pending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()

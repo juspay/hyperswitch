@@ -96,6 +96,7 @@ pub async fn payment_intents_create(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -177,6 +178,7 @@ pub async fn payment_intents_retrieve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -263,6 +265,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -346,6 +349,7 @@ pub async fn payment_intents_update(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -438,6 +442,7 @@ pub async fn payment_intents_confirm(
                 payments::CallConnectorAction::Trigger,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -511,6 +516,7 @@ pub async fn payment_intents_capture(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -596,6 +602,7 @@ pub async fn payment_intents_cancel(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
