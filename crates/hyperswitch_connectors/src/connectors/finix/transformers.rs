@@ -161,13 +161,13 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                     PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
                         "Apple Pay",
                         "Simplified",
-                        "Stax"
+                        "finix"
                     ))?,
                     PaymentMethodToken::PazeDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Paze", "Stax"))?
+                        Err(unimplemented_payment_method!("Paze", "finix"))?
                     }
                     PaymentMethodToken::GooglePayDecrypt(_) => {
-                        Err(unimplemented_payment_method!("Google Pay", "Stax"))?
+                        Err(unimplemented_payment_method!("Google Pay", "finix"))?
                     }
                 }
             }
@@ -299,7 +299,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsRes
         item: ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::Pending,
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.id,
             }),
