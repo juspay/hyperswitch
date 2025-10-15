@@ -77,3 +77,39 @@ pub struct FinixError {
     pub message: Option<String>,
     pub code: Option<String>,
 }
+
+// webhook
+#[derive(Debug, Serialize, Deserialize)]
+
+pub struct FinixDisputes {
+    pub transfer: String,
+    pub reason: String,
+    pub amount: MinorUnit,
+    pub state: String, //enumize
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FinixWebhookEvent {}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FinixEmbedded {
+    Authorizations {
+        authorizations: Vec<FinixPaymentsResponse>,
+    },
+    Transfers {
+        transfers: Vec<FinixPaymentsResponse>,
+    },
+    Disputes {
+        disputes: Vec<FinixDisputes>,
+    },
+    Unsupported(Secret<serde_json::Value>),
+}
+#[derive(Debug, Serialize, Deserialize)]
+
+pub struct FinixWebhookBody {
+    pub webhook_type: String,
+    pub entity: FinixWebhookEvent,
+    pub webhook_embedded: FinixEmbedded,
+}

@@ -5,8 +5,9 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::{enums, CaptureMethod, ConnectorIntegrationStatus, PaymentMethodType};
 use common_utils::{
+    crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
@@ -45,7 +46,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, Secret};
 use transformers as finix;
 
 use crate::{
@@ -972,11 +973,27 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Finix {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Finix {
-    fn get_webhook_object_reference_id(
+    async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: Encryptable<Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(false)
+    }
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        todo!()
     }
 
     fn get_webhook_event_type(

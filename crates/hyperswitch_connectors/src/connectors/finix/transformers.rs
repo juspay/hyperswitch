@@ -2,7 +2,7 @@ pub mod request;
 pub mod response;
 use api_models::payments::MandateReferenceId;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
-use common_utils::types::MinorUnit;
+use common_utils::{errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -566,6 +566,56 @@ impl TryFrom<RefundsResponseRouterData<RSync, FinixPaymentsResponse>> for Refund
             }),
             ..item.data
         })
+    }
+}
+
+impl FinixWebhookBody {
+    fn get_webhook_object_reference_id(
+        &self,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Authorizations { authorizations } => {
+                let authorization = authorizations
+                    .first()
+                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(
+                    authorization.id.to_string())
+                ))
+            },
+            FinixEmbedded::Transfers { transfers } => {
+                let transfer = transfers
+                    .first()
+                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
+                if transfer.payment_type == FinixPaymentType::REVERSAL {
+                       Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(
+                    transfer.id.to_string())
+                ))
+                }
+                else {
+                       Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(
+                    transfer.id.to_string())
+                ))
+                }
+             
+            },
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes
+                    .first()
+                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(
+                    dispute.transfer.to_string())
+                ))
+            },
+            FinixEmbedded::Unsupported(secret) => {
+                Err(ConnectorError::WebhookReferenceIdNotFound.into())
+            },
+        }
+    }
+}
     }
 }
 
