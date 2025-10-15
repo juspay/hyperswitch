@@ -52,6 +52,7 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]

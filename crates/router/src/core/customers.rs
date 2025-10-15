@@ -590,7 +590,7 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
-        customer_id: None,
+        customer_id: request.customer_id,
         time_range: None,
     };
 

@@ -91,8 +91,16 @@ impl ApiEventMetric for CustomerListRequestWithConstraints {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for CustomerListResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for CustomerListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
