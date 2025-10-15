@@ -355,12 +355,6 @@ pub async fn create_routing_algorithm_under_profile(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    request.validate_name_length().change_context(
-        errors::ApiErrorResponse::InvalidRequestData {
-            message: "Validation failed for routing config request".to_string(),
-        },
-    )?;
-
     let name = request
         .name
         .get_required_value("name")
@@ -452,7 +446,7 @@ pub async fn create_routing_algorithm_under_profile(
         if let Some(static_algorithm) = maybe_static_algorithm {
             let routing_rule = RoutingRule {
                 rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
-                name: name.clone(),
+                name: name.to_string(),
                 description: Some(description.clone()),
                 created_by: profile_id.get_string_repr().to_string(),
                 algorithm: static_algorithm,
@@ -504,7 +498,7 @@ pub async fn create_routing_algorithm_under_profile(
         algorithm_id: algorithm_id.clone(),
         profile_id,
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        name: name.clone(),
+        name: name.to_string(),
         description: Some(description.clone()),
         kind: algorithm.get_kind().foreign_into(),
         algorithm_data: serde_json::json!(algorithm),

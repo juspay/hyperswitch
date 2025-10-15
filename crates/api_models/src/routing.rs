@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisionRule};
 use common_utils::{
@@ -60,7 +60,7 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
-    pub name: Option<String>,
+    pub name: Option<RoutingConfigName>,
     pub description: Option<String>,
     pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
@@ -69,22 +69,34 @@ pub struct RoutingConfigRequest {
 }
 
 #[cfg(feature = "v1")]
-impl RoutingConfigRequest {
-    pub fn validate_name_length(&self) -> Result<(), ValidationError> {
-        if let Some(name) = &self.name {
-            if name.len() > MAX_NAME_LENGTH {
-                return Err(ValidationError::InvalidValue {
-                    message: format!(
-                        "Length of name field must not exceed {} characters",
-                        MAX_NAME_LENGTH
-                    ),
-                });
-            }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RoutingConfigName(String);
+
+impl RoutingConfigName {
+    pub fn new(name: impl Into<String>) -> Result<Self, ValidationError> {
+        let name = name.into();
+        if name.len() > MAX_NAME_LENGTH {
+            return Err(ValidationError::InvalidValue {
+                message: format!(
+                    "Length of name field must not exceed {} characters",
+                    MAX_NAME_LENGTH
+                ),
+            });
         }
-        Ok(())
+
+        Ok(Self(name))
     }
 }
 
+impl Deref for RoutingConfigName {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     #[schema(value_type = String)]
