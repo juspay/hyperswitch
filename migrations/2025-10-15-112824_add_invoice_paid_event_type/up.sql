@@ -1,9 +1,9 @@
 -- Your SQL goes here
 ALTER TYPE "EventType"
-ADD VALUE 'invoice_paid';
+ADD VALUE IF NOT EXISTS 'invoice_paid';
 
 ALTER TYPE "EventObjectType"
-ADD VALUE 'subscription_details';
+ADD VALUE IF NOT EXISTS 'subscription_details';
 
 ALTER TYPE "EventClass"
-ADD VALUE 'subscriptions';
+ADD VALUE IF NOT EXISTS 'subscriptions';
