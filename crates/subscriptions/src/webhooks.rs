@@ -13,8 +13,11 @@ use hyperswitch_interfaces::{
 };
 use router_env::{instrument, logger, tracing};
 
-use crate::{state::SubscriptionState as SessionState, subscription_handler::SubscriptionHandler};
+use crate::state::SubscriptionState as SessionState;
+#[cfg(feature = "v1")]
+use crate::subscription_handler::SubscriptionHandler;
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn incoming_webhook_flow(
