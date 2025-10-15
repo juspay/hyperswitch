@@ -275,6 +275,7 @@ pub struct PeachpaymentsConfirmRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRefundRequest {
     pub reference_id: String,
+    pub ecommerce_card_payment_only_transaction_data: PeachpaymentsRefundTransactionData,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pos_data: Option<PosData>,
 }
@@ -285,11 +286,25 @@ pub struct PosData {
     pub referral: String,
 }
 
+#[derive(Debug, Serialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundTransactionData {
+    pub amount: AmountDetails,
+}
+
 impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RefundsRouterData<Execute>) -> Result<Self, Self::Error> {
+        let amount = AmountDetails {
+            amount: item.request.refund_amount.clone(),
+            currency_code: item.request.currency.to_string(),
+            display_amount: None,
+        };
+        let ecommerce_card_payment_only_transaction_data =
+            PeachpaymentsRefundTransactionData { amount };
         Ok(Self {
             reference_id: item.request.refund_id.clone(),
+            ecommerce_card_payment_only_transaction_data,
             pos_data: None,
         })
     }
