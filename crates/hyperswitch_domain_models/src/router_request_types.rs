@@ -886,7 +886,7 @@ pub struct PaymentsCancelPostCaptureData {
     pub minor_amount: Option<MinorUnit>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsExtendAuthorizationData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,

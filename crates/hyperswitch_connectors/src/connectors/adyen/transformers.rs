@@ -4829,9 +4829,7 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data
-                .error
-                .map_or_else(|| Ok(payment_response_data), Err),
+            response: adyen_payments_response_data.error.map_or_else(|| Ok(adyen_payments_response_data.payments_response_data), Err),
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
