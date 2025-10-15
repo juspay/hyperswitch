@@ -4029,16 +4029,7 @@ pub fn get_adyen_response(
     is_capture_manual: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) ->  CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
@@ -4122,7 +4113,21 @@ pub fn get_adyen_response(
 
     let txn_amount = response.amount.map(|amount| amount.value);
 
-    Ok((status, error, payments_response_data, txn_amount, None))
+    Ok(AdyenPaymentsResponseData {
+        status,
+        error,
+        payments_response_data,
+        txn_amount,
+        connector_response: None,
+})
+}
+
+pub struct AdyenPaymentsResponseData {
+    pub status: storage_enums::AttemptStatus,
+    pub error: Option<ErrorResponse>,
+    pub payments_response_data: PaymentsResponseData,
+    pub txn_amount: Option<MinorUnit>,
+    pub connector_response: Option<ConnectorResponseData>,
 }
 
 pub fn get_webhook_response(
@@ -4130,16 +4135,7 @@ pub fn get_webhook_response(
     is_capture_manual: bool,
     is_multiple_capture_psync_flow: bool,
     status_code: u16,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = storage_enums::AttemptStatus::foreign_try_from((
         is_capture_manual,
         response.status.clone(),
@@ -4187,15 +4183,15 @@ pub fn get_webhook_response(
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
             utils::construct_captures_response_hashmap(vec![response.clone()])?;
-        Ok((
+        Ok(AdyenPaymentsResponseData {
             status,
             error,
-            PaymentsResponseData::MultipleCaptureResponse {
+            payments_response_data: PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
             },
             txn_amount,
             connector_response,
-        ))
+    })
     } else {
         let mandate_reference = response
             .recurring_detail_reference
@@ -4221,13 +4217,13 @@ pub fn get_webhook_response(
             charges: None,
         };
 
-        Ok((
+        Ok(AdyenPaymentsResponseData {
             status,
             error,
             payments_response_data,
             txn_amount,
             connector_response,
-        ))
+    })
     }
 }
 
@@ -4236,16 +4232,7 @@ pub fn get_redirection_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
@@ -4332,7 +4319,13 @@ pub fn get_redirection_response(
 
     let txn_amount = response.amount.map(|amount| amount.value);
 
-    Ok((status, error, payments_response_data, txn_amount, None))
+    Ok(AdyenPaymentsResponseData {
+        status,
+        error,
+        payments_response_data,
+        txn_amount,
+        connector_response: None,
+})
 }
 
 pub fn get_present_to_shopper_response(
@@ -4340,16 +4333,7 @@ pub fn get_present_to_shopper_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) -> CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
@@ -4405,7 +4389,13 @@ pub fn get_present_to_shopper_response(
     };
     let txn_amount = response.amount.map(|amount| amount.value);
 
-    Ok((status, error, payments_response_data, txn_amount, None))
+    Ok(AdyenPaymentsResponseData {
+        status,
+        error,
+        payments_response_data,
+        txn_amount,
+        connector_response: None,
+})
 }
 
 pub fn get_qr_code_response(
@@ -4413,16 +4403,7 @@ pub fn get_qr_code_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) ->  CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
@@ -4478,7 +4459,14 @@ pub fn get_qr_code_response(
 
     let txn_amount = response.amount.map(|amount| amount.value);
 
-    Ok((status, error, payments_response_data, txn_amount, None))
+
+    Ok(AdyenPaymentsResponseData {
+        status,
+        error,
+        payments_response_data,
+        txn_amount,
+        connector_response: None,
+})
 }
 
 pub fn get_redirection_error_response(
@@ -4486,16 +4474,7 @@ pub fn get_redirection_error_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
-) -> CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<ErrorResponse>,
-        PaymentsResponseData,
-        Option<MinorUnit>,
-        Option<ConnectorResponseData>,
-    ),
-    errors::ConnectorError,
-> {
+) ->  CustomResult<AdyenPaymentsResponseData,errors::ConnectorError> {
     let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
     let error = {
         let (network_decline_code, network_error_message) = response
@@ -4552,7 +4531,13 @@ pub fn get_redirection_error_response(
         charges: None,
     };
 
-    Ok((status, error, payments_response_data, None, None))
+    Ok(AdyenPaymentsResponseData {
+        status,
+        error,
+        payments_response_data,
+        txn_amount: None,
+        connector_response: None,
+})
 }
 
 pub fn get_qr_metadata(
@@ -4809,8 +4794,7 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
-        let (status, error, payment_response_data, amount, connector_response) = match item.response
-        {
+        let adyen_payments_response_data = match item.response {
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
@@ -4834,18 +4818,18 @@ impl<F, Req>
             )?,
         };
 
-        let minor_amount_captured = match status {
+        let minor_amount_captured = match adyen_payments_response_data.status {
             enums::AttemptStatus::Charged
             | enums::AttemptStatus::PartialCharged
-            | enums::AttemptStatus::PartialChargedAndChargeable => amount,
+            | enums::AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
         };
 
         Ok(Self {
-            status,
+            status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
-            connector_response,
+            response: adyen_payments_response_data.error.map_or_else(|| Ok(payment_response_data), Err),
+            connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
         })
@@ -4877,7 +4861,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsExtendAuthorizationRouterData>>
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.amount.clone(),
+            value: item.amount,
         };
         Ok(Self {
             merchant_account: auth_type.merchant_account,
@@ -4916,7 +4900,6 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         // Asynchronous authorization adjustment
         Ok(Self {
-            status: storage_enums::AttemptStatus::Pending,
             ..item.data
         })
     }
@@ -5183,10 +5166,11 @@ pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
     )
 }
 
-pub fn is_capture_or_cancel_event(event_code: &WebhookEventCode) -> bool {
+pub fn is_capture_or_cancel_or_adjust_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
-        WebhookEventCode::Capture
+        WebhookEventCode::AuthorisationAdjustment
+            | WebhookEventCode::Capture
             | WebhookEventCode::CaptureFailed
             | WebhookEventCode::Cancellation
     )

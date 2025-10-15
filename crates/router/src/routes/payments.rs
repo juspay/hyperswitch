@@ -2303,16 +2303,16 @@ pub async fn payments_incremental_authorization(
 pub async fn payments_extend_authorization(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsExtendAuthorizationRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsExtendAuthorization;
-    let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+    let payload = payment_types::PaymentsExtendAuthorizationRequest {
+        payment_id,
+    };
 
-    payload.payment_id = payment_id;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
