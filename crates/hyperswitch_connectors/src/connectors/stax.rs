@@ -1042,4 +1042,3 @@ impl ConnectorSpecifications for Stax {
         true
     }
 }
-
