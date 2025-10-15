@@ -57,7 +57,7 @@ impl Customer {
     }
 
     #[cfg(feature = "v1")]
-    pub async fn get_customer_counts_by_merchant_id_and_constraints(
+    pub async fn get_customer_count_by_merchant_id_and_constraints(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,
@@ -87,7 +87,7 @@ impl Customer {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn get_customer_counts_by_merchant_id_and_constraints(
+    pub async fn get_customer_count_by_merchant_id_and_constraints(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,

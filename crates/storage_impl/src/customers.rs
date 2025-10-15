@@ -710,7 +710,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 ),
             )
             .await?;
-        let total_count = customers::Customer::get_customer_counts_by_merchant_id_and_constraints(
+        let total_count = customers::Customer::get_customer_count_by_merchant_id_and_constraints(
             &conn,
             merchant_id,
             customer_list_constraints,

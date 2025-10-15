@@ -22,6 +22,10 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
+        utils::{
+            self,
+            customer_validation::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT},
+        },
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -628,11 +632,12 @@ pub async fn list_customers_with_count(
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
-    let limit =
-        crate::core::utils::customer_validation::validate_customer_list_limit(request.limit)
-            .change_context(errors::CustomersErrorResponse::InvalidRequestData {
-                message: "Invalid limit value".to_string(),
-            })?;
+    let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
+        .change_context(errors::CustomersErrorResponse::InvalidRequestData {
+            message: format!(
+            "limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
+        ),
+        })?;
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
         limit: request.limit.unwrap_or(limit),

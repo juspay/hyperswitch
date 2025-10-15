@@ -65,7 +65,7 @@ pub struct CustomerListRequestWithConstraints {
     pub limit: Option<u16>,
     /// Unique identifier for a customer
     pub customer_id: Option<id_type::CustomerId>,
-    /// filter with created date
+    /// Filter with created time range
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
 }

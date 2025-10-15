@@ -18,8 +18,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
             }
             Self::InvalidRequestData { message } => AER::BadRequest(ApiError::new(
                 "IR",
-                5,
-                format!("Invalid request data: {}", message),
+                7,
+                format!("Invalid value provided:{}", message),
                 None,
             )),
             Self::MandateActive => AER::BadRequest(ApiError::new(
