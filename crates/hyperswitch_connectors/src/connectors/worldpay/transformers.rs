@@ -18,11 +18,17 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
     types,
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_response_types::PayoutsResponseData,
+};
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
+#[cfg(feature = "payouts")]
+use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::ResponseRouterData,
     utils::{
@@ -917,5 +923,120 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
                 .into(),
             ),
         }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F>
+    TryFrom<(
+        &WorldpayRouterData<&types::PayoutsRouterData<F>>,
+        &Secret<String>,
+    )> for WorldpayPayoutRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        req: (
+            &WorldpayRouterData<&types::PayoutsRouterData<F>>,
+            &Secret<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, entity_id) = req;
+
+        let worldpay_connector_metadata_object: WorldpayConnectorMetadataObject =
+            WorldpayConnectorMetadataObject::try_from(
+                item.router_data.connector_meta_data.as_ref(),
+            )?;
+
+        let merchant_name = worldpay_connector_metadata_object.merchant_name.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.merchant_name",
+            },
+        )?;
+
+        Ok(Self {
+            transaction_reference: item.router_data.connector_request_reference_id.clone(),
+            merchant: Merchant {
+                entity: entity_id.clone(),
+                ..Default::default()
+            },
+            instruction: PayoutInstruction {
+                value: PaymentValue {
+                    amount: item.amount,
+                    currency: item.router_data.request.destination_currency,
+                },
+                narrative: InstructionNarrative {
+                    line1: merchant_name.expose(),
+                },
+                payout_instrument: PayoutInstrument::try_from(
+                    item.router_data.get_payout_method_data()?,
+                )?,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<api_models::payouts::PayoutMethodData> for PayoutInstrument {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        payout_method_data: api_models::payouts::PayoutMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payout_method_data {
+            api_models::payouts::PayoutMethodData::Wallet(
+                api_models::payouts::Wallet::ApplePayDecrypt(apple_pay_decrypted_data),
+            ) => Ok(Self::ApplePayDecrypt(ApplePayDecrypt {
+                payout_type: PayoutType::ApplePayDecrypt,
+                dpan: apple_pay_decrypted_data.dpan.clone(),
+                card_holder_name: apple_pay_decrypted_data.card_holder_name.clone(),
+                card_expiry_date: ExpiryDate {
+                    month: apple_pay_decrypted_data.get_expiry_month_as_i8()?,
+                    year: apple_pay_decrypted_data.get_expiry_year_as_4_digit_i32()?,
+                },
+            })),
+            api_models::payouts::PayoutMethodData::Card(_)
+            | api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::Wallet(_)
+            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected Payout Method is not implemented for Worldpay".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<PayoutOutcome> for enums::PayoutStatus {
+    fn from(item: PayoutOutcome) -> Self {
+        match item {
+            PayoutOutcome::RequestReceived => Self::Initiated,
+            PayoutOutcome::Error | PayoutOutcome::Refused => Self::Failed,
+            PayoutOutcome::QueryRequired => Self::Pending,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>>
+    for types::PayoutsRouterData<PoFulfill>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(enums::PayoutStatus::from(item.response.outcome.clone())),
+                connector_payout_id: None,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
     }
 }

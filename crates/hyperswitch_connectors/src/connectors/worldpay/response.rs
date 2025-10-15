@@ -450,5 +450,22 @@ pub struct WorldpayWebhookEventType {
     pub event_details: EventDetails,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayPayoutResponse {
+    pub outcome: PayoutOutcome,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PayoutOutcome {
+    RequestReceived,
+    Refused,
+    Error,
+    QueryRequired,
+}
+
 /// Worldpay's unique reference ID for a request
 pub(super) const WP_CORRELATION_ID: &str = "WP-CorrelationId";
