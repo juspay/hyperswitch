@@ -16,9 +16,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
             Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
-            Self::InvalidRequestData { message } => {
-                AER::BadRequest(ApiError::new("IR", 400, message, None))
-            }
+            Self::InvalidRequestData { message } => AER::BadRequest(ApiError::new(
+                "IR",
+                5,
+                format!("Invalid request data: {}", message),
+                None,
+            )),
             Self::MandateActive => AER::BadRequest(ApiError::new(
                 "IR",
                 10,
