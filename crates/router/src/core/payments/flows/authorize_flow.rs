@@ -370,7 +370,31 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     );
                     auth_router_data.integrity_check = integrity_result;
                     metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
-                    Ok(auth_router_data)
+                    match auth_router_data.response.clone() {
+                        Err(_) => Ok(auth_router_data),
+                        Ok(authorize_response) => {
+                            // Check if the Capture API should be called based on the connector and other parameters
+                            if super::should_initiate_capture_flow(
+                                &connector.connector_name,
+                                self.request.customer_acceptance,
+                                self.request.capture_method,
+                                self.request.setup_future_usage,
+                                auth_router_data.status,
+                            ) {
+                                auth_router_data = Box::pin(process_capture_flow(
+                                    auth_router_data,
+                                    authorize_response,
+                                    state,
+                                    connector,
+                                    call_connector_action.clone(),
+                                    business_profile,
+                                    header_payload,
+                                ))
+                                .await?;
+                            }
+                            Ok(auth_router_data)
+                        }
+                    }
                 } else {
                     Ok(self.clone())
                 }
