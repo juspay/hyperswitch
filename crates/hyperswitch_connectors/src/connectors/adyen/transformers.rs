@@ -5029,6 +5029,7 @@ pub struct AdyenAdditionalDataWH {
     pub card_summary: Option<Secret<String>>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_bank: Option<String>,
+    pub payment_method_variant: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -6343,4 +6344,98 @@ pub fn parse_expiry_date(
     };
 
     Ok((month_str, year_str))
+}
+
+pub fn from_payment_method_variant(value: Option<String>) -> Option<common_enums::CardNetwork> {
+    let val = value?.to_lowercase();
+    let cleaned = val.trim().split('_').next().unwrap_or("");
+
+    match cleaned {
+        "visa"
+        | "visacredit"
+        | "visadebit"
+        | "visaelectron"
+        | "vpay"
+        | "visacorporate"
+        | "visacommercialcredit"
+        | "visacommercialdebit"
+        | "visapurchasing"
+        | "visastandardcredit"
+        | "visastandarddebit"
+        | "visapremiumcredit"
+        | "visapremiumdebit"
+        | "visasignature"
+        | "visagold"
+        | "visaplatinum"
+        | "visaproprietary"
+        | "visacheckout"
+        | "visafleetcredit"
+        | "visafleetdebit"
+        | "visaalphabankbonus"
+        | "visacorporatedebit"
+        | "visacorporatecredit"
+        | "visacommercialsuperpremiumcredit"
+        | "visacommercialsuperpremiumdebit" => Some(common_enums::CardNetwork::Visa),
+
+        "mc"
+        | "mccredit"
+        | "mcdebit"
+        | "mcpremiumcredit"
+        | "mcpremiumdebit"
+        | "mcstandardcredit"
+        | "mcstandarddebit"
+        | "mcsuperpremiumcredit"
+        | "mcsuperpremiumdebit"
+        | "mccommercialcredit"
+        | "mccommercialdebit"
+        | "mccommercialpremiumcredit"
+        | "mccommercialpremiumdebit"
+        | "mcpurchasingcredit"
+        | "mcpurchasingdebit"
+        | "mcfleetcredit"
+        | "mcfleetdebit"
+        | "mcalphabankbonus"
+        | "mccorporate"
+        | "mccorporatecredit"
+        | "mccorporatedebit" => Some(common_enums::CardNetwork::Mastercard),
+
+        "amex"
+        | "amexcommercial"
+        | "amexconsumer"
+        | "amexcorporate"
+        | "amexdebit"
+        | "amexprepaid"
+        | "amexprepaidreloadable"
+        | "amexsmallbusiness" => Some(common_enums::CardNetwork::AmericanExpress),
+
+        "jcb" | "jcbcredit" | "jcbdebit" | "jcbprepaid" | "jcbprepaidanonymous" => {
+            Some(common_enums::CardNetwork::JCB)
+        }
+
+        "diners" | "dinersclub" => Some(common_enums::CardNetwork::DinersClub),
+
+        "discover" => Some(common_enums::CardNetwork::Discover),
+
+        "cartesbancaires" | "cartebancaire" => Some(common_enums::CardNetwork::CartesBancaires),
+
+        "cup" | "cupdebit" | "cupcredit" | "cupprepaid" => {
+            Some(common_enums::CardNetwork::UnionPay)
+        }
+
+        "interac" | "interac_card" => Some(common_enums::CardNetwork::Interac),
+
+        "rupay" => Some(common_enums::CardNetwork::RuPay),
+
+        "maestro" | "maestrouk" | "maestro_usa" => Some(common_enums::CardNetwork::Maestro),
+
+        "star" => Some(common_enums::CardNetwork::Star),
+
+        "pulse" => Some(common_enums::CardNetwork::Pulse),
+
+        "accel" => Some(common_enums::CardNetwork::Accel),
+
+        "nyce" => Some(common_enums::CardNetwork::Nyce),
+
+        _ => None,
+    }
 }

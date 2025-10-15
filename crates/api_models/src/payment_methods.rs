@@ -793,6 +793,10 @@ pub struct CardDetailUpdate {
     /// The country where that particular card was issued
     #[schema(value_type = Option<String>, example = "US")]
     pub issuer_country: Option<String>,
+
+    /// The card network
+    #[schema(value_type = Option<String>, example = "VISA")]
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "v1")]

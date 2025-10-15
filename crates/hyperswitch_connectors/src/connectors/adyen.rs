@@ -2087,6 +2087,7 @@ impl IncomingWebhook for Adyen {
                     .additional_data
                     .card_summary
                     .map(|last4| last4.expose().to_string()),
+                card_network: adyen::from_payment_method_variant(notif.additional_data.payment_method_variant.map(|network|network.expose())),
             }),
             client_secret: None,
         }))

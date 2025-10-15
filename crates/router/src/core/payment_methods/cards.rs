@@ -1790,7 +1790,7 @@ pub async fn update_customer_payment_method(
                     .card_holder_name
                     .or(existing_card_data.card_holder_name),
                 nick_name: card_update.nick_name.or(existing_card_data.nick_name),
-                card_network: existing_card_data.card_network,
+                card_network: card_update.card_network.or(existing_card_data.card_network),
                 card_isin: existing_card_data.card_isin,
                 card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
