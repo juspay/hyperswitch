@@ -1475,7 +1475,6 @@ macro_rules! default_imp_for_extend_authorization {
 
 default_imp_for_extend_authorization!(
     connectors::Aci,
-    connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
     connectors::Airwallex,
