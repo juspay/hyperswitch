@@ -6,12 +6,12 @@ use common_enums::enums;
 use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
+    keymanager::ConvertRaw,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    errors::ConnectorError,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -50,7 +50,7 @@ use self::bitpay::BitpayWebhookDetails;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_authorise_integrity_object, get_sync_integrity_object},
+    utils::{self},
 };
 
 #[derive(Clone)]
@@ -254,10 +254,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Bitpay PaymentsAuthorizeResponse")
             .switch()?;
-        let response_integrity_object = get_authorise_integrity_object(
+        let response_integrity_object = utils::get_authorise_integrity_object(
             self.amount_converter,
             response.data.price,
-            response.data.currency,
+            response.data.currency.clone(),
         )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -266,7 +266,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(ConnectorError::ResponseHandlingFailed);
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
             router_data
@@ -339,11 +339,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bit
         let response: bitpay::BitpayPaymentsResponse = res
             .response
             .parse_struct("bitpay PaymentsSyncResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        let response_integrity_object = get_sync_integrity_object(
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_integrity_object = utils::get_sync_integrity_object(
             self.amount_converter,
-            response.amount,
-            response.currency.clone(),
+            response.data.price,
+            response.data.currency.clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
