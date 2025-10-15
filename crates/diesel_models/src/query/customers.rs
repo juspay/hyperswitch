@@ -56,12 +56,49 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
-    pub async fn count_by_merchant_id(
+    #[cfg(feature = "v1")]
+    pub async fn get_customer_counts_by_merchant_id_and_constraints(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
-        time_range: Option<common_utils::types::TimeRange>,
+        customer_list_constraints: CustomerListConstraints,
     ) -> StorageResult<usize> {
-        if let Some(time_range) = time_range {
+        if let Some(customer_id) = customer_list_constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::customer_id.eq(customer_id));
+            generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
+        }else if let Some(time_range) = customer_list_constraints.time_range {
+            let start_time = time_range.start_time;
+            let end_time = time_range
+                .end_time
+                .unwrap_or_else(common_utils::date_time::now);
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::created_at.between(start_time, end_time));
+
+            generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
+        } else {
+            generics::generic_count::<<Self as HasTable>::Table, _>(
+                conn,
+                dsl::merchant_id.eq(merchant_id.to_owned()),
+            )
+            .await
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn get_customer_counts_by_merchant_id_and_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        customer_list_constraints: CustomerListConstraints,
+    ) -> StorageResult<usize> {
+        if let Some(customer_id) = customer_list_constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::merchant_reference_id.eq(customer_id));
+            generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
+
+        }else if let Some(time_range) = customer_list_constraints.time_range {
             let start_time = time_range.start_time;
             let end_time = time_range
                 .end_time
@@ -81,7 +118,7 @@ impl Customer {
     }
 
     #[cfg(feature = "v1")]
-    pub async fn list_by_merchant_id(
+    pub async fn list_customers_by_merchant_id_and_constraints(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
@@ -129,7 +166,7 @@ impl Customer {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn list_by_merchant_id(
+    pub async fn list_customers_by_merchant_id_and_constraints(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,

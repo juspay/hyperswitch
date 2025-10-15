@@ -673,7 +673,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            customers::Customer::list_customers_by_merchant_id_and_constraints(&conn, merchant_id, customer_list_constraints),
         )
         .await
     }
@@ -689,19 +689,24 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        let time_range = customer_list_constraints.time_range;
+        let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
+            limit: customer_list_constraints.limit,
+            offset: customer_list_constraints.offset,
+            customer_id: customer_list_constraints.customer_id.clone(),
+            time_range: customer_list_constraints.time_range,
+        };
         let customers = self
             .find_resources(
                 state,
                 key_store,
-                customers::Customer::list_by_merchant_id(
+                customers::Customer::list_customers_by_merchant_id_and_constraints(
                     &conn,
                     merchant_id,
-                    customer_list_constraints,
+                    customers_constraints,
                 ),
             )
             .await?;
-        let total_count = customers::Customer::count_by_merchant_id(&conn, merchant_id, time_range)
+        let total_count = customers::Customer::get_customer_counts_by_merchant_id_and_constraints(&conn, merchant_id, customer_list_constraints)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());

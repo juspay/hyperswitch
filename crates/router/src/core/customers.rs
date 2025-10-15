@@ -628,12 +628,12 @@ pub async fn list_customers_with_count(
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
+    let limit = crate::core::utils::customer_validation::validate_customer_list_limit(request.limit)
+        .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
-        limit: request
-            .limit
-            .map(|l| std::cmp::min(l, 100))
-            .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
+        
+        limit: request.limit.unwrap_or(limit),
         offset: request.offset,
         customer_id: request.customer_id,
         time_range: request.time_range,

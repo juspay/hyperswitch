@@ -240,13 +240,13 @@ pub async fn customers_list(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithSearchAndPagination))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
 pub async fn customers_list_with_count(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<customers::CustomerListRequestWithConstraints>,
 ) -> HttpResponse {
-    let flow = Flow::CustomersListWithSearchAndPagination;
+    let flow = Flow::CustomersListWithConstraints;
     let payload = query.into_inner();
 
     Box::pin(api::server_wrap(
@@ -279,13 +279,13 @@ pub async fn customers_list_with_count(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithSearchAndPagination))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
 pub async fn customers_list_with_count(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<customers::CustomerListRequestWithConstraints>,
 ) -> HttpResponse {
-    let flow = Flow::CustomersListWithSearchAndPagination;
+    let flow = Flow::CustomersListWithConstraints;
     let payload = query.into_inner();
     Box::pin(api::server_wrap(
         flow,

@@ -53,6 +53,7 @@ pub struct CustomerListRequest {
     #[schema(example = 32)]
     pub limit: Option<u16>,
 }
+
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CustomerListRequestWithConstraints {
     /// Offset
