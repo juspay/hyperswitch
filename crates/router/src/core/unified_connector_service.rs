@@ -77,14 +77,24 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-pub async fn should_call_unified_connector_service<F: Clone, T, D>(
+/// Type alias for return type used by unified connector service refund response handlers
+type UnifiedConnectorServiceRefundResult = CustomResult<
+    (
+        Result<RefundsResponseData, ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
+pub async fn should_call_unified_connector_service<F: Clone, T, R, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
-    router_data: &RouterData<F, T, PaymentsResponseData>,
+    router_data: &RouterData<F, T, R>,
     payment_data: Option<&D>,
 ) -> RouterResult<GatewaySystem>
 where
     D: OperationSessionGetters<F>,
+    R: Send + Sync + Clone,
 {
     // Extract context information
     let merchant_id = merchant_context
@@ -97,7 +107,6 @@ where
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
 
-    let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
     // Compute all relevant conditions
@@ -107,18 +116,20 @@ where
     // Log if UCS client is not available
     if !ucs_client_available {
         router_env::logger::debug!(
-            "UCS client not available - merchant_id={}, connector={}",
+            "UCS client not available - merchant_id={}, connector={}, flow={}",
             merchant_id,
-            connector_name
+            connector_name,
+            flow_name
         );
     }
 
     // Log if UCS is not enabled
     if !ucs_enabled {
         router_env::logger::debug!(
-            "UCS not enabled in configuration - merchant_id={}, connector={}",
+            "UCS not enabled in configuration - merchant_id={}, connector={}, flow={}",
             merchant_id,
-            connector_name
+            connector_name,
+            flow_name
         );
     }
 
@@ -127,9 +138,10 @@ where
     // Log if UCS configuration is missing
     if ucs_config.is_none() {
         router_env::logger::debug!(
-            "UCS configuration not found - merchant_id={}, connector={}",
+            "UCS configuration not found - merchant_id={}, connector={}, flow={}",
             merchant_id,
-            connector_name
+            connector_name,
+            flow_name
         );
     }
 
@@ -142,42 +154,43 @@ where
     match previous_gateway {
         Some(gateway) => {
             router_env::logger::debug!(
-                "Previous gateway system found: {:?} - merchant_id={}, connector={}",
+                "Previous gateway system found: {:?} - merchant_id={}, connector={}, flow={}",
                 gateway,
                 merchant_id,
-                connector_name
+                connector_name,
+                flow_name
             );
         }
         None => {
             router_env::logger::debug!(
-                "No previous gateway system found (new payment) - merchant_id={}, connector={}",
+                "No previous gateway system found - merchant_id={}, connector={}, flow={}",
                 merchant_id,
-                connector_name
+                connector_name,
+                flow_name
             );
         }
     }
 
-    let rollout_key = format!(
-        "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+    // Build rollout keys based on flow type
+    let (rollout_key, shadow_rollout_key) = build_rollout_keys(
         merchant_id,
         connector_name,
-        payment_method,
-        flow_name
+        &flow_name,
+        &router_data.payment_method,
     );
-    let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
     let shadow_rollout_enabled =
         should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     router_env::logger::debug!(
-        "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
+        "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}, flow={}",
         rollout_enabled,
         shadow_rollout_enabled,
         rollout_key,
         merchant_id,
-        connector_name
+        connector_name,
+        flow_name
     );
 
     // Single decision point using pattern matching
@@ -329,15 +342,50 @@ where
     };
 
     router_env::logger::info!(
-        "Payment gateway system decision: {:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
+        "Gateway system decision: {:?} - merchant_id={}, connector={}, flow={}",
         decision,
         merchant_id,
         connector_name,
-        payment_method,
         flow_name
     );
 
     Ok(decision)
+}
+
+/// Build rollout keys based on flow type - include payment method for payments, skip for refunds
+fn build_rollout_keys(
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payment_method: &common_enums::PaymentMethod,
+) -> (String, String) {
+    // Detect if this is a refund flow based on flow name
+    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+    
+    let rollout_key = if is_refund_flow {
+        // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
+        format!(
+            "{}_{}_{}_{}", 
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            merchant_id,
+            connector_name,
+            flow_name
+        )
+    } else {
+        // Payment flows: UCS_merchant_connector_paymentmethod_flow (e.g., UCS_merchant123_stripe_card_Authorize)
+        let payment_method_str = payment_method.to_string();
+        format!(
+            "{}_{}_{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            merchant_id,
+            connector_name,
+            payment_method_str,
+            flow_name
+        )
+    };
+    
+    let shadow_rollout_key = format!("{}_shadow", rollout_key);
+    (rollout_key, shadow_rollout_key)
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -854,6 +902,28 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     Ok((router_data_response, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_refund_execute(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response: Result<RefundsResponseData, ErrorResponse> =
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_refund_sync(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
@@ -1140,13 +1210,59 @@ where
     // Emit event
     state.event_handler.log_event(&connector_event);
 
-    router_result
+    // Set external latency on router data
+    router_result.map(|mut router_data| {
+        router_data.external_latency = Some(router_data.external_latency.unwrap_or(0) + external_latency);
+        router_data
+    })
 }
 
 #[derive(serde::Serialize)]
 pub struct ComparisonData {
     pub hyperswitch_data: Secret<serde_json::Value>,
     pub unified_connector_service_data: Secret<serde_json::Value>,
+}
+
+/// Generic function to serialize router data and send comparison to external service
+/// Works for both payments and refunds
+pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
+    state: &SessionState,
+    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
+    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
+    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
+{
+    logger::info!("Simulating UCS call for shadow mode comparison");
+    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
+        Ok(data) => Secret::new(data),
+        Err(_) => {
+            logger::debug!("Failed to serialize HS router data");
+            return Ok(());
+        }
+    };
+
+    let unified_connector_service_data =
+        match serde_json::to_value(unified_connector_service_router_data) {
+            Ok(data) => Secret::new(data),
+            Err(_) => {
+                logger::debug!("Failed to serialize UCS router data");
+                return Ok(());
+            }
+        };
+
+    let comparison_data = ComparisonData {
+        hyperswitch_data,
+        unified_connector_service_data,
+    };
+    let _ = send_comparison_data(state, comparison_data)
+        .await
+        .map_err(|e| {
+            logger::debug!("Failed to send comparison data: {:?}", e);
+        });
+    Ok(())
 }
 
 /// Sends router data comparison to external service
@@ -1194,71 +1310,123 @@ pub async fn should_call_unified_connector_service_for_refunds(
     state: &SessionState,
     merchant_context: &MerchantContext,
     connector_name: &str,
-) -> RouterResult<bool> {
-    // Check if UCS client is available
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        router_env::logger::debug!("UCS client not available for refunds");
-        return Ok(false);
-    }
-
-    // Check if UCS is enabled globally
-    let ucs_config_key = consts::UCS_ENABLED;
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        router_env::logger::debug!("UCS not enabled globally for refunds");
-        return Ok(false);
-    }
-
+) -> RouterResult<GatewaySystem> {
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+    // Check if UCS client is available
+    let ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
+    let ucs_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
 
-    // Check if this is a UCS-only connector
-    let is_ucs_only_connector = state
-        .conf
-        .grpc_client
-        .unified_connector_service
-        .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
-
-    if is_ucs_only_connector {
-        router_env::logger::info!(
-            "UCS refund decision: UCS (forced) - merchant_id={}, connector={}, flow=refunds",
+    if !ucs_client_available {
+        router_env::logger::debug!(
+            "UCS client not available for refunds - merchant_id={}, connector={}",
             merchant_id,
             connector_name
         );
-        return Ok(true);
+        return Ok(GatewaySystem::Direct);
     }
 
-    // Apply rollout percentage logic for refunds
-    let config_key = format!(
+    if !ucs_enabled {
+        router_env::logger::debug!(
+            "UCS not enabled globally for refunds - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+        return Ok(GatewaySystem::Direct);
+    }
+
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name for refunds: {}", connector_name))?;
+
+    let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
+    
+    // Check if this is a UCS-only connector
+    let ucs_only_connector = ucs_config.is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+
+    // Rollout configuration for refunds
+    let rollout_key = format!(
         "{}_{}_{}_Refunds",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_name
     );
+    let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_enabled = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
-    // Log gateway system decision
-    if should_execute {
-        router_env::logger::info!(
-            "UCS refund decision: UCS - merchant_id={}, connector={}, flow=refunds",
-            merchant_id,
-            connector_name
-        );
-    } else {
-        router_env::logger::info!(
-            "UCS refund decision: Direct - merchant_id={}, connector={}, flow=refunds",
-            merchant_id,
-            connector_name
-        );
-    }
+    router_env::logger::debug!(
+        "Refund rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
+        rollout_enabled,
+        shadow_rollout_enabled,
+        rollout_key,
+        merchant_id,
+        connector_name
+    );
 
-    Ok(should_execute)
+    // Decision logic for refunds (simpler than payments)
+    let decision = match (
+        ucs_client_available && ucs_enabled,
+        ucs_only_connector,
+        shadow_rollout_enabled,
+        rollout_enabled,
+    ) {
+        // UCS infrastructure not available
+        (false, _, _, _) => GatewaySystem::Direct,
+
+        // UCS-only connector (forced UCS)
+        (true, true, _, _) => {
+            router_env::logger::info!(
+                "Refund routing to UCS (forced) - merchant_id={}, connector={}",
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::UnifiedConnectorService
+        }
+
+        // Shadow rollout enabled (UCS testing mode)
+        (true, false, true, _) => {
+            router_env::logger::info!(
+                "Refund routing to Shadow UCS - merchant_id={}, connector={}",
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::ShadowUnifiedConnectorService
+        }
+
+        // Full rollout enabled (UCS primary)
+        (true, false, false, true) => {
+            router_env::logger::info!(
+                "Refund routing to UCS (rollout) - merchant_id={}, connector={}",
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::UnifiedConnectorService
+        }
+
+        // No rollouts active (Direct routing)
+        (true, false, false, false) => {
+            router_env::logger::debug!(
+                "Refund routing to Direct (no rollout) - merchant_id={}, connector={}",
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::Direct
+        }
+    };
+
+    router_env::logger::info!(
+        "Refund gateway system decision: {:?} - merchant_id={}, connector={}, flow=refunds",
+        decision,
+        merchant_id,
+        connector_name
+    );
+
+    Ok(decision)
 }
 
 /// Execute UCS refund request using PaymentService.Refund gRPC method
@@ -1268,6 +1436,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     connector: &api::ConnectorData,
     merchant_context: &MerchantContext,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
 ) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
     // Get UCS client
     let ucs_client = get_ucs_client(state)?;
@@ -1295,7 +1464,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         profile_id,
     );
     let grpc_header_builder = state
-        .get_grpc_headers_ucs()
+        .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None);
@@ -1317,13 +1486,13 @@ pub async fn call_unified_connector_service_for_refund_execute(
             let grpc_response = response.into_inner();
 
             // Transform UCS response back to RouterData
-            let refund_response_data = RefundsResponseData::foreign_try_from(grpc_response.clone())
+            let (refund_response_data, status_code) = handle_unified_connector_service_response_for_refund_execute(grpc_response.clone())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to transform UCS refund response")?;
 
             let mut updated_router_data = router_data;
-            updated_router_data.response = Ok(refund_response_data);
-            updated_router_data.connector_http_status_code = Some(200);
+            updated_router_data.response = refund_response_data;
+            updated_router_data.connector_http_status_code = Some(status_code);
 
             Ok((updated_router_data, grpc_response))
         },
@@ -1338,6 +1507,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     connector: &api::ConnectorData,
     merchant_context: &MerchantContext,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
 ) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
     // Get UCS client
     let ucs_client = get_ucs_client(state)?;
@@ -1364,8 +1534,9 @@ pub async fn call_unified_connector_service_for_refund_sync(
         merchant_id,
         profile_id,
     );
+
     let grpc_header_builder = state
-        .get_grpc_headers_ucs()
+        .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None);
@@ -1387,13 +1558,13 @@ pub async fn call_unified_connector_service_for_refund_sync(
             let grpc_response = response.into_inner();
 
             // Transform UCS response back to RouterData
-            let refund_response_data = RefundsResponseData::foreign_try_from(grpc_response.clone())
+            let (refund_response_data, status_code) = handle_unified_connector_service_response_for_refund_sync(grpc_response.clone())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to transform UCS refund sync response")?;
 
             let mut updated_router_data = router_data;
-            updated_router_data.response = Ok(refund_response_data);
-            updated_router_data.connector_http_status_code = Some(200);
+            updated_router_data.response = refund_response_data;
+            updated_router_data.connector_http_status_code = Some(status_code);
 
             Ok((updated_router_data, grpc_response))
         },

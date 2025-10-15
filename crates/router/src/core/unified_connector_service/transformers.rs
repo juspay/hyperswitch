@@ -1303,8 +1303,13 @@ impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
                 .map(|cm| cm as i32),
             metadata,
             refund_metadata,
-            browser_info: None, // TODO: Add browser info transformation
-            access_token: None, // TODO: Add access token if needed
+            browser_info: router_data.request.browser_info.clone().map(|bi| {
+                payments_grpc::BrowserInformation::foreign_try_from(bi)
+            }).transpose()
+            .map_err(|_| UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert browser info".to_string()
+            ))?,
+            access_token: router_data.access_token.as_ref().map(|token| token.token.clone().expose()),
         })
     }
 }
@@ -1335,32 +1340,72 @@ impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
             transaction_id: Some(transaction_id),
             refund_id: router_data.request.refund_id.clone(),
             refund_reason: router_data.request.reason.clone(),
-            browser_info: None, // TODO: Add browser info transformation
-            access_token: None, // TODO: Add access token if needed
+            browser_info: router_data.request.browser_info.clone().map(|bi| {
+                payments_grpc::BrowserInformation::foreign_try_from(bi)
+            }).transpose()
+            .map_err(|_| UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to convert browser info".to_string()
+            ))?,
+            access_token: router_data.access_token.as_ref().map(|token| token.token.clone().expose()),
             refund_metadata: HashMap::new(), // TODO: Add refund metadata if needed
         })
     }
 }
 
-/// Transform UCS RefundResponse into RefundsResponseData
-impl ForeignTryFrom<payments_grpc::RefundResponse> for RefundsResponseData {
+/// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>
+impl ForeignTryFrom<payments_grpc::RefundResponse> 
+    for Result<RefundsResponseData, ErrorResponse>
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {
-        let refund_status = match response.status {
-            0 => common_enums::RefundStatus::Pending, // REFUND_STATUS_UNSPECIFIED
-            1 => common_enums::RefundStatus::Failure, // REFUND_FAILURE
-            2 => common_enums::RefundStatus::ManualReview, // REFUND_MANUAL_REVIEW
-            3 => common_enums::RefundStatus::Pending, // REFUND_PENDING
-            4 => common_enums::RefundStatus::Success, // REFUND_SUCCESS
-            5 => common_enums::RefundStatus::TransactionFailure, // REFUND_TRANSACTION_FAILURE
-            _ => common_enums::RefundStatus::Pending, // Default fallback
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let refund_status = match response.status {
+                0 => common_enums::RefundStatus::Pending, // REFUND_STATUS_UNSPECIFIED
+                1 => common_enums::RefundStatus::Failure, // REFUND_FAILURE
+                2 => common_enums::RefundStatus::ManualReview, // REFUND_MANUAL_REVIEW
+                3 => common_enums::RefundStatus::Pending, // REFUND_PENDING
+                4 => common_enums::RefundStatus::Success, // REFUND_SUCCESS
+                5 => common_enums::RefundStatus::TransactionFailure, // REFUND_TRANSACTION_FAILURE
+                _ => common_enums::RefundStatus::Pending, // Default fallback
+            };
+
+            Ok(RefundsResponseData {
+                connector_refund_id: response.refund_id,
+                refund_status,
+            })
         };
 
-        Ok(Self {
-            connector_refund_id: response.refund_id,
-            refund_status,
-        })
+        Ok(response)
     }
 }
 
