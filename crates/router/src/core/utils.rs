@@ -1873,9 +1873,10 @@ pub async fn validate_and_get_business_profile(
 ) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(
+            db.find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
                 merchant_key_store,
+                merchant_id,
                 profile_id,
             )
             .await
