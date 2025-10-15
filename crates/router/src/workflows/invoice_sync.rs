@@ -1,4 +1,5 @@
-use crate::types::transformers::ForeignTryFrom;
+use std::str::FromStr;
+
 #[cfg(feature = "v1")]
 use api_models::{subscription as subscription_types, webhooks as webhooks_types};
 use async_trait::async_trait;
@@ -16,7 +17,6 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
-use std::str::FromStr;
 
 #[cfg(feature = "v1")]
 use crate::core::{
@@ -27,7 +27,7 @@ use crate::{
     db::StorageInterface,
     errors as router_errors,
     routes::SessionState,
-    types::{domain, storage},
+    types::{domain, storage, transformers::ForeignTryFrom},
 };
 
 const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";

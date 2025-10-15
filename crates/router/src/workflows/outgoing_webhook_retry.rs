@@ -361,7 +361,8 @@ async fn get_outgoing_webhook_content_and_event_type(
     key_store: domain::MerchantKeyStore,
     tracking_data: &OutgoingWebhookTrackingData,
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
-    use crate::types::transformers::ForeignTryFrom;
+    use std::str::FromStr;
+
     use api_models::{
         disputes::DisputeRetrieveRequest,
         mandates::MandateId,
@@ -369,7 +370,6 @@ async fn get_outgoing_webhook_content_and_event_type(
         refunds::{RefundResponse, RefundsRetrieveRequest},
         subscription as subscription_types,
     };
-    use std::str::FromStr;
 
     use crate::{
         core::{
@@ -380,7 +380,10 @@ async fn get_outgoing_webhook_content_and_event_type(
             subscription,
         },
         services::{ApplicationResponse, AuthFlow},
-        types::{api::PSync, transformers::ForeignFrom},
+        types::{
+            api::PSync,
+            transformers::{ForeignFrom, ForeignTryFrom},
+        },
     };
 
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
