@@ -59,18 +59,14 @@ pub async fn create_subscription(
             request.merchant_reference_id.clone(),
             &profile.clone(),
             request.plan_id.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
 
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
         plan_id: request.plan_id.clone(),
-        item_price_id: request.item_price_id.clone().ok_or_else(|| {
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "item_price_id",
-            }
-        })?,
+        item_price_id: request.item_price_id.clone(),
         coupon_code: None,
     };
 
@@ -111,7 +107,7 @@ pub async fn create_subscription(
                 payment.payment_method_id.clone(),
                 None,
                 request.plan_id,
-                request.item_price_id,
+                Some(request.item_price_id),
             ),
         )
         .await
@@ -207,7 +203,7 @@ pub async fn create_and_confirm_subscription(
             request.merchant_reference_id.clone(),
             &profile.clone(),
             request.plan_id.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -240,7 +236,7 @@ pub async fn create_and_confirm_subscription(
         .create_subscription_on_connector(
             &state,
             subs_handler.subscription.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
             request.get_billing_address(),
         )
         .await?;
@@ -291,7 +287,7 @@ pub async fn create_and_confirm_subscription(
                 payment_response.payment_method_id.clone(),
                 Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
                 request.plan_id,
-                request.item_price_id,
+                Some(request.item_price_id),
             ),
         )
         .await?;

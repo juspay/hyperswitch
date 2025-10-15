@@ -19,7 +19,7 @@ pub struct CreateSubscriptionRequest {
     pub merchant_reference_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
+    pub item_price_id: String,
 
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
@@ -352,7 +352,7 @@ pub struct CreateAndConfirmSubscriptionRequest {
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
+    pub item_price_id: String,
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
