@@ -614,7 +614,7 @@ pub enum BankDebitData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitData {
     #[serde(flatten)]
-    pub bank_specific_data: BankDebitData,
+    pub bank_specific_data: Option<BankDebitData>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1235,7 +1235,7 @@ impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
 
 fn get_bank_debit_data(
     bank_debit_data: &payment_method_data::BankDebitData,
-) -> (StripePaymentMethodType, BankDebitData) {
+) -> (Option<StripePaymentMethodType>, Option<BankDebitData>) {
     match bank_debit_data {
         payment_method_data::BankDebitData::AchBankDebit {
             account_number,
@@ -1247,19 +1247,13 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 routing_number: routing_number.to_owned(),
             };
-            (StripePaymentMethodType::Ach, ach_data)
+            (Some(StripePaymentMethodType::Ach), Some(ach_data))
         }
         payment_method_data::BankDebitData::SepaBankDebit { iban, .. } => {
             let sepa_data: BankDebitData = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };
-            (StripePaymentMethodType::Sepa, sepa_data)
-        }
-        payment_method_data::BankDebitData::SepaGuarenteedBankDebit { iban, .. } => {
-            let sepa_data: BankDebitData = BankDebitData::Sepa {
-                iban: iban.to_owned(),
-            };
-            (StripePaymentMethodType::Sepa, sepa_data)
+            (Some(StripePaymentMethodType::Sepa), Some(sepa_data))
         }
         payment_method_data::BankDebitData::BecsBankDebit {
             account_number,
@@ -1270,7 +1264,7 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 bsb_number: bsb_number.to_owned(),
             };
-            (StripePaymentMethodType::Becs, becs_data)
+            (Some(StripePaymentMethodType::Becs), Some(becs_data))
         }
         payment_method_data::BankDebitData::BacsBankDebit {
             account_number,
@@ -1281,8 +1275,9 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
-            (StripePaymentMethodType::Bacs, bacs_data)
+            (Some(StripePaymentMethodType::Bacs), Some(bacs_data))
         }
+        _ => (None, None),
     }
 }
 
@@ -1371,11 +1366,7 @@ fn create_stripe_payment_method(
                 bank_specific_data: bank_debit_data,
             });
 
-            Ok((
-                pm_data,
-                Some(pm_type),
-                payment_request_details.billing_address,
-            ))
+            Ok((pm_data, pm_type, payment_request_details.billing_address))
         }
         PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.deref() {
             payment_method_data::BankTransferData::AchBankTransfer {} => Ok((
