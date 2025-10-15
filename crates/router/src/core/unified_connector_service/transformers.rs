@@ -1362,7 +1362,32 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .access_token
                 .as_ref()
                 .map(|token| token.token.clone().expose()),
-            refund_metadata: HashMap::new(), // TODO: Add refund metadata if needed
+            refund_metadata: router_data
+                .request
+                .refund_connector_metadata
+                .as_ref()
+                .map(|metadata| {
+                    metadata
+                        .clone()
+                        .expose()
+                        .as_object()
+                        .map(|obj| {
+                            obj.iter()
+                                .map(|(k, v)| (k.clone(), v.to_string()))
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .unwrap_or_else(|| {
+                    // Try to extract payment method details from original payment's connector_metadata
+                    extract_payment_details_for_refund(
+                        router_data.request.connector_metadata.as_ref(),
+                    )
+                    .unwrap_or_else(|| {
+                        // Provide default metadata when missing to avoid connector errors
+                        HashMap::from([("refund_source".to_string(), "hyperswitch".to_string())])
+                    })
+                }),
         })
     }
 }
