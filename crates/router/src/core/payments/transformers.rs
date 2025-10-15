@@ -5152,6 +5152,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
+        let feature_metadata = payment_data
+        .payment_intent
+        .feature_metadata
+        .clone()
+        .map(|cm| {
+            cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed parsing FeatureMetadata")
+        })
+        .transpose()?;
         Ok(Self {
             metadata: payment_data
                 .payment_intent
@@ -5165,6 +5175,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            feature_metadata,
         })
     }
 }

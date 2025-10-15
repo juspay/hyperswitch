@@ -215,6 +215,9 @@ pub struct PaymentsUpdateMetadataData {
     pub connector_transaction_id: String,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub connector_meta: Option<serde_json::Value>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Debug, Clone, PartialEq)]

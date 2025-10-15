@@ -54,7 +54,8 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
-    pub cpf: Secret<String>,
+    pub cpf: Secret<String>,        // req in scheduled type pix
+    pub cnpj: Secret<String>,        // req in immediate type pix
     pub merchant_city: String,
     pub merchant_name: String,
     pub workspace_id: String,
@@ -595,7 +596,7 @@ impl
                         expiration: val.time,
                     });
                 let debt = Some(SantanderDebtor {
-                    cnpj: Some(santander_mca_metadata.cpf.clone()),
+                    cnpj: Some(santander_mca_metadata.cnpj.clone()),
                     name: value.0.router_data.get_billing_full_name()?,
                     street: None,
                     city: None,

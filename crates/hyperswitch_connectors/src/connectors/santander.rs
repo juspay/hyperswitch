@@ -118,6 +118,40 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
             santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         match req.payment_method {
+            enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => {
+                    match &req
+                        .request
+                        .feature_metadata
+                        .as_ref()
+                        .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                    {
+                        Some(api_models::payments::PixQRExpirationDuration::Immediate(
+                            _immediate,
+                        )) => Ok(format!(
+                            "{}api/v1/cob/{}",
+                            self.base_url(connectors),
+                            req.connector_request_reference_id
+                        )),
+                        Some(api_models::payments::PixQRExpirationDuration::Scheduled(
+                            _scheduled,
+                        )) => Ok(format!(
+                            "{}api/v1/cobv/{}",
+                            self.base_url(connectors),
+                            req.connector_request_reference_id
+                        )),
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "pix_qr_expiry_time",
+                        }
+                        .into()),
+                    }
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => Ok(format!(
                     "{:?}{}/workspaces/{}/bank_slips",
@@ -142,7 +176,14 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         req: &PaymentsUpdateMetadataRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = santander::SantanderBoletoUpdateRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = santander::SantanderRouterData::from((amount, req));
+        let connector_req = santander::SantanderPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -151,18 +192,24 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         req: &PaymentsUpdateMetadataRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Patch)
-            .url(&PaymentsUpdateMetadataType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(PaymentsUpdateMetadataType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(PaymentsUpdateMetadataType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
+        let auth_details = santander::SantanderAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Patch)
+                .url(&types::PaymentsUpdateMetadataType::get_url(
+                    self, req, connectors,
+                )?)
+                .add_certificate(Some(auth_details.certificate))
+                .add_certificate_key(Some(auth_details.certificate_key))
+                .attach_default_headers()
+                .headers(types::PaymentsUpdateMetadataType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsUpdateMetadataType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
     fn handle_response(
