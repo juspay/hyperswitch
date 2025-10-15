@@ -919,5 +919,3 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
         }
     }
 }
-
-

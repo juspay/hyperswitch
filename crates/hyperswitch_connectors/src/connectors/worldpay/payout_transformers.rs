@@ -1,16 +1,10 @@
-
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{
-    consts::BASE64_ENGINE, pii, types::MinorUnit,
-};
+use common_utils::{consts::BASE64_ENGINE, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType,
-    types,
-};
-use hyperswitch_domain_models::{
-    router_flow_types::payouts::PoFulfill, router_response_types::PayoutsResponseData,
+    router_data::ConnectorAuthType, router_flow_types::payouts::PoFulfill,
+    router_response_types::PayoutsResponseData, types,
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::{PeekInterface, Secret};
@@ -27,7 +21,9 @@ pub struct WorldpayPayoutRouterData<T> {
     amount: i64,
     router_data: T,
 }
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for WorldpayPayoutRouterData<T> {
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)>
+    for WorldpayPayoutRouterData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, minor_amount, item): (

@@ -1,12 +1,12 @@
-mod requests;
-mod response;
 #[cfg(feature = "payouts")]
 mod payout_requests;
 #[cfg(feature = "payouts")]
 mod payout_response;
-pub mod transformers;
 #[cfg(feature = "payouts")]
 pub mod payout_transformers;
+mod requests;
+mod response;
+pub mod transformers;
 
 use std::sync::LazyLock;
 
@@ -61,23 +61,23 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Mask;
+#[cfg(feature = "payouts")]
+use payout_requests::WorldpayPayoutRequest;
+#[cfg(feature = "payouts")]
+use payout_response::WorldpayPayoutResponse;
 use requests::{
     WorldpayCompleteAuthorizationRequest, WorldpayPartialRequest, WorldpayPaymentsRequest,
 };
 use response::{
     EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
-    WorldpayPaymentsResponse, WorldpayWebhookEventType,
-    WorldpayWebhookTransactionId, WP_CORRELATION_ID,
+    WorldpayPaymentsResponse, WorldpayWebhookEventType, WorldpayWebhookTransactionId,
+    WP_CORRELATION_ID,
 };
 use ring::hmac;
 
-use self::transformers as worldpay;
 #[cfg(feature = "payouts")]
 use self::payout_transformers as worldpay_payout;
-#[cfg(feature = "payouts")]
-use payout_requests::WorldpayPayoutRequest;
-#[cfg(feature = "payouts")]
-use payout_response::WorldpayPayoutResponse;
+use self::transformers as worldpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -1138,19 +1138,15 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
             ),
             (
                 headers::ACCEPT.to_string(),
-                WORLDPAY_PAYOUT_CONTENT_TYPE
-                    .to_string()
-                    .into(),
+                WORLDPAY_PAYOUT_CONTENT_TYPE.to_string().into(),
             ),
             (
                 headers::CONTENT_TYPE.to_string(),
-                WORLDPAY_PAYOUT_CONTENT_TYPE
-                    .to_string()
-                    .into(),
+                WORLDPAY_PAYOUT_CONTENT_TYPE.to_string().into(),
             ),
             (headers::WP_API_VERSION.to_string(), "2024-06-01".into()),
         ];
-        
+
         Ok(headers)
     }
 
