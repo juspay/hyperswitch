@@ -153,45 +153,46 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             )
             .into());
         }
-        let source =
-            match item.router_data.request.payment_method_data.clone() {
-                PaymentMethodData::Card(_) => {
-                    let source = item.router_data.get_payment_method_token()?;
-                    match source {
-                        PaymentMethodToken::Token(token) => token,
-                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
-                        )?,
-                        PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Stax"))?
-                        }
-                        PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Stax"))?
-                        }
+        let source = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(_) | PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                let source = item.router_data.get_payment_method_token()?;
+                match source {
+                    PaymentMethodToken::Token(token) => token,
+                    PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+                        "Apple Pay",
+                        "Simplified",
+                        "Stax"
+                    ))?,
+                    PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Paze", "Stax"))?
+                    }
+                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "Stax"))?
                     }
                 }
-                PaymentMethodData::MandatePayment => Secret::new(
-                    item.router_data
-                        .request
-                        .mandate_id
-                        .as_ref()
-                        .and_then(|mandate_ids| {
-                            mandate_ids
-                                .mandate_reference_id
-                                .as_ref()
-                                .and_then(|mandate_ref_id| match mandate_ref_id {
-                                    MandateReferenceId::ConnectorMandateId(id) => {
-                                        id.get_connector_mandate_id()
-                                    }
-                                    _ => None,
-                                })
-                        })
-                        .ok_or(ConnectorError::MissingConnectorMandateID)?,
-                ),
-                _ => Err(ConnectorError::NotImplemented(
-                    "Payment method not supported".to_string(),
-                ))?,
-            };
+            }
+            PaymentMethodData::MandatePayment => Secret::new(
+                item.router_data
+                    .request
+                    .mandate_id
+                    .as_ref()
+                    .and_then(|mandate_ids| {
+                        mandate_ids
+                            .mandate_reference_id
+                            .as_ref()
+                            .and_then(|mandate_ref_id| match mandate_ref_id {
+                                MandateReferenceId::ConnectorMandateId(id) => {
+                                    id.get_connector_mandate_id()
+                                }
+                                _ => None,
+                            })
+                    })
+                    .ok_or(ConnectorError::MissingConnectorMandateID)?,
+            ),
+            _ => Err(ConnectorError::NotImplemented(
+                "Payment method not supported".to_string(),
+            ))?,
+        };
 
         Ok(Self {
             amount: item.amount,
