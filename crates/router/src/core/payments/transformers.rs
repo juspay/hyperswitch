@@ -7,8 +7,18 @@ use api_models::payments::{
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
+    fp_utils, pii,
+    types::{
+        self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
+};
+#[cfg(feature = "v2")]
+use common_utils::{
+    ext_traits::Encode,
     fp_utils, pii,
     types::{
         self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
@@ -377,16 +387,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
 
-    let connector_metadata = payment_data
-        .payment_intent
-        .connector_metadata
-        .clone()
-        .map(|cm| {
-            cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed parsing ConnectorMetadata")
-        })
-        .transpose()?;
+    let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
 
     let order_category = connector_metadata.as_ref().and_then(|cm| {
         cm.noon
