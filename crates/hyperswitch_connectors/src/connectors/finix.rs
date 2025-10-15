@@ -346,7 +346,6 @@ impl ConnectorValidation for Finix {
             PaymentMethodDataType::Card,
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
