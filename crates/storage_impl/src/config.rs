@@ -1,7 +1,8 @@
-use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 use common_utils::DbConnectionParams;
 use hyperswitch_domain_models::routing::MasterKeyInterface;
 use masking::{PeekInterface, Secret};
+
+use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {

@@ -17,8 +17,10 @@ use masking::Secret;
 
 use super::errors;
 use crate::{
-    core::invoice_handler::InvoiceHandler, errors::CustomResult, helpers::ForeignTryFrom,
-    helpers::StorageErrorExt, state::SubscriptionState as SessionState,
+    core::invoice_handler::InvoiceHandler,
+    errors::CustomResult,
+    helpers::{ForeignTryFrom, StorageErrorExt},
+    state::SubscriptionState as SessionState,
 };
 
 pub struct SubscriptionHandler<'a> {

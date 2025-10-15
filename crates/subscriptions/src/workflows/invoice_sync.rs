@@ -2,19 +2,21 @@
 use api_models::subscription as subscription_types;
 use common_utils::{errors::CustomResult, ext_traits::StringExt};
 use error_stack::ResultExt;
-use router_env::logger;
-use scheduler::workflows::storage::business_status;
-use scheduler::workflows::storage::ProcessTracker;
-use scheduler::workflows::storage::ProcessTrackerNew;
-use scheduler::{errors, types::process_data, utils as scheduler_utils};
-use storage_impl::StorageError;
 use hyperswitch_domain_models::invoice::InvoiceUpdateRequest;
-
-use crate::core::{
-    billing_processor_handler as billing, errors as router_errors, invoice_handler,
-    payments_api_client,
+use router_env::logger;
+use scheduler::{
+    errors,
+    types::process_data,
+    utils as scheduler_utils,
+    workflows::storage::{business_status, ProcessTracker, ProcessTrackerNew},
 };
+use storage_impl::StorageError;
+
 use crate::{
+    core::{
+        billing_processor_handler as billing, errors as router_errors, invoice_handler,
+        payments_api_client,
+    },
     state::{SubscriptionState as SessionState, SubscriptionStorageInterface as StorageInterface},
     types::storage,
 };
@@ -212,18 +214,14 @@ impl<'a> InvoiceSyncHandler<'a> {
             )
             .await
             .attach_printable("Failed to record back to billing processor")?;
-        
+
         let update_request = InvoiceUpdateRequest::update_connector_and_status(
             connector_invoice_id,
             common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
         );
 
         invoice_handler
-            .update_invoice(
-                self.state,
-                self.invoice.id.to_owned(),
-                update_request,
-            )
+            .update_invoice(self.state, self.invoice.id.to_owned(), update_request)
             .await
             .attach_printable("Failed to update invoice in DB")?;
 

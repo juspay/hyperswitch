@@ -83,7 +83,8 @@ impl InvoiceHandler {
         invoice_id: common_utils::id_type::InvoiceId,
         update_request: hyperswitch_domain_models::invoice::InvoiceUpdateRequest,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
-        let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate = update_request.into();
+        let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
+            update_request.into();
         let key_manager_state = &(state).into();
         state
             .store

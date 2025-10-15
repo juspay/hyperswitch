@@ -1,4 +1,3 @@
-use crate::{routes::SessionState, types::storage};
 use async_trait::async_trait;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use router_env::logger;
@@ -6,6 +5,8 @@ use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
 };
+
+use crate::{routes::SessionState, types::storage};
 
 const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 

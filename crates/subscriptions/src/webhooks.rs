@@ -1,19 +1,19 @@
-use crate::state::SubscriptionState as SessionState;
-use crate::subscription_handler::SubscriptionHandler;
+use std::str::FromStr;
+
 use api_models::webhooks::WebhookResponseTracker;
 use common_enums::{connector_enums::Connector, InvoiceStatus};
-use common_utils::errors::CustomResult;
-use common_utils::{consts, generate_id};
-use error_stack::report;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::api_error_response as errors;
-use hyperswitch_domain_models::{business_profile, invoice, merchant_context};
-use hyperswitch_interfaces::api::ConnectorCommon;
-use hyperswitch_interfaces::connector_integration_interface;
-use hyperswitch_interfaces::errors::ConnectorError;
-use hyperswitch_interfaces::webhooks::IncomingWebhook;
+use common_utils::{consts, errors::CustomResult, generate_id};
+use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    business_profile, errors::api_error_response as errors, invoice, merchant_context,
+};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon, connector_integration_interface, errors::ConnectorError,
+    webhooks::IncomingWebhook,
+};
 use router_env::{instrument, logger, tracing};
-use std::str::FromStr;
+
+use crate::{state::SubscriptionState as SessionState, subscription_handler::SubscriptionHandler};
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -142,21 +142,16 @@ pub async fn incoming_webhook_flow(
             &payment_method_id.clone(),
         )
         .await?;
-    
+
     let update_request = invoice::InvoiceUpdateRequest::update_payment_and_status(
         payment_response.payment_method_id,
         Some(payment_response.payment_id.clone()),
         InvoiceStatus::from(payment_response.status),
         Some(mit_payment_data.invoice_id.clone()),
-
     );
 
     let _updated_invoice = invoice_handler
-        .update_invoice(
-            &state,
-            invoice_entry.id.clone(),
-            update_request,
-        )
+        .update_invoice(&state, invoice_entry.id.clone(), update_request)
         .await?;
 
     Ok(WebhookResponseTracker::NoEffect)

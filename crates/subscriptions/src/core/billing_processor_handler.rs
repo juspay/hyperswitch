@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use common_enums::connector_enums;
-use common_enums::CallConnectorAction;
+use api_models::subscription as subscription_types;
+use common_enums::{connector_enums, CallConnectorAction};
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -19,11 +19,11 @@ use hyperswitch_domain_models::{
         ConnectorCustomerResponseData, PaymentsResponseData,
     },
 };
-use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
-use hyperswitch_interfaces::{api_client, connector_integration_interface};
+use hyperswitch_interfaces::{
+    api_client, configs::MerchantConnectorAccountType, connector_integration_interface,
+};
 
 use crate::{errors::SubscriptionResult, state::SubscriptionState as SessionState};
-use api_models::subscription as subscription_types;
 
 pub struct BillingHandler {
     pub auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,

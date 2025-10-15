@@ -41,6 +41,8 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
+use subscriptions::subscription_handler::SubscriptionHandler;
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -59,8 +61,6 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::webhooks as webhooks_core, types::storage};
-#[cfg(feature = "v1")]
-use subscriptions::subscription_handler::SubscriptionHandler;
 
 pub mod error_parser {
     use std::fmt::Display;

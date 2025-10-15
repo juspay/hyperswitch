@@ -4,7 +4,9 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext,
+};
 
 pub type RouterResponse<T> =
     Result<ApplicationResponse<T>, error_stack::Report<errors::ApiErrorResponse>>;
@@ -351,7 +353,8 @@ pub async fn confirm_subscription(
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data.clone(),
+                .payment_method_data
+                .clone(),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
