@@ -25,7 +25,8 @@ use hyperswitch_domain_models::{
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        ConnectorAuthType, ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
@@ -154,6 +155,9 @@ pub struct AdditionalData {
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
+    payment_method_variant: Option<String>,
+    payment_method: Option<String>,
+    card_payment_method: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -509,6 +513,7 @@ pub struct AdyenResponse {
     additional_data: Option<AdditionalData>,
     splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
+    payment_method: Option<PaymentMethodResponseCard>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -542,6 +547,14 @@ pub struct AdyenWebhookResponse {
     refusal_reason_raw: Option<String>,
     recurring_detail_reference: Option<Secret<String>>,
     recurring_shopper_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodResponseCard {
+    brand: Secret<String>,
+    #[serde(rename = "type")]
+    card_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4747,6 +4760,40 @@ pub fn get_present_to_shopper_metadata(
     }
 }
 
+fn convert_to_additional_payment_method_connector_response(
+    transaction_response: &AdyenResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let adyen_card_network = transaction_response
+        .payment_method
+        .as_ref()
+        .map(|pm| pm.brand.clone().expose())
+        .or_else(|| {
+            transaction_response
+                .additional_data
+                .as_ref()
+                .and_then(|ad| ad.payment_method_variant.clone())
+        })
+        .or_else(|| {
+            transaction_response
+                .additional_data
+                .as_ref()
+                .and_then(|ad| ad.payment_method.clone())
+        })
+        .or_else(|| {
+            transaction_response
+                .additional_data
+                .as_ref()
+                .and_then(|ad| ad.card_payment_method.clone())
+        });
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: None,
+        card_network: from_payment_method_variant(adyen_card_network),
+        domestic_network: None,
+    })
+}
+
 impl<F, Req>
     ForeignTryFrom<(
         ResponseRouterData<F, AdyenPaymentResponse, Req, PaymentsResponseData>,
@@ -4765,28 +4812,43 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
-        let (status, error, payment_response_data, amount) = match item.response {
+        let ((status, error, payment_response_data, amount), connector_response) = match item
+            .response
+        {
             AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
+                let connector_response_data =
+                    convert_to_additional_payment_method_connector_response(&response)
+                        .map(ConnectorResponseData::with_additional_payment_method_data);
+                (
+                    get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?,
+                    connector_response_data,
+                )
             }
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::RedirectionErrorResponse(response) => {
-                get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::WebhookResponse(response) => get_webhook_response(
-                *response,
-                is_manual_capture,
-                is_multiple_capture_psync_flow,
-                item.http_code,
-            )?,
+            AdyenPaymentResponse::PresentToShopper(response) => (
+                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?,
+                None,
+            ),
+            AdyenPaymentResponse::QrCodeResponse(response) => (
+                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt)?,
+                None,
+            ),
+            AdyenPaymentResponse::RedirectionResponse(response) => (
+                get_redirection_response(*response, is_manual_capture, item.http_code, pmt)?,
+                None,
+            ),
+            AdyenPaymentResponse::RedirectionErrorResponse(response) => (
+                get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?,
+                None,
+            ),
+            AdyenPaymentResponse::WebhookResponse(response) => (
+                get_webhook_response(
+                    *response,
+                    is_manual_capture,
+                    is_multiple_capture_psync_flow,
+                    item.http_code,
+                )?,
+                None,
+            ),
         };
 
         let minor_amount_captured = match status {
@@ -4798,6 +4860,7 @@ impl<F, Req>
 
         Ok(Self {
             status,
+            connector_response,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
             response: error.map_or_else(|| Ok(payment_response_data), Err),
             minor_amount_captured,
@@ -6307,5 +6370,99 @@ impl AdditionalData {
             parts.next()?;
             Some(first_part.to_string())
         })
+    }
+}
+
+pub fn from_payment_method_variant(value: Option<String>) -> Option<common_enums::CardNetwork> {
+    let val = value?.to_lowercase();
+    let cleaned = val.trim().split('_').next().unwrap_or("");
+
+    match cleaned {
+        "visa"
+        | "visacredit"
+        | "visadebit"
+        | "visaelectron"
+        | "vpay"
+        | "visacorporate"
+        | "visacommercialcredit"
+        | "visacommercialdebit"
+        | "visapurchasing"
+        | "visastandardcredit"
+        | "visastandarddebit"
+        | "visapremiumcredit"
+        | "visapremiumdebit"
+        | "visasignature"
+        | "visagold"
+        | "visaplatinum"
+        | "visaproprietary"
+        | "visacheckout"
+        | "visafleetcredit"
+        | "visafleetdebit"
+        | "visaalphabankbonus"
+        | "visacorporatedebit"
+        | "visacorporatecredit"
+        | "visacommercialsuperpremiumcredit"
+        | "visacommercialsuperpremiumdebit" => Some(common_enums::CardNetwork::Visa),
+
+        "mc"
+        | "mccredit"
+        | "mcdebit"
+        | "mcpremiumcredit"
+        | "mcpremiumdebit"
+        | "mcstandardcredit"
+        | "mcstandarddebit"
+        | "mcsuperpremiumcredit"
+        | "mcsuperpremiumdebit"
+        | "mccommercialcredit"
+        | "mccommercialdebit"
+        | "mccommercialpremiumcredit"
+        | "mccommercialpremiumdebit"
+        | "mcpurchasingcredit"
+        | "mcpurchasingdebit"
+        | "mcfleetcredit"
+        | "mcfleetdebit"
+        | "mcalphabankbonus"
+        | "mccorporate"
+        | "mccorporatecredit"
+        | "mccorporatedebit" => Some(common_enums::CardNetwork::Mastercard),
+
+        "amex"
+        | "amexcommercial"
+        | "amexconsumer"
+        | "amexcorporate"
+        | "amexdebit"
+        | "amexprepaid"
+        | "amexprepaidreloadable"
+        | "amexsmallbusiness" => Some(common_enums::CardNetwork::AmericanExpress),
+
+        "jcb" | "jcbcredit" | "jcbdebit" | "jcbprepaid" | "jcbprepaidanonymous" => {
+            Some(common_enums::CardNetwork::JCB)
+        }
+
+        "diners" | "dinersclub" => Some(common_enums::CardNetwork::DinersClub),
+
+        "discover" => Some(common_enums::CardNetwork::Discover),
+
+        "cartesbancaires" | "cartebancaire" => Some(common_enums::CardNetwork::CartesBancaires),
+
+        "cup" | "cupdebit" | "cupcredit" | "cupprepaid" => {
+            Some(common_enums::CardNetwork::UnionPay)
+        }
+
+        "interac" | "interac_card" => Some(common_enums::CardNetwork::Interac),
+
+        "rupay" => Some(common_enums::CardNetwork::RuPay),
+
+        "maestro" | "maestrouk" | "maestro_usa" => Some(common_enums::CardNetwork::Maestro),
+
+        "star" => Some(common_enums::CardNetwork::Star),
+
+        "pulse" => Some(common_enums::CardNetwork::Pulse),
+
+        "accel" => Some(common_enums::CardNetwork::Accel),
+
+        "nyce" => Some(common_enums::CardNetwork::Nyce),
+
+        _ => None,
     }
 }

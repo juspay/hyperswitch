@@ -3222,8 +3222,32 @@ where
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
 
-    let payment_method_data =
+    let mut payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+    let existing_card_network = match payment_data.get_payment_method_data() {
+        Some(domain::PaymentMethodData::Card(card)) => card.card_network.clone(),
+        _ => None,
+    };
+
+    let card_network = payment_data.get_connector_response().and_then(|cr| {
+            cr.additional_payment_method_data
+                .and_then(|apmd| match apmd {
+                    hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Card { card_network, .. } => card_network,
+                    _ => None,
+                })
+        });
+
+    // If there's an anamoly between what the sdk sends/what we decide from cards_info table and what the connector sends in response, we pass card_network as null in the response
+    // If nothing is passed in the request or extract_card_network() fn can't decide - we send back the network which the connector sends us
+    if let Some(api_models::payments::PaymentMethodDataResponse::Card(card)) =
+        payment_method_data.as_mut()
+    {
+        card.card_network = match (&existing_card_network, &card_network) {
+            (Some(existing), Some(new)) if existing != new => None,
+            _ => card_network,
+        };
+    }
 
     let payment_method_data_response = (payment_method_data.is_some()
         || payment_data

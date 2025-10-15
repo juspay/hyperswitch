@@ -513,7 +513,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
         /// Card Network returned by the processor
-        card_network: Option<String>,
+        card_network: Option<common_enums::CardNetwork>,
         /// Domestic(Co-Branded) Card network returned by the processor
         domestic_network: Option<String>,
     },

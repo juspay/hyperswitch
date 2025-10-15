@@ -79,7 +79,7 @@ pub struct HipayPaymentsRequest {
     cardtoken: Secret<String>,
     orderid: String,
     currency: enums::Currency,
-    payment_product: String,
+    payment_product: Option<String>,
     amount: StringMajorUnit,
     description: String,
     decline_url: Option<String>,
@@ -136,6 +136,23 @@ impl From<BrowserInformation> for HipayBrowserInfo {
     }
 }
 
+fn card_network_to_payment_product(network: &CardNetwork) -> Option<&'static str> {
+    match network {
+        CardNetwork::Visa => Some("visa"),
+        CardNetwork::Mastercard => Some("mastercard"),
+        CardNetwork::Maestro => Some("maestro"),
+        CardNetwork::AmericanExpress => Some("american-express"),
+        CardNetwork::CartesBancaires => Some("cb"),
+        CardNetwork::JCB => Some("jcb"),
+        CardNetwork::DinersClub => Some("diners"),
+        CardNetwork::Discover => Some("discover"),
+        CardNetwork::UnionPay => Some("unionpay"),
+        CardNetwork::Interac => Some("interac"),
+        CardNetwork::RuPay => Some("rupay"),
+        CardNetwork::Star | CardNetwork::Pulse | CardNetwork::Accel | CardNetwork::Nyce => None,
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HiPayTokenRequest {
     pub card_number: cards::CardNumber,
@@ -184,31 +201,16 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                 },
                 orderid: item.router_data.connector_request_reference_id.clone(),
                 currency: item.router_data.request.currency,
-                payment_product: match (domestic_network, domestic_card_network.as_deref()) {
-                    (Some(domestic), _) => domestic,
-                    (None, Some("VISA")) => "visa".to_string(),
-                    (None, Some("MASTERCARD")) => "mastercard".to_string(),
-                    (None, Some("MAESTRO")) => "maestro".to_string(),
-                    (None, Some("AMERICAN EXPRESS")) => "american-express".to_string(),
-                    (None, Some("CB")) => "cb".to_string(),
-                    (None, Some("BCMC")) => "bcmc".to_string(),
-                    (None, _) => match req_card.card_network {
-                        Some(CardNetwork::Visa) => "visa".to_string(),
-                        Some(CardNetwork::Mastercard) => "mastercard".to_string(),
-                        Some(CardNetwork::AmericanExpress) => "american-express".to_string(),
-                        Some(CardNetwork::JCB) => "jcb".to_string(),
-                        Some(CardNetwork::DinersClub) => "diners".to_string(),
-                        Some(CardNetwork::Discover) => "discover".to_string(),
-                        Some(CardNetwork::CartesBancaires) => "cb".to_string(),
-                        Some(CardNetwork::UnionPay) => "unionpay".to_string(),
-                        Some(CardNetwork::Interac) => "interac".to_string(),
-                        Some(CardNetwork::RuPay) => "rupay".to_string(),
-                        Some(CardNetwork::Maestro) => "maestro".to_string(),
-                        Some(CardNetwork::Star)
-                        | Some(CardNetwork::Accel)
-                        | Some(CardNetwork::Pulse)
-                        | Some(CardNetwork::Nyce)
-                        | None => "".to_string(),
+                payment_product: match (domestic_network, domestic_card_network.as_ref()) {
+                    (Some(domestic), _) => Some(domestic),
+                    (None, Some(network)) => {
+                        card_network_to_payment_product(network).map(|s| s.to_string())
+                    }
+                    (None, None) => match req_card.card_network {
+                        Some(network) => {
+                            card_network_to_payment_product(&network).map(|s| s.to_string())
+                        }
+                        None => None,
                     },
                 },
                 amount: item.amount.clone(),
@@ -279,7 +281,7 @@ impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
         Self::Card {
             authentication_data: None,
             payment_checks: None,
-            card_network: Some(hipay_token_response.brand.clone()),
+            card_network: None,
             domestic_network: hipay_token_response.domestic_network.clone(),
         }
     }
