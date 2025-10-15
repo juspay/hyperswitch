@@ -51,7 +51,8 @@ use transformers as novalnet;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData},
+    utils::{self, get_authorize_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object, PaymentMethodDataType, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -369,12 +370,31 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Novalnet PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let order_info = response
+            .order_information
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let response_integrity_object = get_authorize_integrity_object(
+            self.amount_converter,
+            order_info.amount_details.total_amount.clone(),
+            order_info.amount_details.currency.to_string(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let new_router_data = 
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -446,12 +466,30 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
             .response
             .parse_struct("novalnet PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_info = response
+            .order_information
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let response_integrity_object = get_sync_integrity_object(
+            self.amount_converter,
+            order_info.amount_details.total_amount.clone(),
+            order_info.amount_details.currency.to_string(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let new_router_data = 
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -617,12 +655,29 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
             .response
             .parse_struct("novalnet RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_info = response
+            .order_information
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        let response_integrity_object = get_refund_integrity_object(
+            self.amount_converter,
+            response.refund_details.refund_amount.clone(),
+            response.refund_details.currency.to_string(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let new_router_data = 
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -694,12 +749,29 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
             .response
             .parse_struct("novalnet RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_info = response
+            .order_information
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        let response_integrity_object = get_refund_integrity_object(
+            self.amount_converter,
+            order_info.amount_details.total_amount.clone(),
+            order_info.amount_details.currency.to_string(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let new_router_data = 
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 

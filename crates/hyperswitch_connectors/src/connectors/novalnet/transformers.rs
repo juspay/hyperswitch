@@ -935,10 +935,10 @@ pub struct NovalnetRefundsTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u64,
-    currency: common_enums::Currency,
-    payment_type: Option<String>,
-    tid: Option<Secret<i64>>,
+    pub amount: u64,
+    pub currency: common_enums::Currency,
+    pub payment_type: Option<String>,
+    pub tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
