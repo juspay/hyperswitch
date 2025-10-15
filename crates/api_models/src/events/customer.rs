@@ -87,9 +87,7 @@ impl ApiEventMetric for CustomerListRequestWithConstraints {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for CustomerListRequestWithConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Customer {
-            customer_id: None,
-        })
+        Some(ApiEventsType::Customer { customer_id: None })
     }
 }
 

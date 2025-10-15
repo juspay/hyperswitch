@@ -67,7 +67,7 @@ impl Customer {
                 .eq(merchant_id.clone())
                 .and(dsl::customer_id.eq(customer_id));
             generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
-        }else if let Some(time_range) = customer_list_constraints.time_range {
+        } else if let Some(time_range) = customer_list_constraints.time_range {
             let start_time = time_range.start_time;
             let end_time = time_range
                 .end_time
@@ -97,8 +97,7 @@ impl Customer {
                 .eq(merchant_id.clone())
                 .and(dsl::merchant_reference_id.eq(customer_id));
             generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
-
-        }else if let Some(time_range) = customer_list_constraints.time_range {
+        } else if let Some(time_range) = customer_list_constraints.time_range {
             let start_time = time_range.start_time;
             let end_time = time_range
                 .end_time

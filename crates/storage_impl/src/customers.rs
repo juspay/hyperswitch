@@ -673,7 +673,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_customers_by_merchant_id_and_constraints(&conn, merchant_id, customer_list_constraints),
+            customers::Customer::list_customers_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            ),
         )
         .await
     }
@@ -706,12 +710,16 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 ),
             )
             .await?;
-        let total_count = customers::Customer::get_customer_counts_by_merchant_id_and_constraints(&conn, merchant_id, customer_list_constraints)
-            .await
-            .map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_err)
-            })?;
+        let total_count = customers::Customer::get_customer_counts_by_merchant_id_and_constraints(
+            &conn,
+            merchant_id,
+            customer_list_constraints,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })?;
         Ok((customers, total_count))
     }
 

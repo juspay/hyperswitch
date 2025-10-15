@@ -628,13 +628,13 @@ pub async fn list_customers_with_count(
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
-    let limit = crate::core::utils::customer_validation::validate_customer_list_limit(request.limit)
-        .change_context(errors::CustomersErrorResponse::InvalidRequestData { 
-            message: "Invalid limit value".to_string() 
-        })?;
+    let limit =
+        crate::core::utils::customer_validation::validate_customer_list_limit(request.limit)
+            .change_context(errors::CustomersErrorResponse::InvalidRequestData {
+                message: "Invalid limit value".to_string(),
+            })?;
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
-        
         limit: request.limit.unwrap_or(limit),
         offset: request.offset,
         customer_id: request.customer_id,
