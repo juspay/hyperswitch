@@ -117,18 +117,12 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: masking::masked_serialize(&payout_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
-            Self::SubscriptionDetails(subscription_payload) => {
+            Self::SubscriptionDetails(subscription) => {
                 Some(OutgoingWebhookEventContent::Subscription {
-                    subscription_id: subscription_payload.id.clone(),
-                    invoice_id: subscription_payload
-                        .invoice
-                        .as_ref()
-                        .map(|invoice| invoice.id.to_owned()),
-                    payment_id: subscription_payload
-                        .payment
-                        .as_ref()
-                        .map(|payment| payment.payment_id.to_owned()),
-                    content: masking::masked_serialize(&subscription_payload)
+                    subscription_id: subscription.id.clone(),
+                    invoice_id: subscription.get_optional_invoice_id(),
+                    payment_id: subscription.get_optional_payment_id(),
+                    content: masking::masked_serialize(&subscription)
                         .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
                 })
             }

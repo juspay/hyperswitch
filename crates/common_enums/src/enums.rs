@@ -9651,3 +9651,49 @@ impl From<IntentStatus> for InvoiceStatus {
         }
     }
 }
+
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive.
+/// - `Pending`: Subscription is pending activation.
+/// - `Trial`: Subscription is in a trial period.
+/// - `Paused`: Subscription is paused.
+/// - `Unpaid`: Subscription is unpaid.
+/// - `Onetime`: Subscription is a one-time payment.
+/// - `Cancelled`: Subscription has been cancelled.
+/// - `Failed`: Subscription has failed.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    strum::EnumString,
+    strum::Display,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionStatus {
+    /// Subscription is active.
+    Active,
+    /// Subscription is created but not yet active.
+    Created,
+    /// Subscription is inactive.
+    InActive,
+    /// Subscription is in pending state.
+    Pending,
+    /// Subscription is in trial state.
+    Trial,
+    /// Subscription is paused.
+    Paused,
+    /// Subscription is unpaid.
+    Unpaid,
+    /// Subscription is a one-time payment.
+    Onetime,
+    /// Subscription is cancelled.
+    Cancelled,
+    /// Subscription has failed.
+    Failed,
+}

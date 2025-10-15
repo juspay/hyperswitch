@@ -1026,17 +1026,11 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
-            webhooks::OutgoingWebhookContent::SubscriptionDetails(subscription_response) => {
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(subscription) => {
                 Self::Subscription {
-                    subscription_id: subscription_response.id.clone(),
-                    invoice_id: subscription_response
-                        .invoice
-                        .as_ref()
-                        .map(|invoice| invoice.id.to_owned()),
-                    payment_id: subscription_response
-                        .payment
-                        .as_ref()
-                        .map(|payment| payment.payment_id.to_owned()),
+                    subscription_id: subscription.id.clone(),
+                    invoice_id: subscription.get_optional_invoice_id(),
+                    payment_id: subscription.get_optional_payment_id(),
                 }
             }
         }

@@ -361,8 +361,6 @@ async fn get_outgoing_webhook_content_and_event_type(
     key_store: domain::MerchantKeyStore,
     tracking_data: &OutgoingWebhookTrackingData,
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
-    use std::str::FromStr;
-
     use api_models::{
         disputes::DisputeRetrieveRequest,
         mandates::MandateId,
@@ -600,10 +598,13 @@ async fn get_outgoing_webhook_content_and_event_type(
                 })?;
             let invoice = state
                 .store
-                .find_invoice_by_invoice_id(key_manager_state, &key_store, invoice_id)
+                .find_invoice_by_invoice_id(key_manager_state, &key_store, invoice_id.clone())
                 .await
                 .map_err(|err| {
-                    logger::error!(?err, "invoices: unable to get latest invoice from database");
+                    logger::error!(
+                        ?err,
+                        "invoices: unable to get latest invoice with id {invoice_id} from database"
+                    );
                     errors::ProcessTrackerError::ResourceFetchingFailed {
                         resource_name: "Invoice".to_string(),
                     }
@@ -651,29 +652,18 @@ async fn get_outgoing_webhook_content_and_event_type(
                     errors::ProcessTrackerError::EApiErrorResponse
                 })?;
 
-            let status =
-                subscription_types::SubscriptionStatus::from_str(subscription.status.as_str())
-                    .map_err(|err| {
-                        logger::error!(
-                            ?err,
-                            "subscription: unable to form SubscriptionStatus enum from string"
-                        );
-                        errors::ProcessTrackerError::DeserializationFailed
-                    })?;
-
-            let response = subscription_types::ConfirmSubscriptionResponse {
-                id: subscription.id.to_owned(),
-                merchant_reference_id: subscription.merchant_reference_id.clone(),
-                status,
-                plan_id: subscription.plan_id.clone(),
-                profile_id: subscription.profile_id.to_owned(),
-                payment: Some(payment_response.clone()),
-                customer_id: Some(subscription.customer_id.clone()),
-                item_price_id: subscription.item_price_id.clone(),
-                coupon: None,
-                billing_processor_subscription_id: subscription.connector_subscription_id.clone(),
-                invoice: Some(subscription_types::Invoice::foreign_try_from(&invoice)?),
-            };
+            let response = subscription_types::ConfirmSubscriptionResponse::foreign_try_from((
+                &subscription,
+                &invoice,
+                &payment_response,
+            ))
+            .map_err(|err| {
+                logger::error!(
+                    ?err,
+                    "subscription: unable to form ConfirmSubscriptionResponse from foreign types"
+                );
+                errors::ProcessTrackerError::DeserializationFailed
+            })?;
 
             Ok((
                 OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),

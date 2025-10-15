@@ -173,20 +173,18 @@ impl<'a> InvoiceSyncHandler<'a> {
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
     ) -> CustomResult<Self, router_errors::ApiErrorResponse> {
-        let updated_handler = if let Some(connector_invoice_id) = connector_invoice_id {
-            let handler = Box::pin(self.perform_billing_processor_record_back(
+        if let Some(connector_invoice_id) = connector_invoice_id {
+            Box::pin(self.perform_billing_processor_record_back(
                 payment_response,
                 payment_status,
                 connector_invoice_id,
                 invoice_sync_status,
             ))
             .await
-            .attach_printable("Failed to record back to billing processor")?;
-            handler
+            .attach_printable("Failed to record back to billing processor")
         } else {
-            self
-        };
-        Ok(updated_handler)
+            Ok(self)
+        }
     }
 
     pub async fn perform_billing_processor_record_back(
@@ -251,28 +249,11 @@ impl<'a> InvoiceSyncHandler<'a> {
         subscription_types::ConfirmSubscriptionResponse,
         router_errors::ApiErrorResponse,
     > {
-        let status =
-            subscription_types::SubscriptionStatus::from_str(self.subscription.status.as_str())
-                .map_err(|_| router_errors::ApiErrorResponse::SubscriptionError {
-                    operation: "Failed to parse subscription status".to_string(),
-                })
-                .attach_printable("Failed to parse subscription status")?;
-
-        Ok(subscription_types::ConfirmSubscriptionResponse {
-            id: self.subscription.id.clone(),
-            merchant_reference_id: self.subscription.merchant_reference_id.clone(),
-            status,
-            plan_id: self.subscription.plan_id.clone(),
-            profile_id: self.subscription.profile_id.to_owned(),
-            payment: Some(payment_response.clone()),
-            customer_id: Some(self.subscription.customer_id.clone()),
-            item_price_id: self.subscription.item_price_id.clone(),
-            coupon: None,
-            billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
-            invoice: Some(subscription_types::Invoice::foreign_try_from(
-                &self.invoice,
-            )?),
-        })
+        subscription_types::ConfirmSubscriptionResponse::foreign_try_from((
+            &self.subscription,
+            &self.invoice,
+            payment_response,
+        ))
     }
 
     pub async fn trigger_outgoing_webhook(
@@ -539,4 +520,43 @@ pub async fn retry_subscription_invoice_sync_task(
     }
 
     Ok(())
+}
+
+impl
+    ForeignTryFrom<(
+        &hyperswitch_domain_models::subscription::Subscription,
+        &hyperswitch_domain_models::invoice::Invoice,
+        &subscription_types::PaymentResponseData,
+    )> for subscription_types::ConfirmSubscriptionResponse
+{
+    type Error = error_stack::Report<router_errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        value: (
+            &hyperswitch_domain_models::subscription::Subscription,
+            &hyperswitch_domain_models::invoice::Invoice,
+            &subscription_types::PaymentResponseData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (subscription, invoice, payment_response) = value;
+        let status = common_enums::SubscriptionStatus::from_str(subscription.status.as_str())
+            .map_err(|_| router_errors::ApiErrorResponse::SubscriptionError {
+                operation: "Failed to parse subscription status".to_string(),
+            })
+            .attach_printable("Failed to parse subscription status")?;
+
+        Ok(Self {
+            id: subscription.id.clone(),
+            merchant_reference_id: subscription.merchant_reference_id.clone(),
+            status,
+            plan_id: subscription.plan_id.clone(),
+            profile_id: subscription.profile_id.to_owned(),
+            payment: Some(payment_response.clone()),
+            customer_id: Some(subscription.customer_id.clone()),
+            item_price_id: subscription.item_price_id.clone(),
+            coupon: None,
+            billing_processor_subscription_id: subscription.connector_subscription_id.clone(),
+            invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
+        })
+    }
 }
