@@ -283,6 +283,16 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
@@ -293,6 +303,7 @@ jobs:
           scripts/execute_cypress.sh --parallel-all 2 cypress-tests false 6
 
           kill "${{ env.PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -468,6 +479,16 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests for Alpha Connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
@@ -482,6 +503,7 @@ jobs:
           # Cleanup
           kill "${{ env.PID }}"
           kill "${{ env.MOCK_PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
@@ -662,6 +684,16 @@ jobs:
             fi
           done
 
+      - name: Start Xvfb
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          # Start Xvfb on display :99 for all parallel Cypress instances to share
+          Xvfb :99 -ac -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          echo "XVFB_PID=${XVFB_PID}" >> $GITHUB_ENV
+          export DISPLAY=:99
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
@@ -677,6 +709,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }} && always()
         run: |
           kill "${{ env.PID }}"
+          kill "${{ env.XVFB_PID }}" || true
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
