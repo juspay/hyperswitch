@@ -275,14 +275,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Globepay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let amount = response.amount.unwrap_or_else(|| {
-            self.amount_converter
-                .convert(data.request.amount, data.request.currency)
-        });
+        let amount = response
+            .amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let currency = response
             .currency
-            .clone()
-            .unwrap_or_else(|| data.request.currency.to_string());
+            .unwrap_or(data.request.currency)
+            .to_string();
 
         let response_integrity_object =
             utils::get_authorise_integrity_object(self.amount_converter, amount, currency)?;
@@ -365,14 +369,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
             .parse_struct("globepay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let sync_amount = response.amount.unwrap_or_else(|| {
-            self.amount_converter
-                .convert(data.request.amount, data.request.currency)
-        });
+        let sync_amount = response
+            .amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let sync_currency = response
             .currency
-            .clone()
-            .unwrap_or_else(|| data.request.currency.to_string());
+            .unwrap_or(data.request.currency)
+            .to_string();
 
         let response_integrity_object =
             utils::get_sync_integrity_object(self.amount_converter, sync_amount, sync_currency)?;
@@ -488,14 +496,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globepa
             .parse_struct("Globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let refund_amount = response.refund_amount.unwrap_or_else(|| {
-            self.amount_converter
-                .convert(data.request.refund_amount, data.request.currency)
-        });
+        let refund_amount = response
+            .refund_amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_refund_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let refund_currency = response
             .currency
-            .clone()
-            .unwrap_or_else(|| data.request.currency.to_string());
+            .unwrap_or(data.request.currency)
+            .to_string();
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
@@ -583,14 +595,18 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globepay 
             .parse_struct("Globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let refund_amount = response.refund_amount.unwrap_or_else(|| {
-            self.amount_converter
-                .convert(data.request.refund_amount, data.request.currency)
-        });
+        let refund_amount = response
+            .refund_amount
+            .or_else(|| {
+                self.amount_converter
+                    .convert(data.request.minor_refund_amount, data.request.currency)
+                    .ok()
+            })
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let refund_currency = response
             .currency
-            .clone()
-            .unwrap_or_else(|| data.request.currency.to_string());
+            .unwrap_or(data.request.currency)
+            .to_string();
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,

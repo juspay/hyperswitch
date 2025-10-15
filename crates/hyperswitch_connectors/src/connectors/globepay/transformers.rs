@@ -174,7 +174,7 @@ pub struct GlobepayPaymentsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub currency: Option<String>,
+    pub currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, strum::Display, Serialize)]
@@ -257,7 +257,7 @@ pub struct GlobepaySyncResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub currency: Option<String>,
+    pub currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -388,7 +388,7 @@ pub struct GlobepayRefundResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_amount: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub currency: Option<String>,
+    pub currency: Option<enums::Currency>,
 }
 
 impl<T> TryFrom<RefundsResponseRouterData<T, GlobepayRefundResponse>> for RefundsRouterData<T> {
