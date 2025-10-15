@@ -2598,9 +2598,9 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Gift Card Balance Check",
-        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
-        "operationId": "Retrieve Gift Card Balance",
+        "summary": "Payments - Payment Method Balance Check",
+        "description": "Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency",
+        "operationId": "Retrieve Payment Method Balance",
         "parameters": [
           {
             "name": "id",
@@ -2626,7 +2626,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+                "$ref": "#/components/schemas/PaymentMethodBalanceCheckRequest"
               }
             }
           },
@@ -2634,11 +2634,11 @@
         },
         "responses": {
           "200": {
-            "description": "Get the Gift Card Balance",
+            "description": "Get the Payment Method Balance",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                  "$ref": "#/components/schemas/PaymentMethodBalanceCheckResponse"
                 }
               }
             }
@@ -5477,7 +5477,7 @@
           }
         }
       },
-      "BalancePaymentMethodData": {
+      "BalanceCheckPaymentMethodData": {
         "oneOf": [
           {
             "type": "object",
@@ -12315,26 +12315,6 @@
           }
         ]
       },
-      "GiftCardBalanceCheckResponse": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "balance",
-          "currency"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
-          "balance": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          }
-        }
-      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -17646,6 +17626,39 @@
           "mobile_payment"
         ]
       },
+      "PaymentMethodBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Payment method balance check",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentMethodBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {
@@ -19734,19 +19747,6 @@
             "nullable": true
           }
         }
-      },
-      "PaymentsGiftCardBalanceCheckRequest": {
-        "type": "object",
-        "description": "Request for Gift Card balance check",
-        "required": [
-          "payment_method_data"
-        ],
-        "properties": {
-          "payment_method_data": {
-            "$ref": "#/components/schemas/BalancePaymentMethodData"
-          }
-        },
-        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
