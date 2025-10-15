@@ -1,4 +1,4 @@
-use common_utils::{id_type, DbConnectionParams};
+use common_utils::DbConnectionParams;
 use masking::Secret;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -31,14 +31,6 @@ impl DbConnectionParams for Database {
     fn get_dbname(&self) -> &str {
         &self.dbname
     }
-}
-
-pub trait TenantConfig: Send + Sync {
-    fn get_tenant_id(&self) -> &id_type::TenantId;
-    fn get_schema(&self) -> &str;
-    fn get_accounts_schema(&self) -> &str;
-    fn get_redis_key_prefix(&self) -> &str;
-    fn get_clickhouse_database(&self) -> &str;
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]

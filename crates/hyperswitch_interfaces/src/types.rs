@@ -407,6 +407,12 @@ pub struct Proxy {
 
     /// A comma-separated list of hosts that should bypass the proxy.
     pub bypass_proxy_hosts: Option<String>,
+
+    /// The CA certificate used for man-in-the-middle (MITM) proxying, if enabled.
+    pub mitm_ca_certificate: Option<masking::Secret<String>>,
+
+    /// Whether man-in-the-middle (MITM) proxying is enabled.
+    pub mitm_enabled: Option<bool>,
 }
 
 impl Default for Proxy {
@@ -416,6 +422,8 @@ impl Default for Proxy {
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
             bypass_proxy_hosts: Default::default(),
+            mitm_ca_certificate: None,
+            mitm_enabled: None,
         }
     }
 }

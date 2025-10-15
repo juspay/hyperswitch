@@ -198,7 +198,9 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
+            api_enums::PaymentMethodType::UpiCollect
+                | api_enums::PaymentMethodType::UpiIntent
+                | api_enums::PaymentMethodType::UpiQr
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,

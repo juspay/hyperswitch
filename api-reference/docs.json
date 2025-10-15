@@ -286,6 +286,12 @@
                     ]
                   },
                   {
+                    "group": "Network Tokenization",
+                    "pages": [
+                      "v2/payment-methods/check-network-token-status"
+                    ]
+                  },
+                  {
                     "group": "Payment Method Session",
                     "pages": [
                       "v2/payment-method-session/payment-method-session--create",
