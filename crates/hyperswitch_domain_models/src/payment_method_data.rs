@@ -706,6 +706,22 @@ pub enum GiftCardData {
     BhnCardNetwork(BHNGiftCardDetails),
 }
 
+impl GiftCardData {
+    /// Returns a key that uniquely identifies the gift card. Used in
+    /// Payment Method Balance Check Flow for storing the balance
+    /// data in Redis.
+    ///
+    /// For PaySafeCard, it returns a static identifier "paysafecard"
+    /// as currently we don't have any unique identifier for it.
+    pub fn get_payment_method_key(&self) -> Secret<String> {
+        match self {
+            Self::Givex(givex) => givex.number.clone(),
+            Self::PaySafeCard {} => Secret::new("paysafecard".to_string()),
+            Self::BhnCardNetwork(bhn) => bhn.account_number.clone(),
+        }
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct GiftCardDetails {

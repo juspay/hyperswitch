@@ -2593,8 +2593,8 @@
         ]
       }
     },
-    "/v2/payments/{id}/check-gift-card-balance": {
-      "get": {
+    "/v2/payments/{id}/payment-methods/check-balance": {
+      "post": {
         "tags": [
           "Payments"
         ],
@@ -5476,6 +5476,21 @@
             "example": "012"
           }
         }
+      },
+      "BalancePaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          }
+        ]
       },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
@@ -12305,9 +12320,7 @@
         "required": [
           "payment_id",
           "balance",
-          "currency",
-          "needs_additional_pm_data",
-          "remaining_amount"
+          "currency"
         ],
         "properties": {
           "payment_id": {
@@ -12319,13 +12332,6 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
-          },
-          "needs_additional_pm_data": {
-            "type": "boolean",
-            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
-          },
-          "remaining_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -19733,11 +19739,11 @@
         "type": "object",
         "description": "Request for Gift Card balance check",
         "required": [
-          "gift_card_data"
+          "payment_method_data"
         ],
         "properties": {
-          "gift_card_data": {
-            "$ref": "#/components/schemas/GiftCardData"
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalancePaymentMethodData"
           }
         },
         "additionalProperties": false
