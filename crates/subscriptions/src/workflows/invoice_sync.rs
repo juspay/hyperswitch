@@ -21,7 +21,6 @@ use crate::{
 
 const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 const INVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
-pub struct InvoiceSyncWorkflow;
 
 pub struct InvoiceSyncHandler<'a> {
     pub state: &'a SessionState,

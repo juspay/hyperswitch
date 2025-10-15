@@ -100,21 +100,18 @@ impl<'a> SubscriptionHandler<'a> {
         let merchant_key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
 
-        #[cfg(feature = "v1")]
-        {
-            state
-                .store
-                .find_customer_by_customer_id_merchant_id(
-                    key_manager_state,
-                    customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::CustomerNotFound)
-                .attach_printable("subscriptions: unable to fetch customer from database")
-        }
+        state
+            .store
+            .find_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                customer_id,
+                merchant_id,
+                merchant_key_store,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("subscriptions: unable to fetch customer from database")
     }
     pub async fn update_connector_customer_id_in_customer(
         state: &SessionState,

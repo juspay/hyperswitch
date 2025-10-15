@@ -12,7 +12,7 @@ const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 pub struct InvoiceSyncWorkflow;
 
 #[async_trait]
-impl ProcessTrackerWorkflow<SessionState> for subscriptions::workflows::InvoiceSyncWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
     #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,

@@ -197,7 +197,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             customer.clone(),
             request.customer_id.clone(),
-            request.billing.clone(),
+            request.get_billing_address(),
             request
                 .payment_details
                 .payment_method_data
@@ -220,7 +220,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             subs_handler.subscription.clone(),
             request.item_price_id.clone(),
-            request.billing.clone(),
+            request.get_billing_address(),
         )
         .await?;
 
