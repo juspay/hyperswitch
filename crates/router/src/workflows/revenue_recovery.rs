@@ -554,9 +554,13 @@ pub async fn update_token_expiry_based_on_schedule_time(
 
 #[cfg(feature = "v2")]
 pub struct PaymentProcessorTokenResponse {
+    // Time in hours to wait before next retry
     pub wait_time: Option<i64>,
+    // Check whether the token is hard declined for cascading and all tokens are hard declined for smart
     pub all_hard_decline: Option<bool>,
+    // Time to schedule the next retry
     pub schedule_time: Option<time::PrimitiveDateTime>,
+    // If locked, then reschedule time
     pub reschedule_time: Option<time::PrimitiveDateTime>,
 }
 
@@ -802,7 +806,7 @@ async fn process_token_for_retry(
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
+pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
     state: &SessionState,
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_intent: &PaymentIntent,
