@@ -4288,10 +4288,19 @@ where
         CallConnectorAction::HandleResponse(_)
     );
 
+    let is_ucs_webhook_action = matches!(
+        call_connector_action,
+        CallConnectorAction::UCSConsumeResponse(_) | CallConnectorAction::UCSHandleResponse(_)
+    );
+
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
-            // Process through UCS when system is UCS and not handling response
-            (GatewaySystem::UnifiedConnectorService, false) => {
+        match (
+            execution_path,
+            is_handle_response_action,
+            is_ucs_webhook_action,
+        ) {
+            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            (GatewaySystem::UnifiedConnectorService, false, _) | (_, _, true) => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4312,7 +4321,7 @@ where
             }
 
             // Process through Direct gateway
-            (GatewaySystem::Direct, _) | (GatewaySystem::UnifiedConnectorService, true) => {
+            (GatewaySystem::Direct, _, _) | (GatewaySystem::UnifiedConnectorService, true, _) => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4337,7 +4346,7 @@ where
             }
 
             // Process through Direct with Shadow UCS
-            (GatewaySystem::ShadowUnifiedConnectorService, _) => {
+            (GatewaySystem::ShadowUnifiedConnectorService, _, _) => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
