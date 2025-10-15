@@ -18,7 +18,6 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
-
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::{
@@ -1303,13 +1302,21 @@ impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
                 .map(|cm| cm as i32),
             metadata,
             refund_metadata,
-            browser_info: router_data.request.browser_info.clone().map(|bi| {
-                payments_grpc::BrowserInformation::foreign_try_from(bi)
-            }).transpose()
-            .map_err(|_| UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert browser info".to_string()
-            ))?,
-            access_token: router_data.access_token.as_ref().map(|token| token.token.clone().expose()),
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(|bi| payments_grpc::BrowserInformation::foreign_try_from(bi))
+                .transpose()
+                .map_err(|_| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to convert browser info".to_string(),
+                    )
+                })?,
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(|token| token.token.clone().expose()),
         })
     }
 }
@@ -1340,22 +1347,28 @@ impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
             transaction_id: Some(transaction_id),
             refund_id: router_data.request.refund_id.clone(),
             refund_reason: router_data.request.reason.clone(),
-            browser_info: router_data.request.browser_info.clone().map(|bi| {
-                payments_grpc::BrowserInformation::foreign_try_from(bi)
-            }).transpose()
-            .map_err(|_| UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                "Failed to convert browser info".to_string()
-            ))?,
-            access_token: router_data.access_token.as_ref().map(|token| token.token.clone().expose()),
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(|bi| payments_grpc::BrowserInformation::foreign_try_from(bi))
+                .transpose()
+                .map_err(|_| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to convert browser info".to_string(),
+                    )
+                })?,
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(|token| token.token.clone().expose()),
             refund_metadata: HashMap::new(), // TODO: Add refund metadata if needed
         })
     }
 }
 
 /// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>
-impl ForeignTryFrom<payments_grpc::RefundResponse> 
-    for Result<RefundsResponseData, ErrorResponse>
-{
+impl ForeignTryFrom<payments_grpc::RefundResponse> for Result<RefundsResponseData, ErrorResponse> {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {

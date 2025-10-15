@@ -98,9 +98,7 @@ use super::unified_connector_service::{
     serialize_router_data_and_send_to_comparison_service, update_gateway_system_in_feature_metadata,
 };
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
     unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]

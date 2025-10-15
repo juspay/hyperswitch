@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
+use common_enums::ExecutionMode;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     types::{ConnectorTransactionId, MinorUnit},
 };
-use common_enums::ExecutionMode;
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -209,7 +209,7 @@ pub async fn trigger_refund_to_gateway(
         && router_data.access_token.is_none())
     {
         // Access token available or not needed - proceed with execution
-        
+
         // Check which gateway system to use for refunds
         let gateway_system = unified_connector_service::should_call_unified_connector_service(
             state,
@@ -222,13 +222,34 @@ pub async fn trigger_refund_to_gateway(
         // Execute refund based on gateway system decision
         match gateway_system {
             common_enums::GatewaySystem::UnifiedConnectorService => {
-                execute_refund_execute_via_ucs(state, &connector, merchant_context, router_data, ExecutionMode::Primary).await?
+                execute_refund_execute_via_ucs(
+                    state,
+                    &connector,
+                    merchant_context,
+                    router_data,
+                    ExecutionMode::Primary,
+                )
+                .await?
             }
             common_enums::GatewaySystem::Direct => {
-                execute_refund_execute_via_direct(state, &connector, merchant_context, refund, router_data).await?
+                execute_refund_execute_via_direct(
+                    state,
+                    &connector,
+                    merchant_context,
+                    refund,
+                    router_data,
+                )
+                .await?
             }
             common_enums::GatewaySystem::ShadowUnifiedConnectorService => {
-                execute_refund_execute_via_direct_with_ucs_shadow(state, &connector, merchant_context, refund, router_data).await?
+                execute_refund_execute_via_direct_with_ucs_shadow(
+                    state,
+                    &connector,
+                    merchant_context,
+                    refund,
+                    router_data,
+                )
+                .await?
             }
         }
     } else {
@@ -397,38 +418,40 @@ async fn execute_refund_execute_via_ucs(
     );
 
     // Execute refund via UCS
-    let mut ucs_router_data = unified_connector_service::call_unified_connector_service_for_refund_execute(
-        state,
-        connector,
-        merchant_context,
-        router_data,
-        execution_mode,
-    )
-    .await
-    .map_err(|ucs_error| {
-        // Log detailed UCS error information
-        router_env::logger::warn!(
-            connector = connector.connector_name.to_string(),
-            ucs_error_message = %ucs_error,
-            ucs_error_debug = ?ucs_error,
-            ucs_error_current_context = %ucs_error.current_context(),
-            ucs_error_frames_count = ucs_error.current_frames().len(),
-            "UCS refund execution failed"
-        );
-
-        // Log each frame in the error stack for maximum visibility
-        for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+    let mut ucs_router_data =
+        unified_connector_service::call_unified_connector_service_for_refund_execute(
+            state,
+            connector,
+            merchant_context,
+            router_data,
+            execution_mode,
+        )
+        .await
+        .map_err(|ucs_error| {
+            // Log detailed UCS error information
             router_env::logger::warn!(
-                frame_index = index,
-                frame_details = ?frame,
-                "UCS refund error stack frame"
+                connector = connector.connector_name.to_string(),
+                ucs_error_message = %ucs_error,
+                ucs_error_debug = ?ucs_error,
+                ucs_error_current_context = %ucs_error.current_context(),
+                ucs_error_frames_count = ucs_error.current_frames().len(),
+                "UCS refund execution failed"
             );
-        }
-        ucs_error
-    })?;
+
+            // Log each frame in the error stack for maximum visibility
+            for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+                router_env::logger::warn!(
+                    frame_index = index,
+                    frame_details = ?frame,
+                    "UCS refund error stack frame"
+                );
+            }
+            ucs_error
+        })?;
 
     // Perform integrity check on UCS response
-    let integrity_result = check_refund_integrity(&ucs_router_data.request, &ucs_router_data.response);
+    let integrity_result =
+        check_refund_integrity(&ucs_router_data.request, &ucs_router_data.response);
     ucs_router_data.integrity_check = integrity_result;
 
     router_env::logger::info!(
@@ -473,51 +496,51 @@ async fn execute_refund_execute_via_direct(
     .await;
 
     // Handle specific connector errors and update refund status if needed
-    let option_refund_error_update = router_data_res.as_ref().err().and_then(|error| {
-        match error.current_context() {
-            errors::ConnectorError::NotImplemented(message) => {
-                Some(diesel_refund::RefundUpdate::ErrorUpdate {
-                    refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(
-                        errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
-                    ),
-                    refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
-                    updated_by: storage_scheme.to_string(),
-                    connector_refund_id: None,
-                    processor_refund_data: None,
-                    unified_code: None,
-                    unified_message: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
-                })
-            }
-            errors::ConnectorError::NotSupported { message, connector } => {
-                Some(diesel_refund::RefundUpdate::ErrorUpdate {
-                    refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(format!("{message} is not supported by {connector}")),
-                    refund_error_code: Some("NOT_SUPPORTED".to_string()),
-                    updated_by: storage_scheme.to_string(),
-                    connector_refund_id: None,
-                    processor_refund_data: None,
-                    unified_code: None,
-                    unified_message: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
-                })
-            }
-            _ => None,
-        }
-    });
+    let option_refund_error_update =
+        router_data_res
+            .as_ref()
+            .err()
+            .and_then(|error| match error.current_context() {
+                errors::ConnectorError::NotImplemented(message) => {
+                    Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                        refund_status: Some(enums::RefundStatus::Failure),
+                        refund_error_message: Some(
+                            errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
+                        ),
+                        refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                        updated_by: storage_scheme.to_string(),
+                        connector_refund_id: None,
+                        processor_refund_data: None,
+                        unified_code: None,
+                        unified_message: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
+                    })
+                }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                        refund_status: Some(enums::RefundStatus::Failure),
+                        refund_error_message: Some(format!(
+                            "{message} is not supported by {connector}"
+                        )),
+                        refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                        updated_by: storage_scheme.to_string(),
+                        connector_refund_id: None,
+                        processor_refund_data: None,
+                        unified_code: None,
+                        unified_message: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
+                    })
+                }
+                _ => None,
+            });
 
     // Update the refund status as failure if connector_error is NotImplemented or NotSupported
     if let Some(refund_error_update) = option_refund_error_update {
         state
             .store
-            .update_refund(
-                refund.to_owned(),
-                refund_error_update,
-                storage_scheme,
-            )
+            .update_refund(refund.to_owned(), refund_error_update, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
@@ -555,20 +578,34 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     );
 
     // Execute Direct connector (PRIMARY)
-    let direct_result = execute_refund_execute_via_direct(state, connector, merchant_context, refund, router_data.clone()).await;
+    let direct_result = execute_refund_execute_via_direct(
+        state,
+        connector,
+        merchant_context,
+        refund,
+        router_data.clone(),
+    )
+    .await;
 
     // Execute UCS in parallel (SHADOW - for comparison only)
     let ucs_router_data = router_data.clone();
     let ucs_connector = connector.clone();
     let ucs_merchant_context = merchant_context.clone();
     let ucs_state = state.clone();
-    
+
     // Clone direct result for comparison (if successful)
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
-    
+
     tokio::spawn(async move {
-        let ucs_result = execute_refund_execute_via_ucs(&ucs_state, &ucs_connector, &ucs_merchant_context, ucs_router_data, ExecutionMode::Shadow).await;
-        
+        let ucs_result = execute_refund_execute_via_ucs(
+            &ucs_state,
+            &ucs_connector,
+            &ucs_merchant_context,
+            ucs_router_data,
+            ExecutionMode::Shadow,
+        )
+        .await;
+
         match ucs_result {
             Ok(ucs_router_data) => {
                 router_env::logger::info!(
@@ -576,7 +613,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     refund_id = ucs_router_data.request.refund_id,
                     "UCS shadow refund call completed successfully"
                 );
-                
+
                 // Compare responses and send to comparison service if direct call was successful
                 if let Some(direct_router_data) = direct_router_data_for_comparison {
                     match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
@@ -825,13 +862,26 @@ pub async fn sync_refund_with_gateway(
     // Execute refund sync based on gateway system decision
     let router_data_res = match gateway_system {
         common_enums::GatewaySystem::UnifiedConnectorService => {
-            execute_refund_sync_via_ucs(state, &connector, merchant_context, router_data, ExecutionMode::Primary).await?
+            execute_refund_sync_via_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data,
+                ExecutionMode::Primary,
+            )
+            .await?
         }
         common_enums::GatewaySystem::Direct => {
             execute_refund_sync_via_direct(state, &connector, router_data).await?
         }
         common_enums::GatewaySystem::ShadowUnifiedConnectorService => {
-            execute_refund_sync_via_direct_with_ucs_shadow(state, &connector, merchant_context, router_data).await?
+            execute_refund_sync_via_direct_with_ucs_shadow(
+                state,
+                &connector,
+                merchant_context,
+                router_data,
+            )
+            .await?
         }
     };
 
@@ -933,7 +983,6 @@ pub async fn sync_refund_with_gateway(
     Ok(response)
 }
 
-
 // ============================================================================
 // REFUND SYNC EXECUTION FUNCTIONS
 // ============================================================================
@@ -953,38 +1002,40 @@ async fn execute_refund_sync_via_ucs(
     );
 
     // Execute refund sync via UCS
-    let mut ucs_router_data = unified_connector_service::call_unified_connector_service_for_refund_sync(
-        state,
-        connector,
-        merchant_context,
-        router_data,
-        execution_mode,
-    )
-    .await
-    .map_err(|ucs_error| {
-        // Log detailed UCS error information
-        router_env::logger::warn!(
-            connector = connector.connector_name.to_string(),
-            ucs_error_message = %ucs_error,
-            ucs_error_debug = ?ucs_error,
-            ucs_error_current_context = %ucs_error.current_context(),
-            ucs_error_frames_count = ucs_error.current_frames().len(),
-            "UCS refund sync failed"
-        );
-
-        // Log each frame in the error stack for maximum visibility
-        for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+    let mut ucs_router_data =
+        unified_connector_service::call_unified_connector_service_for_refund_sync(
+            state,
+            connector,
+            merchant_context,
+            router_data,
+            execution_mode,
+        )
+        .await
+        .map_err(|ucs_error| {
+            // Log detailed UCS error information
             router_env::logger::warn!(
-                frame_index = index,
-                frame_details = ?frame,
-                "UCS refund sync error stack frame"
+                connector = connector.connector_name.to_string(),
+                ucs_error_message = %ucs_error,
+                ucs_error_debug = ?ucs_error,
+                ucs_error_current_context = %ucs_error.current_context(),
+                ucs_error_frames_count = ucs_error.current_frames().len(),
+                "UCS refund sync failed"
             );
-        }
-        ucs_error
-    })?;
+
+            // Log each frame in the error stack for maximum visibility
+            for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+                router_env::logger::warn!(
+                    frame_index = index,
+                    frame_details = ?frame,
+                    "UCS refund sync error stack frame"
+                );
+            }
+            ucs_error
+        })?;
 
     // Perform integrity check on UCS response
-    let integrity_result = check_refund_integrity(&ucs_router_data.request, &ucs_router_data.response);
+    let integrity_result =
+        check_refund_integrity(&ucs_router_data.request, &ucs_router_data.response);
     ucs_router_data.integrity_check = integrity_result;
 
     router_env::logger::info!(
@@ -1063,13 +1114,20 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let ucs_connector = connector.clone();
     let ucs_merchant_context = merchant_context.clone();
     let ucs_state = state.clone();
-    
+
     // Clone direct result for comparison (if successful)
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
-    
+
     tokio::spawn(async move {
-        let ucs_result = execute_refund_sync_via_ucs(&ucs_state, &ucs_connector, &ucs_merchant_context, ucs_router_data, ExecutionMode::Shadow).await;
-        
+        let ucs_result = execute_refund_sync_via_ucs(
+            &ucs_state,
+            &ucs_connector,
+            &ucs_merchant_context,
+            ucs_router_data,
+            ExecutionMode::Shadow,
+        )
+        .await;
+
         match ucs_result {
             Ok(ucs_router_data) => {
                 router_env::logger::info!(
@@ -1077,7 +1135,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     refund_id = ucs_router_data.request.refund_id,
                     "UCS shadow refund sync call completed successfully"
                 );
-                
+
                 // Compare responses and send to comparison service if direct call was successful
                 if let Some(direct_router_data) = direct_router_data_for_comparison {
                     match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
@@ -1091,7 +1149,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                         Err(e) => router_env::logger::debug!("Shadow UCS refund sync comparison failed: {:?}", e),
                     }
                 } else {
-                    router_env::logger::debug!("Skipping comparison - direct refund sync call failed");
+                    router_env::logger::debug!(
+                        "Skipping comparison - direct refund sync call failed"
+                    );
                 }
             }
             Err(e) => {
@@ -1107,7 +1167,6 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     // Return PRIMARY result (Direct connector response)
     direct_result
 }
-
 
 // ********************************************** REFUND UPDATE **********************************************
 

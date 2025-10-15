@@ -11,7 +11,8 @@ use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
     consts::X_FLOW_NAME,
     errors::CustomResult,
-    ext_traits::ValueExt, id_type,
+    ext_traits::ValueExt,
+    id_type,
     request::{Method, RequestBuilder, RequestContent},
 };
 use diesel_models::types::FeatureMetadata;
@@ -78,13 +79,8 @@ type UnifiedConnectorServiceResult = CustomResult<
 >;
 
 /// Type alias for return type used by unified connector service refund response handlers
-type UnifiedConnectorServiceRefundResult = CustomResult<
-    (
-        Result<RefundsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
->;
+type UnifiedConnectorServiceRefundResult =
+    CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
 pub async fn should_call_unified_connector_service<F: Clone, T, R, D>(
     state: &SessionState,
@@ -361,11 +357,11 @@ fn build_rollout_keys(
 ) -> (String, String) {
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
-    
+
     let rollout_key = if is_refund_flow {
         // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
         format!(
-            "{}_{}_{}_{}", 
+            "{}_{}_{}_{}",
             consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
             merchant_id,
             connector_name,
@@ -383,7 +379,7 @@ fn build_rollout_keys(
             flow_name
         )
     };
-    
+
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
     (rollout_key, shadow_rollout_key)
 }
@@ -1212,7 +1208,8 @@ where
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
-        router_data.external_latency = Some(router_data.external_latency.unwrap_or(0) + external_latency);
+        router_data.external_latency =
+            Some(router_data.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
 }
@@ -1340,12 +1337,18 @@ pub async fn should_call_unified_connector_service_for_refunds(
 
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("Failed to parse connector name for refunds: {}", connector_name))?;
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to parse connector name for refunds: {}",
+                connector_name
+            )
+        })?;
 
     let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
-    
+
     // Check if this is a UCS-only connector
-    let ucs_only_connector = ucs_config.is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+    let ucs_only_connector =
+        ucs_config.is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
 
     // Rollout configuration for refunds
     let rollout_key = format!(
@@ -1357,7 +1360,8 @@ pub async fn should_call_unified_connector_service_for_refunds(
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_enabled = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let shadow_rollout_enabled =
+        should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     router_env::logger::debug!(
         "Refund rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
@@ -1459,10 +1463,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
-    let lineage_ids = LineageIds::new(
-        merchant_id,
-        profile_id,
-    );
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
@@ -1486,9 +1487,10 @@ pub async fn call_unified_connector_service_for_refund_execute(
             let grpc_response = response.into_inner();
 
             // Transform UCS response back to RouterData
-            let (refund_response_data, status_code) = handle_unified_connector_service_response_for_refund_execute(grpc_response.clone())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to transform UCS refund response")?;
+            let (refund_response_data, status_code) =
+                handle_unified_connector_service_response_for_refund_execute(grpc_response.clone())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to transform UCS refund response")?;
 
             let mut updated_router_data = router_data;
             updated_router_data.response = refund_response_data;
@@ -1530,10 +1532,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
-    let lineage_ids = LineageIds::new(
-        merchant_id,
-        profile_id,
-    );
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
@@ -1558,9 +1557,10 @@ pub async fn call_unified_connector_service_for_refund_sync(
             let grpc_response = response.into_inner();
 
             // Transform UCS response back to RouterData
-            let (refund_response_data, status_code) = handle_unified_connector_service_response_for_refund_sync(grpc_response.clone())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to transform UCS refund sync response")?;
+            let (refund_response_data, status_code) =
+                handle_unified_connector_service_response_for_refund_sync(grpc_response.clone())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to transform UCS refund sync response")?;
 
             let mut updated_router_data = router_data;
             updated_router_data.response = refund_response_data;
