@@ -81,6 +81,7 @@ pub enum EventObjectType {
     DisputeDetails,
     MandateDetails,
     PayoutDetails,
+    SubscriptionDetails,
 }
 
 // Refund

@@ -1,5 +1,6 @@
+use crate::types::transformers::ForeignTryFrom;
 #[cfg(feature = "v1")]
-use api_models::subscription as subscription_types;
+use api_models::{subscription as subscription_types, webhooks as webhooks_types};
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
@@ -15,10 +16,12 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
+use std::str::FromStr;
 
 #[cfg(feature = "v1")]
-use crate::core::subscription::{
-    billing_processor_handler as billing, invoice_handler, payments_api_client,
+use crate::core::{
+    subscription::{billing_processor_handler as billing, invoice_handler, payments_api_client},
+    webhooks as webhooks_core,
 };
 use crate::{
     db::StorageInterface,
@@ -164,14 +167,14 @@ impl<'a> InvoiceSyncHandler<'a> {
     }
 
     pub async fn perform_billing_processor_record_back_if_possible(
-        &self,
+        self,
         payment_response: subscription_types::PaymentResponseData,
         payment_status: common_enums::AttemptStatus,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
-    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
-        if let Some(connector_invoice_id) = connector_invoice_id {
-            Box::pin(self.perform_billing_processor_record_back(
+    ) -> CustomResult<Self, router_errors::ApiErrorResponse> {
+        let updated_handler = if let Some(connector_invoice_id) = connector_invoice_id {
+            let handler = Box::pin(self.perform_billing_processor_record_back(
                 payment_response,
                 payment_status,
                 connector_invoice_id,
@@ -179,17 +182,20 @@ impl<'a> InvoiceSyncHandler<'a> {
             ))
             .await
             .attach_printable("Failed to record back to billing processor")?;
-        }
-        Ok(())
+            handler
+        } else {
+            self
+        };
+        Ok(updated_handler)
     }
 
     pub async fn perform_billing_processor_record_back(
-        &self,
+        self,
         payment_response: subscription_types::PaymentResponseData,
         payment_status: common_enums::AttemptStatus,
         connector_invoice_id: common_utils::id_type::InvoiceId,
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
-    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+    ) -> CustomResult<Self, router_errors::ApiErrorResponse> {
         logger::info!("perform_billing_processor_record_back");
 
         let billing_handler = billing::BillingHandler::create(
@@ -227,16 +233,86 @@ impl<'a> InvoiceSyncHandler<'a> {
             common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
         );
 
-        invoice_handler
+        let updated_invoice = invoice_handler
             .update_invoice(self.state, self.invoice.id.to_owned(), update_request)
             .await
             .attach_printable("Failed to update invoice in DB")?;
+
+        Ok(Self {
+            invoice: updated_invoice,
+            ..self
+        })
+    }
+
+    pub fn generate_response(
+        &self,
+        payment_response: &subscription_types::PaymentResponseData,
+    ) -> CustomResult<
+        subscription_types::ConfirmSubscriptionResponse,
+        router_errors::ApiErrorResponse,
+    > {
+        let status =
+            subscription_types::SubscriptionStatus::from_str(self.subscription.status.as_str())
+                .map_err(|_| router_errors::ApiErrorResponse::SubscriptionError {
+                    operation: "Failed to parse subscription status".to_string(),
+                })
+                .attach_printable("Failed to parse subscription status")?;
+
+        Ok(subscription_types::ConfirmSubscriptionResponse {
+            id: self.subscription.id.clone(),
+            merchant_reference_id: self.subscription.merchant_reference_id.clone(),
+            status,
+            plan_id: self.subscription.plan_id.clone(),
+            profile_id: self.subscription.profile_id.to_owned(),
+            payment: Some(payment_response.clone()),
+            customer_id: Some(self.subscription.customer_id.clone()),
+            item_price_id: self.subscription.item_price_id.clone(),
+            coupon: None,
+            billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
+            invoice: Some(subscription_types::Invoice::foreign_try_from(
+                &self.invoice,
+            )?),
+        })
+    }
+
+    pub async fn trigger_outgoing_webhook(
+        &self,
+        payment_response: subscription_types::PaymentResponseData,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        let response = self
+            .generate_response(&payment_response)
+            .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
+
+        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            self.merchant_account.clone(),
+            self.key_store.clone(),
+        )));
+
+        let cloned_state = self.state.clone();
+        let cloned_profile = self.profile.clone();
+        let invoice_id = self.invoice.id.get_string_repr().to_owned();
+        let created_at = self.subscription.created_at;
+
+        tokio::spawn(async move {
+            Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                cloned_state,
+                merchant_context,
+                cloned_profile,
+                common_enums::enums::EventType::InvoicePaid,
+                diesel_models::enums::EventClass::Subscriptions,
+                invoice_id,
+                diesel_models::enums::EventObjectType::SubscriptionDetails,
+                webhooks_types::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
+                Some(created_at),
+            ))
+            .await
+        });
 
         Ok(())
     }
 
     pub async fn transition_workflow_state(
-        &self,
+        self,
         process: storage::ProcessTracker,
         payment_response: subscription_types::PaymentResponseData,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
@@ -245,7 +321,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         match invoice_sync_status {
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                Box::pin(self.perform_billing_processor_record_back_if_possible(
+                let handler = Box::pin(self.perform_billing_processor_record_back_if_possible(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
@@ -254,12 +330,19 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .await
                 .attach_printable("Failed to record back success status to billing processor")?;
 
-                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
+                handler
+                    .finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
                     .change_context(router_errors::ApiErrorResponse::SubscriptionError {
                         operation: "Invoice_sync process_tracker task completion".to_string(),
                     })
-                    .attach_printable("Failed to update process tracker status")
+                    .attach_printable("Failed to update process tracker status")?;
+
+                // trigger outgoing webhook
+                handler
+                    .trigger_outgoing_webhook(payment_response.clone())
+                    .await
+                    .attach_printable("Failed to trigger outgoing webhook after invoice sync")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => {
                 retry_subscription_invoice_sync_task(
@@ -275,7 +358,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                Box::pin(self.perform_billing_processor_record_back_if_possible(
+                let handler = Box::pin(self.perform_billing_processor_record_back_if_possible(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
@@ -284,7 +367,8 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .await
                 .attach_printable("Failed to record back failure status to billing processor")?;
 
-                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
+                handler
+                    .finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
                     .change_context(router_errors::ApiErrorResponse::SubscriptionError {
                         operation: "Invoice_sync process_tracker task completion".to_string(),
@@ -351,14 +435,11 @@ async fn perform_subscription_invoice_sync(
 ) -> Result<(), errors::ProcessTrackerError> {
     let handler = InvoiceSyncHandler::create(state, tracking_data).await?;
 
-    let payment_status = handler.perform_payments_sync().await?;
+    let payments_response = handler.perform_payments_sync().await?;
 
-    Box::pin(handler.transition_workflow_state(
-        process,
-        payment_status,
-        handler.tracking_data.connector_invoice_id.clone(),
-    ))
-    .await?;
+    let connector_invoice_id = handler.tracking_data.connector_invoice_id.clone();
+    Box::pin(handler.transition_workflow_state(process, payments_response, connector_invoice_id))
+        .await?;
 
     Ok(())
 }

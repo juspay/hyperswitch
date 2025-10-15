@@ -1026,6 +1026,19 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(subscription_response) => {
+                Self::Subscription {
+                    subscription_id: subscription_response.id.clone(),
+                    invoice_id: subscription_response
+                        .invoice
+                        .as_ref()
+                        .map(|invoice| invoice.id.to_owned()),
+                    payment_id: subscription_response
+                        .payment
+                        .as_ref()
+                        .map(|payment| payment.payment_id.to_owned()),
+                }
+            }
         }
     }
 }
@@ -1068,6 +1081,16 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         } => OutgoingWebhookEventContent::Mandate {
             payment_method_id,
             mandate_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
+        } => OutgoingWebhookEventContent::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
             content: serde_json::Value::Null,
         },
     })

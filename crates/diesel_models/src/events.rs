@@ -102,6 +102,11 @@ pub enum EventMetadata {
         payment_method_id: String,
         mandate_id: String,
     },
+    Subscription {
+        subscription_id: common_utils::id_type::SubscriptionId,
+        invoice_id: Option<common_utils::id_type::InvoiceId>,
+        payment_id: Option<common_utils::id_type::PaymentId>,
+    },
 }
 
 common_utils::impl_to_sql_from_sql_json!(EventMetadata);

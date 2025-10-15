@@ -1520,6 +1520,7 @@ pub enum EventClass {
     Mandates,
     #[cfg(feature = "payouts")]
     Payouts,
+    Subscriptions,
 }
 
 impl EventClass {
@@ -1558,6 +1559,7 @@ impl EventClass {
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
             ]),
+            Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
     }
 }
@@ -1617,6 +1619,7 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    InvoicePaid,
 }
 
 #[derive(
