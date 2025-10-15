@@ -21,8 +21,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void, ExtendAuthorization,
+            Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
@@ -30,9 +30,10 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, PaymentsExtendAuthorizationData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
@@ -42,8 +43,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -69,9 +71,10 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType, ExtendedAuthorizationType,
-        PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
+        AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
+        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
+        SubmitEvidenceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -1614,7 +1617,9 @@ impl
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/{id}/amountUpdates"))
+        Ok(format!(
+            "{endpoint}{ADYEN_API_VERSION}/payments/{id}/amountUpdates"
+        ))
     }
 
     fn get_request_body(
@@ -1682,7 +1687,6 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
-
 
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen {

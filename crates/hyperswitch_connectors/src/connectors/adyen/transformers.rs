@@ -25,13 +25,13 @@ use hyperswitch_domain_models::{
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        ConnectorAuthType, ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
-        ExtendedAuthorizationResponseData, ConnectorResponseData
+        ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
+        PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
-        GiftCardBalanceCheckRequestData, PaymentsPreProcessingData, ResponseId,
-        SubmitEvidenceRequestData, PaymentsExtendAuthorizationData
+        GiftCardBalanceCheckRequestData, PaymentsExtendAuthorizationData,
+        PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
@@ -40,8 +40,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
-        PaymentsExtendAuthorizationRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -427,13 +427,14 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
         (is_manual_capture, adyen_webhook_status): (bool, AdyenWebhookStatus),
     ) -> Result<Self, Self::Error> {
         match adyen_webhook_status {
-            AdyenWebhookStatus::Authorised 
-            | AdyenWebhookStatus::AdjustedAuthorization => match is_manual_capture {
-                true => Ok(Self::Authorized),
-                // In case of Automatic capture Authorized is the final status of the payment
-                false => Ok(Self::Charged),
-            },
-            AdyenWebhookStatus::AuthorisationFailed 
+            AdyenWebhookStatus::Authorised | AdyenWebhookStatus::AdjustedAuthorization => {
+                match is_manual_capture {
+                    true => Ok(Self::Authorized),
+                    // In case of Automatic capture Authorized is the final status of the payment
+                    false => Ok(Self::Charged),
+                }
+            }
+            AdyenWebhookStatus::AuthorisationFailed
             | AdyenWebhookStatus::AdjustAuthorizationFailed => Ok(Self::Failure),
             AdyenWebhookStatus::Cancelled => Ok(Self::Voided),
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
@@ -4002,8 +4003,12 @@ impl
 
 fn build_connector_response(status: &AdyenWebhookStatus) -> Option<ConnectorResponseData> {
     let extended_authentication_applied = match status {
-        AdyenWebhookStatus::AdjustedAuthorization => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true)),
-        AdyenWebhookStatus::AdjustAuthorizationFailed => Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false)),
+        AdyenWebhookStatus::AdjustedAuthorization => {
+            Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
+        }
+        AdyenWebhookStatus::AdjustAuthorizationFailed => {
+            Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false))
+        }
         _ => None,
     };
 
@@ -4131,7 +4136,7 @@ pub fn get_webhook_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
         Option<MinorUnit>,
-        Option<ConnectorResponseData>
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -4216,7 +4221,13 @@ pub fn get_webhook_response(
             charges: None,
         };
 
-        Ok((status, error, payments_response_data, txn_amount, connector_response))
+        Ok((
+            status,
+            error,
+            payments_response_data,
+            txn_amount,
+            connector_response,
+        ))
     }
 }
 
@@ -4335,7 +4346,7 @@ pub fn get_present_to_shopper_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
         Option<MinorUnit>,
-        Option<ConnectorResponseData>
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -4481,7 +4492,7 @@ pub fn get_redirection_error_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
         Option<MinorUnit>,
-        Option<ConnectorResponseData>
+        Option<ConnectorResponseData>,
     ),
     errors::ConnectorError,
 > {
@@ -4798,7 +4809,8 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
-        let (status, error, payment_response_data, amount, connector_response) = match item.response {
+        let (status, error, payment_response_data, amount, connector_response) = match item.response
+        {
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
@@ -4867,10 +4879,12 @@ impl TryFrom<&AdyenRouterData<&PaymentsExtendAuthorizationRouterData>>
             currency: item.router_data.request.currency,
             value: item.amount.clone(),
         };
-        Ok(Self {merchant_account: auth_type.merchant_account, amount })
+        Ok(Self {
+            merchant_account: auth_type.merchant_account,
+            amount,
+        })
     }
 }
-
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -5243,12 +5257,10 @@ pub(crate) fn get_adyen_webhook_event(
             }
         }
         WebhookEventCode::AuthorisationAdjustment => {
-            {
-                if is_success_scenario(is_success) {
-                    api_models::webhooks::IncomingWebhookEvent::ExtendedAuthorization
-                } else {
-                    api_models::webhooks::IncomingWebhookEvent::ExtendAuthorizationFailed
-                }
+            if is_success_scenario(is_success) {
+                api_models::webhooks::IncomingWebhookEvent::ExtendedAuthorization
+            } else {
+                api_models::webhooks::IncomingWebhookEvent::ExtendAuthorizationFailed
             }
         }
         WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {

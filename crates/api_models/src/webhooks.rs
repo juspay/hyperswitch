@@ -267,7 +267,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
             | IncomingWebhookEvent::PaymentIntentCaptureFailure
-            | IncomingWebhookEvent::PaymentIntentExpired 
+            | IncomingWebhookEvent::PaymentIntentExpired
             | IncomingWebhookEvent::ExtendedAuthorization
             | IncomingWebhookEvent::ExtendAuthorizationFailed => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
