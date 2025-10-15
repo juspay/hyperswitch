@@ -7284,10 +7284,11 @@ required = true
 type = "Text"
 
 [finix]
-[finix.connector_auth.SignatureKey]
+[finix.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"
 key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
 [[finix.credit]]
 payment_method_type = "Mastercard"
 [[finix.credit]]
