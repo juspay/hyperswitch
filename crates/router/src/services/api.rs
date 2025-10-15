@@ -20,7 +20,9 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
+    consts::{
+        DEFAULT_TENANT, TENANT_HEADER, X_CONNECTOR_NAME, X_FLOW_NAME, X_HS_LATENCY, X_REQUEST_ID,
+    },
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -61,7 +63,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, CustomResult},
-        payments, unified_connector_service,
+        payments, unified_connector_service, utils as core_utils,
     },
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
@@ -296,10 +298,8 @@ where
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
-                        std::any::type_name::<T>()
-                            .split("::")
-                            .last()
-                            .unwrap_or_default()
+                        core_utils::get_flow_name::<T>()
+                            .unwrap_or_else(|_| "UnknownFlow".to_string())
                     ),
                 ),
             );
@@ -326,7 +326,7 @@ where
             };
 
             match connector_request {
-                Some(request) => {
+                Some(mut request) => {
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
@@ -334,11 +334,34 @@ where
                             | RequestContent::Xml(i) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::FormData((_, i)) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,
                     };
+                    let flow_name = core_utils::get_flow_name::<T>()
+                        .unwrap_or_else(|_| "UnknownFlow".to_string());
+
+                    request.headers.insert((
+                        X_FLOW_NAME.to_string(),
+                        Maskable::Masked(Secret::new(flow_name.to_string())),
+                    ));
+
+                    let connector_name = req.connector.clone();
+                    request.headers.insert((
+                        X_CONNECTOR_NAME.to_string(),
+                        Maskable::Masked(Secret::new(connector_name.clone().to_string())),
+                    ));
+                    state.request_id.as_ref().map(|id| {
+                        let request_id = id.to_string();
+                        request.headers.insert((
+                            X_REQUEST_ID.to_string(),
+                            Maskable::Normal(request_id.clone()),
+                        ));
+                        request_id
+                    });
                     let request_url = request.url.clone();
                     let request_method = request.method;
                     let current_time = Instant::now();

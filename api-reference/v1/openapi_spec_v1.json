@@ -1616,6 +1616,63 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Data",
+        "operationId": "Submit Eligibility data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligbility submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -7221,6 +7278,17 @@
                 "$ref": "#/components/schemas/WalletAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "BankRedirect"
+            ],
+            "properties": {
+              "BankRedirect": {
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -7985,7 +8053,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -9425,6 +9499,29 @@
           "n26",
           "nationale_nederlanden"
         ]
+      },
+      "BankRedirect": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "interac"
+            ],
+            "properties": {
+              "interac": {
+                "$ref": "#/components/schemas/Interac"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectAdditionalData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InteracAdditionalData"
+          }
+        ],
+        "description": "Masked payout method details for wallet payout method"
       },
       "BankRedirectBilling": {
         "type": "object",
@@ -10939,6 +11036,16 @@
             "type": "string",
             "description": "The device model of the client",
             "nullable": true
+          },
+          "accept_language": {
+            "type": "string",
+            "description": "Accept-language of the browser",
+            "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },
@@ -12046,7 +12153,7 @@
           "bitpay",
           "bluesnap",
           "blackhawknetwork",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",
@@ -12071,6 +12178,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -12091,6 +12199,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -12132,6 +12241,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tesouro",
           "tokenex",
           "tokenio",
           "trustpay",
@@ -16152,6 +16262,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -16171,6 +16290,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -16261,7 +16388,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",
@@ -17071,6 +17204,31 @@
           "conflicted",
           "expired"
         ]
+      },
+      "Interac": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Customer email linked with interac account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "InteracAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for interac bank redirect payout method",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with interac account",
+            "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
       },
       "IssuerData": {
         "type": "object",
@@ -19180,6 +19338,15 @@
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
       },
+      "MitCategory": {
+        "type": "string",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "resubmission"
+        ]
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -19380,7 +19547,8 @@
           "post_session_tokens",
           "confirm",
           "sync",
-          "complete_authorize"
+          "complete_authorize",
+          "await_merchant_callback"
         ]
       },
       "NextActionData": {
@@ -19521,6 +19689,25 @@
                 "type": "string",
                 "enum": [
                   "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains the SDK UPI intent URI for payment processing",
+            "required": [
+              "sdk_uri",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sdk_upi_intent_information"
                 ]
               }
             }
@@ -22388,6 +22575,7 @@
           "twint",
           "upi_collect",
           "upi_intent",
+          "upi_qr",
           "vipps",
           "viet_qr",
           "venmo",
@@ -23114,6 +23302,21 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23587,12 +23790,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24205,6 +24423,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -24221,6 +24440,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
               }
             ],
             "nullable": true
@@ -24285,6 +24518,48 @@
           },
           "display_amount": {
             "$ref": "#/components/schemas/DisplayAmountOnSdk"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "properties": {
+          "sdk_next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkNextAction"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24991,12 +25266,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25635,6 +25925,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -25651,6 +25942,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
               }
             ],
             "nullable": true
@@ -26259,12 +26564,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26594,6 +26914,14 @@
             "type": "string",
             "description": "Identifier for payout method",
             "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26604,7 +26932,10 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "gigadat",
+          "loonio",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
@@ -27219,6 +27550,17 @@
                 "$ref": "#/components/schemas/Wallet"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirect"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -27255,6 +27597,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
           }
@@ -27337,7 +27690,8 @@
         "enum": [
           "card",
           "bank",
-          "wallet"
+          "wallet",
+          "bank_redirect"
         ]
       },
       "PayoutUpdateRequest": {
@@ -27570,6 +27924,14 @@
             "type": "string",
             "description": "Identifier for payout method",
             "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27794,6 +28156,14 @@
             "type": "string",
             "description": "Identifier for payout method",
             "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27846,6 +28216,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -27876,6 +28252,40 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Authorization token used by client to initiate sdk",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/PaypalFlow"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "38.02"
           }
         }
       },
@@ -30252,7 +30662,7 @@
           "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",
@@ -30274,6 +30684,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -30291,6 +30702,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -30331,6 +30743,7 @@
           "stax",
           "stripe",
           "stripebilling",
+          "tesouro",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -32545,6 +32958,17 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
@@ -32592,10 +33016,24 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
       "UpiIntentData": {
+        "type": "object"
+      },
+      "UpiQrData": {
         "type": "object"
       },
       "UpiResponse": {

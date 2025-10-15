@@ -44,6 +44,8 @@ use serde_json::Value;
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::subscription::subscription_handler::SubscriptionHandler;
 use crate::{
     consts,
     core::{
@@ -459,7 +461,6 @@ pub async fn get_mca_from_payment_intent(
         }
     }
 }
-
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     state: &SessionState,
@@ -638,6 +639,22 @@ pub async fn get_mca_from_object_reference_id(
                     merchant_context,
                 )
                 .await
+            }
+            webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
+                #[cfg(feature = "v1")]
+                {
+                    let subscription_handler = SubscriptionHandler::new(state, merchant_context);
+                    let mut subscription_with_handler = subscription_handler
+                        .find_subscription(subscription_id_type)
+                        .await?;
+
+                    subscription_with_handler.get_mca(connector_name).await
+                }
+                #[cfg(feature = "v2")]
+                {
+                    let _db = db;
+                    todo!()
+                }
             }
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {

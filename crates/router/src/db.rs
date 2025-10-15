@@ -21,7 +21,6 @@ pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 pub mod hyperswitch_ai_interaction;
-pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -36,7 +35,6 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
-pub mod subscription;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -147,8 +145,8 @@ pub trait StorageInterface:
     + payment_method_session::PaymentMethodsSessionInterface
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
-    + subscription::SubscriptionInterface
-    + invoice::InvoiceInterface
+    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
+    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

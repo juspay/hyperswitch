@@ -5,7 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
-use common_enums::TransactionType;
+use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::id_type;
@@ -18,6 +18,7 @@ use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
+    superposition::SuperpositionClient,
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -137,6 +138,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -155,9 +157,20 @@ impl SessionState {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
-    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+    pub fn get_grpc_headers_ucs(
+        &self,
+        unified_connector_service_execution_mode: ExecutionMode,
+    ) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        GrpcHeadersUcs::builder().tenant_id(tenant_id)
+        let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        let shadow_mode = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => false,
+            ExecutionMode::Shadow => true,
+        };
+        GrpcHeadersUcs::builder()
+            .tenant_id(tenant_id)
+            .request_id(request_id)
+            .shadow_mode(Some(shadow_mode))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -261,6 +274,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -427,6 +441,23 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
+            let superposition_service = if conf.superposition.get_inner().enabled {
+                match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
+                    Ok(client) => {
+                        router_env::logger::info!("Superposition client initialized successfully");
+                        Some(Arc::new(client))
+                    }
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to initialize superposition client: {:?}. Continuing without superposition support.",
+                            err
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -449,6 +480,7 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
+                superposition_service,
             }
         })
         .await
@@ -545,6 +577,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            superposition_service: self.superposition_service.clone(),
         })
     }
 
@@ -1174,20 +1207,40 @@ pub struct Subscription;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
-        let route = web::scope("/subscription").app_data(web::Data::new(state.clone()));
+        let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
 
         route
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
+            )
             .service(web::resource("/create").route(
                 web::post().to(|state, req, payload| {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
+            .service(
+                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+            )
             .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {
                         subscription::confirm_subscription(state, req, id, payload)
                     },
                 )),
+            )
+            .service(
+                web::resource("/{subscription_id}/update").route(web::put().to(
+                    |state, req, id, payload| {
+                        subscription::update_subscription(state, req, id, payload)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
             )
     }
 }
@@ -1409,6 +1462,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/create-intent")
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/check-network-token-status")
+                        .route(web::get().to(payment_methods::network_token_status_check_api)),
                 );
 
             route = route.service(
@@ -2767,51 +2824,54 @@ impl User {
         }
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        // TODO: To be deprecated
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2")
-                        .route(web::post().to(user_role::create_role_v2))
-                        .route(
-                            web::get().to(user_role::get_groups_and_resources_for_role_from_token),
-                        ),
-                )
-                // TODO: To be deprecated
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(
-                            web::resource("").route(web::get().to(user_role::list_roles_with_info)),
-                        )
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            // TODO: To be deprecated
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    .service(
+                        web::resource("/v2")
+                            .route(web::post().to(user_role::create_role_v2))
+                            .route(
+                                web::get()
+                                    .to(user_role::get_groups_and_resources_for_role_from_token),
+                            ),
+                    )
+                    .service(web::resource("/v3").route(
+                        web::get().to(user_role::get_parent_groups_info_for_role_from_token),
+                    ))
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                )
-                .service(
-                    web::resource("/{role_id}/v2")
-                        .route(web::get().to(user_role::get_parent_info_for_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -2983,9 +3043,12 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("{merchant_id}/{authentication_id}/redirect")
+                    .route(web::post().to(authentication::authentication_sync_post_update)),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
-                    .route(web::post().to(authentication::authentication_sync))
-                    .route(web::get().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync)),
             )
     }
 }
@@ -3024,6 +3087,16 @@ impl RecoveryDataBackfill {
             .service(web::resource("/status/{token_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
+            .service(web::resource("/redis-data/{token_id}").route(
+                web::get().to(
+                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
+                ),
+            ))
+            .service(web::resource("/update-token").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
     }

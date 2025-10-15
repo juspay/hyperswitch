@@ -95,14 +95,11 @@ impl VaultMetadataProcessor for VgsMetadata {
             cert_content
         } else {
             match BASE64_ENGINE.decode(&cert_content) {
-                Ok(decoded_bytes) => {
-                    let decoded_string = String::from_utf8(decoded_bytes).map_err(|e| {
-                        VaultMetadataError::CertificateValidationFailed(format!(
-                            "Certificate is not valid UTF-8 after base64 decoding: {e}"
-                        ))
-                    })?;
-                    decoded_string
-                }
+                Ok(decoded_bytes) => String::from_utf8(decoded_bytes).map_err(|e| {
+                    VaultMetadataError::CertificateValidationFailed(format!(
+                        "Certificate is not valid UTF-8 after base64 decoding: {e}"
+                    ))
+                })?,
                 Err(e) => {
                     logger::error!(
                         error = %e,
