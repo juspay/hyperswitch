@@ -4,72 +4,22 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 pub use external_services::http_client::{self, client};
 use http::{HeaderValue, Method};
-use hyperswitch_interfaces::types::Proxy;
+pub use hyperswitch_interfaces::{
+    api_client::{ApiClient, ApiClientWrapper, RequestBuilder},
+    types::Proxy,
+};
 use masking::PeekInterface;
 use reqwest::multipart::Form;
 use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};
-use crate::{
-    core::errors::{ApiClientError, CustomResult},
-    routes::SessionState,
-};
-
-pub trait RequestBuilder: Send + Sync {
-    fn json(&mut self, body: serde_json::Value);
-    fn url_encoded_form(&mut self, body: serde_json::Value);
-    fn timeout(&mut self, timeout: Duration);
-    fn multipart(&mut self, form: Form);
-    fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError>;
-    fn send(
-        self,
-    ) -> CustomResult<
-        Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>> + 'static>,
-        ApiClientError,
-    >;
-}
-
-#[async_trait::async_trait]
-pub trait ApiClient: dyn_clone::DynClone
-where
-    Self: Send + Sync,
-{
-    fn request(
-        &self,
-        method: Method,
-        url: String,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
-
-    fn request_with_certificate(
-        &self,
-        method: Method,
-        url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
-
-    async fn send_request(
-        &self,
-        state: &SessionState,
-        request: Request,
-        option_timeout_secs: Option<u64>,
-        forward_to_kafka: bool,
-    ) -> CustomResult<reqwest::Response, ApiClientError>;
-
-    fn add_request_id(&mut self, request_id: RequestId);
-
-    fn get_request_id(&self) -> Option<String>;
-
-    fn add_flow_name(&mut self, flow_name: String);
-}
-
-dyn_clone::clone_trait_object!(ApiClient);
+use crate::core::errors::{ApiClientError, CustomResult};
 
 #[derive(Clone)]
 pub struct ProxyClient {
     proxy_config: Proxy,
     client: reqwest::Client,
-    request_id: Option<String>,
+    request_id: Option<RequestId>,
 }
 
 impl ProxyClient {
@@ -186,23 +136,26 @@ impl ApiClient for ProxyClient {
     }
     async fn send_request(
         &self,
-        state: &SessionState,
+        api_client: &dyn ApiClientWrapper,
         request: Request,
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError> {
-        http_client::send_request(&state.conf.proxy, request, option_timeout_secs)
+        http_client::send_request(&api_client.get_proxy(), request, option_timeout_secs)
             .await
             .switch()
     }
 
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.request_id
-            .replace(request_id.as_hyphenated().to_string());
+        self.request_id = Some(request_id);
     }
 
-    fn get_request_id(&self) -> Option<String> {
-        self.request_id.clone()
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id
+    }
+
+    fn get_request_id_str(&self) -> Option<String> {
+        self.request_id.map(|id| id.as_hyphenated().to_string())
     }
 
     fn add_flow_name(&mut self, _flow_name: String) {}
@@ -236,7 +189,7 @@ impl ApiClient for MockApiClient {
 
     async fn send_request(
         &self,
-        _state: &SessionState,
+        _state: &dyn ApiClientWrapper,
         _request: Request,
         _option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
@@ -249,7 +202,12 @@ impl ApiClient for MockApiClient {
         // [#2066]: Add Mock implementation for ApiClient
     }
 
-    fn get_request_id(&self) -> Option<String> {
+    fn get_request_id(&self) -> Option<RequestId> {
+        // [#2066]: Add Mock implementation for ApiClient
+        None
+    }
+
+    fn get_request_id_str(&self) -> Option<String> {
         // [#2066]: Add Mock implementation for ApiClient
         None
     }

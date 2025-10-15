@@ -14,14 +14,17 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ExternalVaultConnectorDetails, ProfileUpdateInternal, WebhookDetails,
+    self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
+    BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
+    ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
+    behaviour::Conversion,
     errors::api_error_response,
+    merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -950,7 +953,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Profile {
+impl Conversion for Profile {
     type DstType = diesel_models::business_profile::Profile;
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
@@ -2258,7 +2261,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Profile {
+impl Conversion for Profile {
     type DstType = diesel_models::business_profile::Profile;
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
@@ -2505,4 +2508,62 @@ impl super::behaviour::Conversion for Profile {
             billing_processor_id: self.billing_processor_id,
         })
     }
+}
+
+#[async_trait::async_trait]
+pub trait ProfileInterface
+where
+    Profile: Conversion<DstType = storage_types::Profile, NewDstType = storage_types::ProfileNew>,
+{
+    type Error;
+    async fn insert_business_profile(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        business_profile: Profile,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_profile_id(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_profile_name_merchant_id(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_name: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn update_profile_by_profile_id(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        current_state: Profile,
+        profile_update: ProfileUpdate,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn delete_profile_by_profile_id_merchant_id(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    async fn list_profile_by_merchant_id(
+        &self,
+        key_manager_state: &keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Profile>, Self::Error>;
 }
