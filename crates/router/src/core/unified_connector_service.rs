@@ -774,13 +774,13 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
-
     let router_data_update = RouterDataUpdate {
         amount_captured: None,
         minor_amount_captured: None,
     };
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code, router_data_update))
 }
@@ -790,13 +790,13 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
-
     let router_data_update = RouterDataUpdate {
         amount_captured: None,
         minor_amount_captured: None,
     };
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code, router_data_update))
 }
