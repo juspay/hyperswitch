@@ -249,7 +249,7 @@ async fn build_list_routing_result(
                 profile_id,
             )
             .await
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -395,7 +395,7 @@ pub async fn create_routing_algorithm_under_profile(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -1419,7 +1419,7 @@ pub async fn retrieve_linked_routing_config(
         )
         .await
         .map(|profile| vec![profile])
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
@@ -1629,7 +1629,7 @@ pub async fn update_default_routing_config_for_profile(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -1721,7 +1721,7 @@ pub async fn toggle_specific_dynamic_routing(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -1795,7 +1795,7 @@ pub async fn create_specific_dynamic_routing(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -1869,7 +1869,7 @@ pub async fn configure_dynamic_routing_volume_split(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -1915,7 +1915,7 @@ pub async fn retrieve_dynamic_routing_volume_split(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -2161,7 +2161,7 @@ pub async fn contract_based_dynamic_routing_setup(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -2635,7 +2635,7 @@ pub async fn migrate_rules_for_profile(
             &profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
