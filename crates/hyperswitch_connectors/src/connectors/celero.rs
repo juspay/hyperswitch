@@ -267,16 +267,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Celero PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        // Build integrity object from connector response if available
-        let response_integrity_object = if let Some(resp_data) = response.data.as_ref() {
-            Some(utils::get_authorise_integrity_object(
-                self.amount_converter,
-                MinorUnit::new(resp_data.amount),
-                resp_data.currency.clone(),
-            )?)
-        } else {
-            None
-        };
+        let resp_data = response
+            .data
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data",
+            })?;
+
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(resp_data.amount),
+            resp_data.currency.clone(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -288,9 +290,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         });
 
         new_router_data.and_then(|mut router_data| {
-            if let Some(integrity_object) = response_integrity_object {
-                router_data.request.integrity_object = Some(integrity_object);
-            }
+            router_data.request.integrity_object = Some(response_integrity_object);
             Ok(router_data)
         })
     }
@@ -367,16 +367,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
             .parse_struct("celero PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        // Build integrity object from connector response if available
-        let response_integrity_object = if let Some(resp_data) = response.data.as_ref() {
-            Some(utils::get_sync_integrity_object(
-                self.amount_converter,
-                MinorUnit::new(resp_data.amount),
-                resp_data.currency.clone(),
-            )?)
-        } else {
-            None
-        };
+        let resp_data = response
+            .data
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data",
+            })?;
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(resp_data.amount),
+            resp_data.currency.clone(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -388,9 +390,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
         });
 
         new_router_data.and_then(|mut router_data| {
-            if let Some(integrity_object) = response_integrity_object {
-                router_data.request.integrity_object = Some(integrity_object);
-            }
+            router_data.request.integrity_object = Some(response_integrity_object);
             Ok(router_data)
         })
     }
@@ -638,21 +638,31 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
             .parse_struct("celero RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        // Attempt to build integrity object from connector response data if present
-        let response_integrity_object = if let Some(val) = response.data.as_ref() {
-            let amount_opt = val.get("amount").and_then(|v| v.as_i64());
-            let currency_opt = val.get("currency").and_then(|v| v.as_str());
-            match (amount_opt, currency_opt) {
-                (Some(a), Some(c)) => Some(utils::get_refund_integrity_object(
-                    self.amount_converter,
-                    MinorUnit::new(a),
-                    c.to_string(),
-                )?),
-                _ => None,
-            }
-        } else {
-            None
-        };
+        let val = response
+            .data
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data",
+            })?;
+
+        let amount = val
+            .get("amount")
+            .and_then(|v| v.as_i64())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data.amount",
+            })?;
+        let currency = val
+            .get("currency")
+            .and_then(|v| v.as_str())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data.currency",
+            })?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(amount),
+            currency.to_string(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -664,9 +674,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
         });
 
         new_router_data.and_then(|mut router_data| {
-            if let Some(integrity_object) = response_integrity_object {
-                router_data.request.integrity_object = Some(integrity_object);
-            }
+            router_data.request.integrity_object = Some(response_integrity_object);
             Ok(router_data)
         })
     }
@@ -743,21 +751,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
             .parse_struct("celero RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        // Attempt to build integrity object from connector response data if present
-        let response_integrity_object = if let Some(val) = response.data.as_ref() {
-            let amount_opt = val.get("amount").and_then(|v| v.as_i64());
-            let currency_opt = val.get("currency").and_then(|v| v.as_str());
-            match (amount_opt, currency_opt) {
-                (Some(a), Some(c)) => Some(utils::get_refund_integrity_object(
-                    self.amount_converter,
-                    MinorUnit::new(a),
-                    c.to_string(),
-                )?),
-                _ => None,
-            }
-        } else {
-            None
-        };
+        let val = response
+            .data
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data",
+            })?;
+
+        let amount = val
+            .get("amount")
+            .and_then(|v| v.as_i64())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data.amount",
+            })?;
+        let currency = val
+            .get("currency")
+            .and_then(|v| v.as_str())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "data.currency",
+            })?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            MinorUnit::new(amount),
+            currency.to_string(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -769,9 +787,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
         });
 
         new_router_data.and_then(|mut router_data| {
-            if let Some(integrity_object) = response_integrity_object {
-                router_data.request.integrity_object = Some(integrity_object);
-            }
+            router_data.request.integrity_object = Some(response_integrity_object);
             Ok(router_data)
         })
     }
