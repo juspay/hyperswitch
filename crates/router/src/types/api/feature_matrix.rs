@@ -67,12 +67,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Bluecode => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                enums::Connector::Calida => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Calida::new())))
                 }
-                // enums::Connector::Bluecode => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
-                // }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
@@ -171,6 +168,9 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
+                }
+                enums::Connector::Finix => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Finix::new())))
                 }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
