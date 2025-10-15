@@ -24600,14 +24600,7 @@
       },
       "PaymentsExtendAuthorizationRequest": {
         "type": "object",
-        "description": "Request to extend the authorization period for a payment",
-        "properties": {
-          "extend_authorization_reason": {
-            "type": "string",
-            "description": "The reason for extending authorization",
-            "nullable": true
-          }
-        }
+        "description": "Request to extend the authorization period for a payment"
       },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
