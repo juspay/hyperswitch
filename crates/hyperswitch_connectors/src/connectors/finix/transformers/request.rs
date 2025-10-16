@@ -7,11 +7,6 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
-#[derive(Deserialize)]
-pub struct FinixMeta {
-    pub merchant_id: Secret<String>,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
@@ -224,4 +219,5 @@ pub struct FinixAuthType {
     pub finix_user_name: Secret<String>,
     pub finix_password: Secret<String>,
     pub merchant_id: Secret<String>,
+    pub merchant_identity_id: Secret<String>,
 }

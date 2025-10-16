@@ -23,7 +23,7 @@ pub use api_models::{
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
+        PaymentsEligibilityRequest, PaymentsExternalAuthenticationRequest,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
         PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
         PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
@@ -31,7 +31,7 @@ pub use api_models::{
         PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
         PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
         PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData, PaymentsExtendAuthorizationRequest
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};

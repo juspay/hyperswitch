@@ -29,7 +29,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
         RouterData as _,
     },
 };
@@ -41,17 +41,6 @@ pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub merchant_identity_id: Secret<String>,
 }
 
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FinixMeta {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
-    ) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
-        Ok(metadata)
-    }
-}
-
 impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     for FinixRouterData<'a, Flow, Req, Res>
 {
@@ -60,13 +49,12 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     fn try_from(value: (MinorUnit, &'a RouterData<Flow, Req, Res>)) -> Result<Self, Self::Error> {
         let (amount, router_data) = value;
         let auth = FinixAuthType::try_from(&router_data.connector_auth_type)?;
-        let connector_meta = FinixMeta::try_from(&router_data.connector_meta_data)?;
 
         Ok(Self {
             amount,
             router_data,
             merchant_id: auth.merchant_id,
-            merchant_identity_id: connector_meta.merchant_id,
+            merchant_identity_id: auth.merchant_identity_id,
         })
     }
 }
@@ -313,14 +301,16 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
+                key2,
             } => Ok(Self {
                 finix_user_name: api_key.clone(),
                 finix_password: api_secret.clone(),
                 merchant_id: key1.clone(),
+                merchant_identity_id: key2.clone(),
             }),
             _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }

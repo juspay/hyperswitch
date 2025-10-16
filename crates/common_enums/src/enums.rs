@@ -8444,12 +8444,6 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsView,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    OrganizationManage,
     AccountView,
     AccountManage,
     ReconReportsView,
