@@ -415,14 +415,6 @@ pub enum PreProcessingFlowName {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
-    /// indicates whether the new pre-decide flow should be called
-    /// By default, it is false for all connectors
-    fn should_call_connector_service_with_pre_decide_flow(
-        &self,
-        _current_flow: CurrentFlowInfo<'_>,
-    ) -> bool {
-        false
-    }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,

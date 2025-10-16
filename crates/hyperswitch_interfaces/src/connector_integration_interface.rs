@@ -508,19 +508,6 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn should_call_connector_service_with_pre_decide_flow(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-    ) -> bool {
-        match self {
-            Self::Old(connector) => {
-                connector.should_call_connector_service_with_pre_decide_flow(current_flow)
-            }
-            Self::New(connector) => {
-                connector.should_call_connector_service_with_pre_decide_flow(current_flow)
-            }
-        }
-    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
