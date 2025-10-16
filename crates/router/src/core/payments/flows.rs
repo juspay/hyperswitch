@@ -111,29 +111,6 @@ pub trait Feature<F, T> {
         F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
-    async fn pre_decide_flows<'a>(
-        self,
-        _state: &SessionState,
-        _connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
-        _pre_decide_inputs: PreDecideFlowInputs<'a>,
-    ) -> RouterResult<(PreDecideFlowOutput, Self)>
-    where
-        Self: Sized,
-        F: Clone,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok((
-            PreDecideFlowOutput {
-                connector_response_reference_id: None,
-                session_token: None,
-                connector_request: None,
-                should_continue_further: true,
-            },
-            self,
-        ))
-    }
-
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
