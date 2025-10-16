@@ -4442,6 +4442,7 @@ where
                     business_profile,
                     merchant_connector_account,
                     router_data,
+                    &connector,
                 )
                 .await
             }
@@ -4518,6 +4519,7 @@ async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     business_profile: &'a domain::Profile,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    connector_data: &api::ConnectorData,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4591,6 +4593,7 @@ where
             lineage_ids,
             merchant_connector_account.clone(),
             merchant_context,
+            connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
         )
         .await?;
@@ -4647,7 +4650,7 @@ where
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
 
-    let should_call_connector_service_with_pre_decide_flow = router_data
+    let _should_call_connector_service_with_pre_decide_flow = router_data
         .get_current_flow_info()
         .map(|current_flow_info| {
             connector
@@ -4655,53 +4658,28 @@ where
                 .should_call_connector_service_with_pre_decide_flow(current_flow_info)
         })
         .unwrap_or(false);
-
-    if should_call_connector_service_with_pre_decide_flow {
-        logger::info!("Calling call_connector_service_with_pre_decide_flow");
-        call_connector_service_with_pre_decide_flow(
-            state,
-            req_state,
-            merchant_context,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            validate_result,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            all_keys_required,
-            merchant_connector_account,
-            router_data,
-            tokenization_action,
-        )
-        .await
-    } else {
-        call_connector_service(
-            state,
-            req_state,
-            merchant_context,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            validate_result,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            all_keys_required,
-            merchant_connector_account,
-            router_data,
-            tokenization_action,
-        )
-        .await
-    }
+    // TODO: use should_call_connector_service_with_pre_decide_flow to decide if call_connector_service_with_pre_decide_flow function should be called instead of call_connector_service.
+    call_connector_service(
+        state,
+        req_state,
+        merchant_context,
+        connector,
+        operation,
+        payment_data,
+        customer,
+        call_connector_action,
+        validate_result,
+        schedule_time,
+        header_payload,
+        frm_suggestion,
+        business_profile,
+        is_retry_payment,
+        all_keys_required,
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
+    )
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -4768,7 +4746,7 @@ where
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
 
-    let should_call_connector_service_with_pre_decide_flow = router_data
+    let _should_call_connector_service_with_pre_decide_flow = router_data
         .get_current_flow_info()
         .map(|current_flow_info| {
             connector
@@ -4776,53 +4754,29 @@ where
                 .should_call_connector_service_with_pre_decide_flow(current_flow_info)
         })
         .unwrap_or(false);
+    // TODO: use should_call_connector_service_with_pre_decide_flow to decide if call_connector_service_with_pre_decide_flow function should be called instead of call_connector_service.
     // Call Direct connector service
-    let result = if should_call_connector_service_with_pre_decide_flow {
-        logger::info!("Calling call_connector_service_with_pre_decide_flow");
-        call_connector_service_with_pre_decide_flow(
-            state,
-            req_state,
-            merchant_context,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            validate_result,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            all_keys_required,
-            merchant_connector_account,
-            router_data,
-            tokenization_action,
-        )
-        .await?
-    } else {
-        call_connector_service(
-            state,
-            req_state,
-            merchant_context,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            validate_result,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            all_keys_required,
-            merchant_connector_account,
-            router_data,
-            tokenization_action,
-        )
-        .await?
-    };
+    let result = call_connector_service(
+        state,
+        req_state,
+        merchant_context,
+        connector.clone(),
+        operation,
+        payment_data,
+        customer,
+        call_connector_action,
+        validate_result,
+        schedule_time,
+        header_payload,
+        frm_suggestion,
+        business_profile,
+        is_retry_payment,
+        all_keys_required,
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
+    )
+    .await?;
 
     // Spawn shadow UCS call in background
     let direct_router_data = result.0.clone();
@@ -4834,6 +4788,7 @@ where
             unified_connector_service_header_payload,
             lineage_ids,
             unified_connector_service_merchant_connector_account,
+            &connector,
             unified_connector_service_merchant_context,
         )
         .await
@@ -4857,6 +4812,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     header_payload: HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
+    connector_data: &api::ConnectorData,
     merchant_context: domain::MerchantContext,
 ) where
     F: Send + Clone + Sync + 'static,
@@ -4874,6 +4830,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             lineage_ids,
             merchant_connector_account,
             &merchant_context,
+            connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
         )
         .await

@@ -234,6 +234,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         let connector_name = self.connector.clone();

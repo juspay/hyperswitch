@@ -259,6 +259,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
     ) -> RouterResult<()>
     where

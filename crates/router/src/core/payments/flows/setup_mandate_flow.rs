@@ -274,6 +274,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         let client = state

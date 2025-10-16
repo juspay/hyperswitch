@@ -2283,17 +2283,6 @@ impl ConnectorSpecifications for Cybersource {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS)
     }
-    fn should_call_connector_service_with_pre_decide_flow(
-        &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
-    ) -> bool {
-        match current_flow_info {
-            api::CurrentFlowInfo::Authorize {
-                request_data,
-                auth_type,
-            } => self.is_3ds_setup_required(request_data, *auth_type),
-        }
-    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
