@@ -5419,6 +5419,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
                 )
                 .await?;
@@ -5523,6 +5524,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
                 )
                 .await?;
