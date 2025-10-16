@@ -5,6 +5,7 @@ mod tests {
     use std::{borrow::Cow, sync::Arc};
 
     use common_utils::{type_name, types::keymanager::Identifier};
+    use hyperswitch_domain_models::master_key::MasterKeyInterface;
     use time::macros::datetime;
     use tokio::sync::oneshot;
 

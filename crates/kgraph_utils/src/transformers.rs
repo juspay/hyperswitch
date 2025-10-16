@@ -195,6 +195,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             },
             api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
+            api_enums::PaymentMethodType::SepaGuarenteedDebit => {
+                Ok(dirval!(BankDebitType = SepaGuarenteedDebit))
+            }
             api_enums::PaymentMethodType::SepaBankTransfer => {
                 Ok(dirval!(BankTransferType = SepaBankTransfer))
             }

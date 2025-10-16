@@ -510,6 +510,18 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        constraints: super::customers::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), errors::StorageError> {
+        self.diesel_store
+            .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -3329,6 +3341,12 @@ impl StorageInterface for KafkaStore {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
+        Box::new(self.clone())
+    }
 }
 
 impl GlobalStorageInterface for KafkaStore {
@@ -3339,6 +3357,8 @@ impl GlobalStorageInterface for KafkaStore {
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
+
+impl subscriptions::state::SubscriptionStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {

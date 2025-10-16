@@ -108,7 +108,7 @@ impl<F, T>
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
-    pub payment_data_type: Option<String>,
+    pub payment_data_type: Option<common_enums::PaymentMethodType>,
     pub encrypted_src_card_details: Option<String>,
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
