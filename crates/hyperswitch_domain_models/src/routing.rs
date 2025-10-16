@@ -79,4 +79,3 @@ impl From<PaymentRoutingInfo> for PaymentRoutingInfoSerde {
         }))
     }
 }
-

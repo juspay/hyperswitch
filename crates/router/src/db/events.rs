@@ -857,7 +857,7 @@ mod tests {
     };
     use futures::future::join_all;
     use hyperswitch_domain_models::{
-        merchant_account::MerchantAccountSetter, master_key::MasterKeyInterface,
+        master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
     };
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};

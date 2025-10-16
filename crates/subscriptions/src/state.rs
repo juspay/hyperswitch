@@ -1,7 +1,7 @@
 use common_utils::types::keymanager;
 use hyperswitch_domain_models::{
-    business_profile, configs as domain_configs, customer, invoice as invoice_domain,
-    merchant_account, merchant_connector_account, merchant_key_store, routing,
+    business_profile, configs as domain_configs, customer, invoice as invoice_domain, master_key,
+    merchant_account, merchant_connector_account, merchant_key_store,
     subscription as subscription_domain,
 };
 use hyperswitch_interfaces::configs;

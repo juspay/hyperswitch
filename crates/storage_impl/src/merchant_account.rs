@@ -6,9 +6,9 @@ use diesel_models::merchant_account as storage;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
+    master_key::MasterKeyInterface,
     merchant_account::{self as domain, MerchantAccountInterface},
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreInterface},
-    master_key::MasterKeyInterface,
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
