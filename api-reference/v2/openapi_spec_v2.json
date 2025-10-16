@@ -5660,6 +5660,17 @@
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_debit": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -5758,6 +5769,41 @@
             ],
             "properties": {
               "sepa_bank_debit": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "bank_account_holder_name"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "iban": {
+                    "type": "string",
+                    "description": "International bank account number (iban) for SEPA",
+                    "example": "DE89370400440532013000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_bank_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_bank_debit": {
                 "type": "object",
                 "required": [
                   "iban",
@@ -19065,6 +19111,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "sepa_guarenteed_debit",
           "skrill",
           "sofort",
           "swish",
