@@ -236,55 +236,33 @@ impl<'a> InvoiceSyncHandler<'a> {
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
-        match invoice_sync_status {
-            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                Box::pin(self.perform_billing_processor_record_back_if_possible(
-                    payment_response.clone(),
-                    common_enums::AttemptStatus::Charged,
-                    connector_invoice_id,
-                    invoice_sync_status.clone(),
-                ))
-                .await
-                .attach_printable("Failed to record back success status to billing processor")?;
+        let (payment_status, status) = match invoice_sync_status {
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => (common_enums::AttemptStatus::Charged, "succeeded"),
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => (common_enums::AttemptStatus::Failure, "failed"),
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => return Err(
+                router_errors::ApiErrorResponse::SubscriptionError {
+                    operation: "Invoice_sync: Payment in processing state, cannot transition workflow state"
+                        .to_string(),
+                },
+            )?,
+        };
+        Box::pin(self.perform_billing_processor_record_back_if_possible(
+            payment_response.clone(),
+            payment_status,
+            connector_invoice_id,
+            invoice_sync_status.clone(),
+        ))
+        .await
+        .attach_printable(format!(
+            "Failed to record back {status} status to billing processor"
+        ))?;
 
-                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
-                    .await
-                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                        operation: "Invoice_sync process_tracker task completion".to_string(),
-                    })
-                    .attach_printable("Failed to update process tracker status")
-            }
-            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => {
-                retry_subscription_invoice_sync_task(
-                    &*self.state.store,
-                    self.tracking_data.connector_name.to_string().clone(),
-                    self.merchant_account.get_id().to_owned(),
-                    process,
-                )
-                .await
-                .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                    operation: "Invoice_sync process_tracker task retry".to_string(),
-                })
-                .attach_printable("Failed to update process tracker status")
-            }
-            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                Box::pin(self.perform_billing_processor_record_back_if_possible(
-                    payment_response.clone(),
-                    common_enums::AttemptStatus::Charged,
-                    connector_invoice_id,
-                    invoice_sync_status.clone(),
-                ))
-                .await
-                .attach_printable("Failed to record back failure status to billing processor")?;
-
-                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
-                    .await
-                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                        operation: "Invoice_sync process_tracker task completion".to_string(),
-                    })
-                    .attach_printable("Failed to update process tracker status")
-            }
-        }
+        self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
+            .await
+            .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                operation: "Invoice_sync process_tracker task completion".to_string(),
+            })
+            .attach_printable("Failed to update process tracker status")
     }
 }
 
@@ -298,12 +276,26 @@ pub async fn perform_subscription_invoice_sync(
 
     let payment_status = handler.perform_payments_sync().await?;
 
-    Box::pin(handler.transition_workflow_state(
-        process,
+    let _ = Box::pin(handler.transition_workflow_state(
+        process.clone(),
         payment_status,
         handler.tracking_data.connector_invoice_id.clone(),
     ))
-    .await?;
+    .await
+    .map_err(async |op| {
+        logger::error!(?op, "Error in transitioning workflow state");
+        retry_subscription_invoice_sync_task(
+            &*handler.state.store,
+            handler.tracking_data.connector_name.to_string().clone(),
+            handler.merchant_account.get_id().to_owned(),
+            process,
+        )
+        .await
+        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+            operation: "Invoice_sync process_tracker task retry".to_string(),
+        })
+        .attach_printable("Failed to update process tracker status")
+    });
 
     Ok(())
 }
