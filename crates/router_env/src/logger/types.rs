@@ -130,6 +130,8 @@ pub enum Flow {
     GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
+    ///List Customers for a merchant with constraints.
+    CustomersListWithConstraints,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
     /// Payment method create collect link flow.
