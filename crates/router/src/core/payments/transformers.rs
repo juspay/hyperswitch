@@ -41,6 +41,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
+    connector::utils::CardData,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -3226,7 +3227,9 @@ where
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
     let existing_card_network = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::Card(card)) => card.card_network.clone(),
+        Some(domain::PaymentMethodData::Card(card)) => {
+            card.get_card_issuer().ok().map(enums::CardNetwork::from)
+        }
         _ => None,
     };
 

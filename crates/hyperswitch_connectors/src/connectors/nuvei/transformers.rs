@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use common_enums::{enums, CaptureMethod, FutureUsage, GooglePayCardFundingSource, PaymentChannel};
 use common_types::{
     payments::{
@@ -49,6 +51,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumString;
 use url::Url;
 
 #[cfg(feature = "payouts")]
@@ -807,12 +810,35 @@ pub struct Card {
     pub cvv2_reply: Option<String>,
     pub avs_code: Option<String>,
     pub card_type: Option<String>,
-    pub brand: Option<String>,
+    pub brand: Option<NuveiCardNetworks>,
     pub issuer_bank_name: Option<String>,
     pub issuer_country: Option<String>,
     pub is_prepaid: Option<String>,
     pub external_token: Option<ExternalToken>,
     pub stored_credentials: Option<StoredCredentialMode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum NuveiCardNetworks {
+    Visa,
+    MasterCard,
+    Amex,
+    Diners,
+    Discover,
+}
+
+impl From<NuveiCardNetworks> for enums::CardNetwork {
+    fn from(item: NuveiCardNetworks) -> Self {
+        match item {
+            NuveiCardNetworks::Visa => Self::Visa,
+            NuveiCardNetworks::MasterCard => Self::Mastercard,
+            NuveiCardNetworks::Amex => Self::AmericanExpress,
+            NuveiCardNetworks::Diners => Self::DinersClub,
+            NuveiCardNetworks::Discover => Self::Discover,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1133,7 +1159,7 @@ struct ApplePayPaymentMethodCamelCase {
 fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
     is_rebilling: Option<IsRebilling>,
-    brand: Option<String>,
+    brand: Option<NuveiCardNetworks>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
         is_rebilling,
@@ -1180,7 +1206,7 @@ where
         return get_google_pay_decrypt_data(
             token,
             is_rebilling,
-            Some(gpay_data.info.card_network.clone()),
+            NuveiCardNetworks::from_str(&gpay_data.info.card_network).ok(),
         );
     }
 
@@ -1188,7 +1214,7 @@ where
         GpayTokenizationData::Decrypted(gpay_predecrypt_data) => get_google_pay_decrypt_data(
             gpay_predecrypt_data,
             is_rebilling,
-            Some(gpay_data.info.card_network.clone()),
+            NuveiCardNetworks::from_str(&gpay_data.info.card_network).ok(),
         ),
         GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
@@ -1252,7 +1278,7 @@ fn get_apple_pay_decrypt_data(
         is_rebilling,
         payment_option: PaymentOption {
             card: Some(Card {
-                brand: Some(network),
+                brand: NuveiCardNetworks::from_str(&network).ok(),
                 card_number: Some(
                     apple_pay_predecrypt_data
                         .application_primary_account_number
@@ -4068,7 +4094,7 @@ fn convert_to_additional_payment_method_connector_response(
         "card_validation_description": cvv_description,
     });
 
-    let card_network = card.brand.clone();
+    let card_network = card.brand.clone().map(enums::CardNetwork::from);
     let three_ds_data = card
         .three_d
         .clone()
@@ -4083,7 +4109,7 @@ fn convert_to_additional_payment_method_connector_response(
         Ok(authentication_data) => Some(AdditionalPaymentMethodConnectorResponse::Card {
             authentication_data,
             payment_checks: Some(payment_checks),
-            card_network: None,
+            card_network,
             domestic_network: None,
         }),
         Err(_) => None,

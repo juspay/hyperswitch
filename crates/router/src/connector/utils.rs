@@ -1490,6 +1490,21 @@ pub enum CardIssuer {
     CarteBlanche,
 }
 
+impl From<CardIssuer> for enums::CardNetwork {
+    fn from(item: CardIssuer) -> Self {
+        match item {
+            CardIssuer::AmericanExpress => Self::AmericanExpress,
+            CardIssuer::Master => Self::Mastercard,
+            CardIssuer::Maestro => Self::Maestro,
+            CardIssuer::Visa => Self::Visa,
+            CardIssuer::Discover => Self::Discover,
+            CardIssuer::DinersClub => Self::DinersClub,
+            CardIssuer::JCB => Self::JCB,
+            CardIssuer::CarteBlanche => Self::CartesBancaires,
+        }
+    }
+}
+
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
