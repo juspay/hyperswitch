@@ -242,6 +242,7 @@ pub enum PayoutMethodData {
     Card(CardPayout),
     Bank(Bank),
     Wallet(Wallet),
+    BankRedirect(BankRedirect),
 }
 
 impl Default for PayoutMethodData {
@@ -376,6 +377,19 @@ pub struct PixBankTransfer {
 pub enum Wallet {
     Paypal(Paypal),
     Venmo(Venmo),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirect {
+    Interac(Interac),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Interac {
+    /// Customer email linked with interac account
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub email: Email,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -602,6 +616,8 @@ pub enum PayoutMethodDataResponse {
     Bank(Box<payout_method_utils::BankAdditionalData>),
     #[schema(value_type = WalletAdditionalData)]
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
+    #[schema(value_type = BankRedirectAdditionalData)]
+    BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
 }
 
 #[derive(
@@ -988,6 +1004,18 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
     }
 }
 
+impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
+    fn from(bank_redirect: BankRedirect) -> Self {
+        match bank_redirect {
+            BankRedirect::Interac(Interac { email }) => {
+                Self::Interac(Box::new(payout_method_utils::InteracAdditionalData {
+                    email: Some(ForeignFrom::foreign_from(email)),
+                }))
+            }
+        }
+    }
+}
+
 impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
@@ -999,6 +1027,9 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::Wallet(wallet_data) => {
                 Self::Wallet(wallet_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
+                Self::BankRedirect(bank_redirect)
             }
         }
     }

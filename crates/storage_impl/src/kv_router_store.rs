@@ -17,8 +17,8 @@ use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
-    config::TenantConfig,
     database::store::PgPool,
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
@@ -29,9 +29,8 @@ use crate::{
         RedisConnInterface,
     },
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
-    RouterStore, UniqueConstraints,
+    RouterStore, TenantConfig, UniqueConstraints,
 };
-pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {

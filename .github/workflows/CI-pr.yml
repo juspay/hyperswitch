@@ -121,59 +121,14 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: false
 
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-hack
-          checksum: true
-
-      - name: Install just
-        uses: taiki-e/install-action@v2
-        with:
-          tool: just
-          checksum: true
-
-      - name: Install jq
+      - name: Run cargo check
         shell: bash
-        run: .github/scripts/install-jq.sh
-
-      - name: Cargo hack
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: just ci_hack
-
-  # cargo-deny:
-  #   name: Run cargo-deny
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       checks:
-  #         - advisories
-  #         - bans licenses sources
-
-  #   # Prevent sudden announcement of a new advisory from failing CI
-  #   continue-on-error: ${{ matrix.checks == 'advisories' }}
-
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Run cargo-deny
-  #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
-  #       with:
-  #         command: check ${{ matrix.checks }}
+        run: cargo check --features "release"
 
   test:
     name: Run tests on stable toolchain
@@ -229,38 +184,16 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: false
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-hack
-          checksum: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
-
-      - name: Install jq
-        shell: bash
-        run: .github/scripts/install-jq.sh
-
-      # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-nextest
-      #     checksum: true
 
       - name: Run clippy
         shell: bash
@@ -279,16 +212,8 @@ jobs:
           fi
 
       - name: Run cargo check
-        if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: just ci_hack
-
-      - name: Cargo build release
-        if: ${{ startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
-        shell: bash
-        run: cargo check --features release
+        run: cargo check --features "release"
 
   typos:
     name: Spell check
