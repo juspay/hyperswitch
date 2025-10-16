@@ -41,8 +41,9 @@ use hyperswitch_domain_models::{
     },
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::{
+pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
+    configs::MerchantConnectorAccountType,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use josekit::jwe;
@@ -4244,98 +4245,6 @@ pub async fn insert_merchant_connector_creds_to_config(
             )
     } else {
         Ok(())
-    }
-}
-
-#[derive(Clone)]
-pub enum MerchantConnectorAccountType {
-    DbVal(Box<domain::MerchantConnectorAccount>),
-    CacheVal(api_models::admin::MerchantConnectorDetails),
-}
-
-impl MerchantConnectorAccountType {
-    pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
-        match self {
-            Self::DbVal(val) => val.metadata.to_owned(),
-            Self::CacheVal(val) => val.metadata.to_owned(),
-        }
-    }
-
-    pub fn get_connector_account_details(&self) -> serde_json::Value {
-        match self {
-            Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
-            Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
-        }
-    }
-
-    pub fn get_connector_wallets_details(&self) -> Option<masking::Secret<serde_json::Value>> {
-        match self {
-            Self::DbVal(val) => val.connector_wallets_details.as_deref().cloned(),
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    pub fn is_disabled(&self) -> bool {
-        match self {
-            Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
-            // Cached merchant connector account, only contains the account details,
-            // the merchant connector account must only be cached if it's not disabled
-            Self::CacheVal(_) => false,
-        }
-    }
-
-    #[cfg(feature = "v1")]
-    pub fn is_test_mode_on(&self) -> Option<bool> {
-        match self {
-            Self::DbVal(val) => val.test_mode,
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn is_test_mode_on(&self) -> Option<bool> {
-        None
-    }
-
-    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
-        match self {
-            Self::DbVal(db_val) => Some(db_val.get_id()),
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    #[cfg(feature = "v1")]
-    pub fn get_connector_name(&self) -> Option<String> {
-        match self {
-            Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn get_connector_name(&self) -> Option<api_enums::Connector> {
-        match self {
-            Self::DbVal(db_val) => Some(db_val.connector_name),
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    pub fn get_additional_merchant_data(
-        &self,
-    ) -> Option<Encryptable<masking::Secret<serde_json::Value>>> {
-        match self {
-            Self::DbVal(db_val) => db_val.additional_merchant_data.clone(),
-            Self::CacheVal(_) => None,
-        }
-    }
-
-    pub fn get_webhook_details(
-        &self,
-    ) -> CustomResult<Option<&masking::Secret<serde_json::Value>>, errors::ApiErrorResponse> {
-        match self {
-            Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
-            Self::CacheVal(_) => Ok(None),
-        }
     }
 }
 

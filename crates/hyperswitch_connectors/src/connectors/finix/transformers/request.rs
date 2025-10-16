@@ -6,6 +6,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::*;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
@@ -49,14 +50,57 @@ pub struct FinixIdentityEntity {
     pub personal_address: Option<FinixAddress>,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct FinixApplePayPaymentToken {
+    pub token: FinixApplePayToken,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayHeader {
+    pub public_key_hash: String,
+    pub ephemeral_public_key: String,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: FinixApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayToken {
+    pub payment_data: FinixApplePayEncryptedData,
+    pub payment_method: FinixApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(rename = "type")]
     pub instrument_type: FinixPaymentInstrumentType,
     pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub security_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_month: Option<Secret<i8>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_year: Option<Secret<i32>>,
     pub identity: String,
     pub tags: Option<FinixTags>,
@@ -64,6 +108,8 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub card_brand: Option<String>,
     pub card_type: Option<FinixCardType>,
     pub additional_data: Option<HashMap<String, String>>,
+    pub merchant_identity: Option<Secret<String>>,
+    pub third_party_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -143,9 +189,15 @@ pub enum FinixPaymentType {
 pub enum FinixPaymentInstrumentType {
     #[serde(rename = "PAYMENT_CARD")]
     PaymentCard,
+    #[serde(rename = "GOOGLE_PAY")]
+    GOOGLEPAY,
 
     #[serde(rename = "BANK_ACCOUNT")]
     BankAccount,
+
+    #[serde(rename = "APPLE_PAY")]
+    ApplePay,
+
     #[serde(other)]
     Unknown,
 }
@@ -210,4 +262,5 @@ pub struct FinixAuthType {
     pub finix_user_name: Secret<String>,
     pub finix_password: Secret<String>,
     pub merchant_id: Secret<String>,
+    pub merchant_identity_id: Secret<String>,
 }

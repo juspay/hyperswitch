@@ -964,6 +964,26 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             ),
         },
     );
+    finix_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    finix_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
     finix_supported_payment_methods
 });
 

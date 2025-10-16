@@ -7776,6 +7776,61 @@
           }
         }
       },
+      "ApplePayDecrypt": {
+        "type": "object",
+        "required": [
+          "dpan",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "dpan": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
+      },
+      "ApplePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Apple pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
       "ApplePayPaymentData": {
         "oneOf": [
           {
@@ -19744,6 +19799,25 @@
           },
           {
             "type": "object",
+            "description": "Contains the SDK UPI intent URI for payment processing",
+            "required": [
+              "sdk_uri",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sdk_upi_intent_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
@@ -22605,6 +22679,7 @@
           "twint",
           "upi_collect",
           "upi_intent",
+          "upi_qr",
           "vipps",
           "viet_qr",
           "venmo",
@@ -26979,7 +27054,8 @@
           "payone",
           "paypal",
           "stripe",
-          "wise"
+          "wise",
+          "worldpay"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -28256,6 +28332,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -28286,6 +28368,40 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Authorization token used by client to initiate sdk",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/PaypalFlow"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "38.02"
           }
         }
       },
@@ -32958,6 +33074,17 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
@@ -33005,10 +33132,24 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
       "UpiIntentData": {
+        "type": "object"
+      },
+      "UpiQrData": {
         "type": "object"
       },
       "UpiResponse": {
@@ -33383,6 +33524,17 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypt"
+            ],
+            "properties": {
+              "apple_pay_decrypt": {
+                "$ref": "#/components/schemas/ApplePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -33411,6 +33563,9 @@
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
