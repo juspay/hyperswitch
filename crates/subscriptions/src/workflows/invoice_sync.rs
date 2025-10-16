@@ -294,17 +294,17 @@ pub async fn perform_subscription_invoice_sync(
     .await
     {
         logger::error!(?e, "Error in transitioning workflow state");
-            retry_subscription_invoice_sync_task(
-                &*handler.state.store,
-                handler.tracking_data.connector_name.to_string().clone(),
-                handler.merchant_account.get_id().to_owned(),
-                process,
-            )
-            .await
-            .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                operation: "Invoice_sync process_tracker task retry".to_string(),
-            })
-            .attach_printable("Failed to update process tracker status")?;
+        retry_subscription_invoice_sync_task(
+            &*handler.state.store,
+            handler.tracking_data.connector_name.to_string().clone(),
+            handler.merchant_account.get_id().to_owned(),
+            process,
+        )
+        .await
+        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+            operation: "Invoice_sync process_tracker task retry".to_string(),
+        })
+        .attach_printable("Failed to update process tracker status")?;
     };
 
     Ok(())
