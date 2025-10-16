@@ -7776,6 +7776,61 @@
           }
         }
       },
+      "ApplePayDecrypt": {
+        "type": "object",
+        "required": [
+          "dpan",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "dpan": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
+      },
+      "ApplePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Apple pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
       "ApplePayPaymentData": {
         "oneOf": [
           {
@@ -12178,6 +12233,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -19541,13 +19597,62 @@
         }
       },
       "NextActionCall": {
-        "type": "string",
-        "enum": [
-          "post_session_tokens",
-          "confirm",
-          "sync",
-          "complete_authorize",
-          "await_merchant_callback"
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "The next action call is Post Session Tokens",
+            "enum": [
+              "post_session_tokens"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is confirm",
+            "enum": [
+              "confirm"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is sync",
+            "enum": [
+              "sync"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is Complete Authorize",
+            "enum": [
+              "complete_authorize"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action is to await for a merchant callback",
+            "enum": [
+              "await_merchant_callback"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "deny"
+            ],
+            "properties": {
+              "deny": {
+                "type": "object",
+                "description": "The next action is to deny the payment with an error message",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         ]
       },
       "NextActionData": {
@@ -19688,6 +19793,25 @@
                 "type": "string",
                 "enum": [
                   "fetch_qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains the SDK UPI intent URI for payment processing",
+            "required": [
+              "sdk_uri",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sdk_upi_intent_information"
                 ]
               }
             }
@@ -22555,6 +22679,7 @@
           "twint",
           "upi_collect",
           "upi_intent",
+          "upi_qr",
           "vipps",
           "viet_qr",
           "venmo",
@@ -24531,14 +24656,17 @@
       },
       "PaymentsEligibilityResponse": {
         "type": "object",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
         "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
           "sdk_next_action": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SdkNextAction"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -26918,7 +27046,8 @@
           "payone",
           "paypal",
           "stripe",
-          "wise"
+          "wise",
+          "worldpay"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -28195,6 +28324,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -28225,6 +28360,40 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "client_token": {
+            "type": "string",
+            "description": "Authorization token used by client to initiate sdk",
+            "nullable": true
+          },
+          "transaction_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalTransactionInfo"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaypalTransactionInfo": {
+        "type": "object",
+        "required": [
+          "flow",
+          "currency_code",
+          "total_price"
+        ],
+        "properties": {
+          "flow": {
+            "$ref": "#/components/schemas/PaypalFlow"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total_price": {
+            "type": "string",
+            "description": "Total price",
+            "example": "38.02"
           }
         }
       },
@@ -29029,6 +29198,11 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -29385,6 +29559,11 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
           }
         }
@@ -30623,6 +30802,7 @@
           "ebanx",
           "elavon",
           "facilitapay",
+          "finix",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -32896,6 +33076,17 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
@@ -32943,10 +33134,24 @@
                 "$ref": "#/components/schemas/UpiIntentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_qr"
+            ],
+            "properties": {
+              "upi_qr": {
+                "$ref": "#/components/schemas/UpiQrData"
+              }
+            }
           }
         ]
       },
       "UpiIntentData": {
+        "type": "object"
+      },
+      "UpiQrData": {
         "type": "object"
       },
       "UpiResponse": {
@@ -33321,6 +33526,17 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypt"
+            ],
+            "properties": {
+              "apple_pay_decrypt": {
+                "$ref": "#/components/schemas/ApplePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -33349,6 +33565,9 @@
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"

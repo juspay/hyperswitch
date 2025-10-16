@@ -326,9 +326,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
-            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent => {
-                Self::Upi
-            }
+            api_enums::PaymentMethodType::UpiCollect
+            | api_enums::PaymentMethodType::UpiIntent
+            | api_enums::PaymentMethodType::UpiQr => Self::Upi,
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
@@ -1220,6 +1220,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
+            api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
         }
     }
 }
@@ -2014,6 +2015,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: None,
         }
     }
 }
