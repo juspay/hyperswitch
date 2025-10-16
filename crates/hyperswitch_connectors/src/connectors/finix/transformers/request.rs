@@ -50,6 +50,45 @@ pub struct FinixIdentityEntity {
     pub personal_address: Option<FinixAddress>,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct FinixApplePayPaymentToken {
+    pub token: FinixApplePayToken,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayHeader {
+    pub public_key_hash: String,
+    pub ephemeral_public_key: String,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: FinixApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayToken {
+    pub payment_data: FinixApplePayEncryptedData,
+    pub payment_method: FinixApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(rename = "type")]
@@ -155,6 +194,10 @@ pub enum FinixPaymentInstrumentType {
 
     #[serde(rename = "BANK_ACCOUNT")]
     BankAccount,
+
+    #[serde(rename = "APPLE_PAY")]
+    ApplePay,
+
     #[serde(other)]
     Unknown,
 }

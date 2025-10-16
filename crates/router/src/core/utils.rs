@@ -1,3 +1,4 @@
+pub mod customer_validation;
 pub mod refunds_transformers;
 pub mod refunds_validator;
 

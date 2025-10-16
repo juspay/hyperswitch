@@ -4808,6 +4808,61 @@
           }
         }
       },
+      "ApplePayDecrypt": {
+        "type": "object",
+        "required": [
+          "dpan",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "dpan": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          }
+        }
+      },
+      "ApplePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Apple pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
       "ApplePayPaymentData": {
         "oneOf": [
           {
@@ -21075,7 +21130,8 @@
           "payone",
           "paypal",
           "stripe",
-          "wise"
+          "wise",
+          "worldpay"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -22720,6 +22776,11 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23026,6 +23087,11 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
           }
         }
@@ -27002,6 +27068,17 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypt"
+            ],
+            "properties": {
+              "apple_pay_decrypt": {
+                "$ref": "#/components/schemas/ApplePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -27030,6 +27107,9 @@
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"

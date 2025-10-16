@@ -2684,6 +2684,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                         receiver,
                     }
                 }
+                WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
