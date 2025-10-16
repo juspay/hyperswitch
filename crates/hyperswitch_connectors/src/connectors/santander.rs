@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     consts::NO_ERROR_MESSAGE,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentsUpdateMetadataType, RefreshTokenType, Response},
+    types::{self, RefreshTokenType, Response},
     webhooks,
 };
 use masking::{Maskable, PeekInterface, Secret};
@@ -181,7 +181,6 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
             req.request.minor_amount,
             req.request.currency,
         )?;
-
         let connector_router_data = santander::SantanderRouterData::from((amount, req));
         let connector_req = santander::SantanderPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -218,22 +217,15 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsUpdateMetadataRouterData, errors::ConnectorError> {
-        let response: santander::SantanderUpdateBoletoResponse = res
+        let response: santander::SantanderPaymentsResponse = res
             .response
-            .parse_struct("Santander UpdateMetadata")
+            .parse_struct("Santander UpdateMetadataResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        // If 200 status code, then metadata was updated successfully.
-        let status = if res.status_code == 200
-            && matches!(response.message, Some(ref msg) if msg == "Change made successfully")
-        {
-            common_enums::PaymentResourceUpdateStatus::Success
-        } else {
-            common_enums::PaymentResourceUpdateStatus::Failure
-        };
 
-        Ok(PaymentsUpdateMetadataRouterData {
-            response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
-            ..data.clone()
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
         })
     }
 

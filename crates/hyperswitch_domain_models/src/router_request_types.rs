@@ -218,6 +218,7 @@ pub struct PaymentsUpdateMetadataData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

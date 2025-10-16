@@ -1848,3 +1848,120 @@ pub(crate) fn get_santander_webhook_event(
         FunctionType::Estorno => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
     }
 }
+
+impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>> for SantanderPaymentRequest {
+    type Error = Error;
+    fn try_from(
+        value: &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
+    ) -> Result<Self, Self::Error> {
+        // if value.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
+        //     return Err(errors::ConnectorError::FlowNotSupported {
+        //         flow: format!("{:?}", value.router_data.request.capture_method),
+        //         connector: "Santander".to_string(),
+        //     }
+        //     .into());
+        // }
+        match value.router_data.request.payment_method_data.clone() {
+            Some(PaymentMethodData::BankTransfer(ref bank_transfer_data)) => {
+                Self::try_from((value, bank_transfer_data.as_ref()))
+            }
+            // Some(PaymentMethodData::Voucher(ref voucher_data)) => Self::try_from((value, voucher_data)),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
+            ))?,
+        }
+    }
+}
+
+impl
+    TryFrom<(
+        &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
+        &BankTransferData,
+    )> for SantanderPaymentRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
+            &BankTransferData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let santander_mca_metadata =
+            SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
+
+        let (calendar, debtor) = match &value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|f| f.pix_qr_expiry_time.as_ref())
+        {
+            Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
+                let cal =
+                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                        expiration: val.time,
+                    });
+                let debt = Some(SantanderDebtor {
+                    cnpj: Some(santander_mca_metadata.cnpj.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cpf: None,
+                });
+
+                (cal, debt)
+            }
+            Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
+                let cal =
+                    SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
+                        expiration_date: val.date.clone(),
+                        validity_after_expiration: val.validity_after_expiration,
+                    });
+
+                let debt = Some(SantanderDebtor {
+                    cpf: Some(santander_mca_metadata.cpf.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cnpj: None,
+                });
+
+                (cal, debt)
+            }
+            None => {
+                let cal =
+                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                        expiration: 3600, // default 1 hour
+                    });
+
+                let debt = Some(SantanderDebtor {
+                    cnpj: Some(santander_mca_metadata.cpf.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cpf: None,
+                });
+
+                (cal, debt)
+            }
+        };
+
+        Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
+            calendar,
+            debtor,
+            value: SantanderValue {
+                original: value.0.amount.to_owned(),
+            },
+            key: santander_mca_metadata.pix_key.clone(),
+            request_payer: None,
+            additional_info: None,
+        })))
+    }
+}
