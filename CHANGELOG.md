@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.15.0-hotfix1
+
+### Features
+
+- **payouts:** Apple pay decrypt payout ([#9875](https://github.com/juspay/hyperswitch/pull/9875)) ([`4b27e11`](https://github.com/juspay/hyperswitch/commit/4b27e1186cb48fbec420fdbd4a42b32e2c17accf))
+
+**Full Changelog:** [`2025.10.15.0...2025.10.15.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.15.0...2025.10.15.0-hotfix1)
+
+- - -
+
 ## 2025.10.15.0
 
 ### Features
