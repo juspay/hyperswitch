@@ -1213,7 +1213,7 @@ id = "12345"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource"
+connector_list = "adyen,cybersource,peachpayments"
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]

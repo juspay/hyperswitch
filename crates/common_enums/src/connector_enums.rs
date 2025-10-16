@@ -74,6 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -250,6 +251,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
