@@ -3150,17 +3150,20 @@ pub enum GiftCardData {
     BhnCardNetwork(BHNGiftCardDetails),
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BalanceCheckPaymentMethodData {
     GiftCard(GiftCardData),
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataRequest {
     pub payment_methods: Vec<BalanceCheckPaymentMethodData>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataResponse {
     pub remaining_amount: MinorUnit,
@@ -3168,6 +3171,7 @@ pub struct ApplyPaymentMethodDataResponse {
     pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataSurchargeResponseItem {
     #[schema(value_type = PaymentMethod)]

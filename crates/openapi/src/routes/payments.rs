@@ -1333,7 +1333,7 @@ pub fn payment_check_gift_card_balance() {}
       content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Get the Payment Method Balance", body = ApplyPaymentMethodDataResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = ApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",

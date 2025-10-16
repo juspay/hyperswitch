@@ -2692,7 +2692,7 @@
         },
         "responses": {
           "200": {
-            "description": "Get the Payment Method Balance",
+            "description": "Apply the Payment Method Data",
             "content": {
               "application/json": {
                 "schema": {
