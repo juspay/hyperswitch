@@ -1,6 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -55,7 +54,7 @@ use crate::{
     utils::convert_amount,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Zsl {
     amount_convertor: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }

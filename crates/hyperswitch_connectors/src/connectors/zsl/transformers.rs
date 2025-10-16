@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method, types::{StringMinorUnit, StringMinorUnitForConnector, AmountConvertor, MinorUnit}};
+use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
     types,
 };
-use hyperswitch_interfaces::{api, consts::NO_ERROR_CODE, errors};
+use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_unimplemented_payment_method_error_message,
+        get_unimplemented_payment_method_error_message,
         PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
