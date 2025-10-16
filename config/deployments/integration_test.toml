@@ -910,7 +910,7 @@ connector_list = "tokenio"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource"
+connector_list = "adyen,cybersource,peachpayments"
 
 [platform]
 enabled = true

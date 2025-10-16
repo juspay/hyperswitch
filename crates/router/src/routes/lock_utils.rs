@@ -91,6 +91,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ConfirmSubscription
             | Flow::CreateAndConfirmSubscription
             | Flow::GetSubscription
+            | Flow::UpdateSubscription
             | Flow::GetSubscriptionEstimate
             | Flow::GetPlansForSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,

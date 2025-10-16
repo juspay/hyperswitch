@@ -578,6 +578,10 @@ pub fn build_unified_connector_service_payment_method(
                     let upi_details = payments_grpc::UpiIntent { app_name: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
+                    let upi_details = payments_grpc::UpiQr {};
+                    PaymentMethod::UpiQr(upi_details)
+                }
             };
 
             Ok(payments_grpc::PaymentMethod {
@@ -807,17 +811,6 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> UnifiedConnectorServiceResult {
-    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
-
-    let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
-
-    Ok((router_data_response, status_code))
-}
-
-pub fn handle_unified_connector_service_response_for_payment_get(
-    response: payments_grpc::PaymentServiceGetResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
