@@ -1747,57 +1747,58 @@ where
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
-    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
-        let shipping_address = unified_address.get_shipping();
-        let billing_address = unified_address.get_payment_billing();
-        let merchant_tax_registration_id = merchant_context
-            .get_merchant_account()
-            .get_merchant_tax_registration_id();
+    let l2_l3_data =
+        (state.conf.l2_l3_data_config.enabled && payment_data.is_l2_l3_enabled).then(|| {
+            let shipping_address = unified_address.get_shipping();
+            let billing_address = unified_address.get_payment_billing();
+            let merchant_tax_registration_id = merchant_context
+                .get_merchant_account()
+                .get_merchant_tax_registration_id();
 
-        types::L2L3Data {
-            order_date: payment_data.payment_intent.order_date,
-            tax_status: payment_data.payment_intent.tax_status,
-            customer_tax_registration_id: customer.as_ref().and_then(|c| {
-                c.tax_registration_id
+            types::L2L3Data {
+                order_date: payment_data.payment_intent.order_date,
+                tax_status: payment_data.payment_intent.tax_status,
+                customer_tax_registration_id: customer.as_ref().and_then(|c| {
+                    c.tax_registration_id
+                        .as_ref()
+                        .map(|e| e.clone().into_inner())
+                }),
+                order_details: order_details.clone(),
+                discount_amount: payment_data.payment_intent.discount_amount,
+                shipping_cost: payment_data.payment_intent.shipping_cost,
+                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                duty_amount: payment_data.payment_intent.duty_amount,
+                order_tax_amount: payment_data
+                    .payment_attempt
+                    .net_amount
+                    .get_order_tax_amount(),
+                merchant_order_reference_id: payment_data
+                    .payment_intent
+                    .merchant_order_reference_id
+                    .clone(),
+                customer_id: payment_data.payment_intent.customer_id.clone(),
+                shipping_origin_zip: shipping_address
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.origin_zip.clone()),
+                shipping_state: shipping_address
                     .as_ref()
-                    .map(|e| e.clone().into_inner())
-            }),
-            order_details: order_details.clone(),
-            discount_amount: payment_data.payment_intent.discount_amount,
-            shipping_cost: payment_data.payment_intent.shipping_cost,
-            shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-            duty_amount: payment_data.payment_intent.duty_amount,
-            order_tax_amount: payment_data
-                .payment_attempt
-                .net_amount
-                .get_order_tax_amount(),
-            merchant_order_reference_id: payment_data
-                .payment_intent
-                .merchant_order_reference_id
-                .clone(),
-            customer_id: payment_data.payment_intent.customer_id.clone(),
-            shipping_origin_zip: shipping_address
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.origin_zip.clone()),
-            shipping_state: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.state.clone()),
-            shipping_country: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.country),
-            shipping_destination_zip: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.zip.clone()),
-            billing_address_city: billing_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.city.clone()),
-            merchant_tax_registration_id,
-        }
-    });
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.state.clone()),
+                shipping_country: shipping_address
+                    .as_ref()
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.country),
+                shipping_destination_zip: shipping_address
+                    .as_ref()
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.zip.clone()),
+                billing_address_city: billing_address
+                    .as_ref()
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.city.clone()),
+                merchant_tax_registration_id,
+            }
+        });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
     let router_data = types::RouterData {
