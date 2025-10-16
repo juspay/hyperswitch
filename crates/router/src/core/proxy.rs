@@ -95,13 +95,11 @@ async fn execute_proxy_request(
     let content_type_string = headers
         .iter()
         .find(|(key, _)| key.to_lowercase() == "content-type")
-        .map(|(_, value)| {
-            match value {
-                masking::Maskable::Normal(s) => s.clone(),
-                masking::Maskable::Masked(secret) => {
-                    use masking::ExposeInterface;
-                    secret.clone().expose()
-                }
+        .map(|(_, value)| match value {
+            masking::Maskable::Normal(s) => s.clone(),
+            masking::Maskable::Masked(secret) => {
+                use masking::ExposeInterface;
+                secret.clone().expose()
             }
         })
         .unwrap_or_else(|| "application/json".to_string());
@@ -154,26 +152,27 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
 
     fn try_from(wrapper: ProxyResponseWrapper) -> Result<Self, Self::Error> {
         let res = wrapper.0;
-        
+
         let response_body: Value = if res.response.is_empty() {
             // Handle empty response
             Value::Null
         } else {
             // Check content-type header to determine parsing strategy
-            let content_type = res.headers
+            let content_type = res
+                .headers
                 .as_ref()
                 .and_then(|h| h.get("content-type"))
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
-            
+
             if content_type.contains("application/json") {
                 // Try to parse as JSON for JSON content type
                 match serde_json::from_slice::<Value>(&res.response) {
                     Ok(json_value) => json_value,
-                    Err(_) => {
-                        Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
-                            .attach_printable("Failed to parse JSON response")?
-                    }
+                    Err(_) => Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InternalServerError,
+                    ))
+                    .attach_printable("Failed to parse JSON response")?,
                 }
             } else {
                 // Try to parse as JSON first, fallback to string if it fails
@@ -184,8 +183,12 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
                         match std::str::from_utf8(&res.response) {
                             Ok(string_value) => Value::String(string_value.to_string()),
                             Err(_) => {
-                                return Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
-                                    .attach_printable("Response is neither valid JSON nor valid UTF-8 string");
+                                return Err(error_stack::Report::new(
+                                    errors::ApiErrorResponse::InternalServerError,
+                                ))
+                                .attach_printable(
+                                    "Response is neither valid JSON nor valid UTF-8 string",
+                                );
                             }
                         }
                     }

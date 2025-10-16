@@ -356,6 +356,7 @@ pub async fn make_card_network_tokenization_request(
         network_token: resp.token,
         network_token_exp_month: resp.token_expiry_month,
         network_token_exp_year: resp.token_expiry_year,
+        payment_account_reference: None,
         card_issuer: card.card_issuer.clone(),
         card_network: Some(resp.card_brand),
         card_type: card.card_type.clone(),

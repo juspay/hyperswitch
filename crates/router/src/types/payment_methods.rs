@@ -57,6 +57,16 @@ pub struct AddVaultResponse {
     pub entity_id: Option<id_type::GlobalCustomerId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
+    pub multi_vault_token: Option<MultiVaultTokenData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultiVaultTokenData {
+    pub payment_token: Secret<String>,
+    pub payment_account_reference: Secret<String>,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
 }
 
 #[cfg(feature = "v2")]

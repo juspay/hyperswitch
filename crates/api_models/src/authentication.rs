@@ -83,7 +83,30 @@ pub struct PostAuthenticationRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PostAuthenticationResponse {
     pub authentication_status: common_enums::AuthenticationStatus,
-    pub tokenization_id: Option<id_type::GlobalTokenId>,
+    pub tokenization_data: Option<PostAuthTokenizationData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum PostAuthTokenizationData {
+    SingleTokenData(SingleTokenData),
+    MultiTokenData(MultiTokenData),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct SingleTokenData {
+    pub tokenization_id: id_type::GlobalTokenId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MultiTokenData {
+    pub payment_token: Secret<String>,
+    pub payment_account_reference: Secret<String>,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
 }
 
 #[cfg(feature = "v2")]

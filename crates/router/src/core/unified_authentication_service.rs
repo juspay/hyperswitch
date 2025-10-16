@@ -2228,36 +2228,133 @@ pub async fn post_authentication_core(
     .await?;
 
     //tokenize when authentication is successful
-    let token_id = if let Ok(res) = post_auth_response.response.clone() {
-        let cell_id_string = "12345";
-        let cell_id = common_utils::id_type::CellId::from_str(cell_id_string).unwrap();
-
+    let tokenization_data = if let Ok(res) = post_auth_response.response.clone() {
         let tokenization_data = res.get_token_details_from_post_authentication_data();
 
-        if let Some(data) = tokenization_data {
-            use crate::services;
+        let config_key: &str = "is_external_vault_enabled";
 
-            let tokenization_response = super::tokenization::create_vault_token_core(
-                state,
-                merchant_account,
-                merchant_context.get_merchant_key_store(),
-                api_models::tokenization::GenericTokenizationRequest {
-                    customer_id: common_utils::id_type::GlobalCustomerId::generate(&cell_id),
-                    token_request: masking::Secret::new(serde_json::json!({
-                        "network_token": data.payment_token,
-                        "expiry_month": data.token_expiration_month,
-                        "expiry_year": data.token_expiration_year,
-                    })),
-                },
-            )
-            .await?;
-            if let services::ApplicationResponse::Json(resp) = tokenization_response {
-                Some(resp.id)
+        let is_external_vault_enabled = db
+            .find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+            .await
+            .inspect_err(|error| {
+                router_env::logger::error!(?error, "Failed to fetch `{config_key}` from DB");
+            })
+            .ok()
+            .and_then(|config| {
+                config
+                    .config
+                    .parse::<bool>()
+                    .inspect_err(|error| {
+                        router_env::logger::error!(?error, "Failed to parse `{config_key}`");
+                    })
+                    .ok()
+            })
+            .unwrap_or(false);
+
+        if is_external_vault_enabled {
+            if let Some(data) = tokenization_data {
+                use crate::core::{payment_methods::vault_payment_method_external, payments};
+
+                let external_vault_source: common_utils::id_type::MerchantConnectorAccountId =
+                    profile
+                        .external_vault_connector_details
+                        .clone()
+                        .map(|connector_details| connector_details.vault_connector_id.clone())
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable("mca_id not present for external vault")?;
+
+                let merchant_connector_account =
+                    domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                        payments::helpers::get_merchant_connector_account_v2(
+                            &state,
+                            merchant_context.get_merchant_key_store(),
+                            Some(&external_vault_source),
+                        )
+                        .await
+                        .attach_printable(
+                            "failed to fetch merchant connector account for external vault insert for post authentication",
+                        )?,
+                    ));
+
+                let vault_data =
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                        hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
+                            network_token: data.payment_token.to_network_token(),
+                            network_token_exp_month: data.token_expiration_month,
+                            network_token_exp_year: data.token_expiration_year,
+                            payment_account_reference: Some(data.payment_account_reference),
+                            card_issuer: None,
+                            card_network: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            card_holder_name: None,
+                            nick_name: None,
+                        },
+                    );
+
+                let external_vault_response = vault_payment_method_external(
+                    &state,
+                    &vault_data,
+                    merchant_account,
+                    merchant_connector_account,
+                )
+                .await?;
+
+                if let Some(multi_vault_token) = external_vault_response.multi_vault_token {
+                    Some(
+                        api_models::authentication::PostAuthTokenizationData::MultiTokenData(
+                            api_models::authentication::MultiTokenData {
+                                payment_token: multi_vault_token.payment_token,
+                                payment_account_reference: multi_vault_token
+                                    .payment_account_reference,
+                                token_expiration_month: multi_vault_token.token_expiration_month,
+                                token_expiration_year: multi_vault_token.token_expiration_year,
+                            },
+                        ),
+                    )
+                } else {
+                    router_env::logger::error!("Unexpected Behaviour, Multi Token Data is missing");
+                    None
+                }
             } else {
+                router_env::logger::warn!("Token Data for External Vault Insert is not present");
                 None
             }
         } else {
-            None
+            let cell_id_string = "12345";
+            let cell_id = common_utils::id_type::CellId::from_str(cell_id_string).unwrap();
+
+            if let Some(data) = tokenization_data {
+                use crate::services;
+
+                let tokenization_response = super::tokenization::create_vault_token_core(
+                    state,
+                    merchant_account,
+                    merchant_context.get_merchant_key_store(),
+                    api_models::tokenization::GenericTokenizationRequest {
+                        customer_id: common_utils::id_type::GlobalCustomerId::generate(&cell_id),
+                        token_request: masking::Secret::new(serde_json::json!({
+                            "network_token": data.payment_token,
+                            "expiry_month": data.token_expiration_month,
+                            "expiry_year": data.token_expiration_year,
+                        })),
+                    },
+                )
+                .await?;
+                if let services::ApplicationResponse::Json(resp) = tokenization_response {
+                    Some(
+                        api_models::authentication::PostAuthTokenizationData::SingleTokenData(
+                            api_models::authentication::SingleTokenData {
+                                tokenization_id: resp.id,
+                            },
+                        ),
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         }
     } else {
         None
@@ -2267,7 +2364,7 @@ pub async fn post_authentication_core(
         Ok(_response) => Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
             api_models::authentication::PostAuthenticationResponse {
                 authentication_status: updated_authentication.authentication_status,
-                tokenization_id: token_id,
+                tokenization_data,
             },
         )),
         Err(error_response) => Err(ApiErrorResponse::ExternalConnectorError {
