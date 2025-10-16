@@ -11146,7 +11146,7 @@ impl EligibilityCheck for BlockListCheck {
     }
 }
 
-// Perform Blocklist Check for the Card Number provided in Payment Method Data
+// Perform Card Testing Gaurd Check
 #[cfg(feature = "v1")]
 struct CardTestingCheck;
 
