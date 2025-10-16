@@ -2150,10 +2150,13 @@ fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(http_url: Option<String>, https_url: Option<String>) -> Option<ProxyOverride> {
+fn create_proxy_override(
+    http_url: Option<String>,
+    https_url: Option<String>,
+) -> Option<ProxyOverride> {
     let validated_http = validate_proxy_url(http_url, "HTTP");
     let validated_https = validate_proxy_url(https_url, "HTTPS");
-    
+
     if validated_http.is_some() || validated_https.is_some() {
         if let Some(ref http_url) = validated_http {
             logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
@@ -2184,7 +2187,7 @@ pub async fn should_execute_based_on_rollout(
                 Ok(config) => Ok(config),
                 Err(err) => {
                     logger::debug!(
-                        error = ?err, 
+                        error = ?err,
                         config = %rollout_config.config,
                         "Config not in JSON format, trying legacy float format"
                     );
@@ -2209,7 +2212,8 @@ pub async fn should_execute_based_on_rollout(
                             rollout_percent = config.rollout_percent,
                             "Rollout percent out of bounds. Must be between 0.0 and 1.0"
                         );
-                        let proxy_override = create_proxy_override(config.http_url, config.https_url);
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
 
                         return Ok(RolloutExecutionResult {
                             should_execute: false,
