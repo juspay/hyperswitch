@@ -875,12 +875,14 @@ pub struct ProxyStatusMapping {
 #[serde(default)]
 pub struct TraceHeaderConfig {
     pub header_name: String,
+    pub id_reuse_strategy: router_env::IdReuse,
 }
 
 impl Default for TraceHeaderConfig {
     fn default() -> Self {
         Self {
-            header_name: "x-request-id".to_string(),
+            header_name: common_utils::consts::X_REQUEST_ID.to_string(),
+            id_reuse_strategy: router_env::IdReuse::IgnoreIncoming,
         }
     }
 }

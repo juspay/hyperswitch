@@ -1,53 +1,70 @@
-//! Custom RootSpanBuilder for integrating actix-request-identifier with tracing-actix-web
+//! Custom RootSpanBuilder tracing-actix-web
 
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-    Error, HttpMessage,
+    http::StatusCode,
+    Error, HttpMessage, ResponseError,
 };
 use tracing::Span;
-use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder};
+use tracing_actix_web::{root_span, RootSpanBuilder};
+
+use crate::request_id::RequestId;
 
 /// Custom RootSpanBuilder that captures x-request-id header in spans
-/// This integrates actix-request-identifier's request ID with tracing-actix-web's spans
 #[derive(Debug)]
-pub struct RequestIdRootSpanBuilder;
+pub struct CustomRootSpanBuilder;
 
-impl RootSpanBuilder for RequestIdRootSpanBuilder {
+impl RootSpanBuilder for CustomRootSpanBuilder {
     fn on_request_start(request: &ServiceRequest) -> Span {
-        // Extract request_id from request extensions (set by RequestIdentifier middleware)
+        // Extract the RequestId from extensions (set by RequestIdentifier middleware)
+        // We clone the string to avoid lifetime issues with the temporary Ref guard
         let request_id = request
             .extensions()
-            .get::<crate::RequestId>()
+            .get::<RequestId>()
             .map(|id| id.to_string())
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_default();
 
-        // Create a custom root span instead of using the root_span! macro
-        // This avoids the macro's automatic request_id generation
-        tracing::info_span!(
-            "HTTP request",
-            http.method = %request.method(),
-            http.route = %request.match_pattern().unwrap_or("unknown".to_string()),
-            http.flavor = ?request.version(),
-            http.scheme = %request.connection_info().scheme(),
-            http.host = %request.connection_info().host(),
-            http.client_ip = %request.connection_info().peer_addr().unwrap_or("unknown"),
-            http.user_agent = %request.headers().get("user-agent")
-                .and_then(|h| h.to_str().ok())
-                .unwrap_or(""),
-            http.target = %request.uri().path_and_query()
-                .map(|pq| pq.as_str())
-                .unwrap_or(request.uri().path()),
-            otel.name = %format!("{} {}", request.method(),
-                request.match_pattern().unwrap_or(request.uri().path().to_string())),
-            otel.kind = "server",
-            request_id = %request_id,
-            trace_id = tracing::field::Empty
+        root_span!(
+            level = crate::Level::INFO,
+            request,
+            request_id = request_id.as_str()
         )
     }
 
     fn on_request_end<B: MessageBody>(span: Span, outcome: &Result<ServiceResponse<B>, Error>) {
-        // Delegate to default implementation for response handling
-        DefaultRootSpanBuilder::on_request_end(span, outcome);
+        match &outcome {
+            Ok(response) => {
+                if let Some(error) = response.response().error() {
+                    // use the status code already constructed for the outgoing HTTP response
+                    handle_error(span, response.status(), error.as_response_error());
+                } else {
+                    let code: i32 = response.response().status().as_u16().into();
+                    span.record("http.status_code", code);
+                    span.record("otel.status_code", "OK");
+                }
+            }
+            Err(error) => {
+                let response_error = error.as_response_error();
+                handle_error(span, response_error.status_code(), response_error);
+            }
+        };
+    }
+}
+
+fn handle_error(span: Span, status_code: StatusCode, response_error: &dyn ResponseError) {
+    // pre-formatting errors is a workaround for https://github.com/tokio-rs/tracing/issues/1565
+    let display = format!("{response_error}");
+    let debug = format!("{response_error:?}");
+    span.record("exception.message", tracing::field::display(display));
+    span.record("exception.details", tracing::field::display(debug));
+    let code: i32 = status_code.as_u16().into();
+
+    span.record("http.status_code", code);
+
+    if status_code.is_client_error() {
+        span.record("otel.status_code", "OK");
+    } else {
+        span.record("otel.status_code", "ERROR");
     }
 }

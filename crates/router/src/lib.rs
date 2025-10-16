@@ -404,16 +404,17 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(router_env::tracing_actix_web::TracingLogger::<
-            router_env::RequestIdRootSpanBuilder,
-        >::new())
-        .wrap(middleware::LogSpanInitializer)
-        .wrap(middleware::RequestResponseMetrics)
-        .wrap(middleware::AddAcceptLanguageHeader)
-        .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(cors::cors(cors))
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::AddAcceptLanguageHeader)
+        .wrap(middleware::RequestResponseMetrics)
+        .wrap(middleware::LogSpanInitializer)
+        .wrap(router_env::tracing_actix_web::TracingLogger::<
+            router_env::CustomRootSpanBuilder,
+        >::new())
         .wrap(
             router_env::RequestIdentifier::new(&trace_header.header_name)
-                .use_incoming_id(router_env::IdReuse::UseIncoming),
+                .use_incoming_id(trace_header.id_reuse_strategy),
         )
 }

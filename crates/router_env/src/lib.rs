@@ -26,7 +26,7 @@ pub use opentelemetry;
 #[cfg(feature = "actix_web")]
 pub use request_id::{IdReuse, RequestId, RequestIdentifier};
 #[cfg(feature = "actix_web")]
-pub use root_span::RequestIdRootSpanBuilder;
+pub use root_span::CustomRootSpanBuilder;
 pub use tracing;
 #[cfg(feature = "actix_web")]
 pub use tracing_actix_web;

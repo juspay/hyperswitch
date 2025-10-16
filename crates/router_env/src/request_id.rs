@@ -43,7 +43,6 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     Error as ActixError, FromRequest, HttpMessage, HttpRequest,
 };
-use tracing::Instrument;
 use uuid::Uuid;
 
 /// Custom result type for request ID operations.
@@ -75,12 +74,13 @@ impl Display for Error {
 }
 
 /// Configuration for handling incoming request ID headers.
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum IdReuse {
     /// Reuse the incoming request ID if present, otherwise generate a new one.
-    #[default]
     UseIncoming,
     /// Always generate a new request ID, ignoring any incoming headers.
+    #[default]
     IgnoreIncoming,
 }
 
@@ -327,28 +327,26 @@ where
         });
 
         // Store request ID for extraction in handlers
-        request.extensions_mut().insert(request_id);
+        request.extensions_mut().insert(request_id.clone());
 
         let fut = self.service.call(request);
-        Box::pin(
-            async move {
-                // Log incoming request IDs for correlation
-                if let Some(upstream_request_id) = incoming_request_id {
-                    tracing::debug!(
-                        ?upstream_request_id,
-                        "Received upstream request ID for correlation"
-                    );
-                }
 
-                let mut response = fut.await?;
-
-                // Add request ID to response headers
-                response.headers_mut().insert(header_name, header_value);
-
-                Ok(response)
+        Box::pin(async move {
+            // Log incoming request IDs for correlation
+            if let Some(upstream_request_id) = incoming_request_id {
+                tracing::debug!(
+                    ?upstream_request_id,
+                    "Received upstream request ID for correlation"
+                );
             }
-            .in_current_span(),
-        )
+
+            let mut response = fut.await?;
+
+            // Add request ID to response headers
+            response.headers_mut().insert(header_name, header_value);
+
+            Ok(response)
+        })
     }
 }
 
