@@ -1,8 +1,9 @@
 use api_models::subscription as subscription_types;
 use common_utils::{ext_traits::BytesExt, request as services};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api_client as api;
 
-use crate::{core::errors, headers, routes::SessionState, services::api};
+use crate::{core::errors, helpers, state::SubscriptionState as SessionState};
 
 pub struct PaymentsApiClient;
 
@@ -27,7 +28,7 @@ impl PaymentsApiClient {
     ) -> Vec<(String, masking::Maskable<String>)> {
         vec![
             (
-                headers::X_INTERNAL_API_KEY.to_string(),
+                helpers::X_INTERNAL_API_KEY.to_string(),
                 masking::Maskable::Masked(
                     state
                         .conf
@@ -37,11 +38,15 @@ impl PaymentsApiClient {
                 ),
             ),
             (
-                headers::X_MERCHANT_ID.to_string(),
+                helpers::X_TENANT_ID.to_string(),
+                masking::Maskable::Normal(state.tenant.tenant_id.get_string_repr().to_string()),
+            ),
+            (
+                helpers::X_MERCHANT_ID.to_string(),
                 masking::Maskable::Normal(merchant_id.to_string()),
             ),
             (
-                headers::X_PROFILE_ID.to_string(),
+                helpers::X_PROFILE_ID.to_string(),
                 masking::Maskable::Normal(profile_id.to_string()),
             ),
         ]
@@ -56,7 +61,7 @@ impl PaymentsApiClient {
         operation_name: &str,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let subscription_error = errors::ApiErrorResponse::SubscriptionError {
             operation: operation_name.to_string(),
         };
@@ -107,7 +112,7 @@ impl PaymentsApiClient {
         request: subscription_types::CreatePaymentsRequestData,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments", base_url);
 
@@ -130,7 +135,7 @@ impl PaymentsApiClient {
         request: subscription_types::CreateAndConfirmPaymentsRequestData,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments", base_url);
 
@@ -154,7 +159,7 @@ impl PaymentsApiClient {
         payment_id: String,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments/{}/confirm", base_url, payment_id);
 
@@ -177,7 +182,7 @@ impl PaymentsApiClient {
         payment_id: String,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments/{}", base_url, payment_id);
 
@@ -198,7 +203,7 @@ impl PaymentsApiClient {
         request: subscription_types::CreateMitPaymentRequestData,
         merchant_id: &str,
         profile_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments", base_url);
 
@@ -210,6 +215,30 @@ impl PaymentsApiClient {
                 request,
             ))),
             "Create MIT Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
+
+    pub async fn update_payment(
+        state: &SessionState,
+        request: subscription_types::CreatePaymentsRequestData,
+        payment_id: String,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments/{}", base_url, payment_id);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Update Payment",
             merchant_id,
             profile_id,
         )

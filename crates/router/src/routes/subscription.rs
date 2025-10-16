@@ -15,7 +15,7 @@ use router_env::{
 };
 
 use crate::{
-    core::{api_locking, subscription},
+    core::api_locking,
     headers::X_PROFILE_ID,
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
@@ -71,8 +71,8 @@ pub async fn create_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_subscription(
-                state,
+            subscriptions::create_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -125,8 +125,8 @@ pub async fn confirm_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::confirm_subscription(
-                state,
+            subscriptions::confirm_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -174,7 +174,12 @@ pub async fn get_subscription_plans(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_subscription_plans(state, merchant_context, profile_id.clone(), query)
+            subscriptions::get_subscription_plans(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                query,
+            )
         },
         auth::auth_type(
             &*auth_type,
@@ -211,8 +216,8 @@ pub async fn get_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_subscription(
-                state,
+            subscriptions::get_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 subscription_id.clone(),
@@ -253,8 +258,8 @@ pub async fn create_and_confirm_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_and_confirm_subscription(
-                state,
+            subscriptions::create_and_confirm_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -304,9 +309,48 @@ pub async fn get_estimate(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_estimate(state, merchant_context, profile_id.clone(), query)
+            subscriptions::get_estimate(state.into(), merchant_context, profile_id.clone(), query)
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn update_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+    json_payload: web::Json<subscription_types::UpdateSubscriptionRequest>,
+) -> impl Responder {
+    let flow = Flow::UpdateSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscriptions::update_subscription(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+                payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await

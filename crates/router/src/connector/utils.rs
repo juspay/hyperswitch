@@ -180,31 +180,13 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_enabled = *payment_data
-                    .payment_attempt
-                    .is_overcapture_enabled
-                    .as_deref()
-                    .unwrap_or(&false);
 
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
-                    || (is_overcapture_enabled
-                        && captured_amount.is_some_and(|captured_amount| {
-                            MinorUnit::new(captured_amount) > total_capturable_amount
-                        }))
+                    || (captured_amount.is_some_and(|captured_amount| {
+                        MinorUnit::new(captured_amount) > total_capturable_amount
+                    }))
                 {
                     Ok(enums::AttemptStatus::Charged)
-                } else if captured_amount.is_some_and(|captured_amount| {
-                    MinorUnit::new(captured_amount) > total_capturable_amount
-                }) {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "captured_amount is greater than the total_capturable_amount"
-                            .to_string(),
-                        field_names: "captured_amount".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                    })?
                 } else if captured_amount.is_some_and(|captured_amount| {
                     MinorUnit::new(captured_amount) < total_capturable_amount
                 }) {
@@ -2613,6 +2595,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingThailand,
     AchBankDebit,
     SepaBankDebit,
+    SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
     AchBankTransfer,
@@ -2776,6 +2759,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 match bank_debit_data {
                     domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
                     domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
                 }

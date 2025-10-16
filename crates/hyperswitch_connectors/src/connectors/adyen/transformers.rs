@@ -2115,10 +2115,12 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 )))
             }
 
-            BankDebitData::BecsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
-            )
-            .into()),
+            BankDebitData::BecsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -5711,6 +5713,12 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         message: "Venmo Wallet is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::Wallet::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Apple Pay Decrypt Wallet is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
                     item.router_data.get_billing_address()?;
@@ -5742,6 +5750,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         .transpose()?,
                 })
             }
+            PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
+                message: "Bank redirect payout creation is not supported".to_string(),
+                connector: "Adyen",
+            })?,
         }
     }
 }
@@ -5755,7 +5767,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
         let payout_type = item.router_data.request.get_payout_type()?;
         let merchant_account = auth_type.merchant_account;
         match payout_type {
-            storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
+            storage_enums::PayoutType::Bank
+            | storage_enums::PayoutType::Wallet
+            | storage_enums::PayoutType::BankRedirect => {
                 Ok(Self::GenericFulfillRequest(PayoutFulfillGenericRequest {
                     merchant_account,
                     original_reference: item

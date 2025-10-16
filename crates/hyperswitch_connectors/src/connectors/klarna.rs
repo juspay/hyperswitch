@@ -620,6 +620,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaGuarenteedDebit
                         | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
@@ -628,6 +629,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
+                        | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -745,6 +747,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
                         | common_enums::PaymentMethodType::SepaBankTransfer
+                        | common_enums::PaymentMethodType::SepaGuarenteedDebit
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo
@@ -752,6 +755,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
+                        | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -876,6 +880,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
+                        | common_enums::PaymentMethodType::SepaGuarenteedDebit
                         | common_enums::PaymentMethodType::SepaBankTransfer
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
@@ -884,6 +889,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
+                        | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley
@@ -1001,6 +1007,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::SamsungPay
                         | common_enums::PaymentMethodType::Sepa
                         | common_enums::PaymentMethodType::SepaBankTransfer
+                        | common_enums::PaymentMethodType::SepaGuarenteedDebit
                         | common_enums::PaymentMethodType::Sofort
                         | common_enums::PaymentMethodType::Swish
                         | common_enums::PaymentMethodType::TouchNGo
@@ -1008,6 +1015,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Twint
                         | common_enums::PaymentMethodType::UpiCollect
                         | common_enums::PaymentMethodType::UpiIntent
+                        | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
                         | common_enums::PaymentMethodType::Walley

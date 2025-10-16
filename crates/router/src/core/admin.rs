@@ -3523,6 +3523,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
+            is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
         }))
     }
 
@@ -4027,6 +4028,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
+                is_l2_l3_enabled: self.is_l2_l3_enabled,
             },
         )))
     }
