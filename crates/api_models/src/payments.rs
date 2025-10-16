@@ -8064,6 +8064,8 @@ pub enum NextActionCall {
     CompleteAuthorize,
     /// The next action is to await for a merchant callback
     AwaitMerchantCallback,
+    /// The next action is to deny the payment with an error message
+    Deny { message: String },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9334,9 +9336,13 @@ pub struct ClickToPaySessionResponse {
 
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityRequest {
+    /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
     /// Token used for client side verification
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Secret<String>,
+    pub client_secret: Option<Secret<String>>,
     /// The payment method to be used for the payment
     #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: api_enums::PaymentMethod,
@@ -9349,7 +9355,11 @@ pub struct PaymentsEligibilityRequest {
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {
-    pub sdk_next_action: Option<SdkNextAction>,
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Next action to be performed by the SDK
+    pub sdk_next_action: SdkNextAction,
 }
 
 #[cfg(feature = "v1")]
