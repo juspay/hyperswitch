@@ -2626,8 +2626,15 @@ impl StripeChargeEnum {
                         StripePaymentMethodDetailsResponse::Card { card } => card
                             .overcapture
                             .clone()
-                            .filter(|overcapture| matches!(overcapture.status, Some(StripeOvercaptureStatus::Available)))
-                            .and_then(|overcapture_data| overcapture_data.maximum_amount_capturable),
+                            .filter(|overcapture| {
+                                matches!(
+                                    overcapture.status,
+                                    Some(StripeOvercaptureStatus::Available)
+                                )
+                            })
+                            .and_then(|overcapture_data| {
+                                overcapture_data.maximum_amount_capturable
+                            }),
                         _ => None,
                     }
                 } else {
