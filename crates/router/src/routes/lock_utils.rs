@@ -114,7 +114,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
-            | Flow::CustomersList => Self::Customers,
+            | Flow::CustomersList
+            | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
@@ -170,7 +171,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
             | Flow::PaymentAttemptsList
-            | Flow::RecoveryPaymentsCreate => Self::Payments,
+            | Flow::RecoveryPaymentsCreate
+            | Flow::PaymentsSubmitEligibility => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate

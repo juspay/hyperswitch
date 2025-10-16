@@ -551,6 +551,10 @@ pub struct TokenizedWalletSensitiveValues {
     pub telephone_number: Option<masking::Secret<String>>,
     pub wallet_id: Option<masking::Secret<String>>,
     pub wallet_type: PaymentMethodType,
+    pub dpan: Option<cards::CardNumber>,
+    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_year: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -570,12 +574,30 @@ impl Vaultable for api::WalletPayout {
                 telephone_number: paypal_data.telephone_number.clone(),
                 wallet_id: paypal_data.paypal_id.clone(),
                 wallet_type: PaymentMethodType::Paypal,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
             },
             Self::Venmo(venmo_data) => TokenizedWalletSensitiveValues {
                 email: None,
                 telephone_number: venmo_data.telephone_number.clone(),
                 wallet_id: None,
                 wallet_type: PaymentMethodType::Venmo,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
+            },
+            Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: None,
+                wallet_type: PaymentMethodType::ApplePay,
+                dpan: Some(apple_pay_decrypt_data.dpan.clone()),
+                expiry_month: Some(apple_pay_decrypt_data.expiry_month.clone()),
+                expiry_year: Some(apple_pay_decrypt_data.expiry_year.clone()),
+                card_holder_name: apple_pay_decrypt_data.card_holder_name.clone(),
             },
         };
 
@@ -620,6 +642,19 @@ impl Vaultable for api::WalletPayout {
             PaymentMethodType::Venmo => Self::Venmo(api_models::payouts::Venmo {
                 telephone_number: value1.telephone_number,
             }),
+            PaymentMethodType::ApplePay => {
+                match (value1.dpan, value1.expiry_month, value1.expiry_year) {
+                    (Some(dpan), Some(expiry_month), Some(expiry_year)) => {
+                        Self::ApplePayDecrypt(api_models::payouts::ApplePayDecrypt {
+                            dpan,
+                            expiry_month,
+                            expiry_year,
+                            card_holder_name: value1.card_holder_name,
+                        })
+                    }
+                    _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                }
+            }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
         };
         let supp_data = SupplementaryVaultData {
