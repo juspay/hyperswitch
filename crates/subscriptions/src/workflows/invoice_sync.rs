@@ -135,6 +135,11 @@ impl<'a> InvoiceSyncHandler<'a> {
         &self,
     ) -> CustomResult<subscription_types::PaymentResponseData, router_errors::ApiErrorResponse>
     {
+        logger::info!(
+            "perform_payments_sync called for invoice_id: {:?} and payment_id: {:?}",
+            self.invoice.id,
+            self.invoice.payment_intent_id
+        );
         let payment_id = self.invoice.payment_intent_id.clone().ok_or(
             router_errors::ApiErrorResponse::SubscriptionError {
                 operation: "Invoice_sync: Missing Payment Intent ID in Invoice".to_string(),
@@ -234,6 +239,10 @@ impl<'a> InvoiceSyncHandler<'a> {
         payment_response: subscription_types::PaymentResponseData,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        logger::info!(
+            "transition_workflow_state called with status: {:?}",
+            payment_response.status
+        );
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         let (payment_status, status) = match invoice_sync_status {
@@ -246,6 +255,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 },
             )?,
         };
+        logger::info!("Performing billing processor record back for status: {status}");
         Box::pin(self.perform_billing_processor_record_back_if_possible(
             payment_response.clone(),
             payment_status,
@@ -276,26 +286,26 @@ pub async fn perform_subscription_invoice_sync(
 
     let payment_status = handler.perform_payments_sync().await?;
 
-    let _ = Box::pin(handler.transition_workflow_state(
+    if let Err(e) = Box::pin(handler.transition_workflow_state(
         process.clone(),
         payment_status,
         handler.tracking_data.connector_invoice_id.clone(),
     ))
     .await
-    .map_err(async |op| {
-        logger::error!(?op, "Error in transitioning workflow state");
-        retry_subscription_invoice_sync_task(
-            &*handler.state.store,
-            handler.tracking_data.connector_name.to_string().clone(),
-            handler.merchant_account.get_id().to_owned(),
-            process,
-        )
-        .await
-        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-            operation: "Invoice_sync process_tracker task retry".to_string(),
-        })
-        .attach_printable("Failed to update process tracker status")
-    });
+    {
+        logger::error!(?e, "Error in transitioning workflow state");
+            retry_subscription_invoice_sync_task(
+                &*handler.state.store,
+                handler.tracking_data.connector_name.to_string().clone(),
+                handler.merchant_account.get_id().to_owned(),
+                process,
+            )
+            .await
+            .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                operation: "Invoice_sync process_tracker task retry".to_string(),
+            })
+            .attach_printable("Failed to update process tracker status")?;
+    };
 
     Ok(())
 }
