@@ -46,7 +46,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask, Secret};
 use transformers as peachpayments;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RefundsRequestData},
+};
 
 #[derive(Clone)]
 pub struct Peachpayments {
@@ -614,10 +618,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}/transactions/{}/refund-balance",
+            "{}/transactions/{}",
             self.base_url(connectors),
-            req.request.connector_transaction_id
+            connector_refund_id
         ))
     }
 

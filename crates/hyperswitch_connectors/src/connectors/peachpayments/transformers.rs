@@ -271,7 +271,7 @@ pub struct PeachpaymentsConfirmRequest {
     pub ecommerce_card_payment_only_confirmation_data: EcommerceCardPaymentOnlyConfirmationData,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRefundRequest {
     pub reference_id: String,
@@ -280,13 +280,13 @@ pub struct PeachpaymentsRefundRequest {
     pub pos_data: Option<PosData>,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PosData {
     pub referral: String,
 }
 
-#[derive(Debug, Serialize, PartialEq, Default)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRefundTransactionData {
     pub amount: AmountDetails,
@@ -296,7 +296,7 @@ impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RefundsRouterData<Execute>) -> Result<Self, Self::Error> {
         let amount = AmountDetails {
-            amount: item.request.refund_amount.clone(),
+            amount: item.request.minor_refund_amount,
             currency_code: item.request.currency.to_string(),
             display_amount: None,
         };
@@ -708,15 +708,10 @@ pub enum PeachpaymentsPaymentsResponse {
 impl From<PeachpaymentsRefundStatus> for common_enums::RefundStatus {
     fn from(item: PeachpaymentsRefundStatus) -> Self {
         match item {
-            PeachpaymentsRefundStatus::Successful
-            | PeachpaymentsRefundStatus::ApprovedConfirmed
-            | PeachpaymentsRefundStatus::Approved
-            | PeachpaymentsRefundStatus::Authorized => Self::Success,
-            PeachpaymentsRefundStatus::Failed
-            | PeachpaymentsRefundStatus::Declined
-            | PeachpaymentsRefundStatus::Voided
-            | PeachpaymentsRefundStatus::Reversed => Self::Failure,
-            PeachpaymentsRefundStatus::Pending => Self::Pending,
+            PeachpaymentsRefundStatus::ApprovedConfirmed => Self::Success,
+            PeachpaymentsRefundStatus::Failed | PeachpaymentsRefundStatus::Declined => {
+                Self::Failure
+            }
         }
     }
 }
@@ -733,35 +728,28 @@ pub struct PeachpaymentsPaymentsData {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRsyncResponse {
-    pub original_transaction_id: String,
-    pub refund_balance_data: RefundBalanceData,
+    pub transaction_id: String,
+    pub transaction_result: PeachpaymentsRefundStatus,
+    pub response_code: Option<ResponseCode>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRefundResponse {
     pub transaction_id: String,
-    pub original_transaction_id: String,
+    pub original_transaction_id: Option<String>,
     pub reference_id: String,
     pub transaction_result: PeachpaymentsRefundStatus,
-    pub response_code: ResponseCode,
-    #[serde(with = "time::serde::rfc3339::option")]
-    pub transaction_time: Option<OffsetDateTime>,
+    pub response_code: Option<ResponseCode>,
     pub refund_balance_data: Option<RefundBalanceData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PeachpaymentsRefundStatus {
-    Successful,
-    Pending,
-    Authorized,
-    Approved,
     ApprovedConfirmed,
     Declined,
     Failed,
-    Reversed,
-    Voided,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -778,8 +766,6 @@ pub struct RefundHistory {
     pub transaction_id: String,
     pub reference_id: String,
     pub amount: AmountDetails,
-    #[serde(with = "time::serde::rfc3339::option")]
-    pub transaction_time: Option<OffsetDateTime>,
 }
 
 impl<F>
@@ -791,11 +777,27 @@ impl<F>
         item: ResponseRouterData<F, PeachpaymentsRefundResponse, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         let refund_status = common_enums::RefundStatus::from(item.response.transaction_result);
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_id),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -814,34 +816,25 @@ impl
             RefundsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = item
-            .data
-            .request
-            .connector_refund_id
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
-
-        let refund_info = item
-            .response
-            .refund_balance_data
-            .refund_history
-            .iter()
-            .find(|&refund| &refund.transaction_id == connector_refund_id);
-
-        let response = match refund_info {
-            Some(refund) => Ok(RefundsResponseData {
-                connector_refund_id: refund.transaction_id.clone(),
-                refund_status: common_enums::RefundStatus::Success,
-            }),
-            None => Ok(RefundsResponseData {
-                connector_refund_id: item
-                    .data
-                    .request
-                    .connector_refund_id
-                    .clone()
-                    .unwrap_or_else(|| item.data.request.refund_id.clone()),
-                refund_status: common_enums::RefundStatus::Failure,
-            }),
+        let refund_status = item.response.transaction_result.into();
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_id),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status,
+            })
         };
 
         Ok(Self {
