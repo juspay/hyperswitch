@@ -832,6 +832,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1464,7 +1465,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
                 merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
-                endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+                endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
                 three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),

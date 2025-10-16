@@ -1270,7 +1270,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::IndonesianBankTransfer
                     | enums::PaymentMethodType::Flexiti
                     | enums::PaymentMethodType::RevolutPay
-                    | enums::PaymentMethodType::Breadpay => {
+                    | enums::PaymentMethodType::Breadpay
+                    | enums::PaymentMethodType::UpiQr => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -2543,6 +2544,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                         receiver,
                     }
                 }
+                WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),

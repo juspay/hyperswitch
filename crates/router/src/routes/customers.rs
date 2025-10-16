@@ -239,6 +239,83 @@ pub async fn customers_list(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
+pub async fn customers_list_with_count(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequestWithConstraints>,
+) -> HttpResponse {
+    let flow = Flow::CustomersListWithConstraints;
+    let payload = query.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| {
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
+pub async fn customers_list_with_count(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequestWithConstraints>,
+) -> HttpResponse {
+    let flow = Flow::CustomersListWithConstraints;
+    let payload = query.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| {
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
