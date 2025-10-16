@@ -1885,18 +1885,6 @@ pub async fn validate_and_get_business_profile(
             })
         })
         .await
-        .transpose()?
-        .map(|business_profile| {
-            // Check if the merchant_id of business profile is same as the current merchant_id
-            if business_profile.merchant_id.ne(merchant_id) {
-                Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.get_id().get_string_repr().to_owned(),
-                }
-                .into())
-            } else {
-                Ok(business_profile)
-            }
-        })
         .transpose()
 }
 
