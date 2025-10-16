@@ -3341,6 +3341,12 @@ impl StorageInterface for KafkaStore {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
+        Box::new(self.clone())
+    }
 }
 
 impl GlobalStorageInterface for KafkaStore {
@@ -3351,6 +3357,8 @@ impl GlobalStorageInterface for KafkaStore {
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
+
+impl subscriptions::state::SubscriptionStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
