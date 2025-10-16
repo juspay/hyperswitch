@@ -56,7 +56,7 @@ use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
-    routing::MasterKeyInterface,
+    master_key::MasterKeyInterface,
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};

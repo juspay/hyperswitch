@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_account::{self as domain, MerchantAccountInterface},
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreInterface},
-    routing::MasterKeyInterface,
+    master_key::MasterKeyInterface,
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};

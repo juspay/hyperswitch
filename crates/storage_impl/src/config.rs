@@ -1,5 +1,5 @@
 use common_utils::DbConnectionParams;
-use hyperswitch_domain_models::routing::MasterKeyInterface;
+use hyperswitch_domain_models::master_key::MasterKeyInterface;
 use masking::{PeekInterface, Secret};
 
 use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};

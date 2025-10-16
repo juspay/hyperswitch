@@ -13,7 +13,7 @@ pub trait SubscriptionStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + routing::MasterKeyInterface
+    + master_key::MasterKeyInterface
     + scheduler::SchedulerInterface
     + subscription_domain::SubscriptionInterface<Error = errors::StorageError>
     + invoice_domain::InvoiceInterface<Error = errors::StorageError>
@@ -33,13 +33,13 @@ impl SubscriptionStorageInterface for MockDb {}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore + 'static> SubscriptionStorageInterface for RouterStore<T> where
-    Self: scheduler::SchedulerInterface + routing::MasterKeyInterface
+    Self: scheduler::SchedulerInterface + master_key::MasterKeyInterface
 {
 }
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore + 'static> SubscriptionStorageInterface for KVRouterStore<T> where
-    Self: scheduler::SchedulerInterface + routing::MasterKeyInterface
+    Self: scheduler::SchedulerInterface + master_key::MasterKeyInterface
 {
 }
 
