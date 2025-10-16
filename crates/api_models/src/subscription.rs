@@ -1,5 +1,5 @@
 use common_types::payments::CustomerAcceptance;
-use common_utils::{errors::ValidationError, events::ApiEventMetric, types::MinorUnit};
+use common_utils::{events::ApiEventMetric, types::MinorUnit};
 use masking::Secret;
 use utoipa::ToSchema;
 
@@ -15,14 +15,11 @@ use crate::{
 /// including plan, profile, merchant connector, and optional customer info.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
-    /// Amount to be charged for the invoice.
-    pub amount: MinorUnit,
-
-    /// Currency for the amount.
-    pub currency: api_enums::Currency,
-
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
+
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: String,
 
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
@@ -59,6 +56,9 @@ pub struct SubscriptionResponse {
 
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
+
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: Option<String>,
 
     /// Associated profile ID.
     pub profile_id: common_utils::id_type::ProfileId,
@@ -129,6 +129,7 @@ impl SubscriptionResponse {
         merchant_reference_id: Option<String>,
         status: SubscriptionStatus,
         plan_id: Option<String>,
+        item_price_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
         client_secret: Option<Secret<String>>,
@@ -141,6 +142,7 @@ impl SubscriptionResponse {
             merchant_reference_id,
             status,
             plan_id,
+            item_price_id,
             profile_id,
             client_secret,
             merchant_id,
@@ -212,6 +214,7 @@ impl ApiEventMetric for GetPlansResponse {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
     pub shipping: Option<Address>,
+    pub billing: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -305,6 +308,8 @@ pub struct PaymentResponseData {
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub client_secret: Option<Secret<String>>,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
@@ -324,38 +329,18 @@ pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.
     pub client_secret: Option<ClientSecret>,
 
-    /// Identifier for the associated plan_id.
-    pub plan_id: Option<String>,
-
-    /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
-
-    /// Idenctifier for the coupon code for the subscription.
-    pub coupon_code: Option<String>,
-
     /// Payment details for the invoice.
     pub payment_details: ConfirmSubscriptionPaymentDetails,
 }
 
 impl ConfirmSubscriptionRequest {
-    pub fn get_item_price_id(&self) -> Result<String, error_stack::Report<ValidationError>> {
-        self.item_price_id.clone().ok_or(error_stack::report!(
-            ValidationError::MissingRequiredField {
-                field_name: "item_price_id".to_string()
-            }
-        ))
-    }
-
-    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
+    pub fn get_billing_address(&self) -> Option<Address> {
         self.payment_details
             .payment_method_data
             .billing
-            .clone()
-            .ok_or(error_stack::report!(
-                ValidationError::MissingRequiredField {
-                    field_name: "billing".to_string()
-                }
-            ))
+            .as_ref()
+            .or(self.payment_details.billing.as_ref())
+            .cloned()
     }
 }
 
@@ -363,17 +348,11 @@ impl ApiEventMetric for ConfirmSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateAndConfirmSubscriptionRequest {
-    /// Amount to be charged for the invoice.
-    pub amount: Option<MinorUnit>,
-
-    /// Currency for the amount.
-    pub currency: Option<api_enums::Currency>,
-
     /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
+    pub item_price_id: String,
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
@@ -394,6 +373,16 @@ pub struct CreateAndConfirmSubscriptionRequest {
     pub merchant_reference_id: Option<String>,
 }
 
+impl CreateAndConfirmSubscriptionRequest {
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.payment_details
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.billing.clone())
+            .or(self.billing.clone())
+    }
+}
+
 impl ApiEventMetric for CreateAndConfirmSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -411,7 +400,7 @@ pub struct ConfirmSubscriptionResponse {
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub price_id: Option<String>,
+    pub item_price_id: Option<String>,
 
     /// Optional coupon code applied to this subscription.
     pub coupon: Option<String>,
@@ -469,6 +458,16 @@ pub struct Invoice {
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct UpdateSubscriptionRequest {
+    /// Identifier for the associated plan_id.
+    pub plan_id: String,
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: String,
+}
+
+impl ApiEventMetric for UpdateSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct EstimateSubscriptionQuery {

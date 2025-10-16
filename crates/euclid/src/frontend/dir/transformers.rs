@@ -68,6 +68,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             global_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
+            global_enums::PaymentMethodType::SepaGuarenteedDebit => {
+                Ok(dirval!(BankDebitType = SepaGuarenteedDebit))
+            }
             global_enums::PaymentMethodType::SepaBankTransfer => {
                 Ok(dirval!(BankTransferType = SepaBankTransfer))
             }
@@ -120,6 +123,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Evoucher => Ok(dirval!(RewardType = Evoucher)),
             global_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
             global_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
+            global_enums::PaymentMethodType::UpiQr => Ok(dirval!(UpiType = UpiQr)),
             global_enums::PaymentMethodType::SamsungPay => Ok(dirval!(WalletType = SamsungPay)),
             global_enums::PaymentMethodType::GoPay => Ok(dirval!(WalletType = GoPay)),
             global_enums::PaymentMethodType::KakaoPay => Ok(dirval!(WalletType = KakaoPay)),
