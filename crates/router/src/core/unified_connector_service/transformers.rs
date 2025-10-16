@@ -1240,7 +1240,6 @@ impl ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseD
     }
 }
 
-
 impl ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
