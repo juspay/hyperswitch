@@ -1634,7 +1634,6 @@ pub async fn update_default_routing_config_for_profile(
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
-
     let default_config = helpers::get_merchant_default_config(
         db,
         business_profile.get_id().get_string_repr(),
