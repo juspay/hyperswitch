@@ -530,5 +530,11 @@ pub async fn update_subscription(
         )
         .await?;
 
-    Box::pin(get_subscription(state, merchant_context, profile_id, subscription.id)).await
+    Box::pin(get_subscription(
+        state,
+        merchant_context,
+        profile_id,
+        subscription.id,
+    ))
+    .await
 }
