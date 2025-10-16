@@ -305,7 +305,7 @@ impl<'a> InvoiceSyncHandler<'a> {
         let key_manager_state = &(&state).into();
         let business_profile = state
             .store
-            .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .map_err(|err| {
                 logger::error!(?err, "subcription: unable to get profile from database");
@@ -315,7 +315,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             })?;
         let invoice = state
             .store
-            .find_invoice_by_invoice_id(key_manager_state, &key_store, invoice_id.clone())
+            .find_invoice_by_invoice_id(key_manager_state, key_store, invoice_id.clone())
             .await
             .map_err(|err| {
                 logger::error!(
@@ -331,7 +331,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             .store
             .find_by_merchant_id_subscription_id(
                 key_manager_state,
-                &key_store,
+                key_store,
                 merchant_account.get_id(),
                 invoice.subscription_id.get_string_repr().to_string(),
             )
