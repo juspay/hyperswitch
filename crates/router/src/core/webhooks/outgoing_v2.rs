@@ -659,6 +659,16 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
                 mandate_id,
                 content: serde_json::Value::Null,
             },
+            diesel_models::EventMetadata::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
+            } => Self::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
+                content: serde_json::Value::Null,
+            },
         }
     }
 }

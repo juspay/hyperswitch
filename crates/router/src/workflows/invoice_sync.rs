@@ -605,6 +605,7 @@ pub async fn retry_subscription_invoice_sync_task(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         &hyperswitch_domain_models::subscription::Subscription,
