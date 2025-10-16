@@ -4275,7 +4275,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let gateway_system_decision = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4293,14 +4293,18 @@ where
         CallConnectorAction::UCSConsumeResponse(_) | CallConnectorAction::UCSHandleResponse(_)
     );
 
+    let execution_path = if is_ucs_webhook_action {
+        GatewaySystem::UnifiedConnectorService
+    } else if is_handle_response_action {
+        GatewaySystem::Direct
+    } else {
+        gateway_system_decision
+    };
+
     record_time_taken_with(|| async {
-        match (
-            execution_path,
-            is_handle_response_action,
-            is_ucs_webhook_action,
-        ) {
+        match execution_path {
             // Process through UCS when gateway system is UCS and not handling response or if it is a UCS webhook action
-            (GatewaySystem::UnifiedConnectorService, false, _) | (_, _, true) => {
+            GatewaySystem::UnifiedConnectorService => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4321,7 +4325,7 @@ where
             }
 
             // Process through Direct gateway when gateway system is Direct or if it is a handle response action
-            (GatewaySystem::Direct, _, _) | (GatewaySystem::UnifiedConnectorService, true, _) => {
+            GatewaySystem::Direct => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4346,7 +4350,7 @@ where
             }
 
             // Process through Direct with Shadow UCS
-            (GatewaySystem::ShadowUnifiedConnectorService, _, _) => {
+            GatewaySystem::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
