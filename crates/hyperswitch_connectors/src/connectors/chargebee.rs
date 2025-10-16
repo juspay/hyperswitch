@@ -843,7 +843,13 @@ fn get_chargebee_plans_query_params(
 ) -> CustomResult<String, errors::ConnectorError> {
     // Try to get limit from request, else default to 10
     let limit = _req.request.limit.unwrap_or(10);
-    let param = format!("?limit={}&type[is]={}", limit, constants::PLAN_ITEM_TYPE);
+    let offset = _req.request.offset.unwrap_or(0);
+    let param = format!(
+        "?limit={}&offset={}&type[is]={}",
+        limit,
+        offset,
+        constants::PLAN_ITEM_TYPE
+    );
     Ok(param)
 }
 
@@ -1206,11 +1212,26 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
-        Ok(format!("{url}v2/estimates/create_subscription_for_items"))
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
+        Ok(format!("{base}v2/estimates/create_subscription_for_items"))
     }
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
