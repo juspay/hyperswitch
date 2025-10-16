@@ -1708,9 +1708,6 @@ pub async fn update_customer_payment_method(
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Card not found in vault".to_string(),
-            })
             .attach_printable("Error getting card from locker")?;
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
@@ -4626,9 +4623,6 @@ pub async fn get_card_details_from_locker(
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "Card not found in vault".to_string(),
-    })
     .attach_printable("Error getting card from card vault")?;
 
     payment_methods::get_card_detail(pm, card)
