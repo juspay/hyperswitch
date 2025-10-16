@@ -15,7 +15,7 @@ use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils::RouterData as _};
 
 pub struct VgsRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -63,6 +63,37 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                     }],
                 })
             }
+            Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
+                let mut data = vec![
+                    VgsTokenRequestItem {
+                        value: Secret::new(network_token_data.network_token.get_card_no()),
+                        classifiers: vec!["network_token".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                    },
+                    VgsTokenRequestItem {
+                        value: network_token_data.network_token_exp_month,
+                        classifiers: vec!["expiry_month".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                    },
+                    VgsTokenRequestItem {
+                        value: network_token_data.network_token_exp_year,
+                        classifiers: vec!["expiry_year".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                    },
+                ];
+
+                if let Some(payment_account_reference) =
+                    network_token_data.payment_account_reference
+                {
+                    data.push(VgsTokenRequestItem {
+                        value: Secret::new(payment_account_reference),
+                        classifiers: vec!["payment_account_reference".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                    });
+                }
+
+                Ok(Self { data })
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method apart from card".to_string(),
             )
@@ -74,15 +105,21 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
 pub struct VgsAuthType {
     pub(super) username: Secret<String>,
     pub(super) password: Secret<String>,
+    pub(super) _vault_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for VgsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
+                _vault_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -114,6 +151,28 @@ pub struct VgsRetrieveResponse {
     data: Vec<VgsTokenResponseItem>,
 }
 
+fn get_token_from_response(
+    response: &Vec<VgsTokenResponseItem>,
+    classifier: &str,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    for token_data in response {
+        for response_classifier in &token_data.classifiers {
+            if matches!(response_classifier.as_str(), classifier) {
+                for alias in &token_data.aliases {
+                    if matches!(alias.format.as_str(), "UUID") {
+                        return Ok(alias.alias.clone());
+                    }
+                }
+            }
+        }
+    }
+    router_env::logger::error!("missing alias for the given classifier: `{classifier}`");
+    Err(errors::ConnectorError::MissingRequiredField {
+        field_name: "alias",
+    }
+    .into())
+}
+
 impl
     TryFrom<
         ResponseRouterData<
@@ -133,21 +192,47 @@ impl
             VaultResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let vgs_alias = item
-            .response
-            .data
-            .first()
-            .and_then(|val| val.aliases.first())
-            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(Self {
-            status: common_enums::AttemptStatus::Started,
-            response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                connector_vault_id: vgs_alias.alias.clone(),
-                fingerprint_id: vgs_alias.alias.clone(),
+        match item.data.request.payment_method_vaulting_data.clone() {
+            Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => Ok(Self {
+                status: common_enums::AttemptStatus::Started,
+                response: Ok(VaultResponseData::ExternalVaultMultiTokenResponse {
+                    payment_token: Secret::new(get_token_from_response(
+                        &item.response.data,
+                        "network_token",
+                    )?),
+                    payment_account_reference: Secret::new(get_token_from_response(
+                        &item.response.data,
+                        "payment_account_reference",
+                    )?),
+                    token_expiration_month: Secret::new(get_token_from_response(
+                        &item.response.data,
+                        "expiry_month",
+                    )?),
+                    token_expiration_year: Secret::new(get_token_from_response(
+                        &item.response.data,
+                        "expiry_year",
+                    )?),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            _ => {
+                let vgs_alias = item
+                    .response
+                    .data
+                    .first()
+                    .and_then(|val| val.aliases.first())
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                        connector_vault_id: vgs_alias.alias.clone(),
+                        fingerprint_id: vgs_alias.alias.clone(),
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
