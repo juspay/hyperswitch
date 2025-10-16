@@ -31,6 +31,7 @@ use crate::{
     errors, logger,
     routes::{app::ReqState, SessionState},
     types::{domain, storage},
+    workflows::invoice_sync,
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
@@ -580,90 +581,19 @@ async fn get_outgoing_webhook_content_and_event_type(
             ))
         }
         diesel_models::enums::EventClass::Subscriptions => {
-            let key_manager_state = &(&state).into();
             let invoice_id = tracking_data.primary_object_id.clone();
-            let business_profile = state
-                .store
-                .find_business_profile_by_profile_id(
-                    key_manager_state,
+            let profile_id = &tracking_data.business_profile_id;
+
+            let response = Box::pin(
+                invoice_sync::InvoiceSyncHandler::form_response_for_retry_outgoing_webhook_task(
+                    state,
                     &key_store,
-                    &tracking_data.business_profile_id,
-                )
-                .await
-                .map_err(|err| {
-                    logger::error!(?err, "subcription: unable to get profile from database");
-                    errors::ProcessTrackerError::ResourceFetchingFailed {
-                        resource_name: "Profile".to_string(),
-                    }
-                })?;
-            let invoice = state
-                .store
-                .find_invoice_by_invoice_id(key_manager_state, &key_store, invoice_id.clone())
-                .await
-                .map_err(|err| {
-                    logger::error!(
-                        ?err,
-                        "invoices: unable to get latest invoice with id {invoice_id} from database"
-                    );
-                    errors::ProcessTrackerError::ResourceFetchingFailed {
-                        resource_name: "Invoice".to_string(),
-                    }
-                })?;
-
-            let subscription = state
-                .store
-                .find_by_merchant_id_subscription_id(
-                    key_manager_state,
-                    &key_store,
-                    merchant_account.get_id(),
-                    invoice.subscription_id.get_string_repr().to_string(),
-                )
-                .await
-                .map_err(|err| {
-                    logger::error!(
-                        ?err,
-                        "subscription: unable to get subscription from database"
-                    );
-                    errors::ProcessTrackerError::ResourceFetchingFailed {
-                        resource_name: "Subscription".to_string(),
-                    }
-                })?;
-
-            let payment_response =
-                subscription::payments_api_client::PaymentsApiClient::sync_payment(
-                    &state,
-                    invoice
-                        .payment_intent_id
-                        .clone()
-                        .ok_or(errors::ProcessTrackerError::ResourceFetchingFailed {
-                            resource_name: "Payment Intent ID".to_string(),
-                        })?
-                        .get_string_repr()
-                        .to_string(),
-                    merchant_account.get_id().get_string_repr(),
-                    business_profile.get_id().get_string_repr(),
-                )
-                .await
-                .map_err(|err| {
-                    logger::error!(
-                        ?err,
-                        "subscription: unable to make PSync Call to payments microservice"
-                    );
-                    errors::ProcessTrackerError::EApiErrorResponse
-                })?;
-
-            let response = subscription_types::ConfirmSubscriptionResponse::foreign_try_from((
-                &subscription,
-                &invoice,
-                &payment_response,
-            ))
-            .map_err(|err| {
-                logger::error!(
-                    ?err,
-                    "subscription: unable to form ConfirmSubscriptionResponse from foreign types"
-                );
-                errors::ProcessTrackerError::DeserializationFailed
-            })?;
+                    invoice_id,
+                    profile_id,
+                    &merchant_account,
+                ),
+            )
+            .await?;
 
             Ok((
                 OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
