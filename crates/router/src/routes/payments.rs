@@ -11,7 +11,7 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 #[cfg(feature = "v2")]
-use crate::core::gift_card;
+use crate::core::payment_method_balance;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 use crate::{
@@ -3163,15 +3163,17 @@ pub async fn payment_check_gift_card_balance(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(gift_card::payments_check_gift_card_balance_core(
-                state,
-                merchant_context,
-                auth.profile,
-                req_state,
-                request,
-                header_payload.clone(),
-                payment_id,
-            ))
+            Box::pin(
+                payment_method_balance::payments_check_gift_card_balance_core(
+                    state,
+                    merchant_context,
+                    auth.profile,
+                    req_state,
+                    request,
+                    header_payload.clone(),
+                    payment_id,
+                ),
+            )
             .await
         },
         auth::api_or_client_auth(
@@ -3219,7 +3221,7 @@ pub async fn payments_apply_pm_data(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(gift_card::payments_apply_pm_data_core(
+            Box::pin(payment_method_balance::payments_apply_pm_data_core(
                 state,
                 merchant_context,
                 req_state,

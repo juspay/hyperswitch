@@ -228,20 +228,17 @@ pub async fn payments_apply_pm_data_core(
             .await
             .attach_printable("Failed to retrieve payment method balances from redis")?;
 
-    let total_balance: i64 = balances
-        .values()
-        .map(|value| value.balance.get_amount_as_i64())
-        .sum();
+    let total_balance: MinorUnit = balances.values().map(|value| value.balance).sum();
 
-    let remaining_amount = payment_intent
-        .amount_details
-        .order_amount
-        .get_amount_as_i64()
-        .saturating_sub(total_balance);
+    // remaining_amount cannot be negative, hence using max with 0. This situation can arise when
+    // the gift card balance exceeds the order amount
+    let remaining_amount =
+        (payment_intent.amount_details.order_amount - total_balance).max(MinorUnit::zero());
 
     let resp = ApplyPaymentMethodDataResponse {
-        remaining_amount: MinorUnit::new(remaining_amount),
-        requires_additional_pm_data: remaining_amount > 0,
+        remaining_amount,
+        currency: payment_intent.amount_details.currency,
+        requires_additional_pm_data: remaining_amount.is_greater_than(0),
         surcharge_details: None, // TODO: Implement surcharge recalculation logic
     };
 
