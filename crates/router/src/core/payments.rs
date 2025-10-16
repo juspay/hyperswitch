@@ -22,6 +22,7 @@ use std::{
     vec::IntoIter,
 };
 
+#[cfg(feature = "v2")]
 use external_services::grpc_client;
 
 #[cfg(feature = "v2")]
@@ -36,7 +37,7 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api},
 };
-pub use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
@@ -93,15 +94,9 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-#[cfg(feature = "v1")]
-use super::unified_connector_service::update_gateway_system_in_feature_metadata;
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
-    unified_connector_service::{
-        send_comparison_data, should_call_unified_connector_service, ComparisonData,
-    },
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
@@ -111,6 +106,11 @@ use crate::core::debit_routing;
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::vault;
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers::{
+    process_through_direct, process_through_direct_with_shadow_unified_connector_service,
+    process_through_ucs,
+};
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -126,7 +126,7 @@ use crate::{
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
-        utils::{self as core_utils},
+        utils as core_utils,
     },
     db::StorageInterface,
     logger,
@@ -553,7 +553,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync + 'static + 'a,
+    F: Send + Clone + Sync + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -568,7 +568,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -2106,7 +2106,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
+pub async fn payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
@@ -2119,8 +2119,8 @@ pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4265,8 +4265,8 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4293,7 +4293,7 @@ where
     record_time_taken_with(|| async {
         match (execution_path, is_handle_response_action) {
             // Process through UCS when system is UCS and not handling response
-            (GatewaySystem::UnifiedConnectorService, false) => {
+            (ExecutionPath::UnifiedConnectorService, false) => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4312,9 +4312,9 @@ where
                 .await
             }
 
-            // Process through Direct gateway
-            (GatewaySystem::Direct, _) | (GatewaySystem::UnifiedConnectorService, true) => {
-                process_through_direct(
+            // Process through Direct with Shadow UCS
+            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
+                process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
                     merchant_context,
@@ -4337,9 +4337,11 @@ where
                 .await
             }
 
-            // Process through Direct with Shadow UCS
-            (GatewaySystem::ShadowUnifiedConnectorService, _) => {
-                process_through_direct_with_shadow_unified_connector_service(
+            // Process through Direct gateway
+            (ExecutionPath::Direct, _)
+            | (ExecutionPath::UnifiedConnectorService, true)
+            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
+                process_through_direct(
                     state,
                     req_state,
                     merchant_context,
@@ -4364,374 +4366,6 @@ where
         }
     })
     .await
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-// Helper function to process through UCS
-async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
-    state: &'a SessionState,
-    req_state: ReqState,
-    merchant_context: &'a domain::MerchantContext,
-    operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
-    payment_data: &'a mut D,
-    customer: &Option<domain::Customer>,
-    validate_result: &'a operations::ValidateResult,
-    schedule_time: Option<time::PrimitiveDateTime>,
-    header_payload: HeaderPayload,
-    frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &'a domain::Profile,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    helpers::MerchantConnectorAccountType,
-)>
-where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    router_env::logger::info!(
-        "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
-        payment_data
-            .get_payment_intent()
-            .payment_id
-            .get_string_repr(),
-        payment_data.get_payment_attempt().attempt_id
-    );
-
-    // Add task to process tracker if needed
-    if should_add_task_to_process_tracker(payment_data) {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(
-                state,
-                payment_data.get_payment_attempt(),
-                validate_result.requeue,
-                schedule_time,
-            )
-            .await
-            .map_err(|error| logger::error!(process_tracker_error=?error))
-            .ok();
-    }
-
-    // Update feature metadata to track UCS usage for stickiness
-    update_gateway_system_in_feature_metadata(
-        payment_data,
-        GatewaySystem::UnifiedConnectorService,
-    )?;
-
-    // Update trackers
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
-            state,
-            req_state,
-            payment_data.clone(),
-            customer.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
-            None,
-            merchant_context.get_merchant_key_store(),
-            frm_suggestion,
-            header_payload.clone(),
-        )
-        .await?;
-
-    // Call UCS
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    router_data
-        .call_unified_connector_service(
-            state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account.clone(),
-            merchant_context,
-            ExecutionMode::Primary, // UCS is called in primary mode
-        )
-        .await?;
-
-    Ok((router_data, merchant_connector_account))
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-// Helper function to process through Direct gateway
-async fn process_through_direct<'a, F, RouterDReq, ApiRequest, D>(
-    state: &'a SessionState,
-    req_state: ReqState,
-    merchant_context: &'a domain::MerchantContext,
-    connector: api::ConnectorData,
-    operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
-    payment_data: &'a mut D,
-    customer: &Option<domain::Customer>,
-    call_connector_action: CallConnectorAction,
-    validate_result: &'a operations::ValidateResult,
-    schedule_time: Option<time::PrimitiveDateTime>,
-    header_payload: HeaderPayload,
-    frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &'a domain::Profile,
-    is_retry_payment: bool,
-    all_keys_required: Option<bool>,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    tokenization_action: TokenizationAction,
-) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    helpers::MerchantConnectorAccountType,
-)>
-where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    router_env::logger::info!(
-        "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
-        payment_data
-            .get_payment_intent()
-            .payment_id
-            .get_string_repr(),
-        payment_data.get_payment_attempt().attempt_id
-    );
-
-    // Update feature metadata to track Direct routing usage for stickiness
-    update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-
-    call_connector_service(
-        state,
-        req_state,
-        merchant_context,
-        connector,
-        operation,
-        payment_data,
-        customer,
-        call_connector_action,
-        validate_result,
-        schedule_time,
-        header_payload,
-        frm_suggestion,
-        business_profile,
-        is_retry_payment,
-        all_keys_required,
-        merchant_connector_account,
-        router_data,
-        tokenization_action,
-    )
-    .await
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-// Helper function to process through Direct with Shadow UCS
-async fn process_through_direct_with_shadow_unified_connector_service<
-    'a,
-    F,
-    RouterDReq,
-    ApiRequest,
-    D,
->(
-    state: &'a SessionState,
-    req_state: ReqState,
-    merchant_context: &'a domain::MerchantContext,
-    connector: api::ConnectorData,
-    operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
-    payment_data: &'a mut D,
-    customer: &Option<domain::Customer>,
-    call_connector_action: CallConnectorAction,
-    validate_result: &'a operations::ValidateResult,
-    schedule_time: Option<time::PrimitiveDateTime>,
-    header_payload: HeaderPayload,
-    frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &'a domain::Profile,
-    is_retry_payment: bool,
-    all_keys_required: Option<bool>,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    tokenization_action: TokenizationAction,
-) -> RouterResult<(
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    helpers::MerchantConnectorAccountType,
-)>
-where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    router_env::logger::info!(
-        "Processing payment through Direct gateway system with UCS in shadow mode - payment_id={}, attempt_id={}",
-        payment_data.get_payment_intent().payment_id.get_string_repr(),
-        payment_data.get_payment_attempt().attempt_id
-    );
-
-    // Clone data needed for shadow UCS call
-    let unified_connector_service_router_data = router_data.clone();
-    let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
-    let unified_connector_service_merchant_context = merchant_context.clone();
-    let unified_connector_service_header_payload = header_payload.clone();
-    let unified_connector_service_state = state.clone();
-
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    // Update feature metadata to track Direct routing usage for stickiness
-    update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-
-    // Call Direct connector service
-    let result = call_connector_service(
-        state,
-        req_state,
-        merchant_context,
-        connector,
-        operation,
-        payment_data,
-        customer,
-        call_connector_action,
-        validate_result,
-        schedule_time,
-        header_payload,
-        frm_suggestion,
-        business_profile,
-        is_retry_payment,
-        all_keys_required,
-        merchant_connector_account,
-        router_data,
-        tokenization_action,
-    )
-    .await?;
-
-    // Spawn shadow UCS call in background
-    let direct_router_data = result.0.clone();
-    tokio::spawn(async move {
-        execute_shadow_unified_connector_service_call(
-            unified_connector_service_state,
-            unified_connector_service_router_data,
-            direct_router_data,
-            unified_connector_service_header_payload,
-            lineage_ids,
-            unified_connector_service_merchant_connector_account,
-            unified_connector_service_merchant_context,
-        )
-        .await
-    });
-
-    Ok(result)
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-// Helper function to execute shadow UCS call
-async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
-    state: SessionState,
-    mut unified_connector_service_router_data: RouterData<
-        F,
-        RouterDReq,
-        router_types::PaymentsResponseData,
-    >,
-    direct_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    header_payload: HeaderPayload,
-    lineage_ids: grpc_client::LineageIds,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
-    merchant_context: domain::MerchantContext,
-) where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    // Call UCS in shadow mode
-    let _unified_connector_service_result = unified_connector_service_router_data
-        .call_unified_connector_service(
-            &state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account,
-            &merchant_context,
-            ExecutionMode::Shadow, // Shadow mode for UCS
-        )
-        .await
-        .map_err(|e| logger::debug!("Shadow UCS call failed: {:?}", e));
-
-    // Compare results
-    match serialize_router_data_and_send_to_comparison_service(
-        &state,
-        direct_router_data,
-        unified_connector_service_router_data,
-    )
-    .await
-    {
-        Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
-        Err(e) => logger::debug!("Shadow UCS comparison failed: {:?}", e),
-    }
-}
-
-async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<
-        F,
-        RouterDReq,
-        router_types::PaymentsResponseData,
-    >,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-{
-    logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => Secret::new(data),
-        Err(_) => {
-            logger::debug!("Failed to serialize HS router data");
-            return Ok(());
-        }
-    };
-
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => Secret::new(data),
-            Err(_) => {
-                logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
@@ -5178,7 +4812,7 @@ where
         .await?;
 
     // do order creation
-    let should_call_unified_connector_service = should_call_unified_connector_service(
+    let execution_path = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -5186,49 +4820,48 @@ where
     )
     .await?;
 
-    let (connector_request, should_continue_further) = if matches!(
-        should_call_unified_connector_service,
-        GatewaySystem::Direct | GatewaySystem::ShadowUnifiedConnectorService
-    ) {
-        let mut should_continue_further = true;
+    let (connector_request, should_continue_further) =
+        if matches!(execution_path, ExecutionPath::Direct) {
+            let mut should_continue_further = true;
 
-        let should_continue = match router_data
-            .create_order_at_connector(state, &connector, should_continue_further)
-            .await?
-        {
-            Some(create_order_response) => {
-                if let Ok(order_id) = create_order_response.clone().create_order_result {
-                    payment_data.set_connector_response_reference_id(Some(order_id))
+            let should_continue = match router_data
+                .create_order_at_connector(state, &connector, should_continue_further)
+                .await?
+            {
+                Some(create_order_response) => {
+                    if let Ok(order_id) = create_order_response.clone().create_order_result {
+                        payment_data.set_connector_response_reference_id(Some(order_id))
+                    }
+
+                    // Set the response in routerdata response to carry forward
+                    router_data.update_router_data_with_create_order_response(
+                        create_order_response.clone(),
+                    );
+                    create_order_response.create_order_result.ok().map(|_| ())
                 }
+                // If create order is not required, then we can proceed with further processing
+                None => Some(()),
+            };
 
-                // Set the response in routerdata response to carry forward
-                router_data
-                    .update_router_data_with_create_order_response(create_order_response.clone());
-                create_order_response.create_order_result.ok().map(|_| ())
-            }
-            // If create order is not required, then we can proceed with further processing
-            None => Some(()),
+            let should_continue: (Option<common_utils::request::Request>, bool) =
+                match should_continue {
+                    Some(_) => {
+                        router_data
+                            .build_flow_specific_connector_request(
+                                state,
+                                &connector,
+                                call_connector_action.clone(),
+                            )
+                            .await?
+                    }
+                    None => (None, false),
+                };
+            should_continue
+        } else {
+            // If unified connector service is called, these values are not used
+            // as the request is built in the unified connector service call
+            (None, false)
         };
-
-        let should_continue: (Option<common_utils::request::Request>, bool) = match should_continue
-        {
-            Some(_) => {
-                router_data
-                    .build_flow_specific_connector_request(
-                        state,
-                        &connector,
-                        call_connector_action.clone(),
-                    )
-                    .await?
-            }
-            None => (None, false),
-        };
-        should_continue
-    } else {
-        // If unified connector service is called, these values are not used
-        // as the request is built in the unified connector service call
-        (None, false)
-    };
 
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -5246,7 +4879,7 @@ where
         .await?;
 
     record_time_taken_with(|| async {
-        if matches!(should_call_unified_connector_service, GatewaySystem::UnifiedConnectorService) {
+        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5313,14 +4946,14 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution = should_call_unified_connector_service(
+        let execution_path = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
         )
         .await?;
-        if matches!(execution, GatewaySystem::UnifiedConnectorService) {
+        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5371,7 +5004,7 @@ where
 
             Ok(router_data)
         } else {
-            if matches!(execution, GatewaySystem::ShadowUnifiedConnectorService) {
+            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
