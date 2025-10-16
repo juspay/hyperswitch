@@ -2132,6 +2132,43 @@ pub struct RolloutExecutionResult {
     pub proxy_override: Option<ProxyOverride>,
 }
 
+/// Validates a proxy URL, filtering out invalid ones and logging warnings
+fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
+    url.and_then(|url_str| {
+        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
+            logger::warn!(
+                invalid_url = %url_str,
+                url_type = url_type,
+                "Invalid proxy URL in rollout config, ignoring"
+            );
+            None
+        } else {
+            Some(url_str)
+        }
+    })
+}
+
+/// Creates proxy override with validated URLs and logging
+fn create_proxy_override(http_url: Option<String>, https_url: Option<String>) -> Option<ProxyOverride> {
+    let validated_http = validate_proxy_url(http_url, "HTTP");
+    let validated_https = validate_proxy_url(https_url, "HTTPS");
+    
+    if validated_http.is_some() || validated_https.is_some() {
+        if let Some(ref http_url) = validated_http {
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+        }
+        if let Some(ref https_url) = validated_https {
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+        }
+        Some(ProxyOverride {
+            http_url: validated_http,
+            https_url: validated_https,
+        })
+    } else {
+        None
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -2144,7 +2181,12 @@ pub async fn should_execute_based_on_rollout(
             let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
             {
                 Ok(config) => Ok(config),
-                Err(_) => {
+                Err(err) => {
+                    logger::debug!(
+                        error = ?err, 
+                        config = %rollout_config.config,
+                        "Config not in JSON format, trying legacy float format"
+                    );
                     // Fallback to legacy format (simple float)
                     rollout_config.config.parse::<f64>()
                         .map(|percent| RolloutConfig {
@@ -2166,15 +2208,7 @@ pub async fn should_execute_based_on_rollout(
                             rollout_percent = config.rollout_percent,
                             "Rollout percent out of bounds. Must be between 0.0 and 1.0"
                         );
-                        let proxy_override =
-                            if config.http_url.is_some() || config.https_url.is_some() {
-                                Some(ProxyOverride {
-                                    http_url: config.http_url,
-                                    https_url: config.https_url,
-                                })
-                            } else {
-                                None
-                            };
+                        let proxy_override = create_proxy_override(config.http_url, config.https_url);
 
                         return Ok(RolloutExecutionResult {
                             should_execute: false,
@@ -2185,22 +2219,7 @@ pub async fn should_execute_based_on_rollout(
                     let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
                     let should_execute = sampled_value < config.rollout_percent;
 
-                    // Create proxy override if URLs are available
-                    let proxy_override = if config.http_url.is_some() || config.https_url.is_some()
-                    {
-                        if let Some(ref http_url) = config.http_url {
-                            logger::info!(http_url = %http_url, "Using HTTP proxy URL from rollout config");
-                        }
-                        if let Some(ref https_url) = config.https_url {
-                            logger::info!(https_url = %https_url, "Using HTTPS proxy URL from rollout config");
-                        }
-                        Some(ProxyOverride {
-                            http_url: config.http_url,
-                            https_url: config.https_url,
-                        })
-                    } else {
-                        None
-                    };
+                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
 
                     Ok(RolloutExecutionResult {
                         should_execute,
