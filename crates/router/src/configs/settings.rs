@@ -26,8 +26,11 @@ use external_services::{
     },
     superposition::SuperpositionClientConfig,
 };
-pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::{
+pub use hyperswitch_interfaces::{
+    configs::{
+        Connectors, GlobalTenant, InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig,
+        Tenant, TenantUserConfig,
+    },
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
@@ -343,68 +346,6 @@ impl TenantConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct L2L3DataConfig {
     pub enabled: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct Tenant {
-    pub tenant_id: id_type::TenantId,
-    pub base_url: String,
-    pub schema: String,
-    pub accounts_schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-    pub user: TenantUserConfig,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TenantUserConfig {
-    pub control_center_url: String,
-}
-
-impl storage_impl::config::TenantConfig for Tenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.accounts_schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
-}
-
-// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
-#[derive(Debug, Deserialize, Clone)]
-pub struct GlobalTenant {
-    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
-    pub tenant_id: id_type::TenantId,
-    pub schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-}
-// Todo: Global tenant should not be part of tenant config
-impl storage_impl::config::TenantConfig for GlobalTenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -874,13 +815,6 @@ pub struct MerchantIdAuthSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
-pub struct InternalMerchantIdProfileIdAuthSettings {
-    pub enabled: bool,
-    pub internal_api_key: Secret<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
 }
@@ -985,12 +919,6 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct InternalServicesConfig {
-    pub payments_base_url: String,
 }
 
 impl Settings<SecuredSecret> {
