@@ -436,6 +436,9 @@ pub struct Invoice {
 
     /// Status of the invoice.
     pub status: common_enums::connector_enums::InvoiceStatus,
+
+    /// billing processor invoice id
+    pub billing_processor_invoice_id: Option<String>,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}

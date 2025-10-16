@@ -474,6 +474,10 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
                     currency = invoice.currency
                 ))?,
             status: invoice.status.clone(),
+            billing_processor_invoice_id: invoice
+                .connector_invoice_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
         })
     }
 }
