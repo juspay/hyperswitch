@@ -27,8 +27,6 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
-#[cfg(feature = "v2")]
-pub mod gift_card;
 pub mod gsm;
 pub mod health_check;
 #[cfg(feature = "v1")]
@@ -36,6 +34,8 @@ pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;
+#[cfg(feature = "v2")]
+pub mod payment_method_balance;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
