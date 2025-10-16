@@ -5338,11 +5338,15 @@
         "type": "object",
         "required": [
           "remaining_amount",
+          "currency",
           "requires_additional_pm_data"
         ],
         "properties": {
           "remaining_amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           },
           "requires_additional_pm_data": {
             "type": "boolean"
