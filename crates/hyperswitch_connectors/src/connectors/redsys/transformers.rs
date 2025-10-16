@@ -1000,7 +1000,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                 let response_data: RedsysPaymentsResponse = to_connector_response_data(
                     &transaction_response.ds_merchant_parameters.clone().expose(),
                 )?;
-                router_env::logger::info!(connector_authorize_response=?payment_authorize_request);
+                router_env::logger::info!(connector_authorize_response=?response_data);
                 get_payments_response(
                     response_data,
                     item.data.request.capture_method,
