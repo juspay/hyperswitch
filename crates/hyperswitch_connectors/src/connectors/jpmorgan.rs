@@ -38,6 +38,7 @@ use hyperswitch_interfaces::{
     },
     configs::Connectors,
     consts, errors,
+    errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{self, RefreshTokenType, Response},
     webhooks,
@@ -388,12 +389,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Jpmorgan PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -478,12 +493,26 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Jpmorgan PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.amount),
+            response.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -547,12 +576,27 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Jpm
             .response
             .parse_struct("jpmorgan PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string().clone(),
+        );
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.and_then(|mut router_data| {
+            let integrity_object = response_integrity_object?;
+            router_data.request.integrity_object = Some(integrity_object);
+            Ok(router_data)
         })
     }
 
@@ -717,12 +761,26 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
             .response
             .parse_struct("JpmorganRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -783,12 +841,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Jpmorgan 
             .response
             .parse_struct("jpmorgan RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
