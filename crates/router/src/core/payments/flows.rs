@@ -219,6 +219,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -238,6 +239,7 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
