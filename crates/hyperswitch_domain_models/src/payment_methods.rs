@@ -1203,7 +1203,7 @@ impl PaymentMethodBalanceKey {
 /// This struct stores the balance and currency information for a specific
 /// payment method to be stored in the HashMap in Redis
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodBalance {
     pub balance: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,
