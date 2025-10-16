@@ -94,14 +94,12 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 #[cfg(feature = "v1")]
-use super::unified_connector_service::update_gateway_system_in_feature_metadata;
+use super::unified_connector_service::{
+    serialize_router_data_and_send_to_comparison_service, update_gateway_system_in_feature_metadata,
+};
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
-    unified_connector_service::{
-        send_comparison_data, should_call_unified_connector_service, ComparisonData,
-    },
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
@@ -4689,49 +4687,6 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
         Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
         Err(e) => logger::debug!("Shadow UCS comparison failed: {:?}", e),
     }
-}
-
-async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<
-        F,
-        RouterDReq,
-        router_types::PaymentsResponseData,
-    >,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-{
-    logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => Secret::new(data),
-        Err(_) => {
-            logger::debug!("Failed to serialize HS router data");
-            return Ok(());
-        }
-    };
-
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => Secret::new(data),
-            Err(_) => {
-                logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
