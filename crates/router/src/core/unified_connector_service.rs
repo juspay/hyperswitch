@@ -169,27 +169,21 @@ where
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
     let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
-    // Log proxy URLs if available (before moving values)
-    if let Some(ref proxy_override) = rollout_result.proxy_override {
+    // Create updated SessionState with proxy override (prioritize main rollout over shadow)
+    let updated_state = if let Some(ref proxy_override) = rollout_result.proxy_override {
         router_env::logger::info!(
             http_url = ?proxy_override.http_url,
             https_url = ?proxy_override.https_url,
             "Main rollout config has proxy URLs"
         );
-    }
-    if let Some(ref proxy_override) = shadow_rollout_result.proxy_override {
+        create_updated_session_state_with_proxy(state.clone(), proxy_override)
+    } else if let Some(ref proxy_override) = shadow_rollout_result.proxy_override {
         router_env::logger::info!(
             http_url = ?proxy_override.http_url,
             https_url = ?proxy_override.https_url,
             "Shadow rollout config has proxy URLs"
         );
-    }
-
-    // Create updated SessionState with proxy override (prioritize main rollout over shadow)
-    let updated_state = if let Some(ref proxy_override) = rollout_result.proxy_override {
-        create_updated_session_state_with_proxy(state, proxy_override)
-    } else if let Some(ref proxy_override) = shadow_rollout_result.proxy_override {
-        create_updated_session_state_with_proxy(state, proxy_override)
+        create_updated_session_state_with_proxy(state.clone(), proxy_override)
     } else {
         state.clone()
     };
@@ -373,7 +367,7 @@ where
 
 /// Creates a new SessionState with proxy configuration updated from the override
 fn create_updated_session_state_with_proxy(
-    state: &SessionState,
+    state: SessionState,
     proxy_override: &ProxyOverride,
 ) -> SessionState {
     let mut updated_state = state.clone();
