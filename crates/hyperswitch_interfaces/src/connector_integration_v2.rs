@@ -9,7 +9,7 @@ use masking::Maskable;
 use serde_json::json;
 
 use crate::{
-    api::{self, subscriptions_v2, CaptureSyncMethod, ConnectorSpecifications},
+    api::{self, subscriptions_v2, CaptureSyncMethod},
     errors,
     events::connector_api_logs::ConnectorEvent,
     metrics, types, webhooks,
@@ -93,10 +93,7 @@ where
 
 /// The new connector integration trait with an additional ResourceCommonData generic parameter
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
-    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>
-    + Sync
-    + api::ConnectorCommon
-    + ConnectorSpecifications
+    ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + api::ConnectorCommon
 {
     /// returns a vec of tuple of header key and value
     fn get_headers(
