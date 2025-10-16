@@ -376,13 +376,9 @@ async fn get_outgoing_webhook_content_and_event_type(
             mandate::get_mandate,
             payments::{payments_core, CallConnectorAction, PaymentStatus},
             refunds::refund_retrieve_core_with_refund_id,
-            subscription,
         },
         services::{ApplicationResponse, AuthFlow},
-        types::{
-            api::PSync,
-            transformers::{ForeignFrom, ForeignTryFrom},
-        },
+        types::{api::PSync, transformers::ForeignFrom},
     };
 
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(

@@ -8,6 +8,8 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
 };
 use diesel_models::process_tracker::business_status;
+#[cfg(feature = "v1")]
+use diesel_models::subscription;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::invoice::InvoiceUpdateRequest;
 use router_env::logger;
@@ -142,19 +144,21 @@ impl<'a> InvoiceSyncHandler<'a> {
     }
 
     pub async fn perform_payments_sync(
-        &self,
+        state: &SessionState,
+        payment_intent_id: Option<&common_utils::id_type::PaymentId>,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<subscription_types::PaymentResponseData, router_errors::ApiErrorResponse>
     {
-        let payment_id = self.invoice.payment_intent_id.clone().ok_or(
-            router_errors::ApiErrorResponse::SubscriptionError {
+        let payment_id =
+            payment_intent_id.ok_or(router_errors::ApiErrorResponse::SubscriptionError {
                 operation: "Invoice_sync: Missing Payment Intent ID in Invoice".to_string(),
-            },
-        )?;
+            })?;
         let payments_response = payments_api_client::PaymentsApiClient::sync_payment(
-            self.state,
+            state,
             payment_id.get_string_repr().to_string(),
-            self.merchant_account.get_id().get_string_repr(),
-            self.profile.get_id().get_string_repr(),
+            merchant_id.get_string_repr(),
+            profile_id.get_string_repr(),
         )
         .await
         .change_context(router_errors::ApiErrorResponse::SubscriptionError {
@@ -243,15 +247,16 @@ impl<'a> InvoiceSyncHandler<'a> {
     }
 
     pub fn generate_response(
-        &self,
+        subscription: &hyperswitch_domain_models::subscription::Subscription,
+        invoice: &hyperswitch_domain_models::invoice::Invoice,
         payment_response: &subscription_types::PaymentResponseData,
     ) -> CustomResult<
         subscription_types::ConfirmSubscriptionResponse,
         router_errors::ApiErrorResponse,
     > {
         subscription_types::ConfirmSubscriptionResponse::foreign_try_from((
-            &self.subscription,
-            &self.invoice,
+            subscription,
+            invoice,
             payment_response,
         ))
     }
@@ -264,9 +269,11 @@ impl<'a> InvoiceSyncHandler<'a> {
             logger::info!("Invoice not paid, skipping outgoing webhook trigger");
             return Ok(());
         }
-        let response = self
-            .generate_response(&payment_response)
-            .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
+        let response =
+            Self::generate_response(&self.subscription, &self.invoice, &payment_response)
+                .attach_printable(
+                    "Subscriptions: Failed to generate response for outgoing webhook",
+                )?;
 
         let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
             self.merchant_account.clone(),
@@ -303,16 +310,7 @@ impl<'a> InvoiceSyncHandler<'a> {
         merchant_account: &domain::MerchantAccount,
     ) -> Result<subscription_types::ConfirmSubscriptionResponse, errors::ProcessTrackerError> {
         let key_manager_state = &(&state).into();
-        let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
-            .await
-            .map_err(|err| {
-                logger::error!(?err, "subcription: unable to get profile from database");
-                errors::ProcessTrackerError::ResourceFetchingFailed {
-                    resource_name: "Profile".to_string(),
-                }
-            })?;
+
         let invoice = state
             .store
             .find_invoice_by_invoice_id(key_manager_state, key_store, invoice_id.clone())
@@ -346,18 +344,11 @@ impl<'a> InvoiceSyncHandler<'a> {
                 }
             })?;
 
-        let payment_response = payments_api_client::PaymentsApiClient::sync_payment(
+        let payments_response = InvoiceSyncHandler::perform_payments_sync(
             &state,
-            invoice
-                .payment_intent_id
-                .clone()
-                .ok_or(errors::ProcessTrackerError::ResourceFetchingFailed {
-                    resource_name: "Payment Intent ID".to_string(),
-                })?
-                .get_string_repr()
-                .to_string(),
-            merchant_account.get_id().get_string_repr(),
-            business_profile.get_id().get_string_repr(),
+            invoice.payment_intent_id.as_ref(),
+            profile_id,
+            merchant_account.get_id(),
         )
         .await
         .map_err(|err| {
@@ -368,18 +359,14 @@ impl<'a> InvoiceSyncHandler<'a> {
             errors::ProcessTrackerError::EApiErrorResponse
         })?;
 
-        let response = subscription_types::ConfirmSubscriptionResponse::foreign_try_from((
-            &subscription,
-            &invoice,
-            &payment_response,
-        ))
-        .map_err(|err| {
-            logger::error!(
-                ?err,
-                "subscription: unable to form ConfirmSubscriptionResponse from foreign types"
-            );
-            errors::ProcessTrackerError::DeserializationFailed
-        })?;
+        let response = Self::generate_response(&subscription, &invoice, &payments_response)
+            .map_err(|err| {
+                logger::error!(
+                    ?err,
+                    "subscription: unable to form ConfirmSubscriptionResponse from foreign types"
+                );
+                errors::ProcessTrackerError::DeserializationFailed
+            })?;
 
         Ok(response)
     }
@@ -508,7 +495,13 @@ async fn perform_subscription_invoice_sync(
 ) -> Result<(), errors::ProcessTrackerError> {
     let handler = InvoiceSyncHandler::create(state, tracking_data).await?;
 
-    let payments_response = handler.perform_payments_sync().await?;
+    let payments_response = InvoiceSyncHandler::perform_payments_sync(
+        handler.state,
+        handler.invoice.payment_intent_id.as_ref(),
+        handler.profile.get_id(),
+        handler.merchant_account.get_id(),
+    )
+    .await?;
 
     let connector_invoice_id = handler.tracking_data.connector_invoice_id.clone();
     Box::pin(handler.transition_workflow_state(process, payments_response, connector_invoice_id))

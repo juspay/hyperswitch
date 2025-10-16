@@ -282,6 +282,12 @@ pub struct PaymentResponseData {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
+impl PaymentResponseData {
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.billing.clone()
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateMitPaymentRequestData {
     pub amount: MinorUnit,
