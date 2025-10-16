@@ -377,6 +377,7 @@ impl Connector {
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Worldpay, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
