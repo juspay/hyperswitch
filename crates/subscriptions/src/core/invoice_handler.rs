@@ -118,11 +118,13 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         request: &subscription_types::CreateSubscriptionRequest,
+        amount: MinorUnit,
+        currency: api_enums::Currency,
     ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let payment_request = subscription_types::CreatePaymentsRequestData {
-            amount: request.amount,
-            currency: request.currency,
+            amount,
+            currency,
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),

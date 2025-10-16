@@ -61,22 +61,39 @@ pub async fn create_subscription(
             request.merchant_reference_id.clone(),
             &profile.clone(),
             request.plan_id.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
+
+    let estimate_request = subscription_types::EstimateSubscriptionQuery {
+        plan_id: request.plan_id.clone(),
+        item_price_id: request.item_price_id.clone(),
+        coupon_code: None,
+    };
+
+    let estimate = billing_handler
+        .get_subscription_estimate(&state, estimate_request)
+        .await?;
+
     let invoice_handler = subscription.get_invoice_handler(profile.clone());
     let payment = invoice_handler
-        .create_payment_with_confirm_false(subscription.handler.state, &request)
+        .create_payment_with_confirm_false(
+            subscription.handler.state,
+            &request,
+            estimate.total,
+            estimate.currency,
+        )
         .await
         .attach_printable("subscriptions: failed to create payment")?;
+
     let invoice = invoice_handler
         .create_invoice_entry(
             &state,
             billing_handler.merchant_connector_id,
             Some(payment.payment_id.clone()),
-            request.amount,
-            request.currency,
+            estimate.total,
+            estimate.currency,
             connector_enums::InvoiceStatus::InvoiceCreated,
             billing_handler.connector_name,
             None,
@@ -92,7 +109,7 @@ pub async fn create_subscription(
                 payment.payment_method_id.clone(),
                 None,
                 request.plan_id,
-                request.item_price_id,
+                Some(request.item_price_id),
             ),
         )
         .await
@@ -188,7 +205,7 @@ pub async fn create_and_confirm_subscription(
             request.merchant_reference_id.clone(),
             &profile.clone(),
             request.plan_id.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -221,16 +238,14 @@ pub async fn create_and_confirm_subscription(
         .create_subscription_on_connector(
             &state,
             subs_handler.subscription.clone(),
-            request.item_price_id.clone(),
+            Some(request.item_price_id.clone()),
             request.get_billing_address(),
         )
         .await?;
 
     let invoice_details = subscription_create_response.invoice_details;
-    let (amount, currency) = InvoiceHandler::get_amount_and_currency(
-        (request.amount, request.currency),
-        invoice_details.clone(),
-    );
+    let (amount, currency) =
+        InvoiceHandler::get_amount_and_currency((None, None), invoice_details.clone());
 
     let payment_response = invoice_handler
         .create_and_confirm_payment(&state, &request, amount, currency)
@@ -274,7 +289,7 @@ pub async fn create_and_confirm_subscription(
                 payment_response.payment_method_id.clone(),
                 Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
                 request.plan_id,
-                request.item_price_id,
+                Some(request.item_price_id),
             ),
         )
         .await?;
@@ -502,15 +517,33 @@ pub async fn update_subscription(
                 None,
                 None,
                 None,
-                Some(request.plan_id),
-                Some(request.item_price_id),
+                Some(request.plan_id.clone()),
+                Some(request.item_price_id.clone()),
             ),
         )
         .await?;
 
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        profile.clone(),
+    )
+    .await?;
+
+    let estimate_request = subscription_types::EstimateSubscriptionQuery {
+        plan_id: Some(request.plan_id.clone()),
+        item_price_id: request.item_price_id.clone(),
+        coupon_code: None,
+    };
+
+    let estimate = billing_handler
+        .get_subscription_estimate(&state, estimate_request)
+        .await?;
+
     let update_request = InvoiceUpdateRequest::update_amount_and_currency(
-        request.amount,
-        request.currency.to_string(),
+        estimate.total,
+        estimate.currency.to_string(),
     );
 
     let invoice_entry = invoice_handler
@@ -520,8 +553,8 @@ pub async fn update_subscription(
     let _payment_response = invoice_handler
         .update_payment(
             &state,
-            request.amount,
-            request.currency,
+            estimate.total,
+            estimate.currency,
             invoice_entry.payment_intent_id.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "payment_intent_id",
