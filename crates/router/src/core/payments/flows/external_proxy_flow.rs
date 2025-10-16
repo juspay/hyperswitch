@@ -375,6 +375,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -410,7 +411,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
             .ok()
             .flatten()
-            .or_else(|| self.request.merchant_order_reference_id.clone())
+            .or_else(|| merchant_order_reference_id)
             .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
