@@ -30,6 +30,10 @@ use crate::{
     },
 };
 
+pub mod nexinets_constants {
+    pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 30;
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentsRequest {
