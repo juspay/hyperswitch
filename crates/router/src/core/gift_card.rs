@@ -297,8 +297,7 @@ pub async fn fetch_payment_methods_balances_from_redis(
     state: &SessionState,
     payment_intent_id: &id_type::GlobalPaymentId,
     payment_methods: &[api_models::payments::BalanceCheckPaymentMethodData],
-) -> errors::RouterResult<HashMap<domain::PaymentMethodBalanceKey, domain::PaymentMethodBalanceValue>>
-{
+) -> errors::RouterResult<HashMap<domain::PaymentMethodBalanceKey, domain::PaymentMethodBalance>> {
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -307,7 +306,7 @@ pub async fn fetch_payment_methods_balances_from_redis(
 
     let balance_data = domain::PaymentMethodBalanceData::new(payment_intent_id);
 
-    let balance_values: HashMap<String, domain::PaymentMethodBalanceValue> = redis_conn
+    let balance_values: HashMap<String, domain::PaymentMethodBalance> = redis_conn
         .get_hash_fields::<Vec<(String, String)>>(&balance_data.get_pm_balance_redis_key().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -315,9 +314,9 @@ pub async fn fetch_payment_methods_balances_from_redis(
         .into_iter()
         .map(|(key, value)| {
             value
-                .parse_struct("PaymentMethodBalanceValue")
+                .parse_struct("PaymentMethodBalance")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse PaymentMethodBalanceValue")
+                .attach_printable("Failed to parse PaymentMethodBalance")
                 .map(|parsed| (key, parsed))
         })
         .collect::<errors::RouterResult<HashMap<_, _>>>()?;
@@ -331,6 +330,9 @@ pub async fn fetch_payment_methods_balances_from_redis(
                 payment_method_subtype: gift_card_data.get_payment_method_type(),
                 payment_method_key: domain::GiftCardData::from(gift_card_data.clone())
                     .get_payment_method_key()
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Unable to get unique key for payment method".to_string(),
+                    })?
                     .expose(),
             };
             let redis_key = pm_balance_key.get_redis_key();
