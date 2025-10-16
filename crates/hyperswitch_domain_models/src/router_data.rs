@@ -4,7 +4,7 @@ use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
-    id_type,
+    id_type::{self},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -12,8 +12,8 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
-    payments,
+    address::AddressDetails, network_tokenization::NetworkTokenNumber,
+    payment_address::PaymentAddress, payment_method_data, payments,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -132,12 +132,13 @@ pub struct L2L3Data {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub shipping_origin_zip: Option<Secret<String>>,
-    pub shipping_state: Option<Secret<String>>,
-    pub shipping_country: Option<common_enums::CountryAlpha2>,
-    pub shipping_destination_zip: Option<Secret<String>>,
     pub billing_address_city: Option<String>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub customer_email: Option<common_utils::pii::Email>,
+    pub customer_name: Option<Secret<String>>,
+    pub customer_phone_number: Option<Secret<String>>,
+    pub customer_phone_country_code: Option<String>,
+    pub shipping_details: Option<AddressDetails>,
 }
 
 // Different patterns of authentication.
