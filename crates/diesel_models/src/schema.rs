@@ -261,6 +261,7 @@ diesel::table! {
         billing_processor_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
+        is_l2_l3_enabled -> Nullable<Bool>,
     }
 }
 
@@ -1606,6 +1607,10 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 128]
         merchant_reference_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        plan_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        item_price_id -> Nullable<Varchar>,
     }
 }
 
