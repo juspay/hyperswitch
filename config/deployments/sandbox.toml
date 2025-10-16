@@ -874,6 +874,9 @@ ach = { country = "US", currency = "USD" }
 [payout_method_filters.loonio]
 interac = { currency = "CAD" }
 
+[payout_method_filters.gigadat]
+interac = { currency = "CAD" }
+
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"

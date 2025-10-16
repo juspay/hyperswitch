@@ -798,6 +798,9 @@ ach = { country = "US", currency = "USD" }
 [payout_method_filters.loonio]
 interac = { currency = "CAD" }
 
+[payout_method_filters.gigadat]
+interac = { currency = "CAD" }
+
 [pm_filters.inespay]
 sepa = { country = "ES", currency = "EUR"}
 

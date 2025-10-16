@@ -123,8 +123,6 @@ pub use hyperswitch_interfaces::{
 #[cfg(feature = "v2")]
 use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
-#[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::payments::{OperationSessionGetters, PaymentData},
@@ -1359,8 +1357,7 @@ impl<F1, F2>
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,

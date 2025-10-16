@@ -186,6 +186,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

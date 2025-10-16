@@ -586,6 +586,7 @@ pub async fn payouts_cancel_core(
             is_eligible: None,
             unified_code: None,
             unified_message: None,
+            payout_connector_metadata: None,
         };
         payout_data.payout_attempt = state
             .store
@@ -1258,6 +1259,10 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
+                        payout_connector_metadata: payout_data
+                            .payout_attempt
+                            .payout_connector_metadata
+                            .to_owned(),
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
@@ -1294,6 +1299,10 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
+                        payout_connector_metadata: payout_data
+                            .payout_attempt
+                            .payout_connector_metadata
+                            .to_owned(),
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
@@ -1353,6 +1362,10 @@ pub async fn create_recipient(
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "unified_message",
                         })?,
+                    payout_connector_metadata: payout_data
+                        .payout_attempt
+                        .payout_connector_metadata
+                        .to_owned(),
                 };
                 let db = &*state.store;
                 payout_data.payout_attempt = db
@@ -1466,6 +1479,7 @@ pub async fn check_payout_eligibility(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
+    // let a = router_data.connector_meta_data.clone();
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
@@ -1480,6 +1494,7 @@ pub async fn check_payout_eligibility(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: payout_response_data.payout_connector_metadata,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1538,6 +1553,10 @@ pub async fn check_payout_eligibility(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
+                payout_connector_metadata: payout_data
+                    .payout_attempt
+                    .payout_connector_metadata
+                    .to_owned(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1594,6 +1613,10 @@ pub async fn complete_create_payout(
                 is_eligible: None,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: payout_data
+                    .payout_attempt
+                    .payout_connector_metadata
+                    .to_owned(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1682,7 +1705,7 @@ pub async fn create_payout(
             .await
             .to_payout_failed_response()?
         }
-        false => router_data,
+        false => router_data.clone(),
     };
 
     // 5. Process data returned by the connector
@@ -1693,6 +1716,7 @@ pub async fn create_payout(
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
+            // let a =router_data.connector_meta_data.clone();
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
@@ -1701,6 +1725,10 @@ pub async fn create_payout(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|v| v.peek().clone()),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1759,6 +1787,10 @@ pub async fn create_payout(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
+                payout_connector_metadata: router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|v| v.peek().clone()),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1816,6 +1848,7 @@ async fn complete_payout_quote_steps_if_required<F>(
         match router_data_resp.response.to_owned() {
             Ok(resp) => {
                 router_data.quote_id = resp.connector_payout_id;
+                router_data.connector_meta_data = resp.payout_connector_metadata.map(Secret::new);
             }
             Err(_err) => {
                 router_data.response = router_data_resp.response;
@@ -1834,12 +1867,12 @@ pub async fn complete_payout_retrieve(
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
-            create_payout_retrieve(
+            Box::pin(create_payout_retrieve(
                 state,
                 merchant_context,
                 &routing_data.connector_data,
                 payout_data,
-            )
+            ))
             .await
             .attach_printable("Payout retrieval failed for given Payout request")?;
         }
@@ -1968,6 +2001,9 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "unified_message",
                         })?,
+                    payout_connector_metadata: payout_response_data
+                        .payout_connector_metadata
+                        .clone(),
                 }
             } else {
                 storage::PayoutAttemptUpdate::StatusUpdate {
@@ -1978,6 +2014,9 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     is_eligible: payout_response_data.payout_eligible,
                     unified_code: None,
                     unified_message: None,
+                    payout_connector_metadata: payout_response_data
+                        .payout_connector_metadata
+                        .clone(),
                 }
             };
 
@@ -2092,6 +2131,7 @@ pub async fn create_recipient_disburse_account(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: payout_response_data.payout_connector_metadata,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2218,6 +2258,10 @@ pub async fn create_recipient_disburse_account(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
+                payout_connector_metadata: payout_data
+                    .payout_attempt
+                    .payout_connector_metadata
+                    .to_owned(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2284,6 +2328,7 @@ pub async fn cancel_payout(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: payout_response_data.payout_connector_metadata,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2342,6 +2387,10 @@ pub async fn cancel_payout(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
+                payout_connector_metadata: payout_data
+                    .payout_attempt
+                    .payout_connector_metadata
+                    .to_owned(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2433,6 +2482,7 @@ pub async fn fulfill_payout(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
+                payout_connector_metadata: payout_response_data.payout_connector_metadata,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2517,6 +2567,10 @@ pub async fn fulfill_payout(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
+                payout_connector_metadata: payout_data
+                    .payout_attempt
+                    .payout_connector_metadata
+                    .to_owned(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2857,6 +2911,7 @@ pub async fn payout_create_db_entries(
         routing_info: None,
         unified_code: None,
         unified_message: None,
+        payout_connector_metadata: None,
     };
     let payout_attempt = db
         .insert_payout_attempt(

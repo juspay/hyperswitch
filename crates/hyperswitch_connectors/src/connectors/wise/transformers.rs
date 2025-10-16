@@ -458,6 +458,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseRecipientCreateResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -506,6 +507,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutQuoteResponse>> for Payou
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -570,6 +572,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutResponse>> for PayoutsRou
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -618,6 +621,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -706,6 +710,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for Payout
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

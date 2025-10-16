@@ -2557,6 +2557,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: None,
                     error_message: None,
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -2570,6 +2571,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: Some(error_response_data.err_code.to_string()),
                     error_message: error_response_data.reason.clone(),
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),

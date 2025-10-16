@@ -1196,6 +1196,9 @@ ach = { country = "US", currency = "USD" }
 [payout_method_filters.loonio]
 interac = { currency = "CAD" }
 
+[payout_method_filters.gigadat]
+interac = { currency = "CAD" }
+
 [payment_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"
 

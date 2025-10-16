@@ -392,7 +392,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
-        matches!(self, Self::Wise)
+        matches!(self, Self::Wise | Self::Gigadat)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {

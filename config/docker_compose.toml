@@ -1205,6 +1205,9 @@ ach = { country = "US", currency = "USD" }
 [payout_method_filters.loonio]
 interac = { currency = "CAD" }
 
+[payout_method_filters.gigadat]
+interac = { currency = "CAD" }
+
 [locker_based_open_banking_connectors]
 connector_list = "tokenio"
 
