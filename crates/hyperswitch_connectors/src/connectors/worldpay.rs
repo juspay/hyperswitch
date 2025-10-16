@@ -87,6 +87,7 @@ use crate::{
     },
 };
 
+#[cfg(feature = "payouts")]
 const WORLDPAY_PAYOUT_CONTENT_TYPE: &str = "application/vnd.worldpay.payouts-v4+json";
 
 #[derive(Clone)]

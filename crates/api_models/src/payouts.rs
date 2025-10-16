@@ -417,7 +417,7 @@ pub struct Venmo {
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct ApplePayDecrypt {
-    /// The card number
+    /// The dpan number associated with card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub dpan: CardNumber,
 
