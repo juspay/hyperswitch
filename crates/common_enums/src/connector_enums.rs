@@ -74,6 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -250,6 +251,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -377,6 +379,7 @@ impl Connector {
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Worldpay, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]

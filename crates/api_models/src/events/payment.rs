@@ -174,6 +174,24 @@ impl ApiEventMetric for payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsCreateIntentRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

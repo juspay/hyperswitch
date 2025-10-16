@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
-use common_utils::{pii, types::MinorUnit};
+use common_enums::enums as storage_enums;
+use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
@@ -99,6 +100,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing: Routing,
     pub card: CardDetails,
     pub amount: AmountDetails,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -581,6 +583,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 routing,
                 card,
                 amount,
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -652,9 +655,16 @@ impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum PeachpaymentsPaymentsResponse {
+    Response(Box<PeachpaymentsPaymentsData>),
+    WebhookResponse(Box<PeachpaymentsIncomingWebhook>),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde[rename_all = "camelCase"]]
-pub struct PeachpaymentsPaymentsResponse {
+pub struct PeachpaymentsPaymentsData {
     pub transaction_id: String,
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
@@ -751,6 +761,105 @@ fn get_error_message(response_code: Option<&ResponseCode>) -> String {
         )
 }
 
+pub fn get_peachpayments_response(
+    response: PeachpaymentsPaymentsData,
+    status_code: u16,
+) -> CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+    ),
+    errors::ConnectorError,
+> {
+    let status = common_enums::AttemptStatus::from(response.transaction_result);
+    let payments_response = if !is_payment_success(
+        response
+            .response_code
+            .as_ref()
+            .and_then(|code| code.value()),
+    ) {
+        Err(ErrorResponse {
+            code: get_error_code(response.response_code.as_ref()),
+            message: get_error_message(response.response_code.as_ref()),
+            reason: response
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.description),
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(response.transaction_id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    } else {
+        Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response.transaction_id),
+            incremental_authorization_allowed: None,
+            charges: None,
+        })
+    };
+    Ok((status, payments_response))
+}
+
+pub fn get_webhook_response(
+    response: PeachpaymentsIncomingWebhook,
+    status_code: u16,
+) -> CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+    ),
+    errors::ConnectorError,
+> {
+    let transaction = response
+        .transaction
+        .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+    let status = common_enums::AttemptStatus::from(transaction.transaction_result);
+    let webhook_response = if !is_payment_success(
+        transaction
+            .response_code
+            .as_ref()
+            .and_then(|code| code.value()),
+    ) {
+        Err(ErrorResponse {
+            code: get_error_code(transaction.response_code.as_ref()),
+            message: get_error_message(transaction.response_code.as_ref()),
+            reason: transaction
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.description),
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(transaction.transaction_id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    } else {
+        Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                transaction
+                    .original_transaction_id
+                    .unwrap_or(transaction.transaction_id.clone()),
+            ),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(transaction.transaction_id.clone()),
+            incremental_authorization_allowed: None,
+            charges: None,
+        })
+    };
+    Ok((status, webhook_response))
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -758,43 +867,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, Payme
     fn try_from(
         item: ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.transaction_result);
-
-        // Check if it's an error response
-        let response = if !is_payment_success(
-            item.response
-                .response_code
-                .as_ref()
-                .and_then(|code| code.value()),
-        ) {
-            Err(ErrorResponse {
-                code: get_error_code(item.response.response_code.as_ref()),
-                message: get_error_message(item.response.response_code.as_ref()),
-                reason: item
-                    .response
-                    .ecommerce_card_payment_only_transaction_data
-                    .and_then(|data| data.description),
-                status_code: item.http_code,
-                attempt_status: Some(status),
-                connector_transaction_id: Some(item.response.transaction_id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
-        } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
+        let (status, response) = match item.response {
+            PeachpaymentsPaymentsResponse::Response(response) => {
+                get_peachpayments_response(*response, item.http_code)?
+            }
+            PeachpaymentsPaymentsResponse::WebhookResponse(response) => {
+                get_webhook_response(*response, item.http_code)?
+            }
         };
 
         Ok(Self {
@@ -882,6 +961,28 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             ecommerce_card_payment_only_confirmation_data: confirmation_data,
         })
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsIncomingWebhook {
+    pub webhook_id: String,
+    pub webhook_type: String,
+    pub reversal_failure_reason: Option<String>,
+    pub transaction: Option<WebhookTransaction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookTransaction {
+    pub transaction_id: String,
+    pub original_transaction_id: Option<String>,
+    pub reference_id: String,
+    pub transaction_result: PeachpaymentsPaymentStatus,
+    pub error_message: Option<String>,
+    pub response_code: Option<ResponseCode>,
+    pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub payment_method: Secret<String>,
 }
 
 // Error Response

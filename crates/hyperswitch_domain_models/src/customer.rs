@@ -558,6 +558,7 @@ pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
@@ -566,6 +567,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
             customer_id: value.customer_id,
+            time_range: value.time_range,
         }
     }
 }
@@ -656,6 +658,14 @@ where
         key_store: &MerchantKeyStore,
         constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<Customer>, Self::Error>;
+
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: CustomerListConstraints,
+    ) -> CustomResult<(Vec<Customer>, usize), Self::Error>;
 
     async fn insert_customer(
         &self,

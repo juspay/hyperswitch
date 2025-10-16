@@ -40,9 +40,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
-    if unique_groups.contains(&PermissionGroup::OrganizationManage)
-        || unique_groups.contains(&PermissionGroup::InternalManage)
-    {
+    if unique_groups.contains(&PermissionGroup::InternalManage) {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Invalid groups present in the custom role");
     }
