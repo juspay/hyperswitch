@@ -57,6 +57,7 @@ serde_with = "3.12.0"
 sha1 = { version = "0.10.6" }
 sha2 = "0.10"
 strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.25"
 time = "0.3.41"
 unicode-normalization = "0.1.24"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }

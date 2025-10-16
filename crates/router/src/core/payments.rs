@@ -7993,6 +7993,8 @@ where
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub connector_response_data:
+        Option<hyperswitch_domain_models::router_data::ConnectorResponseData>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -11265,6 +11267,11 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v1")]
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
+
+    #[cfg(feature = "v1")]
+    fn get_connector_response(
+        &self,
+    ) -> Option<hyperswitch_domain_models::router_data::ConnectorResponseData>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -11487,6 +11494,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_whole_connector_response(&self) -> Option<Secret<String>> {
         self.whole_connector_response.clone()
+    }
+
+    fn get_connector_response(
+        &self,
+    ) -> Option<hyperswitch_domain_models::router_data::ConnectorResponseData> {
+        self.connector_response_data.clone()
     }
 
     #[cfg(feature = "v1")]

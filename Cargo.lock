@@ -4360,6 +4360,7 @@ dependencies = [
  "sha1",
  "sha2",
  "strum 0.26.3",
+ "strum_macros 0.25.3",
  "time",
  "unicode-normalization",
  "unidecode",
