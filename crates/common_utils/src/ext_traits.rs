@@ -339,6 +339,12 @@ pub trait AsyncExt<A> {
     where
         F: FnOnce() -> Fut + Send,
         Fut: futures::Future<Output = A> + Send;
+
+    /// Extending `or_else` to allow async fallback that returns Self::WrappedSelf<A>
+    async fn async_or_else<F, Fut>(self, func: F) -> Self::WrappedSelf<A>
+    where
+        F: FnOnce() -> Fut + Send,
+        Fut: futures::Future<Output = Self::WrappedSelf<A>> + Send;
 }
 
 #[cfg(feature = "async_ext")]
@@ -381,6 +387,21 @@ impl<A: Send, E: Send + std::fmt::Debug> AsyncExt<A> for Result<A, E> {
             }
         }
     }
+
+    async fn async_or_else<F, Fut>(self, func: F) -> Self::WrappedSelf<A>
+    where
+        F: FnOnce() -> Fut + Send,
+        Fut: futures::Future<Output = Self::WrappedSelf<A>> + Send,
+    {
+        match self {
+            Ok(a) => Ok(a),
+            Err(_err) => {
+                #[cfg(feature = "logs")]
+                logger::error!("Error: {:?}", _err);
+                func().await
+            }
+        }
+    }
 }
 
 #[cfg(feature = "async_ext")]
@@ -416,6 +437,17 @@ impl<A: Send> AsyncExt<A> for Option<A> {
     {
         match self {
             Some(a) => a,
+            None => func().await,
+        }
+    }
+
+    async fn async_or_else<F, Fut>(self, func: F) -> Self::WrappedSelf<A>
+    where
+        F: FnOnce() -> Fut + Send,
+        Fut: futures::Future<Output = Self::WrappedSelf<A>> + Send,
+    {
+        match self {
+            Some(a) => Some(a),
             None => func().await,
         }
     }
