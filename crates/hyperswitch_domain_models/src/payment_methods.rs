@@ -1204,14 +1204,14 @@ impl PaymentMethodBalanceKey {
 /// payment method to be stored in the HashMap in Redis
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct PaymentMethodBalanceValue {
+pub struct PaymentMethodBalance {
     pub balance: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,
 }
 
 #[cfg(feature = "v2")]
 pub struct PaymentMethodBalanceData<'a> {
-    pub pm_balance_data: HashMap<PaymentMethodBalanceKey, PaymentMethodBalanceValue>,
+    pub pm_balance_data: HashMap<PaymentMethodBalanceKey, PaymentMethodBalance>,
     pub payment_intent_id: &'a id_type::GlobalPaymentId,
 }
 
@@ -1232,9 +1232,7 @@ impl<'a> PaymentMethodBalanceData<'a> {
         self.pm_balance_data.is_empty()
     }
 
-    pub fn get_individual_pm_balance_key_value_pairs(
-        &self,
-    ) -> Vec<(String, PaymentMethodBalanceValue)> {
+    pub fn get_individual_pm_balance_key_value_pairs(&self) -> Vec<(String, PaymentMethodBalance)> {
         self.pm_balance_data
             .iter()
             .map(|(pm_balance_key, pm_balance_value)| {

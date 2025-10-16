@@ -1250,12 +1250,13 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let currency = match data.request.currency {
-            Some(currency) => currency,
-            None => Err(errors::ConnectorError::MissingRequiredField {
+        let currency = data
+            .request
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "currency",
-            })?,
-        };
+            })?;
 
         if response.balance.currency != currency {
             Ok(RouterData {

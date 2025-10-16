@@ -711,13 +711,21 @@ impl GiftCardData {
     /// Payment Method Balance Check Flow for storing the balance
     /// data in Redis.
     ///
-    /// For PaySafeCard, it returns a static identifier "paysafecard"
-    /// as currently we don't have any unique identifier for it.
-    pub fn get_payment_method_key(&self) -> Secret<String> {
+    pub fn get_payment_method_key(
+        &self,
+    ) -> Result<Secret<String>, error_stack::Report<common_utils::errors::ValidationError>> {
         match self {
-            Self::Givex(givex) => givex.number.clone(),
-            Self::PaySafeCard {} => Secret::new("paysafecard".to_string()),
-            Self::BhnCardNetwork(bhn) => bhn.account_number.clone(),
+            Self::Givex(givex) => Ok(givex.number.clone()),
+            Self::PaySafeCard {} =>
+            // Generate a validation error here as we don't support balance check flow for it
+            {
+                Err(error_stack::Report::new(
+                    common_utils::errors::ValidationError::InvalidValue {
+                        message: "PaySafeCard doesn't support balance check flow".to_string(),
+                    },
+                ))
+            }
+            Self::BhnCardNetwork(bhn) => Ok(bhn.account_number.clone()),
         }
     }
 }

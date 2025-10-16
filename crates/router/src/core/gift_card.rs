@@ -163,17 +163,22 @@ pub async fn payments_check_gift_card_balance_core(
     let balance = gift_card_balance.balance;
     let currency = gift_card_balance.currency;
 
+    let payment_method_key = domain::GiftCardData::from(gift_card_data.clone())
+        .get_payment_method_key()
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Unable to get unique key for payment method".to_string(),
+        })?
+        .expose();
+
     let balance_data = domain::PaymentMethodBalanceData {
         payment_intent_id: &payment_intent.id,
         pm_balance_data: vec![(
             domain::PaymentMethodBalanceKey {
                 payment_method_type: common_enums::PaymentMethod::GiftCard,
                 payment_method_subtype: gift_card_data.get_payment_method_type(),
-                payment_method_key: domain::GiftCardData::from(gift_card_data)
-                    .get_payment_method_key()
-                    .expose(),
+                payment_method_key,
             },
-            domain::PaymentMethodBalanceValue { balance, currency },
+            domain::PaymentMethodBalance { balance, currency },
         )]
         .into_iter()
         .collect(),

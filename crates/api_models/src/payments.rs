@@ -5974,6 +5974,8 @@ pub struct PaymentsConfirmIntentRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodBalanceCheckRequest {
+    /// The payment method data to be used for the balance check request. It can
+    /// only be a payment method that supports checking balance e.g. gift card
     pub payment_method_data: BalanceCheckPaymentMethodData,
 }
 
