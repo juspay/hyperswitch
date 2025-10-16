@@ -1708,7 +1708,9 @@ pub async fn update_customer_payment_method(
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Card not found in vault".to_string(),
+            })
             .attach_printable("Error getting card from locker")?;
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
@@ -1937,8 +1939,16 @@ pub async fn get_card_from_locker(
                 api_enums::LockerChoice::HyperswitchCardVault,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card from hyperswitch card vault")
+            .map_err(|err| match err.current_context() {
+                errors::VaultError::FetchCardFailed => {
+                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Card not found in vault".to_string(),
+                    })
+                }
+                _ => err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error getting card from card vault"),
+            })
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     1,
