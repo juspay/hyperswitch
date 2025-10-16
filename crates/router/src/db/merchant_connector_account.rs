@@ -110,6 +110,7 @@ mod merchant_connector_account_cache_tests {
     use common_utils::{date_time, type_name, types::keymanager::Identifier};
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
+    use hyperswitch_domain_models::master_key::MasterKeyInterface;
     use masking::PeekInterface;
     use storage_impl::redis::{
         cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},

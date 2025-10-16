@@ -7,8 +7,18 @@ use api_models::payments::{
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
+    fp_utils, pii,
+    types::{
+        self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
+};
+#[cfg(feature = "v2")]
+use common_utils::{
+    ext_traits::Encode,
     fp_utils, pii,
     types::{
         self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
@@ -377,6 +387,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
 
+    let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
+
+    let order_category = connector_metadata.as_ref().and_then(|cm| {
+        cm.noon
+            .as_ref()
+            .and_then(|noon| noon.order_category.clone())
+    });
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -403,7 +421,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         customer_name: None,
         payment_experience: None,
         order_details: None,
-        order_category: None,
+        order_category,
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
@@ -1747,12 +1765,13 @@ where
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
-    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
-        let shipping_address = unified_address.get_shipping();
-        let billing_address = unified_address.get_payment_billing();
-        let merchant_tax_registration_id = merchant_context
-            .get_merchant_account()
-            .get_merchant_tax_registration_id();
+    let l2_l3_data =
+        (state.conf.l2_l3_data_config.enabled && payment_data.is_l2_l3_enabled).then(|| {
+            let shipping_address = unified_address.get_shipping();
+            let billing_address = unified_address.get_payment_billing();
+            let merchant_tax_registration_id = merchant_context
+                .get_merchant_account()
+                .get_merchant_tax_registration_id();
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
