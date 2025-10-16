@@ -608,6 +608,13 @@ impl Connector {
                 | Self::DummyConnector7
         ) && !is_dummy_connector_enabled
     }
+    pub fn is_tokenization_required_before_setup_mandate(self) -> bool {
+        if matches!(self, Self::Finix) {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 /// Convert the RoutableConnectors to Connector

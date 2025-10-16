@@ -207,13 +207,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
-        if matches!(connector.connector_name, types::Connector::Finix) {
-            Ok(types::PaymentMethodTokenResult {
-                payment_method_token_result: Ok(None),
-                is_payment_method_tokenization_performed: false,
-                connector_response: None,
-            })
-        } else {
+        if connector
+            .connector_name
+            .is_tokenization_required_before_setup_mandate()
+        {
             let request = self.request.clone();
             tokenization::add_payment_method_token(
                 state,
@@ -224,6 +221,12 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 should_continue_payment,
             )
             .await
+        } else {
+            Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+                connector_response: None,
+            })
         }
     }
 
