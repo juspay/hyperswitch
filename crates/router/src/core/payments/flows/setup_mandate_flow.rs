@@ -7,6 +7,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -208,8 +209,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         should_continue_payment: bool,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
         if connector
-            .connector_name
-            .is_tokenization_required_before_setup_mandate()
+            .connector
+            .should_call_tokenization_before_setup_mandate()
         {
             let request = self.request.clone();
             tokenization::add_payment_method_token(

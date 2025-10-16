@@ -1088,4 +1088,7 @@ impl ConnectorSpecifications for Finix {
     ) -> bool {
         true
     }
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        false
+    }
 }
