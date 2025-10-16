@@ -4299,7 +4299,7 @@ where
             is_handle_response_action,
             is_ucs_webhook_action,
         ) {
-            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            // Process through UCS when gateway system is UCS and not handling response or if it is a UCS webhook action
             (GatewaySystem::UnifiedConnectorService, false, _) | (_, _, true) => {
                 process_through_ucs(
                     state,
@@ -4320,7 +4320,7 @@ where
                 .await
             }
 
-            // Process through Direct gateway
+            // Process through Direct gateway when gateway system is Direct or if it is a handle response action
             (GatewaySystem::Direct, _, _) | (GatewaySystem::UnifiedConnectorService, true, _) => {
                 process_through_direct(
                     state,
@@ -5334,7 +5334,9 @@ where
             Some(payment_data),
         )
         .await?;
-        if matches!(execution, GatewaySystem::UnifiedConnectorService) {
+        if matches!(call_connector_action, CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::UCSConsumeResponse(_))
+            || !matches!(call_connector_action, CallConnectorAction::HandleResponse(_))
+            && matches!(execution, GatewaySystem::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),

@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::PaymentsResponseData,
 };
+use hyperswitch_interfaces::unified_connector_service::RouterDataUpdate;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -66,12 +67,6 @@ pub mod transformers;
 
 // Re-export webhook transformer types for easier access
 pub use transformers::WebhookTransformData;
-
-#[derive(Debug)]
-pub struct RouterDataUpdate {
-    pub amount_captured: Option<i64>,
-    pub minor_amount_captured: Option<MinorUnit>,
-}
 
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<

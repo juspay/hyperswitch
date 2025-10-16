@@ -274,7 +274,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 self.connector_http_status_code = Some(status_code);
                 Ok(())
             }
-            _ => {
+            common_enums::CallConnectorAction::UCSHandleResponse(_)
+            | common_enums::CallConnectorAction::Trigger => {
                 let connector_name = self.connector.clone();
                 let connector_enum =
                     common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -380,6 +381,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 // Copy back the updated data
                 *self = updated_router_data;
                 Ok(())
+            }
+            common_enums::CallConnectorAction::HandleResponse(_)
+            | common_enums::CallConnectorAction::Avoid
+            | common_enums::CallConnectorAction::StatusUpdate { .. } => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Should not call UCS for this CallConnectorAction")?
             }
         }
     }

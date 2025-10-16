@@ -12,6 +12,7 @@ pub mod transformers;
 
 pub use transformers::WebhookTransformData;
 
+/// Fields in RouterData that are updated from the UCS response
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct RouterDataUpdate {
