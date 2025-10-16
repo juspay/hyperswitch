@@ -70,6 +70,7 @@ pub struct RoutingConfigRequest {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(try_from = "String")]
 pub struct RoutingConfigName(String);
 
 impl RoutingConfigName {
@@ -85,6 +86,14 @@ impl RoutingConfigName {
         }
 
         Ok(Self(name))
+    }
+}
+
+impl TryFrom<String> for RoutingConfigName {
+    type Error = ValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
     }
 }
 
