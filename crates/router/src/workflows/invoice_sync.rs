@@ -8,8 +8,6 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
 };
 use diesel_models::process_tracker::business_status;
-#[cfg(feature = "v1")]
-use diesel_models::subscription;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::invoice::InvoiceUpdateRequest;
 use router_env::logger;

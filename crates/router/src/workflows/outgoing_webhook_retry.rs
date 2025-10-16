@@ -367,7 +367,6 @@ async fn get_outgoing_webhook_content_and_event_type(
         mandates::MandateId,
         payments::{PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
         refunds::{RefundResponse, RefundsRetrieveRequest},
-        subscription as subscription_types,
     };
 
     use crate::{
