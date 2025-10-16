@@ -71,11 +71,11 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "v2")]
 use crate::mandates;
-use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
     mandates::RecurringDetails,
+    payment_methods,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
