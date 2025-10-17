@@ -6855,6 +6855,7 @@ pub fn decide_session_token_flow(
         api_models::enums::PaymentMethodType::Paypal => api::GetToken::PaypalSdkMetadata,
         api_models::enums::PaymentMethodType::SamsungPay => api::GetToken::SamsungPayMetadata,
         api_models::enums::PaymentMethodType::Paze => api::GetToken::PazeMetadata,
+        api_models::enums::PaymentMethodType::AmazonPay => api::GetToken::AmazonPayMetadata,
         _ => api::GetToken::Connector,
     }
 }
