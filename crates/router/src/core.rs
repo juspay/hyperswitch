@@ -59,8 +59,6 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
-#[cfg(feature = "v1")]
-pub mod subscription;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;

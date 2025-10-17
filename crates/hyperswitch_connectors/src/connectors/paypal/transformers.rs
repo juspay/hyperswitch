@@ -1265,6 +1265,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::RedPagos
                     | enums::PaymentMethodType::SamsungPay
                     | enums::PaymentMethodType::Sepa
+                    | enums::PaymentMethodType::SepaGuarenteedDebit
                     | enums::PaymentMethodType::SepaBankTransfer
                     | enums::PaymentMethodType::Sofort
                     | enums::PaymentMethodType::Swish
@@ -1368,10 +1369,13 @@ impl TryFrom<&BankDebitData> for PaypalPaymentsRequest {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
+                .into())
+            }
         }
     }
 }

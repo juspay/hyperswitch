@@ -7,7 +7,7 @@ pub use api_models::payments::{
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials,
+    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -23,9 +23,8 @@ pub use api_models::{
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsEligibilityRequest, PaymentsExtendAuthorizationRequest,
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest, PaymentsExternalAuthenticationRequest,
         PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
         PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,

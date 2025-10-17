@@ -805,6 +805,14 @@ impl Default for CardTestingGuardConfig {
     }
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: common_utils::id_type::WebhookEndpointId,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
+    pub status: common_enums::OutgoingWebhookEndpointStatus,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct WebhookDetails {
@@ -818,6 +826,7 @@ pub struct WebhookDetails {
     pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
     pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
     pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
