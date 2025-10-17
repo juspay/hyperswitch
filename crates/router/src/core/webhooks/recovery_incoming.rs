@@ -214,7 +214,11 @@ async fn handle_monitoring_threshold(
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
-    let monitoring_threshold_config = state.conf.revenue_recovery.monitoring_threshold_in_seconds;
+    let monitoring_threshold_config = state
+        .conf
+        .revenue_recovery
+        .monitoring_threshold_in_seconds
+        .into();
     let retry_algorithm_type = state.conf.revenue_recovery.retry_algorithm_type;
     let revenue_recovery_retry_algorithm = business_profile
         .revenue_recovery_retry_algorithm_data

@@ -365,7 +365,7 @@ impl DebitRoutingDecisionData {
         F: Send + Clone,
         D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
-        payment_data.set_card_network(self.card_network.clone());
+        payment_data.set_card_network(self.card_network);
         self.debit_routing_result
             .as_ref()
             .map(|data| payment_data.set_co_badged_card_data(data));

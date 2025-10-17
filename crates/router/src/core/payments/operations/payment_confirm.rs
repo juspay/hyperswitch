@@ -1157,7 +1157,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let acquirer_config = additional_card_info.as_ref().and_then(|card_info| {
                 card_info
                     .card_network
-                    .clone()
                     .and_then(|network| business_profile.get_acquirer_details_from_network(network))
             });
             let country = business_profile
@@ -1187,7 +1186,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
                             card_network: additional_card_info
                                 .as_ref()
-                                .and_then(|info| info.card_network.clone()),
+                                .and_then(|info| info.card_network),
                         },
                     ),
                     issuer: Some(api_models::three_ds_decision_rule::IssuerData {

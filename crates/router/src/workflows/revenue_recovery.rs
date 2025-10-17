@@ -368,7 +368,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let decider_request = InternalDeciderRequest {
         first_error_message,
         billing_state,
-        card_funding: card_funding_str,
+        card_funding: payment_method_subtype_str,
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: Some(start_time_proto),

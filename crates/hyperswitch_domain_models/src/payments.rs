@@ -1094,7 +1094,7 @@ where
         let billing_connector_payment_method_details = Some(
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
                 diesel_models::types::BillingConnectorAdditionalCardInfo {
-                    card_network: self.revenue_recovery_data.card_network.clone(),
+                    card_network: self.revenue_recovery_data.card_network,
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
                 },
             ),

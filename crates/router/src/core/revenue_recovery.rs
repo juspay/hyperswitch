@@ -458,7 +458,7 @@ pub async fn perform_payments_sync(
             profile,
             merchant_context,
             new_revenue_recovery_payment_data,
-            payment_attempt,
+            &payment_attempt,
             &mut revenue_recovery_metadata,
         ),
     )

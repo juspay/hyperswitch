@@ -371,7 +371,7 @@ impl PaymentMethodsController for PmCards<'_> {
             card_holder_name: network_token_data.card_holder_name.clone(),
             nick_name: network_token_data.nick_name.clone(),
             card_issuing_country: network_token_data.card_issuing_country.clone(),
-            card_network: network_token_data.card_network.clone(),
+            card_network: network_token_data.card_network,
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
         };
@@ -1548,7 +1548,7 @@ pub async fn add_payment_method_data(
                             expiry_year: Some(card.card_exp_year),
                             nick_name: card.nick_name,
                             card_holder_name: card.card_holder_name,
-                            card_network: card_info.as_ref().and_then(|ci| ci.card_network.clone()),
+                            card_network: card_info.as_ref().and_then(|ci| ci.card_network),
                             card_isin: Some(card_isin),
                             card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
@@ -3328,7 +3328,7 @@ pub async fn list_payment_methods(
             let mut card_network_types = vec![];
             for card_network_type in payment_method_types_hm.1 {
                 card_network_types.push(CardNetworkTypes {
-                    card_network: card_network_type.0.clone(),
+                    card_network: *card_network_type.0,
                     eligible_connectors: card_network_type.1.clone(),
                     surcharge_details: None,
                 })

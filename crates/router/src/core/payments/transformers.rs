@@ -6098,7 +6098,7 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(card_details) => {
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
                     card_issuer: card_details.card_issuer.clone(),
-                    card_network: card_details.card_network.clone(),
+                    card_network: card_details.card_network,
                 })
             }
         }

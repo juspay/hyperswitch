@@ -178,7 +178,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             if let Some(card_network_list) = &mut payment_method_type_response.card_networks {
                 for card_network_type in card_network_list.iter_mut() {
                     backend_input.payment_method.card_network =
-                        Some(card_network_type.card_network.clone());
+                        Some(card_network_type.card_network);
                     let surcharge_details = surcharge_source
                         .generate_surcharge_details_and_populate_surcharge_metadata(
                             &backend_input,
@@ -188,7 +188,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                                 types::SurchargeKey::PaymentMethodData(
                                     payment_methods_enabled.payment_method,
                                     payment_method_type_response.payment_method_type,
-                                    Some(card_network_type.card_network.clone()),
+                                    Some(card_network_type.card_network),
                                 ),
                             ),
                         )?;
@@ -414,7 +414,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
 
 //         let card_network = match customer_payment_method.payment_method_data.as_ref() {
 //             Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => {
-//                 card.card_network.clone()
+//                 card.card_network
 //             }
 //             _ => None,
 //         };

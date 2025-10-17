@@ -435,7 +435,6 @@ pub fn build_unified_connector_service_payment_method(
 
             let card_network = card
                 .card_network
-                .clone()
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
 

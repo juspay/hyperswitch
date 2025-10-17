@@ -144,7 +144,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
                 .and_then(|card_info| card_info.card_issuer.clone()),
             card_network: optional_card_info
                 .as_ref()
-                .and_then(|card_info| card_info.card_network.clone()),
+                .and_then(|card_info| card_info.card_network),
             card_type: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_type.clone()),

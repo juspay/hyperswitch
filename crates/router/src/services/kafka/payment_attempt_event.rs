@@ -142,7 +142,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             debit_routing_savings: attempt.debit_routing_savings,
             signature_network: card_payment_method_data
                 .as_ref()
-                .and_then(|data| data.signature_network.clone()),
+                .and_then(|data| data.signature_network),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
         }
     }

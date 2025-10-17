@@ -269,7 +269,7 @@ where
             card_holder_name: card_details.card_holder_name.clone(),
             issuer_country: card_details.card_issuing_country.clone(),
             card_issuer: card_details.card_issuer.clone(),
-            card_network: card_details.card_network.clone(),
+            card_network: card_details.card_network,
             card_type: card_details.card_type.clone(),
             saved_to_locker,
             co_badged_card_data: card_details
@@ -299,7 +299,7 @@ where
             card_holder_name: card_details.card_holder_name.clone(),
             issuer_country: card_details.card_issuing_country.clone(),
             card_issuer: card_details.card_issuer.clone(),
-            card_network: card_details.card_network.clone(),
+            card_network: card_details.card_network,
             card_type: card_details.card_type.clone(),
             saved_to_locker,
             co_badged_card_data: None,

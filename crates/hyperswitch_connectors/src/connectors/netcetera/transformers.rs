@@ -393,7 +393,6 @@ impl TryFrom<&NetceteraRouterData<&PreAuthNRouterData>> for NetceteraPreAuthenti
                 .request
                 .card
                 .card_network
-                .clone()
                 .map(|card_network| {
                     is_cobadged_card().map(|is_cobadged_card| {
                         is_cobadged_card
@@ -516,7 +515,6 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             acct_number: card.card_number,
             scheme_id: card
                 .card_network
-                .clone()
                 .and_then(|card_network| {
                     is_cobadged_card.then_some(netcetera_types::SchemeId::try_from(card_network))
                 })
