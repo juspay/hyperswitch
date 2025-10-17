@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -28,7 +29,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        AmountUnit, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -49,11 +50,15 @@ use transformers as silverflow;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Silverflow;
+pub struct Silverflow {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
 impl Silverflow {
     pub fn new() -> &'static Self {
-        &Self
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
     }
 }
 
@@ -353,6 +358,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -428,6 +439,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -679,6 +696,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -755,6 +778,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -977,5 +1006,9 @@ impl ConnectorSpecifications for Silverflow {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn get_amount_unit(&self) -> Option<AmountUnit> {
+        Some(AmountUnit::Minor)
     }
 }
