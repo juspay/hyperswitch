@@ -19,6 +19,7 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
+use subscriptions::workflows::invoice_sync;
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -32,7 +33,6 @@ use crate::{
     routes::{app::ReqState, SessionState},
     types::{domain, storage},
 };
-use subscriptions::workflows::invoice_sync;
 
 pub struct OutgoingWebhookRetryWorkflow;
 
