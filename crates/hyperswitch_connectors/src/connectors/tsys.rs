@@ -198,6 +198,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         // Convert amount to connector-specific unit and create authorise integrity object
         let amount_for_integrity = utils::convert_amount(
@@ -296,6 +297,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tsy
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         // Convert amount to connector-specific unit and create sync integrity object
         let amount_for_integrity = utils::convert_amount(
@@ -402,6 +404,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         // Convert capture amount (if present) to connector-specific unit and create capture integrity object
         let capture_amount_for_integrity = utils::convert_amount(
@@ -498,6 +501,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ts
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -581,6 +585,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tsys {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         // Convert refund amount to connector-specific unit and create refund integrity object
         let refund_amount_for_integrity = utils::convert_amount(
@@ -679,6 +684,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tsys {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         // Convert refund amount to connector-specific unit and create refund sync integrity object
         let refund_amount_for_integrity = utils::convert_amount(
