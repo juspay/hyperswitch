@@ -66,7 +66,8 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "payment link", description = "Create payment link"),
         (name = "Routing", description = "Create and manage routing configurations"),
         (name = "Event", description = "Manage events"),
-        (name = "Authentication", description = "Create and manage authentication")
+        (name = "Authentication", description = "Create and manage authentication"),
+        (name = "Subscriptions", description = "Subscription management and billing endpoints")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -222,6 +223,15 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for platform account
         routes::platform::create_platform_account,
+
+        //Routes for subscriptions
+        routes::subscriptions::create_and_confirm_subscription,
+        routes::subscriptions::create_subscription,
+        routes::subscriptions::confirm_subscription,
+        routes::subscriptions::get_subscription,
+        routes::subscriptions::update_subscription,
+        routes::subscriptions::get_subscription_plans,
+        routes::subscriptions::get_estimate,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -876,6 +886,31 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::PriorityLogicData,
         api_models::user::PlatformAccountCreateRequest,
         api_models::user::PlatformAccountCreateResponse,
+        common_utils::id_type::CustomerId,
+        common_utils::id_type::SubscriptionId,
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::InvoiceId,
+        common_utils::id_type::MerchantConnectorAccountId,
+        api_models::enums::connector_enums::InvoiceStatus,
+        api_models::subscription::ClientSecret,
+        api_models::subscription::CreateAndConfirmSubscriptionRequest,
+        api_models::subscription::CreateSubscriptionRequest,
+        api_models::subscription::ConfirmSubscriptionRequest,
+        api_models::subscription::UpdateSubscriptionRequest,
+        api_models::subscription::SubscriptionResponse,
+        api_models::subscription::GetPlansResponse,
+        api_models::subscription::EstimateSubscriptionResponse,
+        api_models::subscription::GetPlansQuery,
+        api_models::subscription::EstimateSubscriptionQuery,
+        api_models::subscription::ConfirmSubscriptionPaymentDetails,
+        api_models::subscription::PaymentDetails,
+        api_models::subscription::CreateSubscriptionPaymentDetails,
+        api_models::subscription::SubscriptionLineItem,
+        api_models::subscription::SubscriptionPlanPrices,
+        api_models::subscription::PaymentResponseData,
+        api_models::subscription::Invoice,
+        api_models::subscription::SubscriptionStatus,
+        api_models::subscription::PeriodUnit,
     )),
     modifiers(&SecurityAddon)
 )]
