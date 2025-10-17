@@ -66,6 +66,7 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
+import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -81,6 +82,7 @@ const connectorDetails = {
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   celero: celeroConnectorDetails,
+  cashtocode: cashtocodeConnectorDetails,
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
