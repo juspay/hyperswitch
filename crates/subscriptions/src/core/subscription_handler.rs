@@ -8,6 +8,7 @@ use common_enums::connector_enums;
 use common_utils::{consts, ext_traits::OptionExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    customer, merchant_connector_account,
     merchant_context::MerchantContext,
     router_response_types::{self, subscriptions as subscription_response_types},
     subscription::{Subscription, SubscriptionStatus},
@@ -16,13 +17,10 @@ use masking::Secret;
 
 use super::errors;
 use crate::{
-    core::{
-        errors::StorageErrorExt, payments as payments_core,
-        subscription::invoice_handler::InvoiceHandler,
-    },
-    db::CustomResult,
-    routes::SessionState,
-    types::{domain, transformers::ForeignTryFrom},
+    core::invoice_handler::InvoiceHandler,
+    errors::CustomResult,
+    helpers::{ForeignTryFrom, StorageErrorExt},
+    state::SubscriptionState as SessionState,
 };
 
 pub struct SubscriptionHandler<'a> {
@@ -38,6 +36,7 @@ impl<'a> SubscriptionHandler<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     /// Helper function to create a subscription entry in the database.
     pub async fn create_subscription_entry(
         &self,
@@ -47,7 +46,9 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         merchant_reference_id: Option<String>,
         profile: &hyperswitch_domain_models::business_profile::Profile,
-    ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
+    ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
 
@@ -66,10 +67,12 @@ impl<'a> SubscriptionHandler<'a> {
                 .clone(),
             customer_id: customer_id.clone(),
             metadata: None,
-            profile_id: profile.get_id().clone(),
-            merchant_reference_id,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            profile_id: profile.get_id().clone(),
+            merchant_reference_id,
+            plan_id,
+            item_price_id,
         };
 
         subscription.generate_and_set_client_secret();
@@ -94,7 +97,7 @@ impl<'a> SubscriptionHandler<'a> {
         state: &SessionState,
         merchant_context: &MerchantContext,
         customer_id: &common_utils::id_type::CustomerId,
-    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+    ) -> errors::SubscriptionResult<customer::Customer> {
         let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
@@ -116,12 +119,12 @@ impl<'a> SubscriptionHandler<'a> {
         state: &SessionState,
         merchant_context: &MerchantContext,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
-        customer: &hyperswitch_domain_models::customer::Customer,
+        customer: &customer::Customer,
         customer_create_response: Option<router_response_types::ConnectorCustomerResponseData>,
-    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+    ) -> errors::SubscriptionResult<customer::Customer> {
         match customer_create_response {
             Some(customer_response) => {
-                match payments_core::customers::update_connector_customer_in_customers(
+                match customer::update_connector_customer_in_customers(
                     merchant_connector_id.get_string_repr(),
                     Some(customer),
                     Some(customer_response.connector_customer_id),
@@ -146,9 +149,9 @@ impl<'a> SubscriptionHandler<'a> {
     pub async fn update_customer(
         state: &SessionState,
         merchant_context: &MerchantContext,
-        customer: hyperswitch_domain_models::customer::Customer,
-        customer_update: domain::CustomerUpdate,
-    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        customer: customer::Customer,
+        customer_update: customer::CustomerUpdate,
+    ) -> errors::SubscriptionResult<customer::Customer> {
         let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
@@ -176,7 +179,7 @@ impl<'a> SubscriptionHandler<'a> {
         state: &SessionState,
         merchant_context: &MerchantContext,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> errors::RouterResult<hyperswitch_domain_models::business_profile::Profile> {
+    ) -> errors::SubscriptionResult<hyperswitch_domain_models::business_profile::Profile> {
         let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
 
@@ -192,7 +195,7 @@ impl<'a> SubscriptionHandler<'a> {
     pub async fn find_and_validate_subscription(
         &self,
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
-    ) -> errors::RouterResult<()> {
+    ) -> errors::SubscriptionResult<()> {
         let subscription_id = client_secret.get_subscription_id()?;
 
         let key_manager_state = &(self.state).into();
@@ -222,7 +225,7 @@ impl<'a> SubscriptionHandler<'a> {
         &self,
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
         subscription: &Subscription,
-    ) -> errors::RouterResult<()> {
+    ) -> errors::SubscriptionResult<()> {
         let stored_client_secret = subscription
             .client_secret
             .clone()
@@ -251,7 +254,7 @@ impl<'a> SubscriptionHandler<'a> {
     pub async fn find_subscription(
         &self,
         subscription_id: common_utils::id_type::SubscriptionId,
-    ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
+    ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let subscription = self
             .state
             .store
@@ -288,18 +291,16 @@ impl SubscriptionWithHandler<'_> {
         invoice: &hyperswitch_domain_models::invoice::Invoice,
         payment_response: &subscription_types::PaymentResponseData,
         status: subscription_response_types::SubscriptionStatus,
-        plan_id: Option<String>,
-        price_id: Option<String>,
-    ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
+    ) -> errors::SubscriptionResult<subscription_types::ConfirmSubscriptionResponse> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
             status: subscription_types::SubscriptionStatus::from(status),
-            plan_id,
+            plan_id: self.subscription.plan_id.clone(),
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
-            price_id,
+            item_price_id: self.subscription.item_price_id.clone(),
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
@@ -310,13 +311,14 @@ impl SubscriptionWithHandler<'_> {
         &self,
         payment: Option<subscription_types::PaymentResponseData>,
         invoice: Option<&hyperswitch_domain_models::invoice::Invoice>,
-    ) -> errors::RouterResult<SubscriptionResponse> {
+    ) -> errors::SubscriptionResult<SubscriptionResponse> {
         Ok(SubscriptionResponse::new(
             self.subscription.id.clone(),
             self.subscription.merchant_reference_id.clone(),
             subscription_types::SubscriptionStatus::from_str(&self.subscription.status)
                 .unwrap_or(subscription_types::SubscriptionStatus::Created),
-            None,
+            self.subscription.plan_id.clone(),
+            self.subscription.item_price_id.clone(),
             self.subscription.profile_id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.client_secret.clone().map(Secret::new),
@@ -324,7 +326,7 @@ impl SubscriptionWithHandler<'_> {
             payment,
             invoice
                 .map(
-                    |invoice| -> errors::RouterResult<subscription_types::Invoice> {
+                    |invoice| -> errors::SubscriptionResult<subscription_types::Invoice> {
                         subscription_types::Invoice::foreign_try_from(invoice)
                     },
                 )
@@ -335,7 +337,7 @@ impl SubscriptionWithHandler<'_> {
     pub async fn update_subscription(
         &mut self,
         subscription_update: hyperswitch_domain_models::subscription::SubscriptionUpdate,
-    ) -> errors::RouterResult<()> {
+    ) -> errors::SubscriptionResult<()> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
@@ -377,7 +379,8 @@ impl SubscriptionWithHandler<'_> {
     pub async fn get_mca(
         &mut self,
         connector_name: &str,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    ) -> CustomResult<merchant_connector_account::MerchantConnectorAccount, errors::ApiErrorResponse>
+    {
         let db = self.handler.state.store.as_ref();
         let key_manager_state = &(self.handler.state).into();
 
@@ -401,15 +404,6 @@ impl SubscriptionWithHandler<'_> {
                         },
                     )
                 }
-                #[cfg(feature = "v2")]
-                {
-                    //get mca using id
-                    let _ = key_manager_state;
-                    let _ = connector_name;
-                    let _ = merchant_context.get_merchant_key_store();
-                    let _ = subscription.profile_id;
-                    todo!()
-                }
             }
             None => {
                 // Fallback to profile-based lookup when merchant_connector_id is not set
@@ -430,15 +424,6 @@ impl SubscriptionWithHandler<'_> {
                             ),
                         },
                     )
-                }
-                #[cfg(feature = "v2")]
-                {
-                    //get mca using id
-                    let _ = key_manager_state;
-                    let _ = connector_name;
-                    let _ = self.handler.merchant_context.get_merchant_key_store();
-                    let _ = self.subscription.profile_id;
-                    todo!()
                 }
             }
         }

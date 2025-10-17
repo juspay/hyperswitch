@@ -727,7 +727,11 @@ pub async fn payments_update(
         is_connected_allowed: false,
         is_platform_allowed: true,
     };
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
+    let (auth_type, auth_flow) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
@@ -2444,6 +2448,52 @@ pub async fn retrieve_extended_card_info(
             is_connected_allowed: false,
             is_platform_allowed: true,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitEligibility, payment_id))]
+pub async fn payments_submit_eligibility(
+    state: web::Data<app::AppState>,
+    http_req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsEligibilityRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSubmitEligibility;
+    let payment_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.payment_id = payment_id.clone();
+
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: true,
+    };
+
+    let (auth_type, _auth_flow) =
+        match auth::check_client_secret_and_get_auth(http_req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payments::payments_submit_eligibility(
+                state,
+                merchant_context,
+                payload.clone(),
+                payment_id,
+            )
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

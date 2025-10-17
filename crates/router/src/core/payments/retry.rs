@@ -48,8 +48,8 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static + 'a,
-    FData: Send + Sync + types::Capturable + Clone + 'static + 'a + serde::Serialize,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -356,8 +356,8 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static + 'a,
-    FData: Send + Sync + types::Capturable + Clone + 'static + 'a + serde::Serialize,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>

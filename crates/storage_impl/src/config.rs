@@ -1,5 +1,8 @@
-use common_utils::{id_type, DbConnectionParams};
-use masking::Secret;
+use common_utils::DbConnectionParams;
+use hyperswitch_domain_models::master_key::MasterKeyInterface;
+use masking::{PeekInterface, Secret};
+
+use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {
@@ -33,14 +36,6 @@ impl DbConnectionParams for Database {
     }
 }
 
-pub trait TenantConfig: Send + Sync {
-    fn get_tenant_id(&self) -> &id_type::TenantId;
-    fn get_schema(&self) -> &str;
-    fn get_accounts_schema(&self) -> &str;
-    fn get_redis_key_prefix(&self) -> &str;
-    fn get_clickhouse_database(&self) -> &str;
-}
-
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueStrategy {
@@ -72,5 +67,24 @@ impl Default for Database {
             min_idle: None,
             max_lifetime: None,
         }
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for kv_router_store::KVRouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for RouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+/// Default dummy key for MockDb
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key()
     }
 }

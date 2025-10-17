@@ -6,6 +6,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -16,8 +17,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_get, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
