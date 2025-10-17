@@ -7939,7 +7939,10 @@ where
     );
 
     // Extract merchant_order_reference_id from payment data for UCS audit trail
-    let merchant_order_reference_id = payment_data.get_payment_intent().merchant_order_reference_id.clone();
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
 
     router_data
         .call_unified_connector_service(
@@ -8076,7 +8079,10 @@ where
     );
 
     // Extract merchant_order_reference_id from payment data for UCS audit trail
-    let merchant_order_reference_id = payment_data.get_payment_intent().merchant_order_reference_id.clone();
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
 
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();

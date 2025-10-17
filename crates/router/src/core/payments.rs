@@ -4890,7 +4890,7 @@ where
             let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
 
             // Extract merchant_order_reference_id from payment data for UCS audit trail
-            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_order_reference_id.clone();
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id.clone();
 
             router_data
                 .call_unified_connector_service(
@@ -4997,10 +4997,10 @@ where
                 business_profile.merchant_id.clone(),
                 business_profile.get_id().clone(),
             );
-            
+
             // Extract merchant_order_reference_id from payment data for UCS audit trail
-            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_order_reference_id.clone();
-            
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id.clone();
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -5111,10 +5111,13 @@ where
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
         );
-        
+
         // Extract merchant_order_reference_id from payment data for UCS audit trail
-        let merchant_order_reference_id = payment_data.get_payment_intent().merchant_order_reference_id.clone();
-        
+        let merchant_order_reference_id = payment_data
+            .get_payment_intent()
+            .merchant_reference_id
+            .clone();
+
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
