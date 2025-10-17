@@ -615,6 +615,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -687,20 +688,21 @@ pub struct AdyenplatformIncomingWebhook {
 pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
-    pub tracking: Option<AdyenplatformInstantStatus>,
+    pub tracking: Option<AdyenplatformTrackingData>,
     pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenplatformInstantStatus {
-    status: Option<InstantPriorityStatus>,
+pub struct AdyenplatformTrackingData {
+    status: TrackingStatus,
     estimated_arrival_time: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum InstantPriorityStatus {
+pub enum TrackingStatus {
+    Accepted,
     Pending,
     Credited,
 }
@@ -723,34 +725,30 @@ pub enum AdyenplatformWebhookStatus {
     Returned,
     Received,
 }
-pub fn get_adyen_webhook_event(
+pub fn get_adyen_payout_webhook_event(
     event_type: AdyenplatformWebhookEventType,
     status: AdyenplatformWebhookStatus,
-    instant_status: Option<AdyenplatformInstantStatus>,
-    category: Option<&AdyenPayoutMethod>,
+    tracking_data: Option<AdyenplatformTrackingData>,
 ) -> webhooks::IncomingWebhookEvent {
-    match (event_type, status, instant_status) {
+    match (event_type, status, tracking_data) {
         (AdyenplatformWebhookEventType::PayoutCreated, _, _) => {
             webhooks::IncomingWebhookEvent::PayoutCreated
         }
-        (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(instant_status)) => {
-            match (instant_status.status, instant_status.estimated_arrival_time) {
-                (Some(InstantPriorityStatus::Credited), _) | (None, Some(_)) => {
+        (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(tracking_data)) => {
+            match tracking_data.status {
+                TrackingStatus::Credited | TrackingStatus::Accepted => {
                     webhooks::IncomingWebhookEvent::PayoutSuccess
                 }
-                _ => webhooks::IncomingWebhookEvent::PayoutProcessing,
+                TrackingStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
             }
         }
         (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
             AdyenplatformWebhookStatus::Authorised | AdyenplatformWebhookStatus::Received => {
                 webhooks::IncomingWebhookEvent::PayoutCreated
             }
-            AdyenplatformWebhookStatus::Booked => match category {
-                Some(AdyenPayoutMethod::Card) => webhooks::IncomingWebhookEvent::PayoutSuccess,
-                Some(AdyenPayoutMethod::Bank) => webhooks::IncomingWebhookEvent::PayoutProcessing,
-                _ => webhooks::IncomingWebhookEvent::PayoutProcessing,
-            },
-            AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
+            AdyenplatformWebhookStatus::Booked | AdyenplatformWebhookStatus::Pending => {
+                webhooks::IncomingWebhookEvent::PayoutProcessing
+            }
             AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,
             AdyenplatformWebhookStatus::Returned => webhooks::IncomingWebhookEvent::PayoutReversed,
         },
