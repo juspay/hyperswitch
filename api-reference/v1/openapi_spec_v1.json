@@ -24711,18 +24711,6 @@
           }
         }
       },
-      "PaymentsExtendAuthorizationRequest": {
-        "type": "object",
-        "description": "Request to extend the authorization period for a payment",
-        "required": [
-          "payment_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
-          }
-        }
-      },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [

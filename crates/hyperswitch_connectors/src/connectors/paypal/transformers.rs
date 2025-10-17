@@ -1673,12 +1673,12 @@ impl<F>
         ));
 
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
-        let reason = item
+        let response = if is_payment_failure(status) {
+            let reason = item
             .response
             .status_details
             .and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
 
-        let response = if is_payment_failure(status) {
             Err(ErrorResponse {
                 code: reason
                     .clone()

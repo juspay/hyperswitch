@@ -1570,7 +1570,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             // Use the status sent by connector in error_response if it's present
                             Some(status) => status,
                             None =>
-                            // mark previous attempt status for technical failures in PSync flow
+                            // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
                             {
                                 if flow_name == "PSync" || flow_name == "ExtendAuthorization" {
                                     match err.status_code {
