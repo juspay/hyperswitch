@@ -4309,6 +4309,7 @@ where
                     frm_suggestion,
                     business_profile,
                     merchant_connector_account,
+                    &connector,
                     router_data,
                 )
                 .await
@@ -4896,6 +4897,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
                 )
                 .await?;
@@ -5000,6 +5002,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
                 )
                 .await?;
