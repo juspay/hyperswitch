@@ -489,6 +489,8 @@ jobs:
     runs-on: hyperswitch-runners
     env:
       CODECOV_FILE: "lcov.info"
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -566,7 +568,13 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview
+          components: llvm-tools-preview, rustfmt
+
+      - name: Install Protoc
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
