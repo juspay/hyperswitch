@@ -1675,9 +1675,9 @@ impl<F>
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
         let response = if is_payment_failure(status) {
             let reason = item
-            .response
-            .status_details
-            .and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
+                .response
+                .status_details
+                .and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
 
             Err(ErrorResponse {
                 code: reason
