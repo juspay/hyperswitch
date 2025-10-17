@@ -13,8 +13,9 @@ use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundRequest {
     /// The payment id against which refund is to be initiated
     #[schema(
@@ -23,6 +24,7 @@ pub struct RefundRequest {
         example = "pay_mbabizu24mvu3mela5njyhpit4",
         value_type = String,
     )]
+    #[smithy(value_type = "String")]
     pub payment_id: common_utils::id_type::PaymentId,
 
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -31,34 +33,42 @@ pub struct RefundRequest {
         min_length = 30,
         example = "ref_mbabizu24mvu3mela5njyhpit4"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub refund_id: Option<String>,
 
     /// The identifier for the Merchant Account
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub amount: Option<MinorUnit>,
 
     /// Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`
     #[schema(max_length = 255, example = "Customer returned the product")]
+    #[smithy(value_type = "Option<String>")]
     pub reason: Option<String>,
 
     /// To indicate whether to refund needs to be instant or scheduled. Default value is instant
     #[schema(default = "Instant", example = "Instant")]
+    #[smithy(value_type = "Option<RefundType>")]
     pub refund_type: Option<RefundType>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>)]
+    #[smithy(value_type = "Option<SplitRefund>")]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
@@ -216,9 +226,10 @@ pub struct RefundManualUpdateRequest {
 #[cfg(feature = "v1")]
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
-    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
+    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display, SmithyModel
 )]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RefundType {
     Scheduled,
     #[default]
