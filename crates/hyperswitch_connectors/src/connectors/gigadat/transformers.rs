@@ -467,7 +467,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutQuoteResponse>> for Pa
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
-                payout_connector_metadata: Some(connector_meta),
+                payout_connector_metadata: Some(Secret::new(connector_meta)),
             }),
             ..item.data
         })

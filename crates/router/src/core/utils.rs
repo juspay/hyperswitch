@@ -199,7 +199,7 @@ pub async fn construct_payout_router_data<'a, F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
-            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

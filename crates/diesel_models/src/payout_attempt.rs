@@ -1,5 +1,5 @@
 use common_utils::{
-    payout_method_utils,
+    payout_method_utils, pii,
     types::{UnifiedCode, UnifiedMessage},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -38,7 +38,7 @@ pub struct PayoutAttempt {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
-    pub payout_connector_metadata: Option<serde_json::Value>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -79,7 +79,7 @@ pub struct PayoutAttemptNew {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
-    pub payout_connector_metadata: Option<serde_json::Value>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,7 +92,7 @@ pub enum PayoutAttemptUpdate {
         is_eligible: Option<bool>,
         unified_code: Option<UnifiedCode>,
         unified_message: Option<UnifiedMessage>,
-        payout_connector_metadata: Option<serde_json::Value>,
+        payout_connector_metadata: Option<pii::SecretSerdeValue>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -134,7 +134,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
-    pub payout_connector_metadata: Option<serde_json::Value>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {

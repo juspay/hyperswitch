@@ -785,7 +785,11 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
                 field_name: "transaction_id",
             },
         )?;
-        let metadata = req.request.payout_connector_metadata.clone();
+        let metadata = req
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|secret| secret.peek().clone());
 
         let gigatad_meta: gigadat::GigadatPayoutMeta = to_payout_connector_meta(metadata.clone())?;
 

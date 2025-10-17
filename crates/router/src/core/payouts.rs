@@ -1479,7 +1479,6 @@ pub async fn check_payout_eligibility(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
-    // let a = router_data.connector_meta_data.clone();
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
@@ -1670,6 +1669,8 @@ pub async fn create_payout(
     )
     .await?;
 
+    let connector_meta_data = router_data.connector_meta_data.clone();
+
     // 2. Get/Create access token
     access_token::create_access_token(
         state,
@@ -1705,7 +1706,7 @@ pub async fn create_payout(
             .await
             .to_payout_failed_response()?
         }
-        false => router_data.clone(),
+        false => router_data,
     };
 
     // 5. Process data returned by the connector
@@ -1716,7 +1717,6 @@ pub async fn create_payout(
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            // let a =router_data.connector_meta_data.clone();
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
@@ -1725,10 +1725,7 @@ pub async fn create_payout(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
-                payout_connector_metadata: router_data
-                    .connector_meta_data
-                    .as_ref()
-                    .map(|v| v.peek().clone()),
+                payout_connector_metadata: connector_meta_data.clone(),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1787,10 +1784,7 @@ pub async fn create_payout(
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "unified_message",
                     })?,
-                payout_connector_metadata: router_data
-                    .connector_meta_data
-                    .as_ref()
-                    .map(|v| v.peek().clone()),
+                payout_connector_metadata: connector_meta_data,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1848,7 +1842,7 @@ async fn complete_payout_quote_steps_if_required<F>(
         match router_data_resp.response.to_owned() {
             Ok(resp) => {
                 router_data.quote_id = resp.connector_payout_id;
-                router_data.connector_meta_data = resp.payout_connector_metadata.map(Secret::new);
+                router_data.connector_meta_data = resp.payout_connector_metadata;
             }
             Err(_err) => {
                 router_data.response = router_data_resp.response;
