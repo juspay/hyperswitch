@@ -236,6 +236,14 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Santander
@@ -310,6 +318,25 @@ impl ConnectorCommon for Santander {
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.status.to_string(),
+                    message,
+                    reason: response.detail.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            santander::SantanderErrorResponse::Generic(response) => {
+                let message = response
+                    .detail
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.status.as_str().unwrap_or("UNKNOWN").to_string(),
                     message,
                     reason: response.detail.clone(),
                     attempt_status: None,
@@ -931,7 +958,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("Entered get_url of Void flow");
         let santander_mca_metadata =
             santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
@@ -1023,7 +1049,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        println!("Entered handle response");
         let response: santander::SantanderPixVoidResponse = res
             .response
             .parse_struct("Santander PaymentsResponse")
@@ -1042,7 +1067,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("Entered get_error_response");
         self.build_error_response(res, event_builder)
     }
 

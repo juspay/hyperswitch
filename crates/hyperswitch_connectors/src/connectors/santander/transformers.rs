@@ -54,8 +54,8 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
-    pub cpf: Secret<String>,        // req in scheduled type pix
-    pub cnpj: Secret<String>,        // req in immediate type pix
+    pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
+    pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
     pub merchant_city: String,
     pub merchant_name: String,
     pub workspace_id: String,
@@ -605,7 +605,7 @@ impl
                     cpf: None,
                 });
 
-                (cal, debt)
+                (Some(cal), debt)
             }
             Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
                 let cal =
@@ -624,7 +624,7 @@ impl
                     cnpj: None,
                 });
 
-                (cal, debt)
+                (Some(cal), debt)
             }
             None => {
                 let cal =
@@ -642,17 +642,17 @@ impl
                     cpf: None,
                 });
 
-                (cal, debt)
+                (Some(cal), debt)
             }
         };
 
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendar,
             debtor,
-            value: SantanderValue {
+            value: Some(SantanderValue {
                 original: value.0.amount.to_owned(),
-            },
-            key: santander_mca_metadata.pix_key.clone(),
+            }),
+            key: Some(santander_mca_metadata.pix_key.clone()),
             request_payer: value.0.router_data.request.statement_descriptor.clone(),
             additional_info: None,
         })))
@@ -983,7 +983,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
     pub debtor: Option<SantanderDebtor>,
     pub location: Option<String>,
     #[serde(rename = "recebedor")]
-    pub recipient: Recipient,
+    pub recipient: Option<Recipient>,
     #[serde(rename = "valor")]
     pub value: SantanderValue,
     #[serde(rename = "chave")]
@@ -1024,18 +1024,23 @@ pub struct SantanderPixQRCodeSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixQRPaymentRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "calendario")]
-    pub calendar: SantanderPixRequestCalendar,
+    pub calendar: Option<SantanderPixRequestCalendar>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "valor")]
-    pub value: SantanderValue,
+    pub value: Option<SantanderValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "chave")]
-    pub key: Secret<String>,
+    pub key: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "solicitacaoPagador")]
     pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "infoAdicionais")]
     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
 }
 
@@ -1142,7 +1147,7 @@ pub struct SantanderCalendarResponse {
     #[serde(rename = "dataDeVencimento")]
     pub due_date: Option<String>,
     #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_due: Option<i64>,        // changed this from String to i64
+    pub validity_after_due: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1560,7 +1565,7 @@ fn get_qr_code_data<F, T>(
         Some(api_models::payments::SantanderVariant::Immediate)
     };
 
-    return convert_pix_data_to_value(dynamic_pix_code, variant);
+    convert_pix_data_to_value(dynamic_pix_code, variant)
 }
 
 fn convert_pix_data_to_value(
@@ -1667,6 +1672,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
 pub enum SantanderErrorResponse {
     PixQrCode(SantanderPixQRCodeErrorResponse),
     Boleto(SantanderBoletoErrorResponse),
+    Generic(SantanderGenericErrorResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1688,6 +1694,17 @@ pub struct SantanderBoletoErrorResponse {
 
     #[serde(rename = "_errors")]
     pub errors: Option<Vec<ErrorObject>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderGenericErrorResponse {
+    #[serde(rename = "type")]
+    pub card_type: String,
+    pub title: String,
+    pub status: Value,
+    pub detail: Option<String>,
+    #[serde(rename = "correlationId")]
+    pub correlation_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1854,16 +1871,10 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>> for Santan
     fn try_from(
         value: &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
     ) -> Result<Self, Self::Error> {
-        // if value.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
-        //     return Err(errors::ConnectorError::FlowNotSupported {
-        //         flow: format!("{:?}", value.router_data.request.capture_method),
-        //         connector: "Santander".to_string(),
-        //     }
-        //     .into());
-        // }
-        match value.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::BankTransfer(ref bank_transfer_data)) => {
-                Self::try_from((value, bank_transfer_data.as_ref()))
+        match value.router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::Pix) => {
+                SantanderPixQRPaymentRequest::try_from(value)
+                    .map(|pix_qr| Self::PixQR(Box::new(pix_qr)))
             }
             // Some(PaymentMethodData::Voucher(ref voucher_data)) => Self::try_from((value, voucher_data)),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1873,95 +1884,62 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>> for Santan
     }
 }
 
-impl
-    TryFrom<(
-        &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
-        &BankTransferData,
-    )> for SantanderPaymentRequest
+impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
+    for SantanderPixQRPaymentRequest
 {
     type Error = Error;
+
     fn try_from(
-        value: (
-            &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
-            &BankTransferData,
-        ),
+        value: &SantanderRouterData<&PaymentsUpdateMetadataRouterData>,
     ) -> Result<Self, Self::Error> {
-        let santander_mca_metadata =
-            SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
+        match value.router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::Pix) => {
+                let calendar = match &value
+                    .router_data
+                    .request
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                {
+                    Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
+                        let cal = SantanderPixRequestCalendar::Immediate(
+                            SantanderPixImmediateCalendarRequest {
+                                expiration: val.time,
+                            },
+                        );
+                        Some(cal)
+                    }
+                    Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
+                        let cal = SantanderPixRequestCalendar::Scheduled(
+                            SantanderPixDueDateCalendarRequest {
+                                expiration_date: val.date.clone(),
+                                validity_after_expiration: val.validity_after_expiration,
+                            },
+                        );
+                        Some(cal)
+                    }
+                    None => {
+                        let cal = SantanderPixRequestCalendar::Immediate(
+                            SantanderPixImmediateCalendarRequest { expiration: 3600 },
+                        );
 
-        let (calendar, debtor) = match &value
-            .0
-            .router_data
-            .request
-            .feature_metadata
-            .as_ref()
-            .and_then(|f| f.pix_qr_expiry_time.as_ref())
-        {
-            Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
-                let cal =
-                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
-                        expiration: val.time,
-                    });
-                let debt = Some(SantanderDebtor {
-                    cnpj: Some(santander_mca_metadata.cnpj.clone()),
-                    name: value.0.router_data.get_billing_full_name()?,
-                    street: None,
-                    city: None,
-                    state: None,
-                    zip_code: None,
-                    cpf: None,
-                });
+                        Some(cal)
+                    }
+                };
 
-                (cal, debt)
+                // for now we are just updating the expiry, if asked we need to include amount, address in Update Metadata PaymentsRequest and consume from PaymentsUpdateMetadataData
+                Ok(Self {
+                    calendar,
+                    debtor: None,
+                    value: None,
+                    key: None,
+                    request_payer: None,
+                    additional_info: None,
+                })
             }
-            Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
-                let cal =
-                    SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
-                        expiration_date: val.date.clone(),
-                        validity_after_expiration: val.validity_after_expiration,
-                    });
-
-                let debt = Some(SantanderDebtor {
-                    cpf: Some(santander_mca_metadata.cpf.clone()),
-                    name: value.0.router_data.get_billing_full_name()?,
-                    street: None,
-                    city: None,
-                    state: None,
-                    zip_code: None,
-                    cnpj: None,
-                });
-
-                (cal, debt)
-            }
-            None => {
-                let cal =
-                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
-                        expiration: 3600, // default 1 hour
-                    });
-
-                let debt = Some(SantanderDebtor {
-                    cnpj: Some(santander_mca_metadata.cpf.clone()),
-                    name: value.0.router_data.get_billing_full_name()?,
-                    street: None,
-                    city: None,
-                    state: None,
-                    zip_code: None,
-                    cpf: None,
-                });
-
-                (cal, debt)
-            }
-        };
-
-        Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
-            calendar,
-            debtor,
-            value: SantanderValue {
-                original: value.0.amount.to_owned(),
-            },
-            key: santander_mca_metadata.pix_key.clone(),
-            request_payer: None,
-            additional_info: None,
-        })))
+            _ => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
+            ))?,
+        }
     }
 }

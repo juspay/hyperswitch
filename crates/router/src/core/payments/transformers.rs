@@ -1141,6 +1141,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         feature_metadata: None,
+        payment_method_type: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -2903,6 +2904,8 @@ where
                     .metadata
                     .clone()
                     .map(Secret::new),
+                feature_metadata: payment_data.get_payment_intent().feature_metadata.clone(),
+                status: payment_data.get_payment_intent().status,
             },
             vec![],
         )))
@@ -4628,8 +4631,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 field_name: "feature_metadata",
             })?;
 
-        println!("Feature Metadata: {:?}", feature_metadata);
-
         Ok(Self {
             amount,
             integrity_object: None,
@@ -4912,6 +4913,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method: Some(capture_method),
             feature_metadata: None,
+            payment_method_type: None,
         })
     }
 }
@@ -5153,15 +5155,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let feature_metadata = payment_data
-        .payment_intent
-        .feature_metadata
-        .clone()
-        .map(|cm| {
-            cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed parsing FeatureMetadata")
-        })
-        .transpose()?;
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing FeatureMetadata")
+            })
+            .transpose()?;
         Ok(Self {
             metadata: payment_data
                 .payment_intent
@@ -5176,8 +5178,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
             minor_amount: payment_data.payment_attempt.get_total_amount(),
-            payment_method_data: payment_data.payment_method_data.clone(),
-            currency: payment_data.currency.clone(),
+            payment_method_data: None,
+            currency: payment_data.currency,
             feature_metadata,
         })
     }
