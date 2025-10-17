@@ -280,6 +280,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response = utils::get_authorise_integrity_object(
+            data.amount_converter.as_ref(),
+            data.request.minor_amount,
+            data.request.currency,
+            response,
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -357,6 +365,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response = utils::get_sync_integrity_object(
+            self.amount_converter.as_ref(),
+            data.request.minor_amount,
+            data.request.currency,
+            response,
+        )?;
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -443,6 +458,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response = utils::get_capture_integrity_object(
+            // <-- Capture function used
+            self.amount_converter.as_ref(),
+            data.request.minor_amount_to_capture, // <-- Capture specific amount used
+            data.request.currency,
+            response,
+        )?;
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -608,6 +631,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Getnet 
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response = utils::get_refund_integrity_object(
+            self.amount_converter.as_ref(),
+            data.request.minor_refund_amount,
+            data.request.currency,
+            response,
+        )?;
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -683,6 +713,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response = utils::get_refund_integrity_object(
+            self.amount_converter.as_ref(),
+            data.request.minor_amount,
+            data.request.currency,
+            response,
+        )?;
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
