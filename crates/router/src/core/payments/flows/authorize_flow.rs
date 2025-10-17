@@ -11,8 +11,9 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -922,7 +923,7 @@ async fn call_unified_connector_service_authorize(
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
-                .map(Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_authorize_response))
@@ -1012,7 +1013,7 @@ async fn call_unified_connector_service_repeat_payment(
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response
                 .clone()
-                .map(Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_repeat_response))
