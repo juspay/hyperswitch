@@ -8,7 +8,6 @@ use hyperswitch_domain_models::{
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
-    types::AmountConvert,
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -287,7 +286,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         }
                     },
                     amount_money: SquarePaymentsAmountData {
-                        amount: item.convert_amount()?.amount,
+                        amount: item.request.amount,
                         currency: item.request.currency,
                     },
                     autocomplete,
@@ -429,7 +428,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_money: SquarePaymentsAmountData {
-                amount: item.convert_amount()?.amount,
+                amount: item.request.refund_amount,
                 currency: item.request.currency,
             },
             idempotency_key: Secret::new(item.request.refund_id.clone()),

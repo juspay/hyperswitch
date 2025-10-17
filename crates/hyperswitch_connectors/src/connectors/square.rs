@@ -11,7 +11,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -32,7 +31,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        AmountUnit, PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
+        PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
         PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
@@ -61,17 +60,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Square {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-}
-
-impl Square {
-    pub fn new() -> Self {
-        Self {
-            amount_converter: &MinorUnitForConnector,
-        }
-    }
-}
+pub struct Square;
 
 impl api::Payment for Square {}
 impl api::PaymentSession for Square {}
@@ -1010,9 +999,5 @@ impl ConnectorSpecifications for Square {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*SQUARE_SUPPORTED_WEBHOOK_FLOWS)
-    }
-
-    fn get_amount_unit(&self) -> Option<AmountUnit> {
-        Some(AmountUnit::Minor)
     }
 }
