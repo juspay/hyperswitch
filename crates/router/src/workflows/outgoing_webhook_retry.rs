@@ -19,6 +19,7 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
+use subscriptions::workflows::invoice_sync;
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -383,6 +384,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         merchant_account.clone(),
         key_store.clone(),
     )));
+
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
@@ -571,6 +573,26 @@ async fn get_outgoing_webhook_content_and_event_type(
             Ok((
                 OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 event_type,
+            ))
+        }
+        diesel_models::enums::EventClass::Subscriptions => {
+            let invoice_id = tracking_data.primary_object_id.clone();
+            let profile_id = &tracking_data.business_profile_id;
+
+            let response = Box::pin(
+                invoice_sync::InvoiceSyncHandler::form_response_for_retry_outgoing_webhook_task(
+                    state.clone().into(),
+                    &key_store,
+                    invoice_id,
+                    profile_id,
+                    &merchant_account,
+                ),
+            )
+            .await?;
+
+            Ok((
+                OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
+                Some(EventType::InvoicePaid),
             ))
         }
     }

@@ -316,3 +316,18 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         .into())
     }
 }
+
+/// A trait representing an implementor outgoing webhooks.
+/// It can have differnt implementations for different use-cases of outgoing webhooks.
+#[async_trait::async_trait]
+pub trait OutgoingWebhooksImplementor: Send + Sync {
+    /// Implements the logic to trigger an outgoing webhook
+    async fn trigger_outgoing_webhook(
+        &self,
+        event_type: common_enums::EventType,
+        event_class: common_enums::EventClass,
+        primary_object_id: String,
+        primary_object_type: common_enums::EventObjectType,
+        content: api_models::webhooks::OutgoingWebhookContent,
+    ) -> CustomResult<(), ApiErrorResponse>;
+}

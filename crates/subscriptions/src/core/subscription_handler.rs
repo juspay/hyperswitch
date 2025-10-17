@@ -295,7 +295,7 @@ impl SubscriptionWithHandler<'_> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
-            status: subscription_types::SubscriptionStatus::from(status),
+            status: common_enums::SubscriptionStatus::from(status),
             plan_id: self.subscription.plan_id.clone(),
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
@@ -315,8 +315,8 @@ impl SubscriptionWithHandler<'_> {
         Ok(SubscriptionResponse::new(
             self.subscription.id.clone(),
             self.subscription.merchant_reference_id.clone(),
-            subscription_types::SubscriptionStatus::from_str(&self.subscription.status)
-                .unwrap_or(subscription_types::SubscriptionStatus::Created),
+            common_enums::SubscriptionStatus::from_str(&self.subscription.status)
+                .unwrap_or(common_enums::SubscriptionStatus::Created),
             self.subscription.plan_id.clone(),
             self.subscription.item_price_id.clone(),
             self.subscription.profile_id.to_owned(),
@@ -455,6 +455,10 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
                     currency = invoice.currency
                 ))?,
             status: invoice.status.clone(),
+            billing_processor_invoice_id: invoice
+                .connector_invoice_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
         })
     }
 }

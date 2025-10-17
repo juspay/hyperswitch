@@ -45,6 +45,22 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+pub struct OutgoingWebhooksHandler;
+
+#[async_trait::async_trait]
+impl hyperswitch_interfaces::webhooks::OutgoingWebhooksImplementor for OutgoingWebhooksHandler {
+    async fn trigger_outgoing_webhook(
+        &self,
+        event_type: enums::EventType,
+        event_class: enums::EventClass,
+        primary_object_id: String,
+        primary_object_type: enums::EventObjectType,
+        content: api::OutgoingWebhookContent,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
@@ -1026,6 +1042,13 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(subscription) => {
+                Self::Subscription {
+                    subscription_id: subscription.id.clone(),
+                    invoice_id: subscription.get_optional_invoice_id(),
+                    payment_id: subscription.get_optional_payment_id(),
+                }
+            }
         }
     }
 }
@@ -1068,6 +1091,16 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         } => OutgoingWebhookEventContent::Mandate {
             payment_method_id,
             mandate_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
+        } => OutgoingWebhookEventContent::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
             content: serde_json::Value::Null,
         },
     })
