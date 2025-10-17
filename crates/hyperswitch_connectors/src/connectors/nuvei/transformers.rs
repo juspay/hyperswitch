@@ -1657,7 +1657,7 @@ where
     })
 }
 fn get_l2_l3_items(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
@@ -1716,7 +1716,7 @@ fn get_l2_l3_items(
 }
 
 fn get_amount_details(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {

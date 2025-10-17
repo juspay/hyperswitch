@@ -1773,7 +1773,7 @@ where
                 .get_merchant_account()
                 .get_merchant_tax_registration_id();
 
-            types::L2L3Data {
+            Box::new(types::L2L3Data {
                 order_date: payment_data.payment_intent.order_date,
                 tax_status: payment_data.payment_intent.tax_status,
                 customer_tax_registration_id: customer.as_ref().and_then(|c| {
@@ -1795,27 +1795,25 @@ where
                     .merchant_order_reference_id
                     .clone(),
                 customer_id: payment_data.payment_intent.customer_id.clone(),
-                shipping_origin_zip: shipping_address
-                    .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.origin_zip.clone()),
-                shipping_state: shipping_address
-                    .as_ref()
-                    .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.state.clone()),
-                shipping_country: shipping_address
-                    .as_ref()
-                    .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.country),
-                shipping_destination_zip: shipping_address
-                    .as_ref()
-                    .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.zip.clone()),
                 billing_address_city: billing_address
                     .as_ref()
                     .and_then(|addr| addr.address.as_ref())
                     .and_then(|details| details.city.clone()),
                 merchant_tax_registration_id,
-            }
+                customer_name: customer
+                    .as_ref()
+                    .and_then(|c| c.name.as_ref().map(|e| e.clone().into_inner())),
+                customer_email: payment_data.email,
+                customer_phone_number: customer
+                    .as_ref()
+                    .and_then(|c| c.phone.as_ref().map(|e| e.clone().into_inner())),
+                customer_phone_country_code: customer
+                    .as_ref()
+                    .and_then(|c| c.phone_country_code.clone()),
+                shipping_details: shipping_address
+                    .and_then(|address| address.address.as_ref())
+                    .cloned(),
+            })
         });
     crate::logger::debug!("unified address details {:?}", unified_address);
 

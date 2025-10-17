@@ -555,7 +555,7 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
-    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
+    fn get_optional_l2_l3_data(&self) -> Option<Box<L2L3Data>>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -1086,7 +1086,7 @@ impl<Flow, Request, Response> RouterData
             .ok_or_else(missing_field_err("quote_id"))
     }
 
-    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
+    fn get_optional_l2_l3_data(&self) -> Option<Box<L2L3Data>> {
         self.l2_l3_data.clone()
     }
 
