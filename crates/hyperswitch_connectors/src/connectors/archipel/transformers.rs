@@ -649,6 +649,26 @@ impl From<&ArchipelPaymentsResponse> for ArchipelTransactionMetadata {
     }
 }
 
+impl ArchipelPaymentsResponse {
+    pub fn get_amount_currency(
+        &self,
+    ) -> Result<(i64, Currency), error_stack::Report<errors::ConnectorError>> {
+        let amount = self
+            .order
+            .amount
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "order.amount",
+            })?;
+        let currency = self
+            .order
+            .currency
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "order.currency",
+            })?;
+        Ok((amount, currency))
+    }
+}
+
 // AUTHORIZATION FLOW
 impl TryFrom<(MinorUnit, &PaymentsAuthorizeRouterData)> for ArchipelPaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
