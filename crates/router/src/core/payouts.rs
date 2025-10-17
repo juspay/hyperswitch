@@ -1669,8 +1669,6 @@ pub async fn create_payout(
     )
     .await?;
 
-    let connector_meta_data = router_data.connector_meta_data.clone();
-
     // 2. Get/Create access token
     access_token::create_access_token(
         state,
@@ -1685,6 +1683,8 @@ pub async fn create_payout(
     if helpers::should_continue_payout(&router_data) {
         complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
     };
+
+    let connector_meta_data = router_data.connector_meta_data.clone();
 
     // 4. Call connector service
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
