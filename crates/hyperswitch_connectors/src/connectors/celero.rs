@@ -270,7 +270,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let response_integrity_object = utils::get_authorise_integrity_object(
             self.amount_converter,
             data.request.minor_amount,
-            data.request.currency,
+            data.request.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -362,8 +362,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
 
         let response_integrity_object = utils::get_sync_integrity_object(
             self.amount_converter,
-            data.request.minor_amount,
-            data.request.currency,
+            data.request.amount,
+            data.request.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -627,7 +627,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
             data.request.minor_refund_amount,
-            data.request.currency,
+            data.request.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -720,7 +720,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
             data.request.minor_refund_amount,
-            data.request.currency,
+            data.request.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
