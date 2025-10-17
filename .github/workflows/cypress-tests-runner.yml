@@ -568,6 +568,12 @@ jobs:
           toolchain: stable 2 weeks ago
           components: llvm-tools-preview, rustfmt
 
+      - name: Install Protoc
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
