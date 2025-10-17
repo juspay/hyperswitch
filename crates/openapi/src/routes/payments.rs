@@ -928,16 +928,6 @@ pub fn payments_incremental_authorization() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/extend_authorization",
-    request_body (
-        content = PaymentsExtendAuthorizationRequest,
-        examples(
-            (
-                "Increase the authorization validity period with minimal fields" = (
-                    value = json!({})
-                )
-            )
-        )
-    ),
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),

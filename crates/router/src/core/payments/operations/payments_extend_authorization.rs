@@ -75,7 +75,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             payment_intent.status,
             &[
                 enums::IntentStatus::RequiresCapture,
-                enums::IntentStatus::PartiallyCapturedAndCapturable,
                 enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
             ],
             "extend authorization",

@@ -8455,7 +8455,6 @@ pub struct PaymentsCancelPostCaptureRequest {
 /// Request to extend the authorization period for a payment
 pub struct PaymentsExtendAuthorizationRequest {
     /// The identifier for the payment
-    #[serde(skip)]
     pub payment_id: id_type::PaymentId,
 }
 

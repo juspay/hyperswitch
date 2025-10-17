@@ -688,10 +688,10 @@ impl Capturable for PaymentsExtendAuthorizationData {
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Some(0),
-            common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::Expired 
+            | common_enums::IntentStatus::Succeeded => Some(0),
+            common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation

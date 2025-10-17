@@ -8183,7 +8183,6 @@ where
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
                 | storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,

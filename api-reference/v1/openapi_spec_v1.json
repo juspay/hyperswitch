@@ -1163,21 +1163,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentsExtendAuthorizationRequest"
-              },
-              "examples": {
-                "Increase the authorization validity period with minimal fields": {
-                  "value": {}
-                }
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Extended authorization for the payment"
@@ -24728,7 +24713,15 @@
       },
       "PaymentsExtendAuthorizationRequest": {
         "type": "object",
-        "description": "Request to extend the authorization period for a payment"
+        "description": "Request to extend the authorization period for a payment",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "$ref": "#/components/schemas/id_type.PaymentId"
+          }
+        }
       },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
