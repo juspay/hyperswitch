@@ -501,6 +501,31 @@ async fn process_non_ucs_webhook(
     }
 }
 
+/// Extract resource object from UCS WebhookResponseContent
+fn get_ucs_webhook_resource_object(
+    webhook_response_content: payments_grpc::WebhookResponseContent,
+) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
+    let resource_object = match webhook_response_content.content {
+        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+            incomplete_transformation_response,
+        )) => {
+            // Deserialize resource object
+            serde_json::from_slice::<serde_json::Value>(
+                &incomplete_transformation_response.resource_object,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize resource object from UCS webhook response")?
+        }
+        _ => {
+            // Convert UCS webhook content to appropriate format
+            serde_json::to_value(&webhook_response_content)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize UCS webhook content")?
+        }
+    };
+    Ok(Box::new(resource_object))
+}
+
 /// Extract webhook event object based on transform data availability
 fn extract_webhook_event_object(
     transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
@@ -508,30 +533,18 @@ fn extract_webhook_event_object(
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
     match transform_data {
-        Some(transform_data) => {
-            match &transform_data.webhook_content {
-                Some(webhook_content) => {
-                    let serialized_value = match webhook_content.content.clone() {
-                        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(incomplete_transformation_response)) => {
-                            serde_json::from_slice::<serde_json::Value>(&incomplete_transformation_response.resource_object)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to deserialize resource object from UCS webhook response")?
-                        }
-                        _ => {
-                            // Convert UCS webhook content to appropriate format
-                            serde_json::to_value(webhook_content)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to serialize UCS webhook content")?
-                        }
-                    };
-                    Ok(Box::new(serialized_value))
-                }
-                None => connector
+        Some(transform_data) => transform_data
+            .webhook_content
+            .as_ref()
+            .map(|webhook_response_content| {
+                get_ucs_webhook_resource_object(webhook_response_content.clone())
+            })
+            .unwrap_or_else(|| {
+                connector
                     .get_webhook_resource_object(request_details)
                     .switch()
-                    .attach_printable("Could not find resource object in incoming webhook body"),
-            }
-        }
+                    .attach_printable("Could not find resource object in incoming webhook body")
+            }),
         None => connector
             .get_webhook_resource_object(request_details)
             .switch()
@@ -658,30 +671,15 @@ async fn process_webhook_business_logic(
     let event_object: Box<dyn masking::ErasedMaskSerialize> =
         if let Some(transform_data) = webhook_transform_data {
             // Use UCS transform data if available
-            if let Some(webhook_content) = &transform_data.webhook_content {
-                match webhook_content.content.clone() {
-                    Some(
-                        payments_grpc::webhook_response_content::Content::IncompleteTransformation(
-                            incomplete_transformation_response,
-                        ),
-                    ) => Box::new(
-                        serde_json::from_slice::<serde_json::Value>(
-                            &incomplete_transformation_response.resource_object,
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to deserialize resource object from UCS webhook response",
-                        )?,
-                    ),
-                    _ => {
-                        // Convert UCS webhook content to appropriate format
-                        Box::new(
-                            serde_json::to_value(webhook_content)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to serialize UCS webhook content")?,
-                        )
-                    }
-                }
+            if let Some(resource_object) = transform_data
+                .webhook_content
+                .as_ref()
+                .map(|webhook_response_content| {
+                    get_ucs_webhook_resource_object(webhook_response_content.clone())
+                })
+                .transpose()?
+            {
+                resource_object
             } else {
                 // Fall back to connector extraction
                 connector
