@@ -8743,15 +8743,18 @@ pub struct PaymentsCompleteAuthorizeRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
+    #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
+    #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
