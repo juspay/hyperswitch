@@ -699,8 +699,8 @@ google_pay = { country = "AU,AT,BE,BR,CA,CL,CO,CR,CY,CZ,DK,DO,EC,EE,SV,FI,FR,DE,
 samsung_pay = { country = "AU,BH,BR,CA,CN,DK,FI,FR,DE,HK,IN,IT,JP,KZ,KR,KW,MY,NZ,NO,OM,QA,SA,SG,ZA,ES,SE,CH,TW,AE,GB,US", currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -1034,9 +1034,9 @@ card = "credit,debit"
 
 #Payout Method Filters Based on Country and Currency
 [payout_method_filters.adyenplatform]
-sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
-credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
-debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
+sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF,CAD,JPY" }
+credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP,CAD,JPY" }
+debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP,CAD,JPY" }
 
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
