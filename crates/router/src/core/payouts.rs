@@ -2778,7 +2778,7 @@ pub async fn payout_create_db_entries(
             payment_method
                 .as_ref()
                 .map(|pm| pm.payment_method_id.clone()),
-            Some(api_enums::PayoutType::foreign_from(payout_method_data)),
+            Some(api_enums::PayoutType::foreign_try_from(payout_method_data)?),
         ),
         None => {
             (

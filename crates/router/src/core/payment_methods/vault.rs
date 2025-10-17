@@ -860,6 +860,7 @@ pub enum VaultPayoutMethod {
     Bank(String),
     Wallet(String),
     BankRedirect(String),
+    ConnectorToken(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -874,6 +875,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
+            Self::ConnectorToken(connector_token) => {
+                VaultPayoutMethod::ConnectorToken(connector_token.get_value1(customer_id)?)
             }
         };
 
@@ -893,6 +897,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
+            Self::ConnectorToken(connector_token) => {
+                VaultPayoutMethod::ConnectorToken(connector_token.get_value2(customer_id)?)
             }
         };
 
@@ -936,6 +943,14 @@ impl Vaultable for api::PayoutMethodData {
                 let (bank_redirect, supp_data) =
                     api::BankRedirectPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+            (
+                VaultPayoutMethod::ConnectorToken(mvalue1),
+                VaultPayoutMethod::ConnectorToken(mvalue2),
+            ) => {
+                let (connector_token, supp_data) =
+                    api::ConnectorTokenPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::ConnectorToken(connector_token), supp_data))
             }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
@@ -1007,6 +1022,63 @@ impl Vaultable for api::BankRedirectPayout {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl Vaultable for api::ConnectorTokenPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = TokenizedConnectorTokenSensitiveValues {
+            token: self.token.clone(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable(
+                "Failed to encode connector token data - TokenizedConnectorTokenSensitiveValues",
+            )
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedConnectorTokenInsensitiveValues { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode connector token data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedConnectorTokenSensitiveValues = value1
+            .parse_struct("TokenizedConnectorTokenSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value1")?;
+
+        let value2: TokenizedConnectorTokenInsensitiveValues = value2
+            .parse_struct("TokenizedConnectorTokenInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value2")?;
+
+        let connector_token = Self {
+            token: value1.token,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((connector_token, supp_data))
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Email,
@@ -1015,6 +1087,16 @@ pub struct TokenizedBankRedirectSensitiveValues {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedConnectorTokenSensitiveValues {
+    pub token: masking::Secret<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedConnectorTokenInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
 }
 
