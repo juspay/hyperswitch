@@ -59,8 +59,9 @@ impl Event {
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                 .and(
-                    dsl::primary_object_id.eq(primary_object_id.to_owned())
-                    .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))
+                    dsl::primary_object_id
+                        .eq(primary_object_id.to_owned())
+                        .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
                 ),
             None,
             None,
@@ -145,8 +146,11 @@ impl Event {
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())
-                    .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))),
+                .and(
+                    dsl::primary_object_id
+                        .eq(primary_object_id.to_owned())
+                        .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),

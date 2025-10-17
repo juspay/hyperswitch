@@ -198,7 +198,7 @@ impl EventInterface for Store {
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
-        initial_attempt_id:&str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -323,7 +323,7 @@ impl EventInterface for Store {
             &conn,
             profile_id,
             primary_object_id,
-            initial_attempt_id
+            initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -538,7 +538,7 @@ impl EventInterface for MockDb {
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
-        initial_attempt_id:&str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -547,11 +547,8 @@ impl EventInterface for MockDb {
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
                     && event.initial_attempt_id.as_deref() == Some(&event.event_id)
-                    && (
-                        event.primary_object_id == primary_object_id
-                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
-                    )
-                    
+                    && (event.primary_object_id == primary_object_id
+                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
             })
             .cloned()
             .collect::<Vec<_>>();
