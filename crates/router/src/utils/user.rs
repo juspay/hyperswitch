@@ -79,6 +79,19 @@ impl UserFromToken {
                     e.change_context(UserErrors::InternalServerError)
                 }
             })?;
+
+        // Check if merchant is soft-deleted
+        if let Some(metadata) = &merchant_account.metadata {
+            let metadata_value = metadata.peek();
+            if metadata_value
+                .get("deleted")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                return Err(UserErrors::MerchantIdNotFound.into());
+            }
+        }
+
         Ok(merchant_account)
     }
 
