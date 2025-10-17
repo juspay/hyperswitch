@@ -57,17 +57,18 @@ use hyperswitch_domain_models::{
         AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
+        self,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        PaymentsAuthorizeData, VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
-        VerifyWebhookSourceResponseData,
+        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
+        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -390,7 +391,12 @@ pub enum CurrentFlowInfo<'a> {
         /// The authentication type being used
         auth_type: &'a enums::AuthenticationType,
         /// The payment authorize request data
-        request_data: &'a PaymentsAuthorizeData,
+        request_data: &'a router_request_types::PaymentsAuthorizeData,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The payment authorize request data
+        request_data: &'a router_request_types::CompleteAuthorizeData,
     },
 }
 
@@ -406,11 +412,49 @@ pub enum AlternateFlow {
 ///
 /// For example, PreProcessing flow must be made before Authorize flow.
 /// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
-    #[default]
-    /// Pre-processing flow
-    PreProcessing,
+    /// Authentication flow must be made before the actual flow
+    Authenticate,
+    /// Post-authentication flow must be made before the actual flow
+    PostAuthenticate,
+}
+
+/// Response of the preprocessing flow
+#[derive(Debug)]
+pub struct PreProcessingFlowResponse<'a> {
+    /// Payment response data from the preprocessing flow
+    pub response: &'a Result<router_response_types::PaymentsResponseData, ErrorResponse>,
+    /// Attempt status after the preprocessing flow
+    pub attempt_status: enums::AttemptStatus,
+}
+
+/// Details related to preprocessing flow
+pub struct PreProcessingFlowDetails {
+    /// Name of the preprocessing flow
+    pub flow_name: PreProcessingFlowName,
+
+    /// Based on the response of the preprocessing flow, decide whether to continue with the current flow or not
+    pub should_continue: Box<dyn Fn(&PreProcessingFlowResponse<'_>) -> bool>,
+}
+
+/// Custom Debug implementation for PreProcessingFlowDetails
+///
+/// Since Closure does not implement Debug trait
+impl Debug for PreProcessingFlowDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            flow_name,
+            should_continue: _,
+        } = self;
+        f.debug_struct("PreProcessingFlowDetails")
+            .field("flow_name", flow_name)
+            .field(
+                "should_continue",
+                &"<closure: fn(&PreProcessingFlowResponse) -> bool>",
+            )
+            .finish()
+    }
 }
 
 /// The trait that provides specifications about the connector
@@ -419,8 +463,8 @@ pub trait ConnectorSpecifications {
     fn get_preprocessing_flow_if_needed(
         &self,
         _current_flow: CurrentFlowInfo<'_>,
-    ) -> Option<PreProcessingFlowName> {
-        Some(PreProcessingFlowName::default())
+    ) -> Option<PreProcessingFlowDetails> {
+        None
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
@@ -766,7 +810,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn validate_psync_reference_id
     fn validate_psync_reference_id(
         &self,
-        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        data: &router_request_types::PaymentsSyncData,
         _is_three_ds: bool,
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,

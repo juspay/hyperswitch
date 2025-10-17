@@ -79,19 +79,19 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     }
 }
 
-pub struct PreDecideFlowOutput {
-    pub connector_response_reference_id: Option<String>,
-    pub session_token: Option<api::SessionToken>,
-    pub connector_request: Option<services::Request>,
-    pub should_continue_further: bool,
-}
+// pub struct PreDecideFlowOutput {
+//     pub connector_response_reference_id: Option<String>,
+//     pub session_token: Option<api::SessionToken>,
+//     pub connector_request: Option<services::Request>,
+//     pub should_continue_further: bool,
+// }
 
-pub struct PreDecideFlowInputs<'a> {
-    pub call_connector_action: &'a payments::CallConnectorAction,
-    pub tokenization_action: &'a payments::TokenizationAction,
-    pub is_retry_payment: bool,
-    pub creds_identifier: Option<&'a str>,
-}
+// pub struct PreDecideFlowInputs<'a> {
+//     pub call_connector_action: &'a payments::CallConnectorAction,
+//     pub tokenization_action: &'a payments::TokenizationAction,
+//     pub is_retry_payment: bool,
+//     pub creds_identifier: Option<&'a str>,
+// }
 
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
@@ -227,6 +227,28 @@ pub trait Feature<F, T> {
     fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
         None
     }
+
+    async fn call_preprocessing_through_unified_connector_service<'a>(
+        self,
+        _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: &grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: ExecutionMode,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // Default behaviour is to do nothing and continue further
+        Ok((self, true))
+    }
+
     async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,
