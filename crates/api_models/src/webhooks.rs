@@ -20,6 +20,8 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCancelFailure,
     PaymentIntentAuthorizationSuccess,
     PaymentIntentAuthorizationFailure,
+    PaymentIntentExtendAuthorizationSuccess,
+    PaymentIntentExtendAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
@@ -41,8 +43,6 @@ pub enum IncomingWebhookEvent {
     MandateActive,
     MandateRevoked,
     EndpointVerification,
-    ExtendedAuthorization,
-    ExtendAuthorizationFailed,
     ExternalAuthenticationARes,
     FrmApproved,
     FrmRejected,
@@ -268,8 +268,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
             | IncomingWebhookEvent::PaymentIntentCaptureFailure
             | IncomingWebhookEvent::PaymentIntentExpired
-            | IncomingWebhookEvent::ExtendedAuthorization
-            | IncomingWebhookEvent::ExtendAuthorizationFailed => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund

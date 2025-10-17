@@ -5244,9 +5244,9 @@ pub(crate) fn get_adyen_webhook_event(
         }
         WebhookEventCode::AuthorisationAdjustment => {
             if is_success_scenario(is_success) {
-                api_models::webhooks::IncomingWebhookEvent::ExtendedAuthorization
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
             } else {
-                api_models::webhooks::IncomingWebhookEvent::ExtendAuthorizationFailed
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             }
         }
         WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {

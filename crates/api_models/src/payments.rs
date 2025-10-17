@@ -8452,7 +8452,7 @@ pub struct PaymentsCancelPostCaptureRequest {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-/// Request to extend the authorization period for a payment
+/// Payload constructed internally for extending authorization
 pub struct PaymentsExtendAuthorizationRequest {
     /// The identifier for the payment
     pub payment_id: id_type::PaymentId,
