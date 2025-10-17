@@ -3196,14 +3196,14 @@ pub async fn payment_confirm_intent(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::GiftCardBalanceCheck, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodBalanceCheck, payment_id))]
 pub async fn payment_check_gift_card_balance(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<api_models::payments::PaymentsGiftCardBalanceCheckRequest>,
+    json_payload: web::Json<api_models::payments::PaymentMethodBalanceCheckRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    let flow = Flow::GiftCardBalanceCheck;
+    let flow = Flow::PaymentMethodBalanceCheck;
 
     let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());

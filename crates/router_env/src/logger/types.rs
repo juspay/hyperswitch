@@ -680,8 +680,8 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
-    /// Gift card balance check flow
-    GiftCardBalanceCheck,
+    /// Payment Method balance check flow
+    PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
 }

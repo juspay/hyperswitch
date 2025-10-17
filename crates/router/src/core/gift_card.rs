@@ -1,45 +1,45 @@
 use std::marker::PhantomData;
 
-#[cfg(feature = "v2")]
-use api_models::payments::{GiftCardBalanceCheckResponse, PaymentsGiftCardBalanceCheckRequest};
+use api_models::payments::{
+    GetPaymentMethodType, PaymentMethodBalanceCheckRequest, PaymentMethodBalanceCheckResponse,
+};
 use common_enums::CallConnectorAction;
-#[cfg(feature = "v2")]
-use common_utils::id_type;
-use common_utils::types::MinorUnit;
+use common_utils::{ext_traits::Encode, id_type, types::MinorUnit};
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::HeaderPayload;
 use hyperswitch_domain_models::{
+    payments::HeaderPayload,
     router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::GiftCardBalanceCheckRequestData,
     router_response_types::GiftCardBalanceCheckResponseData,
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+use masking::ExposeInterface;
+use router_env::{instrument, tracing};
 
-use crate::db::errors::StorageErrorExt;
-#[cfg(feature = "v2")]
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResponse},
         payments::helpers,
     },
+    db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
     services,
+    services::logger,
     types::{api, domain},
 };
 
-#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_check_gift_card_balance_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     _req_state: ReqState,
-    req: PaymentsGiftCardBalanceCheckRequest,
+    req: PaymentMethodBalanceCheckRequest,
     _header_payload: HeaderPayload,
     payment_id: id_type::GlobalPaymentId,
-) -> RouterResponse<GiftCardBalanceCheckResponse> {
+) -> RouterResponse<PaymentMethodBalanceCheckResponse> {
     let db = state.store.as_ref();
 
     let key_manager_state = &(&state).into();
@@ -107,6 +107,9 @@ pub async fn payments_check_gift_card_balance_core(
 
     let resource_common_data = GiftCardBalanceCheckFlowData;
 
+    let api_models::payments::BalanceCheckPaymentMethodData::GiftCard(gift_card_data) =
+        req.payment_method_data;
+
     let router_data: RouterDataV2<
         GiftCardBalanceCheck,
         GiftCardBalanceCheckFlowData,
@@ -119,7 +122,7 @@ pub async fn payments_check_gift_card_balance_core(
         connector_auth_type,
         request: GiftCardBalanceCheckRequestData {
             payment_method_data: domain::PaymentMethodData::GiftCard(Box::new(
-                req.gift_card_data.into(),
+                gift_card_data.clone().into(),
             )),
             currency: Some(payment_intent.amount_details.currency),
             minor_amount: Some(payment_intent.amount_details.order_amount),
@@ -159,21 +162,81 @@ pub async fn payments_check_gift_card_balance_core(
 
     let balance = gift_card_balance.balance;
     let currency = gift_card_balance.currency;
-    let remaining_amount =
-        if (payment_intent.amount_details.order_amount - balance).is_greater_than(0) {
-            payment_intent.amount_details.order_amount - balance
-        } else {
-            MinorUnit::zero()
-        };
-    let needs_additional_pm_data = remaining_amount.is_greater_than(0);
 
-    let resp = GiftCardBalanceCheckResponse {
+    let payment_method_key = domain::GiftCardData::from(gift_card_data.clone())
+        .get_payment_method_key()
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Unable to get unique key for payment method".to_string(),
+        })?
+        .expose();
+
+    let balance_data = domain::PaymentMethodBalanceData {
+        payment_intent_id: &payment_intent.id,
+        pm_balance_data: vec![(
+            domain::PaymentMethodBalanceKey {
+                payment_method_type: common_enums::PaymentMethod::GiftCard,
+                payment_method_subtype: gift_card_data.get_payment_method_type(),
+                payment_method_key,
+            },
+            domain::PaymentMethodBalance { balance, currency },
+        )]
+        .into_iter()
+        .collect(),
+    };
+
+    persist_individual_pm_balance_details_in_redis(&state, &profile, &balance_data)
+        .await
+        .attach_printable("Failed to persist gift card balance details in redis")?;
+
+    let resp = PaymentMethodBalanceCheckResponse {
         payment_id: payment_intent.id.clone(),
         balance,
         currency,
-        needs_additional_pm_data,
-        remaining_amount,
     };
 
     Ok(services::ApplicationResponse::Json(resp))
+}
+
+#[instrument(skip_all)]
+pub async fn persist_individual_pm_balance_details_in_redis<'a>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    pm_balance_data: &domain::PaymentMethodBalanceData<'_>,
+) -> errors::RouterResult<()> {
+    if !pm_balance_data.is_empty() {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = pm_balance_data.get_pm_balance_redis_key();
+
+        let value_list = pm_balance_data
+            .get_individual_pm_balance_key_value_pairs()
+            .into_iter()
+            .map(|(key, value)| {
+                value
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode to string of json")
+                    .map(|encoded_value| (key, encoded_value))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let intent_fulfillment_time = business_profile
+            .get_order_fulfillment_time()
+            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
+        redis_conn
+            .set_hash_fields(
+                &redis_key.as_str().into(),
+                value_list,
+                Some(intent_fulfillment_time),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to write to redis")?;
+        logger::debug!("Surcharge results stored in redis with key = {}", redis_key);
+    }
+    Ok(())
 }

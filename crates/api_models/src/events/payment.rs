@@ -209,7 +209,7 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for payments::GiftCardBalanceCheckResponse {
+impl ApiEventMetric for payments::PaymentMethodBalanceCheckResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
     }
