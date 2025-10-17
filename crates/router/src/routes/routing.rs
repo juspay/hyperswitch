@@ -1247,7 +1247,7 @@ pub async fn create_success_based_routing(
     req: HttpRequest,
     query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-    success_based_config: web::Json<routing_types::SuccessBasedRoutingConfig>,
+    success_based_config: web::Json<routing_types::SuccessSection>,
 ) -> impl Responder {
     let flow = Flow::CreateDynamicRoutingConfig;
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
@@ -1541,7 +1541,7 @@ pub async fn create_elimination_routing(
     req: HttpRequest,
     query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-    elimination_config: web::Json<routing_types::EliminationRoutingConfig>,
+    elimination_config: web::Json<routing_types::EliminationSection>,
 ) -> impl Responder {
     let flow = Flow::CreateDynamicRoutingConfig;
     let wrapper = routing_types::CreateDynamicRoutingWrapper {

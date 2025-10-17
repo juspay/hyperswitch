@@ -678,7 +678,7 @@ pub async fn link_routing_config(
                 },
             )?;
 
-            if routing_algorithm.name == helpers::SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM {
+            if routing_algorithm.name.starts_with("SUCCESS:") {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
@@ -726,12 +726,27 @@ pub async fn link_routing_config(
                                     "unable to deserialize SuccessBasedRoutingConfig from routing algorithm data",
                                 )?;
 
+                            let success_section = routing_types::SuccessSection {
+                                config: data,
+                                detail: routing_types::SuccessDetail {
+                                    name: routing_algorithm
+                                        .name
+                                        .strip_prefix("SUCCESS:")
+                                        .unwrap_or(&routing_algorithm.name)
+                                        .to_string(),
+                                    description: routing_algorithm
+                                        .description
+                                        .clone()
+                                        .unwrap_or_default(),
+                                },
+                            };
+
                             enable_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
                             routing_types::DynamicRoutingType::SuccessRateBasedRouting,
                             &mut dynamic_routing_ref,
-                            Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
+                            Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(success_section)),
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -739,8 +754,7 @@ pub async fn link_routing_config(
                         }
                     }
                 }
-            } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
-            {
+            } else if routing_algorithm.name.starts_with("ELIMINATION:") {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
@@ -786,6 +800,21 @@ pub async fn link_routing_config(
                                         "unable to deserialize EliminationRoutingConfig from routing algorithm data",
                                     )?;
 
+                            let elimination_section = routing_types::EliminationSection {
+                                config: data,
+                                detail: routing_types::EliminationDetail {
+                                    name: routing_algorithm
+                                        .name
+                                        .strip_prefix("ELIMINATION:")
+                                        .unwrap_or(&routing_algorithm.name)
+                                        .to_string(),
+                                    description: routing_algorithm
+                                        .description
+                                        .clone()
+                                        .unwrap_or_default(),
+                                },
+                            };
+
                             enable_decision_engine_dynamic_routing_setup(
                                 &state,
                                 business_profile.get_id(),
@@ -793,7 +822,7 @@ pub async fn link_routing_config(
                                 &mut dynamic_routing_ref,
                                 Some(
                                     routing_types::DynamicRoutingPayload::EliminationRoutingPayload(
-                                        data,
+                                        elimination_section,
                                     ),
                                 ),
                             )
@@ -803,7 +832,7 @@ pub async fn link_routing_config(
                         }
                     }
                 }
-            } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
+            } else if routing_algorithm.name.starts_with("CONTRACT:") {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
@@ -2232,7 +2261,9 @@ pub async fn contract_based_dynamic_routing_setup(
         algorithm_id: algorithm_id.clone(),
         profile_id: profile_id.clone(),
         merchant_id,
-        name: helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+        name: RoutingAlgorithm::create_contract_prefixed_name(
+            helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM,
+        ),
         description: None,
         kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
         algorithm_data: serde_json::json!(config),
