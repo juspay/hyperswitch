@@ -511,7 +511,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
-    ) -> Option<api::PreProcessingFlowName> {
+    ) -> Option<api::PreProcessingFlowDetails> {
         match self {
             Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
             Self::New(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),

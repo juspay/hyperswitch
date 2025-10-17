@@ -2286,11 +2286,53 @@ impl ConnectorSpecifications for Cybersource {
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
-    ) -> Option<api::PreProcessingFlowName> {
+    ) -> Option<api::PreProcessingFlowDetails> {
         match current_flow_info {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirect_response = request_data.redirect_response.as_ref()?;
+                match redirect_response.params.as_ref() {
+                    Some(param) if !param.peek().is_empty() => {
+                        let flow_name = api::PreProcessingFlowName::Authenticate;
+                        let should_continue =
+                            |authn_result: &api::PreProcessingFlowResponse<'_>| -> bool {
+                                (matches!(
+                                    authn_result.response,
+                                    Ok(PaymentsResponseData::TransactionResponse {
+                                        ref redirection_data,
+                                        ..
+                                    }) if redirection_data.is_none()
+                                ) && authn_result.attempt_status
+                                    != common_enums::AttemptStatus::AuthenticationFailed)
+                            };
+                        Some(api::PreProcessingFlowDetails {
+                            flow_name,
+                            should_continue: Box::new(should_continue),
+                        })
+                    }
+                    Some(_) | None => {
+                        let flow_name = api::PreProcessingFlowName::PostAuthenticate;
+                        let should_continue =
+                            |authn_result: &api::PreProcessingFlowResponse<'_>| -> bool {
+                                (matches!(
+                                    authn_result.response,
+                                    Ok(PaymentsResponseData::TransactionResponse {
+                                        ref redirection_data,
+                                        ..
+                                    }) if redirection_data.is_none()
+                                ) && authn_result.attempt_status
+                                    != common_enums::AttemptStatus::AuthenticationFailed)
+                            };
+                        Some(api::PreProcessingFlowDetails {
+                            flow_name,
+                            should_continue: Box::new(should_continue),
+                        })
+                    }
+                }
             }
         }
     }
@@ -2309,6 +2351,8 @@ impl ConnectorSpecifications for Cybersource {
                     None
                 }
             }
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
         }
     }
 }

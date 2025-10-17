@@ -7873,7 +7873,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
     MerchantConnectorAccountType,
@@ -7917,6 +7917,22 @@ where
         GatewaySystem::UnifiedConnectorService,
     )?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let (mut router_data, should_continue) = router_data
+        .call_preprocessing_through_unified_connector_service(
+            state,
+            &header_payload,
+            &lineage_ids,
+            merchant_connector_account.clone(),
+            merchant_context,
+            connector_data,
+            ExecutionMode::Primary, // UCS is called in primary mode
+        )
+        .await?;
+
     // Update trackers
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -7933,23 +7949,20 @@ where
         )
         .await?;
 
-    // Call UCS
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    router_data
-        .call_unified_connector_service(
-            state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account.clone(),
-            merchant_context,
-            connector_data,
-            ExecutionMode::Primary, // UCS is called in primary mode
-        )
-        .await?;
+    // Based on the preprocessing response, decide whether to continue with UCS call
+    if should_continue {
+        router_data
+            .call_unified_connector_service(
+                state,
+                &header_payload,
+                lineage_ids,
+                merchant_connector_account.clone(),
+                merchant_context,
+                connector_data,
+                ExecutionMode::Primary, // UCS is called in primary mode
+            )
+            .await?;
+    }
 
     Ok((router_data, merchant_connector_account))
 }

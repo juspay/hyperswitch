@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use external_services::grpc_client;
+use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -213,6 +215,63 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
+    }
+
+    async fn call_preprocessing_through_unified_connector_service<'a>(
+        self,
+        _state: &SessionState,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _lineage_ids: &grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+    ) -> RouterResult<(Self, bool)> {
+        let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
+            request_data: &self.request,
+        };
+        if let Some(preprocessing_flow_details) = connector_data
+            .connector
+            .get_preprocessing_flow_if_needed(current_flow)
+        {
+            let updated_router_data = match preprocessing_flow_details.flow_name {
+                api_interface::PreProcessingFlowName::Authenticate => {
+                    // Call UCS for Authenticate flow
+                    self
+                }
+                api_interface::PreProcessingFlowName::PostAuthenticate => {
+                    // Call UCS for PostAuthenticate flow
+                    self
+                }
+            };
+            let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
+                response: &updated_router_data.response,
+                attempt_status: updated_router_data.status,
+            };
+            let should_continue =
+                (preprocessing_flow_details.should_continue)(&pre_processing_flow_response);
+            Ok((updated_router_data, should_continue))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+    ) -> RouterResult<()> {
+        // Call UCS for Authorize flow
+        Ok(())
     }
 }
 
