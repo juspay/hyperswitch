@@ -239,6 +239,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -275,6 +276,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -307,6 +309,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -382,6 +385,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientCreateRespons
                 should_add_next_step_to_process_tracker: true,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -472,6 +476,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreate
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

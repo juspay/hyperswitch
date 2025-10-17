@@ -63,9 +63,6 @@ use crate::{
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
-#[cfg(feature = "payouts")]
-pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
-    "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
@@ -202,6 +199,7 @@ pub async fn construct_payout_router_data<'a, F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

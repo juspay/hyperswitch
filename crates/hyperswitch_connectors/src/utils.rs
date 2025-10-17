@@ -392,6 +392,15 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+#[cfg(feature = "payouts")]
+pub(crate) fn to_payout_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let json = connector_meta.ok_or_else(missing_field_err("payout_connector_meta_data"))?;
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
 pub(crate) fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: MinorUnit,
