@@ -7866,6 +7866,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
+    call_connector_action: CallConnectorAction,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -7946,6 +7947,7 @@ where
             merchant_connector_account.clone(),
             merchant_context,
             ExecutionMode::Primary, // UCS is called in primary mode
+            call_connector_action,
         )
         .await?;
 
@@ -8095,7 +8097,7 @@ where
         operation,
         payment_data,
         customer,
-        call_connector_action,
+        call_connector_action.clone(),
         validate_result,
         schedule_time,
         header_payload,
@@ -8120,6 +8122,7 @@ where
             lineage_ids,
             unified_connector_service_merchant_connector_account,
             unified_connector_service_merchant_context,
+            call_connector_action,
         )
         .await
     });
@@ -8139,6 +8142,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
     merchant_context: domain::MerchantContext,
+    call_connector_action: CallConnectorAction,
 ) where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
@@ -8155,6 +8159,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             merchant_connector_account,
             &merchant_context,
             ExecutionMode::Shadow, // Shadow mode for UCS
+            call_connector_action,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
