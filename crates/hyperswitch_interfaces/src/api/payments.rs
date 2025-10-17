@@ -4,9 +4,9 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
+            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
@@ -16,11 +16,11 @@ use hyperswitch_domain_models::{
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -50,6 +50,7 @@ pub trait Payment:
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
+    + PaymentExtendAuthorization
     + PaymentSessionUpdate
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
@@ -98,6 +99,16 @@ pub trait PaymentVoid:
 /// trait PaymentPostCaptureVoid
 pub trait PaymentPostCaptureVoid:
     api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentExtendAuthorization
+pub trait PaymentExtendAuthorization:
+    api::ConnectorIntegration<
+    ExtendAuthorization,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>
 {
 }
 

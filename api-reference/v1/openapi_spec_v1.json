@@ -1144,6 +1144,47 @@
         ]
       }
     },
+    "/payments/{payment_id}/extend_authorization": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Extended Authorization",
+        "description": "Extended authorization is available for payments currently in the `requires_capture` status\nCall this endpoint to increase the authorization validity period",
+        "operationId": "Extend authorization period for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extended authorization for the payment"
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/list": {
       "get": {
         "tags": [
