@@ -24706,6 +24706,14 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
