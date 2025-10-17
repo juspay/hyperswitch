@@ -744,79 +744,59 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
-        let (customer, processing, shipping, items) =
-            if let Some(l2l3_data) = &item.router_data.l2_l3_data {
-                (
-                    Some(CheckoutCustomer {
-                        name: l2l3_data.customer_name.clone(),
-                        email: l2l3_data.customer_email.clone(),
-                        phone: Some(CheckoutPhoneDetails {
-                            country_code: l2l3_data.customer_phone_country_code.clone(),
-                            number: l2l3_data.customer_phone_number.clone(),
-                        }),
-                        tax_number: l2l3_data.customer_tax_registration_id.clone(),
+        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+            &item.router_data.l2_l3_data
+        {
+            (
+                Some(CheckoutCustomer {
+                    name: l2l3_data.customer_name.clone(),
+                    email: l2l3_data.customer_email.clone(),
+                    phone: Some(CheckoutPhoneDetails {
+                        country_code: l2l3_data.customer_phone_country_code.clone(),
+                        number: l2l3_data.customer_phone_number.clone(),
                     }),
-                    Some(CheckoutProcessing {
-                        order_id: l2l3_data.merchant_order_reference_id.clone(),
-                        tax_amount: l2l3_data.order_tax_amount,
-                        discount_amount: l2l3_data.discount_amount,
-                        duty_amount: l2l3_data.duty_amount,
-                        shipping_amount: l2l3_data.shipping_cost,
-                        shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                    tax_number: l2l3_data.customer_tax_registration_id.clone(),
+                }),
+                Some(CheckoutProcessing {
+                    order_id: l2l3_data.merchant_order_reference_id.clone(),
+                    tax_amount: l2l3_data.order_tax_amount,
+                    discount_amount: l2l3_data.discount_amount,
+                    duty_amount: l2l3_data.duty_amount,
+                    shipping_amount: l2l3_data.shipping_cost,
+                    shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                }),
+                Some(CheckoutShipping {
+                    address: Some(CheckoutAddress {
+                        country: l2l3_data.get_shipping_country(),
+                        address_line1: l2l3_data.get_shipping_address_line1(),
+                        address_line2: l2l3_data.get_shipping_address_line2(),
+                        city: l2l3_data.get_shipping_city(),
+                        state: l2l3_data.get_shipping_state(),
+                        zip: l2l3_data.get_shipping_zip(),
                     }),
-                    Some(CheckoutShipping {
-                        address: Some(CheckoutAddress {
-                            country: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.country),
-                            address_line1: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.line1.clone()),
-                            address_line2: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.line2.clone()),
-                            city: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.city.clone()),
-                            state: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.state.clone()),
-                            zip: l2l3_data
-                                .shipping_details
-                                .as_ref()
-                                .and_then(|address| address.origin_zip.clone()),
-                        }),
-                        from_address_zip: l2l3_data
-                            .shipping_details
-                            .as_ref()
-                            .and_then(|address| address.zip.clone().map(|zip| zip.expose())),
-                    }),
-                    l2l3_data.order_details.as_ref().map(|details| {
-                        details
-                            .iter()
-                            .map(|item| CheckoutLineItem {
-                                commodity_code: item.commodity_code.clone(),
-                                discount_amount: item.unit_discount_amount,
-                                name: Some(item.product_name.clone()),
-                                quantity: Some(item.quantity),
-                                reference: item.product_id.clone(),
-                                tax_exempt: None,
-                                tax_amount: item.total_tax_amount,
-                                total_amount: item.total_amount,
-                                unit_of_measure: item.unit_of_measure.clone(),
-                                unit_price: Some(item.amount),
-                            })
-                            .collect()
-                    }),
-                )
-            } else {
-                (None, None, None, None)
-            };
+                    from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
+                }),
+                l2l3_data.order_details.as_ref().map(|details| {
+                    details
+                        .iter()
+                        .map(|item| CheckoutLineItem {
+                            commodity_code: item.commodity_code.clone(),
+                            discount_amount: item.unit_discount_amount,
+                            name: Some(item.product_name.clone()),
+                            quantity: Some(item.quantity),
+                            reference: item.product_id.clone(),
+                            tax_exempt: None,
+                            tax_amount: item.total_tax_amount,
+                            total_amount: item.total_amount,
+                            unit_of_measure: item.unit_of_measure.clone(),
+                            unit_price: Some(item.amount),
+                        })
+                        .collect()
+                }),
+            )
+        } else {
+            (None, None, None, None)
+        };
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
             |enable_partial_authorization| CheckoutPartialAuthorization {

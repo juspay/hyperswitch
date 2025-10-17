@@ -141,6 +141,50 @@ pub struct L2L3Data {
     pub shipping_details: Option<AddressDetails>,
 }
 
+impl L2L3Data {
+    pub fn get_shipping_country(&self) -> Option<common_enums::enums::CountryAlpha2> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.country)
+    }
+
+    pub fn get_shipping_city(&self) -> Option<String> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.city.clone())
+    }
+
+    pub fn get_shipping_state(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.state.clone())
+    }
+
+    pub fn get_shipping_origin_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.origin_zip.clone())
+    }
+
+    pub fn get_shipping_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.zip.clone())
+    }
+
+    pub fn get_shipping_address_line1(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line1.clone())
+    }
+
+    pub fn get_shipping_address_line2(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line2.clone())
+    }
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
