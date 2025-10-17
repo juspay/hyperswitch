@@ -35,14 +35,22 @@ use crate::{
     core::{errors, unified_connector_service},
     types::transformers,
 };
-impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceGetRequest
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        (router_data, call_connector_action): (
+            &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+            common_enums::CallConnectorAction,
+        ),
     ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -77,12 +85,25 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        let handle_response = match call_connector_action {
+            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
+            _ => None,
+        };
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
+            amount: router_data.request.amount.get_amount_as_i64(),
+            currency: currency.into(),
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            handle_response,
             access_token: None,
-            capture_method: None,
-            handle_response: None,
         })
     }
 }
@@ -186,11 +207,12 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata
@@ -202,7 +224,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -316,11 +338,12 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata
@@ -472,6 +495,7 @@ impl
                     connector_mandate_id,
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
+                    payment_method_id: connector_mandate_id.get_payment_method_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
@@ -1158,6 +1182,11 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
+    let is_transformation_complete = !matches!(
+        response.transformation_status(),
+        payments_grpc::WebhookTransformationStatus::Incomplete
+    );
+
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
@@ -1169,6 +1198,7 @@ pub fn transform_ucs_webhook_response(
                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
             })
         }),
+        is_transformation_complete,
     })
 }
 

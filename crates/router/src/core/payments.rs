@@ -4280,7 +4280,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let execution_path_decision = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4290,13 +4290,26 @@ where
 
     let is_handle_response_action = matches!(
         call_connector_action,
-        CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::HandleResponse(_)
+        CallConnectorAction::HandleResponse(_)
     );
 
+    let is_ucs_webhook_action = matches!(
+        call_connector_action,
+        CallConnectorAction::UCSConsumeResponse(_) | CallConnectorAction::UCSHandleResponse(_)
+    );
+
+    let execution_path = if is_ucs_webhook_action {
+        ExecutionPath::UnifiedConnectorService
+    } else if is_handle_response_action {
+        ExecutionPath::Direct
+    } else {
+        execution_path_decision
+    };
+
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
-            // Process through UCS when system is UCS and not handling response
-            (ExecutionPath::UnifiedConnectorService, false) => {
+        match execution_path {
+            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4304,6 +4317,7 @@ where
                     operation,
                     payment_data,
                     customer,
+                    call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
@@ -4316,7 +4330,7 @@ where
             }
 
             // Process through Direct with Shadow UCS
-            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
+            ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
@@ -4341,9 +4355,7 @@ where
             }
 
             // Process through Direct gateway
-            (ExecutionPath::Direct, _)
-            | (ExecutionPath::UnifiedConnectorService, true)
-            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
+            ExecutionPath::Direct => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4898,6 +4910,7 @@ where
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
                     ExecutionMode::Primary, // UCS is called in primary mode
+                    call_connector_action,
                 )
                 .await?;
 
@@ -5002,6 +5015,7 @@ where
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
                     ExecutionMode::Primary, //UCS is called in primary mode
+                    call_connector_action,
                 )
                 .await?;
 

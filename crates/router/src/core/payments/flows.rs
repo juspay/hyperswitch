@@ -220,6 +220,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()>
     where
         F: Clone,
