@@ -31,8 +31,8 @@ use crate::{
     errors, logger,
     routes::{app::ReqState, SessionState},
     types::{domain, storage},
-    workflows::invoice_sync,
 };
+use subscriptions::workflows::invoice_sync;
 
 pub struct OutgoingWebhookRetryWorkflow;
 
@@ -581,7 +581,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let response = Box::pin(
                 invoice_sync::InvoiceSyncHandler::form_response_for_retry_outgoing_webhook_task(
-                    state,
+                    state.clone().into(),
                     &key_store,
                     invoice_id,
                     profile_id,

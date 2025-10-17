@@ -1457,7 +1457,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     event_status,
                     event_class,
                     payment_attempt_id,
-                    enums::EventObjectType::PaymentDetails,
+                    common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,
                 )

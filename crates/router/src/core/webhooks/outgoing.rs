@@ -45,6 +45,22 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+pub struct OutgoingWebhooksHandler;
+
+#[async_trait::async_trait]
+impl hyperswitch_interfaces::webhooks::OutgoingWebhooksImplementor for OutgoingWebhooksHandler {
+    async fn trigger_outgoing_webhook(
+        &self,
+        event_type: enums::EventType,
+        event_class: enums::EventClass,
+        primary_object_id: String,
+        primary_object_type: enums::EventObjectType,
+        content: api::OutgoingWebhookContent,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
