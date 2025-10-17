@@ -900,7 +900,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_capturable
             .or(amount_capturable_from_intent_status)
@@ -939,7 +940,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
@@ -1121,7 +1123,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1163,7 +1166,8 @@ impl
             | common_enums::IntentStatus::RequiresConfirmation => None,
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => {
                 todo!()
             }
         }
@@ -1363,7 +1367,8 @@ impl
                 Some(total_amount)
             }
             // Invalid statues for this flow
-            common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_capturable
             .or(amount_capturable_from_intent_status)
@@ -1406,7 +1411,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
@@ -1618,7 +1624,8 @@ impl
                 Some(total_amount)
             }
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1645,7 +1652,8 @@ impl
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::CancelledPostCapture => Some(MinorUnit::zero()),
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
@@ -1846,7 +1854,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1882,7 +1891,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }

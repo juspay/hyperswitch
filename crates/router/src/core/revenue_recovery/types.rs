@@ -321,7 +321,7 @@ impl Decision {
         state: &SessionState,
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
-        active_attempt_id: Option<id_type::GlobalAttemptId>,
+        active_attempt_id: Option<&id_type::GlobalAttemptId>,
         revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {

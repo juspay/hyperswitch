@@ -184,7 +184,7 @@ pub async fn perform_execute_payment(
         revenue_recovery_metadata
             .payment_connector_transmission
             .unwrap_or_default(),
-        payment_intent.active_attempt_id.clone(),
+        payment_intent.get_active_attempt_id().clone(),
         revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
     )
@@ -517,7 +517,7 @@ pub async fn perform_calculate_workflow(
     // External Payments which enter the calculate workflow for the first time will have active attempt id as None
     // Then we dont need to send an webhook to the merchant as its not a failure from our side.
     // Thus we dont need to a payment get call for such payments.
-    let active_payment_attempt_id = payment_intent.active_attempt_id.as_ref();
+    let active_payment_attempt_id = payment_intent.get_active_attempt_id();
 
     let payments_response = get_payment_response_using_payment_get_operation(
         state,
@@ -1122,9 +1122,12 @@ pub async fn resume_revenue_recovery_process_tracker(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
-            message: "Invalid Payment Status ".to_owned(),
-        })),
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyCapturedAndProcessing => {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Invalid Payment Status ".to_owned(),
+            }))
+        }
     }
 }
 pub async fn get_payment_response_using_payment_get_operation(
@@ -1180,6 +1183,7 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
             revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
                 enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
             );
+            revenue_recovery_metadata.set_current_working_attempt_id_for_api_request(None);
 
             let payment_update_req =
         api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
