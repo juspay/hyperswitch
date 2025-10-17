@@ -370,26 +370,26 @@ fn create_updated_session_state_with_proxy(
     state: SessionState,
     proxy_override: &ProxyOverride,
 ) -> SessionState {
-    let mut updated_state = state.clone();
+    let mut updated_state = state;
 
     // Update the proxy configuration with overrides
     let updated_proxy = hyperswitch_interfaces::types::Proxy {
         http_url: proxy_override
             .http_url
             .clone()
-            .or(state.conf.proxy.http_url.clone()),
+            .or(updated_state.conf.proxy.http_url.clone()),
         https_url: proxy_override
             .https_url
             .clone()
-            .or(state.conf.proxy.https_url.clone()),
-        idle_pool_connection_timeout: state.conf.proxy.idle_pool_connection_timeout,
-        bypass_proxy_hosts: state.conf.proxy.bypass_proxy_hosts.clone(),
-        mitm_ca_certificate: state.conf.proxy.mitm_ca_certificate.clone(),
-        mitm_enabled: state.conf.proxy.mitm_enabled,
+            .or(updated_state.conf.proxy.https_url.clone()),
+        idle_pool_connection_timeout: updated_state.conf.proxy.idle_pool_connection_timeout,
+        bypass_proxy_hosts: updated_state.conf.proxy.bypass_proxy_hosts.clone(),
+        mitm_ca_certificate: updated_state.conf.proxy.mitm_ca_certificate.clone(),
+        mitm_enabled: updated_state.conf.proxy.mitm_enabled,
     };
 
     // Create updated configuration
-    let mut updated_conf = (*state.conf).clone();
+    let mut updated_conf = (*updated_state.conf).clone();
     updated_conf.proxy = updated_proxy;
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
