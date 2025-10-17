@@ -7872,6 +7872,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<enums::FrmSuggestion>,
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
+    connector_data: &api::ConnectorData,
     mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
@@ -7945,6 +7946,7 @@ where
             lineage_ids,
             merchant_connector_account.clone(),
             merchant_context,
+            connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
         )
         .await?;
@@ -8091,7 +8093,7 @@ where
         state,
         req_state,
         merchant_context,
-        connector,
+        connector.clone(),
         operation,
         payment_data,
         customer,
@@ -8119,6 +8121,7 @@ where
             unified_connector_service_header_payload,
             lineage_ids,
             unified_connector_service_merchant_connector_account,
+            &connector,
             unified_connector_service_merchant_context,
         )
         .await
@@ -8138,6 +8141,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     header_payload: domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
+    connector_data: &api::ConnectorData,
     merchant_context: domain::MerchantContext,
 ) where
     F: Send + Clone + Sync + 'static,
@@ -8154,6 +8158,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             lineage_ids,
             merchant_connector_account,
             &merchant_context,
+            connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
         )
         .await

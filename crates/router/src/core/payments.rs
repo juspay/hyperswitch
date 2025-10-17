@@ -4307,6 +4307,7 @@ where
                     frm_suggestion,
                     business_profile,
                     merchant_connector_account,
+                    &connector,
                     router_data,
                 )
                 .await
