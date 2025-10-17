@@ -489,6 +489,8 @@ jobs:
     runs-on: hyperswitch-runners
     env:
       CODECOV_FILE: "lcov.info"
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
