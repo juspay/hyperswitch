@@ -674,14 +674,17 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
 let response_integrity_object = get_refund_integrity_object(
-    self.amount_converter,
-    utils::convert_amount(  
         self.amount_converter,
-        common_utils::types::MinorUnit::new(transaction_data.refund.amount.try_into().change_context(errors::ConnectorError::ResponseHandlingFailed)?),
-        transaction_data.refund.currency,
-    )?,
-    transaction_data.refund.currency.to_string(), 
-)?;
+        utils::convert_amount(  
+            self.amount_converter,
+            common_utils::types::MinorUnit::new(
+                i64::try_from(transaction_data.refund.amount)
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?
+            ),
+            transaction_data.refund.currency,
+        )?,
+        transaction_data.refund.currency.to_string(), 
+    )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let new_router_data = 
