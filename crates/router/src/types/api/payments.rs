@@ -7,7 +7,7 @@ pub use api_models::payments::{
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials,
+    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -23,15 +23,14 @@ pub use api_models::{
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsEligibilityRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
-        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
-        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
-        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};

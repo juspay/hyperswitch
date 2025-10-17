@@ -15,17 +15,11 @@ use crate::{
 /// including plan, profile, merchant connector, and optional customer info.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
-    /// Amount to be charged for the invoice.
-    pub amount: MinorUnit,
-
-    /// Currency for the amount.
-    pub currency: api_enums::Currency,
-
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
+    pub item_price_id: String,
 
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
@@ -354,17 +348,11 @@ impl ApiEventMetric for ConfirmSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateAndConfirmSubscriptionRequest {
-    /// Amount to be charged for the invoice.
-    pub amount: Option<MinorUnit>,
-
-    /// Currency for the amount.
-    pub currency: Option<api_enums::Currency>,
-
     /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
+    pub item_price_id: String,
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
@@ -477,10 +465,6 @@ pub struct UpdateSubscriptionRequest {
     pub plan_id: String,
     /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: String,
-    /// Amount to be charged for the invoice.
-    pub amount: MinorUnit,
-    /// Currency for the amount.
-    pub currency: api_enums::Currency,
 }
 
 impl ApiEventMetric for UpdateSubscriptionRequest {}

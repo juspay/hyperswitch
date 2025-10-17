@@ -304,10 +304,9 @@ pub async fn construct_refund_router_data<'a, F>(
         .attach_printable("Failed to get optional customer id")?;
 
     let braintree_metadata = payment_intent
-        .get_optional_connector_metadata()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed parsing ConnectorMetadata")?
-        .and_then(|cm| cm.braintree);
+        .connector_metadata
+        .as_ref()
+        .and_then(|cm| cm.braintree.clone());
 
     let merchant_account_id = braintree_metadata
         .as_ref()
