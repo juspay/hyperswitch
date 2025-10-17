@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.15.0-hotfix2
+
+### Features
+
+- **connector:** [Peachpayments] Add Webhook Flow and Support For merchant_order_reference_id ([#9882](https://github.com/juspay/hyperswitch/pull/9882)) ([`e236935`](https://github.com/juspay/hyperswitch/commit/e2369359cd4c206db1326efaa28ebe19dc097e08))
+
+**Full Changelog:** [`2025.10.15.0-hotfix1...2025.10.15.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.10.15.0-hotfix1...2025.10.15.0-hotfix2)
+
+- - -
+
 ## 2025.10.15.0-hotfix1
 
 ### Features
