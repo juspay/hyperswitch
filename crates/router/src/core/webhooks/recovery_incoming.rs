@@ -939,6 +939,7 @@ impl RevenueRecoveryAttempt {
             daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
             scheduled_at: None,
             is_hard_decline: Some(is_hard_decline),
+            modified_at: Some(recovery_attempt.created_at),
             payment_processor_token_details: PaymentProcessorTokenDetails {
                 payment_processor_token: revenue_recovery_attempt_data
                     .processor_payment_method_token
