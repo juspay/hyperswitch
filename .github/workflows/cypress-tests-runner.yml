@@ -149,7 +149,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "public.ecr.aws/docker/library/postgres:alpine"
+        image: "public.ecr.aws/docker/library/postgres:17-alpine"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -315,7 +315,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "public.ecr.aws/docker/library/postgres:alpine"
+        image: "public.ecr.aws/docker/library/postgres:17-alpine"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -501,7 +501,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "public.ecr.aws/docker/library/postgres:alpine"
+        image: "public.ecr.aws/docker/library/postgres:17-alpine"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
