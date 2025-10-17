@@ -58,7 +58,7 @@ use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 #[cfg(feature = "payouts")]
-use transformers::get_adyen_webhook_event;
+use transformers::get_adyen_payout_webhook_event;
 
 use self::transformers as adyenplatform;
 use crate::constants::headers;
@@ -414,11 +414,10 @@ impl IncomingWebhook for Adyenplatform {
                 .parse_struct("AdyenplatformIncomingWebhook")
                 .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
-            Ok(get_adyen_webhook_event(
+            Ok(get_adyen_payout_webhook_event(
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
-                webhook_body.data.category.as_ref(),
             ))
         }
         #[cfg(not(feature = "payouts"))]
