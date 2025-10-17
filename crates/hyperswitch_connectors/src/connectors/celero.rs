@@ -282,9 +282,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             http_code: res.status_code,
         });
 
-        new_router_data.and_then(|mut router_data| {
+        new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
-            Ok(router_data)
+            router_data
         })
     }
 
@@ -375,9 +375,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
             http_code: res.status_code,
         });
 
-        new_router_data.and_then(|mut router_data| {
+        new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
-            Ok(router_data)
+            router_data
         })
     }
 
@@ -639,9 +639,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
             http_code: res.status_code,
         });
 
-        new_router_data.and_then(|mut router_data| {
+        new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
-            Ok(router_data)
+            router_data
         })
     }
 
@@ -732,9 +732,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
             http_code: res.status_code,
         });
 
-        new_router_data.and_then(|mut router_data| {
+        new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
-            Ok(router_data)
+            router_data
         })
     }
 
