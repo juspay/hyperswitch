@@ -105,7 +105,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
-    pub l2_l3_data: Option<L2L3Data>,
+    pub l2_l3_data: Option<Box<L2L3Data>>,
 
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
