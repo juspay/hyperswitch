@@ -15304,6 +15304,42 @@
           }
         }
       },
+      "MultipleWebhookDetail": {
+        "type": "object",
+        "required": [
+          "webhook_url",
+          "events"
+        ],
+        "properties": {
+          "webhook_endpoint_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.WebhookEndpointId"
+              }
+            ],
+            "nullable": true
+          },
+          "webhook_url": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/common_enums.EventType"
+            },
+            "uniqueItems": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.OutgoingWebhookEndpointStatus"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "NetworkTokenDetailsPaymentMethod": {
         "type": "object",
         "properties": {
@@ -16526,6 +16562,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "OutgoingWebhookEndpointStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "deprecated"
+        ]
       },
       "OutgoingWebhookRequestContent": {
         "type": "object",
@@ -27755,6 +27799,14 @@
               "success",
               "failed"
             ],
+            "nullable": true
+          },
+          "multiple_webhooks_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MultipleWebhookDetail"
+            },
+            "description": "List of multiple outgoing webhook endpoints detail",
             "nullable": true
           }
         },
