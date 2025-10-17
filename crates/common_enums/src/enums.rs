@@ -238,6 +238,7 @@ pub enum ApplePayPaymentMethodType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -246,6 +247,7 @@ pub enum ApplePayPaymentMethodType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardDiscovery {
     #[default]
     Manual,
@@ -416,6 +418,7 @@ pub enum CaptureStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -424,6 +427,7 @@ pub enum CaptureStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthorizationStatus {
     Success,
     Failure,
@@ -1857,6 +1861,7 @@ pub enum PaymentMethodIssuerCode {
     Hash,
     serde::Serialize,
     serde::Deserialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -1864,6 +1869,7 @@ pub enum PaymentMethodIssuerCode {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodStatus {
     /// Indicates that the payment method is active and can be used for payments.
     Active,
@@ -8189,6 +8195,7 @@ pub enum VaultSdk {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
@@ -8197,6 +8204,7 @@ pub enum VaultSdk {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthenticationStatus {
     #[default]
     Started,
@@ -8227,6 +8235,7 @@ impl AuthenticationStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
@@ -8235,6 +8244,7 @@ impl AuthenticationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum DecoupledAuthenticationType {
     #[default]
     Challenge,

@@ -302,40 +302,49 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
 
 /// Fee information to be charged on the payment being collected via Stripe
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
+    #[smithy(value_type = "Option<String>")]
     pub charge_id: Option<String>,
 
     /// Type of charge (connector specific)
     #[schema(value_type = PaymentChargeType, example = "direct")]
+    #[smithy(value_type = "PaymentChargeType")]
     pub charge_type: enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "Option<i64>")]
     pub application_fees: Option<MinorUnit>,
 
     /// Identifier for the reseller's account where the funds were transferred
+    #[smithy(value_type = "String")]
     pub transfer_account_id: String,
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
 /// Charge Information
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
+    #[smithy(value_type = "StripeChargeResponseData")]
     StripeSplitPayment(StripeChargeResponseData),
     /// AdyenChargeResponseData
+    #[smithy(value_type = "AdyenSplitData")]
     AdyenSplitPayment(AdyenSplitData),
     /// XenditChargeResponseData
+    #[smithy(value_type = "XenditChargeResponseData")]
     XenditSplitPayment(XenditChargeResponseData),
 }
 
@@ -412,15 +421,18 @@ impl_to_sql_from_sql_json!(XenditSplitRequest);
 
 /// Charge Information
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum XenditChargeResponseData {
     /// Split Between Multiple Accounts
+    #[smithy(value_type = "XenditMultipleSplitResponse")]
     MultipleSplits(XenditMultipleSplitResponse),
     /// Collect Fee for Single Account
+    #[smithy(value_type = "XenditSplitSubMerchantData")]
     SingleSplit(XenditSplitSubMerchantData),
 }
 
@@ -428,20 +440,26 @@ impl_to_sql_from_sql_json!(XenditChargeResponseData);
 
 /// Fee information charged on the payment being collected via xendit
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct XenditMultipleSplitResponse {
     /// Identifier for split rule created for the payment
+    #[smithy(value_type = "String")]
     pub split_rule_id: String,
     /// The sub-account user-id that you want to make this transaction for.
+    #[smithy(value_type = "Option<String>")]
     pub for_user_id: Option<String>,
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
+    #[smithy(value_type = "String")]
     pub name: String,
     /// Description to identify fee rule
+    #[smithy(value_type = "String")]
     pub description: String,
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
+    #[smithy(value_type = "Vec<XenditSplitRoute>")]
     pub routes: Vec<XenditSplitRoute>,
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);

@@ -2272,8 +2272,10 @@ impl Default for MandateType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkDetails {
+    #[smithy(value_type = "Option<String>")]
     pub network_advice_code: Option<String>,
 }
 
@@ -5815,120 +5817,151 @@ pub struct PaymentsResponse {
     pub allowed_payment_method_types: Option<serde_json::Value>,
 
     /// ephemeral_key for the customer_id mentioned
+    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
+    #[smithy(value_type = "Option<bool>")]
     pub manual_retry_allowed: Option<bool>,
 
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_transaction_id: Option<String>,
 
     /// Frm message contains information about the frm response
+    #[smithy(value_type = "Option<FrmMessage>")]
     pub frm_message: Option<FrmMessage>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<serde_json::Value>,
 
     /// Additional data related to some connectors
     #[schema(value_type = Option<ConnectorMetadata>)]
+    #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
+    #[smithy(value_type = "Option<FeatureMetadata>")]
     pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
     /// reference(Identifier) to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    #[smithy(value_type = "Option<String>")]
     pub reference_id: Option<String>,
 
     /// Details for Payment link
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
+    #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
     /// Total number of attempts associated with this payment
+    #[smithy(value_type = "i16")]
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    #[smithy(value_type = "Option<String>")]
     pub merchant_decision: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
+    #[smithy(value_type = "Option<bool>")]
     pub incremental_authorization_allowed: Option<bool>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
+    #[smithy(value_type = "Option<i32>")]
     pub authorization_count: Option<i32>,
 
     /// List of incremental authorizations happened to the payment
+    #[smithy(value_type = "Option<Vec<IncrementalAuthorizationResponse>>")]
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
     /// Details of external authentication
+    #[smithy(value_type = "Option<ExternalAuthenticationDetailsResponse>")]
     pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
 
     /// Flag indicating if external 3ds authentication is made or not
+    #[smithy(value_type = "Option<bool>")]
     pub external_3ds_authentication_attempted: Option<bool>,
 
     /// Date Time for expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub expires_on: Option<PrimitiveDateTime>,
 
     /// Payment Fingerprint, to identify a particular card.
     /// It is a 20 character long alphanumeric code.
+    #[smithy(value_type = "Option<String>")]
     pub fingerprint: Option<String>,
 
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
+    #[smithy(value_type = "Option<BrowserInformation>")]
     pub browser_info: Option<serde_json::Value>,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
     #[schema(value_type = Option<PaymentChannel>)]
+    #[smithy(value_type = "Option<PaymentChannel>")]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 
     /// A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.
+    #[smithy(value_type = "Option<String>")]
     pub payment_method_id: Option<String>,
 
     /// The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.
+    #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     #[schema(value_type = Option<PaymentMethodStatus>)]
+    #[smithy(value_type = "Option<PaymentMethodStatus>")]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 
     /// Date time at which payment was updated
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
     #[schema(value_type = Option<ConnectorChargeResponseData>)]
+    #[smithy(value_type = "Option<ConnectorChargeResponseData>")]
     pub split_payments: Option<common_types::payments::ConnectorChargeResponseData>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// flag that indicates if extended authorization is applied on this payment or not
     #[schema(value_type = Option<bool>)]
+    #[smithy(value_type = "Option<bool>")]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple
     #[schema(value_type = Option<bool>, default = false)]
+    #[smithy(value_type = "Option<bool>")]
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// date and time after which this payment cannot be captured
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub capture_before: Option<PrimitiveDateTime>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -5939,58 +5972,74 @@ pub struct PaymentsResponse {
         max_length = 255,
         example = "Custom_Order_id_123"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_order_reference_id: Option<String>,
     /// order tax amount calculated by tax connectors
+    #[smithy(value_type = "Option<i64>")]
     pub order_tax_amount: Option<MinorUnit>,
 
     /// Connector Identifier for the payment method
+    #[smithy(value_type = "Option<String>")]
     pub connector_mandate_id: Option<String>,
 
     /// Method through which card was discovered
     #[schema(value_type = Option<CardDiscovery>, example = "manual")]
+    #[smithy(value_type = "Option<CardDiscovery>")]
     pub card_discovery: Option<enums::CardDiscovery>,
 
     /// Indicates if 3ds challenge is forced
+    #[smithy(value_type = "Option<bool>")]
     pub force_3ds_challenge: Option<bool>,
 
     /// Indicates if 3ds challenge is triggered
+    #[smithy(value_type = "Option<bool>")]
     pub force_3ds_challenge_trigger: Option<bool>,
 
     /// Error code received from the issuer in case of failed payments
+    #[smithy(value_type = "Option<String>")]
     pub issuer_error_code: Option<String>,
 
     /// Error message received from the issuer in case of failed payments
+    #[smithy(value_type = "Option<String>")]
     pub issuer_error_message: Option<String>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[smithy(value_type = "Option<bool>")]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub whole_connector_response: Option<Secret<String>>,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
+    #[smithy(value_type = "Option<bool>")]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
+    #[smithy(value_type = "Option<bool>")]
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 
     /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
+    #[smithy(value_type = "Option<bool>")]
     pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
 
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
+    #[smithy(value_type = "Option<NetworkDetails>")]
     pub network_details: Option<NetworkDetails>,
 
     /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
     #[schema(value_type = Option<bool>, example = true)]
+    #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 }
 
@@ -6741,23 +6790,31 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Details of external authentication
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
     #[schema(value_type = Option<DecoupledAuthenticationType>)]
+    #[smithy(value_type = "Option<DecoupledAuthenticationType>")]
     pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
     /// Electronic Commerce Indicator (eci)
+    #[smithy(value_type = "Option<String>")]
     pub electronic_commerce_indicator: Option<String>,
     /// Authentication Status
     #[schema(value_type = AuthenticationStatus)]
+    #[smithy(value_type = "AuthenticationStatus")]
     pub status: enums::AuthenticationStatus,
     /// DS Transaction ID
+    #[smithy(value_type = "Option<String>")]
     pub ds_transaction_id: Option<String>,
     /// Message Version
+    #[smithy(value_type = "Option<String>")]
     pub version: Option<String>,
     /// Error Code
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
     /// Error Message
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
 }
 
@@ -6978,21 +7035,28 @@ pub struct PaymentListResponse {
     /// The list of payments response objects
     pub data: Vec<PaymentsListResponseItem>,
 }
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
+    #[smithy(value_type = "String")]
     pub authorization_id: String,
     /// Amount the authorization has been made for
     #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     #[schema(value_type= AuthorizationStatus)]
+    #[smithy(value_type = "AuthorizationStatus")]
     /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
     /// Error code sent by the connector for authorization
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
     /// Error message sent by the connector for authorization
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
     /// Previously authorized amount for the payment
+    #[smithy(value_type = "i64")]
     pub previously_authorized_amount: MinorUnit,
 }
 
@@ -7488,11 +7552,14 @@ pub struct OrderDetailsWithAmount {
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
-#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RedirectResponse {
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub param: Option<Secret<String>>,
     #[schema(value_type = Option<Object>)]
+    #[smithy(value_type = "Option<Object>")]
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
@@ -8988,51 +9055,66 @@ impl FeatureMetadata {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
+    #[smithy(value_type = "Option<RedirectResponse>")]
     pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search
     #[schema(value_type = Option<Vec<String>>)]
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
+    #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRecurringDetails {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
+    #[smithy(value_type = "String")]
     pub payment_description: String,
     /// The regular billing cycle for the recurring payment, including start and end dates, an interval, and an interval count
+    #[smithy(value_type = "ApplePayRegularBillingDetails")]
     pub regular_billing: ApplePayRegularBillingDetails,
     /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
+    #[smithy(value_type = "Option<String>")]
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
     #[schema(value_type = String, example = "https://hyperswitch.io")]
+    #[smithy(value_type = "String")]
     pub management_url: common_utils::types::Url,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The date of the first payment
     #[schema(example = "2023-09-10T23:59:59Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub recurring_payment_start_date: Option<PrimitiveDateTime>,
     /// The date of the final payment
     #[schema(example = "2023-09-10T23:59:59Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub recurring_payment_end_date: Option<PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
+    #[smithy(value_type = "Option<RecurringPaymentIntervalUnit>")]
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
     /// The number of interval units that make up the total payment interval
+    #[smithy(value_type = "Option<i32>")]
     pub recurring_payment_interval_count: Option<i32>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RecurringPaymentIntervalUnit {
     Year,
     Month,
@@ -9042,14 +9124,22 @@ pub enum RecurringPaymentIntervalUnit {
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FrmMessage {
+    #[smithy(value_type = "String")]
     pub frm_name: String,
+    #[smithy(value_type = "Option<String>")]
     pub frm_transaction_id: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub frm_transaction_type: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub frm_status: Option<String>,
+    #[smithy(value_type = "Option<i32>")]
     pub frm_score: Option<i32>,
+    #[smithy(value_type = "Option<Object>")]
     pub frm_reason: Option<serde_json::Value>,
+    #[smithy(value_type = "Option<String>")]
     pub frm_error: Option<String>,
 }
 
