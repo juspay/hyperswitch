@@ -672,8 +672,8 @@ pub struct NovalnetPaymentsResponseTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponse {
-    result: ResultData,
-    transaction: Option<NovalnetPaymentsResponseTransactionData>,
+    pub result: ResultData,
+    pub transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse {
@@ -998,8 +998,8 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
-    result: ResultData,
-    transaction: Option<NovalnetSyncResponseTransactionData>,
+    pub result: ResultData,
+    pub transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1019,10 +1019,10 @@ pub struct NovalnetRefundsTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u64,
-    currency: common_enums::Currency,
-    payment_type: Option<String>,
-    tid: Option<Secret<i64>>,
+    pub amount: u64,
+    pub currency: common_enums::Currency,
+    pub payment_type: Option<String>,
+    pub tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
