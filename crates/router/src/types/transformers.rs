@@ -1808,7 +1808,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message:
-                     "Either only `object_id` / `event_id` must be specified, or one or more of \
+                     "Either only `object_id` or `event_id` must be specified, or one or more of \
                                 `created_after`, `created_before`, `limit`, `offset`, `event_classes` and `event_types` must be specified"
                         .to_string()
             }));
