@@ -63,7 +63,7 @@ pub struct CtpServiceDetails {
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
-    pub payment_data_type: Option<String>,
+    pub payment_data_type: Option<common_enums::PaymentMethodType>,
     pub encrypted_src_card_details: Option<String>,
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
@@ -182,7 +182,7 @@ pub struct ThreeDsMetaData {
     pub merchant_category_code: Option<MerchantCategoryCode>,
     pub merchant_country_code: Option<MerchantCountryCode>,
     pub merchant_name: Option<String>,
-    pub endpoint_prefix: String,
+    pub endpoint_prefix: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,

@@ -614,7 +614,7 @@ pub enum BankDebitData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitData {
     #[serde(flatten)]
-    pub bank_specific_data: BankDebitData,
+    pub bank_specific_data: Option<BankDebitData>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -820,6 +820,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Bluecode
+            | enums::PaymentMethodType::SepaGuarenteedDebit
             | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -895,7 +896,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::IndonesianBankTransfer
             | enums::PaymentMethodType::Flexiti
             | enums::PaymentMethodType::Mifinity
-            | enums::PaymentMethodType::Breadpay => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::Breadpay
+            | enums::PaymentMethodType::UpiQr => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1215,20 +1217,26 @@ fn get_stripe_payment_method_type_from_wallet_data(
     }
 }
 
-impl From<&payment_method_data::BankDebitData> for StripePaymentMethodType {
-    fn from(bank_debit_data: &payment_method_data::BankDebitData) -> Self {
+impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
+    type Error = ConnectorError;
+    fn try_from(bank_debit_data: &payment_method_data::BankDebitData) -> Result<Self, Self::Error> {
         match bank_debit_data {
-            payment_method_data::BankDebitData::AchBankDebit { .. } => Self::Ach,
-            payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
-            payment_method_data::BankDebitData::BecsBankDebit { .. } => Self::Becs,
-            payment_method_data::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
+            payment_method_data::BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
+            payment_method_data::BankDebitData::SepaBankDebit { .. } => Ok(Self::Sepa),
+            payment_method_data::BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
+            payment_method_data::BankDebitData::BacsBankDebit { .. } => Ok(Self::Bacs),
+            payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                ))
+            }
         }
     }
 }
 
 fn get_bank_debit_data(
     bank_debit_data: &payment_method_data::BankDebitData,
-) -> (StripePaymentMethodType, BankDebitData) {
+) -> (Option<StripePaymentMethodType>, Option<BankDebitData>) {
     match bank_debit_data {
         payment_method_data::BankDebitData::AchBankDebit {
             account_number,
@@ -1240,13 +1248,13 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 routing_number: routing_number.to_owned(),
             };
-            (StripePaymentMethodType::Ach, ach_data)
+            (Some(StripePaymentMethodType::Ach), Some(ach_data))
         }
         payment_method_data::BankDebitData::SepaBankDebit { iban, .. } => {
             let sepa_data: BankDebitData = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };
-            (StripePaymentMethodType::Sepa, sepa_data)
+            (Some(StripePaymentMethodType::Sepa), Some(sepa_data))
         }
         payment_method_data::BankDebitData::BecsBankDebit {
             account_number,
@@ -1257,7 +1265,7 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 bsb_number: bsb_number.to_owned(),
             };
-            (StripePaymentMethodType::Becs, becs_data)
+            (Some(StripePaymentMethodType::Becs), Some(becs_data))
         }
         payment_method_data::BankDebitData::BacsBankDebit {
             account_number,
@@ -1268,8 +1276,9 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
-            (StripePaymentMethodType::Bacs, bacs_data)
+            (Some(StripePaymentMethodType::Bacs), Some(bacs_data))
         }
+        _ => (None, None),
     }
 }
 
@@ -1358,11 +1367,7 @@ fn create_stripe_payment_method(
                 bank_specific_data: bank_debit_data,
             });
 
-            Ok((
-                pm_data,
-                Some(pm_type),
-                payment_request_details.billing_address,
-            ))
+            Ok((pm_data, pm_type, payment_request_details.billing_address))
         }
         PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.deref() {
             payment_method_data::BankTransferData::AchBankTransfer {} => Ok((
@@ -4500,10 +4505,27 @@ pub fn get_bank_transfer_request_data(
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct StripeFileRequest {
+    pub purpose: &'static str,
+    #[serde(skip)]
+    pub file: Vec<u8>,
+    #[serde(skip)]
+    pub file_key: String,
+    #[serde(skip)]
+    pub file_type: String,
+}
+
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<reqwest::multipart::Form, ConnectorError> {
+) -> CustomResult<RequestContent, ConnectorError> {
     let request = file_upload_router_data.request;
+    let stripe_file_request = StripeFileRequest {
+        purpose: "dispute_evidence",
+        file: request.file.clone(),
+        file_key: request.file_key.clone(),
+        file_type: request.file_type.to_string(),
+    };
     let mut multipart = reqwest::multipart::Form::new();
     multipart = multipart.text("purpose", "dispute_evidence");
     let file_data = reqwest::multipart::Part::bytes(request.file)
@@ -4511,7 +4533,10 @@ pub fn construct_file_upload_request(
         .mime_str(request.file_type.as_ref())
         .map_err(|_| ConnectorError::RequestEncodingFailed)?;
     multipart = multipart.part("file", file_data);
-    Ok(multipart)
+    Ok(RequestContent::FormData((
+        multipart,
+        Box::new(stripe_file_request),
+    )))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
