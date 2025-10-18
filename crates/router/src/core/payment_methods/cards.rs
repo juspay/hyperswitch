@@ -79,7 +79,10 @@ use crate::{
     core::{
         configs,
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault},
+        payment_methods::{
+            network_tokenization, transformers as payment_methods, utils as payment_method_utils,
+            vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -3475,6 +3478,11 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
+    let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
+        db,
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await;
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent)
     {
@@ -3554,6 +3562,7 @@ pub async fn list_payment_methods(
             collect_shipping_details_from_wallets,
             collect_billing_details_from_wallets,
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
+            sdk_next_action,
         },
     ))
 }
