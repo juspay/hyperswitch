@@ -15162,6 +15162,7 @@
           },
           "event_id": {
             "type": "string",
+            "description": "Filter all events associated with the specified Event_id",
             "nullable": true
           },
           "profile_id": {
