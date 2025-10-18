@@ -294,7 +294,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let (amount, currency) = response.get_amount_currency()?;
         let response_integrity_object = crate::utils::get_authorise_integrity_object(
             self.amount_converter,
-            MinorUnit::new(amount),
+            amount,
             currency.to_string(),
         )?;
 
@@ -508,7 +508,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
         let (amount, currency) = response.get_amount_currency()?;
         let response_integrity_object = crate::utils::get_sync_integrity_object(
             self.amount_converter,
-            MinorUnit::new(amount),
+            amount,
             currency.to_string(),
         )?;
 
@@ -625,7 +625,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let (amount, currency) = response.get_amount_currency()?;
         let response_integrity_object = crate::utils::get_capture_integrity_object(
             self.amount_converter,
-            Some(MinorUnit::new(amount)),
+            Some(amount),
             currency.to_string(),
         )?;
 

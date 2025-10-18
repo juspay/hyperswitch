@@ -573,10 +573,10 @@ impl From<ArchipelFlowStatus> for AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelOrderResponse {
     id: String,
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     currency: Option<Currency>,
-    captured_amount: Option<i64>,
-    authorized_amount: Option<i64>,
+    captured_amount: Option<MinorUnit>,
+    authorized_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -652,7 +652,7 @@ impl From<&ArchipelPaymentsResponse> for ArchipelTransactionMetadata {
 impl ArchipelPaymentsResponse {
     pub fn get_amount_currency(
         &self,
-    ) -> Result<(i64, Currency), error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<(MinorUnit, Currency), error_stack::Report<errors::ConnectorError>> {
         let amount = self
             .order
             .amount
