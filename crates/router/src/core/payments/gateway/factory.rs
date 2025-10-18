@@ -5,18 +5,17 @@
 //!
 //! This implements the GatewayFactory trait from hyperswitch_interfaces.
 
+use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::RouterData;
-use hyperswitch_interfaces::api::gateway as gateway_interface;
 
 use super::{DirectGateway, GatewayExecutionPath, PaymentGateway, UnifiedConnectorServiceGateway};
 use crate::{
     core::{
         errors::RouterResult,
         payments::PaymentData,
-        unified_connector_service::{self as ucs, types::ExecutionPath},
     },
     routes::SessionState,
-    types::{api, MerchantConnectorAccountType},
+    types::api,
 };
 
 /// Factory for creating payment gateways
@@ -38,22 +37,28 @@ impl GatewayFactory {
         connector: &api::ConnectorData,
         router_data: &RouterData<
             api::Authorize,
-            hyperswitch_domain_models::types::PaymentsAuthorizeData,
-            hyperswitch_domain_models::types::PaymentsResponseData,
+            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
-        payment_data: Option<&PaymentData>,
+        payment_data: Option<&PaymentData<api::Authorize>>,
     ) -> RouterResult<
         Box<
             dyn PaymentGateway<
                 api::Authorize,
-                hyperswitch_domain_models::types::PaymentsAuthorizeData,
-                hyperswitch_domain_models::types::PaymentsResponseData,
+                hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+                hyperswitch_domain_models::router_response_types::PaymentsResponseData,
             >,
         >,
     > {
+        let merchant_connector_id = connector
+            .merchant_connector_id
+            .as_ref()
+            .ok_or(crate::core::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing merchant_connector_id")?;
+
         let execution_path = Self::determine_execution_path(
             state,
-            &connector.merchant_connector_id,
+            merchant_connector_id,
             router_data,
             payment_data,
         )
@@ -84,22 +89,28 @@ impl GatewayFactory {
         connector: &api::ConnectorData,
         router_data: &RouterData<
             api::PSync,
-            hyperswitch_domain_models::types::PaymentsSyncData,
-            hyperswitch_domain_models::types::PaymentsResponseData,
+            hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
-        payment_data: Option<&PaymentData>,
+        payment_data: Option<&PaymentData<api::PSync>>,
     ) -> RouterResult<
         Box<
             dyn PaymentGateway<
                 api::PSync,
-                hyperswitch_domain_models::types::PaymentsSyncData,
-                hyperswitch_domain_models::types::PaymentsResponseData,
+                hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+                hyperswitch_domain_models::router_response_types::PaymentsResponseData,
             >,
         >,
     > {
+        let merchant_connector_id = connector
+            .merchant_connector_id
+            .as_ref()
+            .ok_or(crate::core::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing merchant_connector_id")?;
+
         let execution_path = Self::determine_execution_path(
             state,
-            &connector.merchant_connector_id,
+            merchant_connector_id,
             router_data,
             payment_data,
         )
@@ -126,22 +137,28 @@ impl GatewayFactory {
         connector: &api::ConnectorData,
         router_data: &RouterData<
             api::SetupMandate,
-            hyperswitch_domain_models::types::SetupMandateRequestData,
-            hyperswitch_domain_models::types::PaymentsResponseData,
+            hyperswitch_domain_models::router_request_types::SetupMandateRequestData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
-        payment_data: Option<&PaymentData>,
+        payment_data: Option<&PaymentData<api::SetupMandate>>,
     ) -> RouterResult<
         Box<
             dyn PaymentGateway<
                 api::SetupMandate,
-                hyperswitch_domain_models::types::SetupMandateRequestData,
-                hyperswitch_domain_models::types::PaymentsResponseData,
+                hyperswitch_domain_models::router_request_types::SetupMandateRequestData,
+                hyperswitch_domain_models::router_response_types::PaymentsResponseData,
             >,
         >,
     > {
+        let merchant_connector_id = connector
+            .merchant_connector_id
+            .as_ref()
+            .ok_or(crate::core::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing merchant_connector_id")?;
+
         let execution_path = Self::determine_execution_path(
             state,
-            &connector.merchant_connector_id,
+            merchant_connector_id,
             router_data,
             payment_data,
         )
@@ -164,31 +181,22 @@ impl GatewayFactory {
 
     /// Determine the execution path (Direct vs UCS)
     ///
-    /// This reuses the existing decision logic from should_call_unified_connector_service
+    /// NOTE: Currently always returns Direct because UCS gateway requires MerchantContext
+    /// and PaymentData which are not available through the gateway trait interface.
+    /// UCS decision logic should be called in the payment flow before gateway creation.
     async fn determine_execution_path<F, Req, Resp>(
-        state: &SessionState,
-        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
-        router_data: &RouterData<F, Req, Resp>,
-        payment_data: Option<&PaymentData>,
-    ) -> RouterResult<GatewayExecutionPath> {
-        // Call the existing UCS decision function
-        let execution_path = ucs::should_call_unified_connector_service(
-            state,
-            merchant_connector_id,
-            router_data,
-            payment_data,
-        )
-        .await?;
-
-        // Map ExecutionPath to GatewayExecutionPath
-        Ok(match execution_path {
-            ExecutionPath::Direct => GatewayExecutionPath::Direct,
-            ExecutionPath::UnifiedConnectorService => {
-                GatewayExecutionPath::UnifiedConnectorService
-            }
-            ExecutionPath::ShadowUnifiedConnectorService => {
-                GatewayExecutionPath::ShadowUnifiedConnectorService
-            }
-        })
+        _state: &SessionState,
+        _merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        _router_data: &RouterData<F, Req, Resp>,
+        _payment_data: Option<&PaymentData<F>>,
+    ) -> RouterResult<GatewayExecutionPath>
+    where
+        F: Clone,
+        Req: Clone,
+        Resp: Clone,
+    {
+        // TODO: Implement proper UCS decision logic when gateway trait is extended
+        // to provide MerchantContext and full PaymentData
+        Ok(GatewayExecutionPath::Direct)
     }
 }

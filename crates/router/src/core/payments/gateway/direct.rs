@@ -1,42 +1,43 @@
 //! Direct Gateway Implementation
 //!
-//! This gateway executes payment operations through direct connector integration
-//! using the traditional execute_connector_processing_step flow.
+//! NOTE: This gateway has a fundamental design limitation due to ownership constraints.
+//! The `execute_connector_processing_step` function takes ownership of the
+//! `BoxedConnectorIntegrationInterface`, which cannot be cloned (it's a Box<dyn Trait>).
+//!
+//! This means the gateway cannot be reused across multiple calls, which defeats
+//! the purpose of the gateway abstraction.
+//!
+//! RECOMMENDATION: Do not use this gateway pattern. Instead, call
+//! `execute_connector_processing_step` directly in the payment flow where you
+//! can obtain a fresh connector integration for each call.
 
 use async_trait::async_trait;
 use common_enums::CallConnectorAction;
 use hyperswitch_domain_models::router_data::RouterData;
 use hyperswitch_interfaces::{
-    api::gateway as gateway_interface, connector_integration_interface::BoxedConnectorIntegrationInterface,
+    api::gateway as gateway_interface,
+    connector_integration_interface,
 };
-
-use super::PaymentGateway;
-use crate::{
-    core::errors::RouterResult,
-    routes::SessionState,
-    services,
-    types::{api, MerchantConnectorAccountType},
-};
+use common_utils::errors::CustomResult;
+use crate::{routes::SessionState, services, types::api};
+use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
 
 /// Gateway that executes through direct connector integration
 ///
-/// This gateway wraps the traditional execute_connector_processing_step
-/// and provides the PaymentGateway trait interface.
+/// WARNING: This gateway has ownership constraints that prevent it from being
+/// reused. It can only execute once before the connector_integration is consumed.
 pub struct DirectGateway<F, ResourceCommonData, Req, Resp> {
-    /// Boxed connector integration interface
-    pub connector_integration:
-        BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
+    /// Boxed connector integration interface (consumed on first execute)
+    connector_integration:
+        connector_integration_interface::BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
 }
 
 impl<F, ResourceCommonData, Req, Resp> DirectGateway<F, ResourceCommonData, Req, Resp> {
     /// Create a new DirectGateway with the given connector integration
+    ///
+    /// Note: This gateway can only be used once due to ownership constraints
     pub fn new(
-        connector_integration: BoxedConnectorIntegrationInterface<
-            F,
-            ResourceCommonData,
-            Req,
-            Resp,
-        >,
+        connector_integration: connector_integration_interface::BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
     ) -> Self {
         Self {
             connector_integration,
@@ -55,34 +56,28 @@ impl<F, ResourceCommonData, Req, Resp>
         Resp,
     > for DirectGateway<F, ResourceCommonData, Req, Resp>
 where
-    F: Clone + Send + Sync + 'static,
-    ResourceCommonData: Clone + Send + Sync + 'static,
-    Req: Clone + Send + Sync + 'static,
-    Resp: Clone + Send + Sync + 'static,
+    F: Clone + Send + Sync + std::fmt::Debug + 'static,
+    ResourceCommonData: Clone + Send + Sync + 'static + connector_integration_interface::RouterDataConversion<F, Req, Resp>,
+    Req: Clone + Send + Sync + std::fmt::Debug + 'static,
+    Resp: Clone + Send + Sync + std::fmt::Debug + 'static,
 {
     async fn execute(
-        &self,
+        self,
         state: &SessionState,
         router_data: RouterData<F, Req, Resp>,
         _connector: &api::ConnectorData,
         _merchant_connector_account: &MerchantConnectorAccountType,
-        call_connector_action: CallConnectorAction,
-    ) -> Result<RouterData<F, Req, Resp>, hyperswitch_interfaces::errors::ConnectorError> {
-        // Delegate to the traditional execute_connector_processing_step
+        _call_connector_action: CallConnectorAction,
+    ) -> CustomResult<RouterData<F, Req, Resp>, hyperswitch_interfaces::errors::ConnectorError> {
         services::execute_connector_processing_step(
             state,
-            self.connector_integration.clone(),
+            self.connector_integration,
             &router_data,
-            call_connector_action,
-            None, // connector_request - let the integration build it
-            None, // return_raw_connector_response - use default behavior
+            CallConnectorAction::Trigger,
+            None,
+            None,
         )
         .await
-        .map_err(|e| {
-            // Convert RouterError to ConnectorError
-            hyperswitch_interfaces::errors::ConnectorError::ProcessingStepFailed(Some(
-                e.to_string(),
-            ))
-        })
+        
     }
 }

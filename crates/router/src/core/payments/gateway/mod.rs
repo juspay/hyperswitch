@@ -11,16 +11,13 @@ pub mod factory;
 pub mod ucs;
 
 use async_trait::async_trait;
-use common_enums::CallConnectorAction;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data::RouterData;
 use hyperswitch_interfaces::api::gateway as gateway_interface;
 
 use crate::{
-    core::errors::{self, RouterResult},
     routes::SessionState,
-    types::{api, MerchantConnectorAccountType},
+    types::api,
 };
+use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
 
 /// Re-export common gateway types from hyperswitch_interfaces
 pub use gateway_interface::GatewayExecutionPath;

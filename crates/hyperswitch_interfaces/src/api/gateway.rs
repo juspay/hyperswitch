@@ -12,6 +12,7 @@
 use async_trait::async_trait;
 use common_enums::CallConnectorAction;
 use hyperswitch_domain_models::router_data::RouterData;
+use common_utils::errors::CustomResult;
 
 use crate::errors::ConnectorError;
 
@@ -70,13 +71,13 @@ pub trait PaymentGateway<State, ConnectorData, MerchantConnectorAccount, F, Req,
     /// # Returns
     /// Updated RouterData with response or error
     async fn execute(
-        &self,
+        self,
         state: &State,
         router_data: RouterData<F, Req, Resp>,
         connector: &ConnectorData,
         merchant_connector_account: &MerchantConnectorAccount,
         call_connector_action: CallConnectorAction,
-    ) -> Result<RouterData<F, Req, Resp>, ConnectorError>;
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
 }
 
 /// Factory trait for creating payment gateways
@@ -115,7 +116,7 @@ pub trait GatewayFactory<State, ConnectorData, PaymentData, F, Req, Resp>: Send 
     /// # Returns
     /// A boxed PaymentGateway implementation (Direct, UCS, or Shadow)
     async fn create_gateway(
-        &self,
+        self,
         state: &State,
         connector: &ConnectorData,
         router_data: &RouterData<F, Req, Resp>,
