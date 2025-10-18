@@ -20672,6 +20672,13 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform eligibility check",
+            "enum": [
+              "eligibility_check"
+            ]
           }
         ]
       },
@@ -23491,7 +23498,8 @@
           "mandate_payment",
           "show_surcharge_breakup_screen",
           "request_external_three_ds_authentication",
-          "is_tax_calculation_enabled"
+          "is_tax_calculation_enabled",
+          "sdk_next_action"
         ],
         "properties": {
           "redirect_url": {
@@ -23547,6 +23555,9 @@
           "is_tax_calculation_enabled": {
             "type": "boolean",
             "description": "flag that indicates whether to calculate tax on the order amount"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
