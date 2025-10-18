@@ -2046,6 +2046,7 @@ pub struct PaymentMethodListResponse {
     pub is_tax_calculation_enabled: bool,
 
     /// indicates the next action to be performed by the SDK
+    #[schema(value_type = SdkNextAction)]
     pub sdk_next_action: payments::SdkNextAction,
 }
 
