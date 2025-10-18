@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
 pub mod flows;
+pub mod gateway;
 pub mod helpers;
 pub mod operations;
 
