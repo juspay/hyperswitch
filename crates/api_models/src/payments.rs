@@ -2470,6 +2470,16 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    SepaGuarenteedBankDebit {
+        /// Billing details for bank debit
+        billing_details: Option<BankDebitBilling>,
+        /// International bank account number (iban) for SEPA
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
+    },
     BecsBankDebit {
         /// Billing details for bank debit
         billing_details: Option<BankDebitBilling>,
@@ -2525,6 +2535,11 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 ..
             }
             | Self::SepaBankDebit {
+                billing_details,
+                bank_account_holder_name,
+                ..
+            }
+            | Self::SepaGuarenteedBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3055,6 +3070,9 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::SepaGuarenteedBankDebit { .. } => {
+                api_enums::PaymentMethodType::SepaGuarenteedDebit
+            }
         }
     }
 }
@@ -8451,6 +8469,13 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub cancellation_reason: Option<String>,
 }
 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+/// Request constructed internally for extending authorization
+pub struct PaymentsExtendAuthorizationRequest {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+}
+
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsIncrementalAuthorizationRequest {
     /// The identifier for the payment
@@ -9334,6 +9359,7 @@ pub struct ClickToPaySessionResponse {
     pub dpa_client_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityRequest {
     /// The identifier for the payment
@@ -9351,6 +9377,9 @@ pub struct PaymentsEligibilityRequest {
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data to be used for the payment
     pub payment_method_data: PaymentMethodDataRequest,
+    /// The browser information for the payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]

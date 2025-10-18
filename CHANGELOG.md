@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.17.0
+
+### Features
+
+- **connector:**
+  - [Finix] Add support for Apple Pay ([#9810](https://github.com/juspay/hyperswitch/pull/9810)) ([`2c4806d`](https://github.com/juspay/hyperswitch/commit/2c4806d55a8a67861b3fef40e5feeac97e1ad4ce))
+  - [NOVALNET] Implemented Sepa Direct Debit and Sepa Direct Debit with Payment Guarantee ([#9700](https://github.com/juspay/hyperswitch/pull/9700)) ([`b4eceae`](https://github.com/juspay/hyperswitch/commit/b4eceae3a71cc66dc56eb6255bca1e908a54ec29))
+  - Add amount conversion framework to Powertranz ([#9752](https://github.com/juspay/hyperswitch/pull/9752)) ([`6c4084e`](https://github.com/juspay/hyperswitch/commit/6c4084e65d540b814729466cca34b847f9d23ba1))
+- **core:**
+  - Add profile-level configuration for L2/L3 data enablement ([#9683](https://github.com/juspay/hyperswitch/pull/9683)) ([`bd85334`](https://github.com/juspay/hyperswitch/commit/bd853345441e10441cc5c57d1d4582d6ebe0a206))
+  - Added payment method type in uas for modular auth and payments api ([#9852](https://github.com/juspay/hyperswitch/pull/9852)) ([`0fe4f23`](https://github.com/juspay/hyperswitch/commit/0fe4f230c167bbd05aac7a0d70214143ca9a017c))
+- **customers:** Add time range filtering and count functionality to customer list endpoints ([#9767](https://github.com/juspay/hyperswitch/pull/9767)) ([`587588f`](https://github.com/juspay/hyperswitch/commit/587588f8709e3e3952a3b0c3eee91aa897daf792))
+- **framework:** Diesel and domain model changes to support multiple outgoing webhooks ([#9816](https://github.com/juspay/hyperswitch/pull/9816)) ([`ac8c6c9`](https://github.com/juspay/hyperswitch/commit/ac8c6c966c2aa4834ec5b499d8a5fa7fe2ed0f23))
+- **payouts:** Apple pay decrypt payout ([#9857](https://github.com/juspay/hyperswitch/pull/9857)) ([`e7dee75`](https://github.com/juspay/hyperswitch/commit/e7dee751b58ec3b377d28fab7c1a7ea83aec14d0))
+- **router:** Add pre-confirm payments eligibility api ([#9774](https://github.com/juspay/hyperswitch/pull/9774)) ([`ecf702a`](https://github.com/juspay/hyperswitch/commit/ecf702aba92bec721ff7e08095739f3809c6c525))
+- **subscription:** Add estimate to subscriptions flow and remove amount and currency ([#9835](https://github.com/juspay/hyperswitch/pull/9835)) ([`c2c4894`](https://github.com/juspay/hyperswitch/commit/c2c489407cb444a078ecd154768d088e9016f0d4))
+
+### Bug Fixes
+
+- **payment_methods:** Card vault not found error ([#9839](https://github.com/juspay/hyperswitch/pull/9839)) ([`408a366`](https://github.com/juspay/hyperswitch/commit/408a36669ac91e713a0e1a1571814b45bf29723f))
+- **payments:** Add connector metadata parsing and order category to payment router data ([#9825](https://github.com/juspay/hyperswitch/pull/9825)) ([`6f045d8`](https://github.com/juspay/hyperswitch/commit/6f045d84f1b5d40251de66c8d41a707db75c60e4))
+- **router:** Added authentication success check for fetching authentication value ([#9769](https://github.com/juspay/hyperswitch/pull/9769)) ([`79e1443`](https://github.com/juspay/hyperswitch/commit/79e1443c0014b6cb38f6abd7bf2d7accc65fcddf))
+
+### Refactors
+
+- **subscription:** Move subscription related modules in router to new crate ([#9863](https://github.com/juspay/hyperswitch/pull/9863)) ([`aec1288`](https://github.com/juspay/hyperswitch/commit/aec128802e87b1a47b7bab39f947644086d4e0b3))
+- **users:** Remove deprecated permission groups ([#9604](https://github.com/juspay/hyperswitch/pull/9604)) ([`1f34f89`](https://github.com/juspay/hyperswitch/commit/1f34f89063f310940f44a589730d4333325dc898))
+- **webhooks:** Fix incoming webhooks failure ([#9894](https://github.com/juspay/hyperswitch/pull/9894)) ([`46fc688`](https://github.com/juspay/hyperswitch/commit/46fc68841143e9531638ab4fcfb1925351298c46))
+- Improve readability and maintainability of Unified Connector Service–related code ([#9820](https://github.com/juspay/hyperswitch/pull/9820)) ([`8044aa1`](https://github.com/juspay/hyperswitch/commit/8044aa1c48e46ac3cd3a7a1397e6eaecbe78b2df))
+
+**Full Changelog:** [`2025.10.16.0...2025.10.17.0`](https://github.com/juspay/hyperswitch/compare/2025.10.16.0...2025.10.17.0)
+
+- - -
+
 ## 2025.10.16.0
 
 ### Features
