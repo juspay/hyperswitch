@@ -5220,17 +5220,23 @@ pub enum NextActionType {
     RedirectInsidePopup,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v1")]
+    #[smithy(nested_value_type)]
     RedirectToUrl {
+        #[smithy(value_type = "String")]
         redirect_to_url: String,
     },
     #[cfg(feature = "v1")]
+    #[smithy(nested_value_type)]
     RedirectInsidePopup {
+        #[smithy(value_type = "String")]
         popup_url: String,
+        #[smithy(value_type = "String")]
         redirect_response_url: String,
     },
     /// Contains the url for redirection flow
@@ -5240,11 +5246,15 @@ pub enum NextActionData {
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
+    #[smithy(nested_value_type)]
     DisplayBankTransferInformation {
+        #[smithy(value_type = "BankTransferNextStepsData")]
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
+    #[smithy(nested_value_type)]
     ThirdPartySdkSessionToken {
+        #[smithy(value_type = "Option<SessionToken>")]
         session_token: Option<SessionToken>,
     },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
@@ -5394,17 +5404,22 @@ pub struct SdkNextActionData {
     pub order_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FetchQrCodeInformation {
+    #[smithy(value_type = "String")]
     pub qr_code_fetch_url: Url,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankTransferNextStepsData {
     /// The instructions for performing a bank transfer
     #[serde(flatten)]
+    #[smithy(value_type = "BankTransferInstructions")]
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
+    #[smithy(value_type = "Option<ReceiverDetails>")]
     pub receiver: Option<ReceiverDetails>,
 }
 
@@ -5460,31 +5475,43 @@ pub struct PollConfig {
     pub frequency: u16,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferInstructions {
     /// The instructions for Doku bank transactions
+    #[smithy(value_type = "DokuBankTransferInstructions")]
     DokuBankTransferInstructions(Box<DokuBankTransferInstructions>),
     /// The credit transfer for ACH transactions
+    #[smithy(value_type = "AchTransfer")]
     AchCreditTransfer(Box<AchTransfer>),
     /// The instructions for SEPA bank transactions
+    #[smithy(value_type = "SepaBankTransferInstructions")]
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
     /// The instructions for BACS bank transactions
+    #[smithy(value_type = "BacsBankTransferInstructions")]
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
     /// The instructions for Multibanco bank transactions
+    #[smithy(value_type = "MultibancoTransferInstructions")]
     Multibanco(Box<MultibancoTransferInstructions>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SepaBankTransferInstructions {
     #[schema(value_type = String, example = "Jane Doe")]
+    #[smithy(value_type = "String")]
     pub account_holder_name: Secret<String>,
     #[schema(value_type = String, example = "9123456789")]
+    #[smithy(value_type = "String")]
     pub bic: Secret<String>,
+    #[smithy(value_type = "String")]
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
+    #[smithy(value_type = "String")]
     pub iban: Secret<String>,
     #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
+    #[smithy(value_type = "String")]
     pub reference: Secret<String>,
 }
 
@@ -5497,52 +5524,72 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub three_ds_method_data_submission: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BacsBankTransferInstructions {
     #[schema(value_type = String, example = "Jane Doe")]
+    #[smithy(value_type = "String")]
     pub account_holder_name: Secret<String>,
     #[schema(value_type = String, example = "10244123908")]
+    #[smithy(value_type = "String")]
     pub account_number: Secret<String>,
     #[schema(value_type = String, example = "012")]
+    #[smithy(value_type = "String")]
     pub sort_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MultibancoTransferInstructions {
     #[schema(value_type = String, example = "122385736258")]
+    #[smithy(value_type = "String")]
     pub reference: Secret<String>,
     #[schema(value_type = String, example = "12345")]
+    #[smithy(value_type = "String")]
     pub entity: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DokuBankTransferInstructions {
     #[schema(value_type = String, example = "1707091200000")]
+    #[smithy(value_type = "String")]
     pub expires_at: Option<i64>,
     #[schema(value_type = String, example = "122385736258")]
+    #[smithy(value_type = "String")]
     pub reference: Secret<String>,
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub instructions_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AchTransfer {
     #[schema(value_type = String, example = "122385736258")]
+    #[smithy(value_type = "String")]
     pub account_number: Secret<String>,
+    #[smithy(value_type = "String")]
     pub bank_name: String,
     #[schema(value_type = String, example = "012")]
+    #[smithy(value_type = "String")]
     pub routing_number: Secret<String>,
     #[schema(value_type = String, example = "234")]
+    #[smithy(value_type = "String")]
     pub swift_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ReceiverDetails {
     /// The amount received by receiver
+    #[smithy(value_type = "i64")]
     amount_received: i64,
     /// The amount charged by ACH
+    #[smithy(value_type = "Option<i64>")]
     amount_charged: Option<i64>,
     /// The amount remaining to be sent via ACH
+    #[smithy(value_type = "Option<i64>")]
     amount_remaining: Option<i64>,
 }
 
@@ -7686,102 +7733,134 @@ pub struct DisplayAmountOnSdk {
     pub shipping_cost: Option<StringMajorUnit>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayAllowedMethodsParameters {
     /// The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)
+    #[smithy(value_type = "Vec<String>")]
     pub allowed_auth_methods: Vec<String>,
     /// The list of allowed card networks (ex: AMEX,JCB etc)
+    #[smithy(value_type = "Vec<String>")]
     pub allowed_card_networks: Vec<String>,
     /// Is billing address required
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<bool>")]
     pub billing_address_required: Option<bool>,
     /// Billing address parameters
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<GpayBillingAddressParameters>")]
     pub billing_address_parameters: Option<GpayBillingAddressParameters>,
     /// Whether assurance details are required
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<bool>")]
     pub assurance_details_required: Option<bool>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayBillingAddressParameters {
     /// Is billing phone number required
+    #[smithy(value_type = "bool")]
     pub phone_number_required: bool,
     /// Billing address format
+    #[smithy(value_type = "GpayBillingAddressFormat")]
     pub format: GpayBillingAddressFormat,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GpayBillingAddressFormat {
     FULL,
     MIN,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTokenParameters {
     /// The name of the connector
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
     pub gateway: Option<String>,
     /// The merchant ID registered in the connector associated
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
     pub gateway_merchant_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "stripe:version")]
+    #[smithy(value_type = "Option<String>")]
     pub stripe_version: Option<String>,
     #[serde(
         skip_serializing_if = "Option::is_none",
         rename = "stripe:publishableKey"
     )]
+    #[smithy(value_type = "Option<String>")]
     pub stripe_publishable_key: Option<String>,
     /// The protocol version for encryption
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
     pub protocol_version: Option<String>,
     /// The public key provided by the merchant
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub public_key: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
+    #[smithy(value_type = "String")]
     pub token_specification_type: String,
     /// The parameters for the token specification Google Pay
+    #[smithy(value_type = "GpayTokenParameters")]
     pub parameters: GpayTokenParameters,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayAllowedPaymentMethods {
     /// The type of payment method
     #[serde(rename = "type")]
+    #[smithy(value_type = "String")]
     pub payment_method_type: String,
     /// The parameters Google Pay requires
+    #[smithy(value_type = "GpayAllowedMethodsParameters")]
     pub parameters: GpayAllowedMethodsParameters,
     /// The tokenization specification for Google Pay
+    #[smithy(value_type = "GpayTokenizationSpecification")]
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTransactionInfo {
     /// The country code
     #[schema(value_type = CountryAlpha2, example = "US")]
+    #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency_code: api_enums::Currency,
     /// The total price status (ex: 'FINAL')
+    #[smithy(value_type = "String")]
     pub total_price_status: String,
     /// The total price
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub total_price: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayMerchantInfo {
     /// The merchant Identifier that needs to be passed while invoking Gpay SDK
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_id: Option<String>,
     /// The name of the merchant that needs to be displayed on Gpay PopUp
+    #[smithy(value_type = "String")]
     pub merchant_name: String,
 }
 
@@ -8115,29 +8194,40 @@ pub struct GooglePayTokenizationParameters {
     pub stripe_version: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
+    #[smithy(value_type = "GpaySessionTokenResponse")]
     GooglePay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Samsung Pay
+    #[smithy(value_type = "SamsungPaySessionTokenResponse")]
     SamsungPay(Box<SamsungPaySessionTokenResponse>),
     /// The session response structure for Klarna
+    #[smithy(value_type = "KlarnaSessionTokenResponse")]
     Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
+    #[smithy(value_type = "PaypalSessionTokenResponse")]
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
+    #[smithy(value_type = "ApplepaySessionTokenResponse")]
     ApplePay(Box<ApplepaySessionTokenResponse>),
     /// Session token for OpenBanking PIS flow
+    #[smithy(value_type = "OpenBankingSessionToken")]
     OpenBanking(OpenBankingSessionToken),
     /// The session response structure for Paze
+    #[smithy(value_type = "PazeSessionTokenResponse")]
     Paze(Box<PazeSessionTokenResponse>),
     /// The sessions response structure for ClickToPay
+    #[smithy(value_type = "ClickToPaySessionResponse")]
     ClickToPay(Box<ClickToPaySessionResponse>),
     /// The session response structure for Amazon Pay
+    #[smithy(value_type = "AmazonPaySessionTokenResponse")]
     AmazonPay(Box<AmazonPaySessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
+    #[smithy(value_type = "smithy.api#Unit")]
     NoSessionTokenReceived,
 }
 
@@ -8173,130 +8263,175 @@ pub struct HyperswitchVaultSessionDetails {
     pub profile_id: Secret<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PazeSessionTokenResponse {
     /// Paze Client ID
+    #[smithy(value_type = "String")]
     pub client_id: String,
     /// Client Name to be displayed on the Paze screen
+    #[smithy(value_type = "String")]
     pub client_name: String,
     /// Paze Client Profile ID
+    #[smithy(value_type = "String")]
     pub client_profile_id: String,
     /// The transaction currency code
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub transaction_currency_code: api_enums::Currency,
     /// The transaction amount
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub transaction_amount: StringMajorUnit,
     /// Email Address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email_address: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GpaySessionTokenResponse {
     /// Google pay response involving third party sdk
+    #[smithy(value_type = "GooglePayThirdPartySdk")]
     ThirdPartyResponse(GooglePayThirdPartySdk),
     /// Google pay session response for non third party sdk
+    #[smithy(value_type = "GooglePaySessionResponse")]
     GooglePaySession(GooglePaySessionResponse),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayThirdPartySdk {
     /// Identifier for the delayed session response
+    #[smithy(value_type = "bool")]
     pub delayed_session_token: bool,
     /// The name of the connector
+    #[smithy(value_type = "String")]
     pub connector: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
+    #[smithy(value_type = "SdkNextAction")]
     pub sdk_next_action: SdkNextAction,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePaySessionResponse {
     /// The merchant info
+    #[smithy(value_type = "GpayMerchantInfo")]
     pub merchant_info: GpayMerchantInfo,
     /// Is shipping address required
+    #[smithy(value_type = "bool")]
     pub shipping_address_required: bool,
     /// Is email required
+    #[smithy(value_type = "bool")]
     pub email_required: bool,
     /// Shipping address parameters
+    #[smithy(value_type = "GpayShippingAddressParameters")]
     pub shipping_address_parameters: GpayShippingAddressParameters,
     /// List of the allowed payment meythods
+    #[smithy(value_type = "Vec<GpayAllowedPaymentMethods>")]
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
+    #[smithy(value_type = "GpayTransactionInfo")]
     pub transaction_info: GpayTransactionInfo,
     /// Identifier for the delayed session response
+    #[smithy(value_type = "bool")]
     pub delayed_session_token: bool,
     /// The name of the connector
+    #[smithy(value_type = "String")]
     pub connector: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
+    #[smithy(value_type = "SdkNextAction")]
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
+    #[smithy(value_type = " Option<SecretInfoToInitiateSdk>")]
     pub secrets: Option<SecretInfoToInitiateSdk>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPaySessionTokenResponse {
     /// Samsung Pay API version
+    #[smithy(value_type = "String")]
     pub version: String,
     /// Samsung Pay service ID to which session call needs to be made
+    #[smithy(value_type = "String")]
     pub service_id: String,
     /// Order number of the transaction
+    #[smithy(value_type = "String")]
     pub order_number: String,
     /// Field containing merchant information
     #[serde(rename = "merchant")]
+    #[smithy(value_type = "SamsungPayMerchantPaymentInformation")]
     pub merchant_payment_information: SamsungPayMerchantPaymentInformation,
     /// Field containing the payment amount
+    #[smithy(value_type = "SamsungPayAmountDetails")]
     pub amount: SamsungPayAmountDetails,
     /// Payment protocol type
+    #[smithy(value_type = "SamsungPayProtocolType")]
     pub protocol: SamsungPayProtocolType,
     /// List of supported card brands
+    #[smithy(value_type = "Vec<String>")]
     pub allowed_brands: Vec<String>,
     /// Is billing address required to be collected from wallet
+    #[smithy(value_type = "bool")]
     pub billing_address_required: bool,
     /// Is shipping address required to be collected from wallet
+    #[smithy(value_type = "bool")]
     pub shipping_address_required: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayProtocolType {
     Protocol3ds,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayMerchantPaymentInformation {
     /// Merchant name, this will be displayed on the Samsung Pay screen
+    #[smithy(value_type = "String")]
     pub name: String,
     /// Merchant domain that process payments, required for web payments
+    #[smithy(value_type = "Option<String>")]
     pub url: Option<String>,
     /// Merchant country code
     #[schema(value_type = CountryAlpha2, example = "US")]
+    #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayAmountDetails {
     #[serde(rename = "option")]
+    #[smithy(value_type = "SamsungPayAmountFormat")]
     /// Amount format to be displayed
     pub amount_format: SamsungPayAmountFormat,
     /// The currency code
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency_code: api_enums::Currency,
     /// The total amount of the transaction
     #[serde(rename = "total")]
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub total_amount: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayAmountFormat {
     /// Display the total amount only
     FormatTotalPriceOnly,
@@ -8304,71 +8439,94 @@ pub enum SamsungPayAmountFormat {
     FormatTotalEstimatedAmount,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayShippingAddressParameters {
     /// Is shipping phone number required
+    #[smithy(value_type = "bool")]
     pub phone_number_required: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct KlarnaSessionTokenResponse {
     /// The session token for Klarna
+    #[smithy(value_type = "String")]
     pub session_token: String,
     /// The identifier for the session
+    #[smithy(value_type = "String")]
     pub session_id: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaypalSessionTokenResponse {
     /// Name of the connector
+    #[smithy(value_type = "String")]
     pub connector: String,
     /// The session token for PayPal
+    #[smithy(value_type = "String")]
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
+    #[smithy(value_type = "SdkNextAction")]
     pub sdk_next_action: SdkNextAction,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OpenBankingSessionToken {
     /// The session token for OpenBanking Connectors
+    #[smithy(value_type = "String")]
     pub open_banking_session_token: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
     /// The session_token_data will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<ApplePaySessionResponse>")]
     pub session_token_data: Option<ApplePaySessionResponse>,
     /// Payment request object for Apple Pay
+    #[smithy(value_type = "Option<ApplePayPaymentRequest>")]
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
+    #[smithy(value_type = "String")]
     pub connector: String,
     /// Identifier for the delayed session response
+    #[smithy(value_type = "bool")]
     pub delayed_session_token: bool,
     /// The next action for the sdk (ex: calling confirm or sync call)
+    #[smithy(value_type = "SdkNextAction")]
     pub sdk_next_action: SdkNextAction,
     /// The connector transaction id
+    #[smithy(value_type = "Option<String>")]
     pub connector_reference_id: Option<String>,
     /// The public key id is to invoke third party sdk
+    #[smithy(value_type = "Option<String>")]
     pub connector_sdk_public_key: Option<String>,
     /// The connector merchant id
+    #[smithy(value_type = "Option<String>")]
     pub connector_merchant_id: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SdkNextAction {
     /// The type of next action
+    #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionCall {
     /// The next action call is Post Session Tokens
     PostSessionTokens,
@@ -8382,127 +8540,172 @@ pub enum NextActionCall {
     AwaitMerchantCallback,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePaySessionResponse {
     ///  We get this session response, when third party sdk is involved
+    #[smithy(value_type = "ThirdPartySdkSessionResponse")]
     ThirdPartySdk(ThirdPartySdkSessionResponse),
     ///  We get this session response, when there is no involvement of third party sdk
     /// This is the common response most of the times
+    #[smithy(value_type = "NoThirdPartySdkSessionResponse")]
     NoThirdPartySdk(NoThirdPartySdkSessionResponse),
     /// This is for the empty session response
+    #[smithy(value_type = "smithy.api#Unit")]
     NoSessionResponse(NullObject),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
 #[serde(rename_all(deserialize = "camelCase"))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NoThirdPartySdkSessionResponse {
     /// Timestamp at which session is requested
+    #[smithy(value_type = "u64")]
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
+    #[smithy(value_type = "u64")]
     pub expires_at: u64,
     /// The identifier for the merchant session
+    #[smithy(value_type = "String")]
     pub merchant_session_identifier: String,
     /// Apple pay generated unique ID (UUID) value
+    #[smithy(value_type = "String")]
     pub nonce: String,
     /// The identifier for the merchant
+    #[smithy(value_type = "String")]
     pub merchant_identifier: String,
     /// The domain name of the merchant which is registered in Apple Pay
+    #[smithy(value_type = "String")]
     pub domain_name: String,
     /// The name to be displayed on Apple Pay button
+    #[smithy(value_type = "String")]
     pub display_name: String,
     /// A string which represents the properties of a payment
+    #[smithy(value_type = "String")]
     pub signature: String,
     /// The identifier for the operational analytics
+    #[smithy(value_type = "String")]
     pub operational_analytics_identifier: String,
     /// The number of retries to get the session response
+    #[smithy(value_type = "u8")]
     pub retries: u8,
     /// The identifier for the connector transaction
+    #[smithy(value_type = "String")]
     pub psp_id: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ThirdPartySdkSessionResponse {
+    #[smithy(value_type = "SecretInfoToInitiateSdk")]
     pub secrets: SecretInfoToInitiateSdk,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SecretInfoToInitiateSdk {
     // Authorization secrets used by client to initiate sdk
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub display: Secret<String>,
     // Authorization secrets used by client for payment
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub payment: Secret<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
+    #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
+    #[smithy(value_type = "Currency")]
     pub currency_code: api_enums::Currency,
     /// Represents the total for the payment.
+    #[smithy(value_type = "AmountInfo")]
     pub total: AmountInfo,
     /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub merchant_capabilities: Option<Vec<String>>,
     /// The list of supported networks
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub supported_networks: Option<Vec<String>>,
+    #[smithy(value_type = "Option<String>")]
     pub merchant_identifier: Option<String>,
     /// The required billing contact fields for connector
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<Vec<ApplePayAddressParameters>>")]
     pub required_billing_contact_fields: Option<ApplePayBillingContactFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The required shipping contacht fields for connector
+    #[smithy(value_type = "Option<Vec<ApplePayAddressParameters>>")]
     pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
     /// Recurring payment request for apple pay Merchant Token
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<ApplePayRecurringPaymentRequest>")]
     pub recurring_payment_request: Option<ApplePayRecurringPaymentRequest>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRecurringPaymentRequest {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
+    #[smithy(value_type = "String")]
     pub payment_description: String,
     /// The regular billing cycle for the recurring payment, including start and end dates, an interval, and an interval count
+    #[smithy(value_type = "ApplePayRegularBillingRequest")]
     pub regular_billing: ApplePayRegularBillingRequest,
     /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
     #[schema(value_type = String, example = "https://hyperswitch.io")]
+    #[smithy(value_type = "String")]
     pub management_u_r_l: common_utils::types::Url,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRegularBillingRequest {
     /// The amount of the recurring payment
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub amount: StringMajorUnit,
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
+    #[smithy(value_type = "String")]
     pub label: String,
     /// The time that the payment occurs as part of a successful transaction
+    #[smithy(value_type = "ApplePayPaymentTiming")]
     pub payment_timing: ApplePayPaymentTiming,
     /// The date of the first payment
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub recurring_payment_start_date: Option<PrimitiveDateTime>,
     /// The date of the final payment
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub recurring_payment_end_date: Option<PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<RecurringPaymentIntervalUnit>")]
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
     /// The number of interval units that make up the total payment interval
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<i32>")]
     pub recurring_payment_interval_count: Option<i32>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePayPaymentTiming {
     /// A value that specifies that the payment occurs when the transaction is complete
     Immediate,
@@ -8515,23 +8718,28 @@ pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
 #[serde(rename_all = "camelCase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePayAddressParameters {
     PostalAddress,
     Phone,
     Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmountInfo {
     /// The label must be the name of the merchant.
+    #[smithy(value_type = "String")]
     pub label: String,
     /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
+    #[smithy(value_type = "Option<String>")]
     pub total_type: Option<String>,
     /// The total amount for the payment in majot unit string (Ex: 38.02)
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub amount: StringMajorUnit,
 }
 
@@ -8542,31 +8750,41 @@ pub struct ApplepayErrorResponse {
     pub status_message: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPaySessionTokenResponse {
     /// Amazon Pay merchant account identifier
+    #[smithy(value_type = "String")]
     pub merchant_id: String,
     /// Ledger currency provided during registration for the given merchant identifier
     #[schema(example = "USD", value_type = Currency)]
+    #[smithy(value_type = "Currency")]
     pub ledger_currency: common_enums::Currency,
     /// Amazon Pay store ID
+    #[smithy(value_type = "String")]
     pub store_id: String,
     /// Payment flow for charging the buyer
+    #[smithy(value_type = "AmazonPayPaymentIntent")]
     pub payment_intent: AmazonPayPaymentIntent,
     /// The total shipping costs
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub total_shipping_amount: StringMajorUnit,
     /// The total tax amount for the order
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub total_tax_amount: StringMajorUnit,
     /// The total amount for items in the cart
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub total_base_amount: StringMajorUnit,
     /// The delivery options available for the provided address
+    #[smithy(value_type = "Vec<AmazonPayDeliveryOptions>")]
     pub delivery_options: Vec<AmazonPayDeliveryOptions>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AmazonPayPaymentIntent {
     /// Create a Charge Permission to authorize and capture funds at a later time
     Confirm,
@@ -8576,36 +8794,48 @@ pub enum AmazonPayPaymentIntent {
     AuthorizeWithCapture,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayDeliveryOptions {
     /// Delivery Option identifier
+    #[smithy(value_type = "String")]
     pub id: String,
     /// Total delivery cost
+    #[smithy(value_type = "AmazonPayDeliveryPrice")]
     pub price: AmazonPayDeliveryPrice,
     /// Shipping method details
+    #[smithy(value_type = "AmazonPayShippingMethod")]
     pub shipping_method: AmazonPayShippingMethod,
     /// Specifies if this delivery option is the default
+    #[smithy(value_type = "bool")]
     pub is_default: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayDeliveryPrice {
     /// Transaction amount in MinorUnit
+    #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     #[serde(skip_deserializing)]
     /// Transaction amount in StringMajorUnit
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub display_amount: StringMajorUnit,
     /// Transaction currency code in ISO 4217 format
     #[schema(example = "USD", value_type = Currency)]
+    #[smithy(value_type = "Currency")]
     pub currency_code: common_enums::Currency,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayShippingMethod {
     /// Name of the shipping method
+    #[smithy(value_type = "String")]
     pub shipping_method_name: String,
     /// Code of the shipping method
+    #[smithy(value_type = "String")]
     pub shipping_method_code: String,
 }
 
@@ -9649,29 +9879,45 @@ pub struct ExtendedCardInfoResponse {
     pub payload: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ClickToPaySessionResponse {
+    #[smithy(value_type = "String")]
     pub dpa_id: String,
+    #[smithy(value_type = "String")]
     pub dpa_name: String,
+    #[smithy(value_type = "String")]
     pub locale: String,
     #[schema(value_type = Vec<CardNetwork>, example = "[Visa, Mastercard]")]
+    #[smithy(value_type = "Vec<CardNetwork>")]
     pub card_brands: HashSet<api_enums::CardNetwork>,
+    #[smithy(value_type = "String")]
     pub acquirer_bin: String,
+    #[smithy(value_type = "String")]
     pub acquirer_merchant_id: String,
+    #[smithy(value_type = "String")]
     pub merchant_category_code: String,
+    #[smithy(value_type = "String")]
     pub merchant_country_code: String,
     #[schema(value_type = String, example = "38.02")]
+    #[smithy(value_type = "String")]
     pub transaction_amount: StringMajorUnit,
     #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
     pub transaction_currency_code: common_enums::Currency,
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub phone_number: Option<Secret<String>>,
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+    #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
     /// provider Eg: Visa, Mastercard
     #[schema(value_type = Option<CtpServiceProvider>)]
+    #[smithy(value_type = "Option<CtpServiceProvider>")]
     pub provider: Option<api_enums::CtpServiceProvider>,
+    #[smithy(value_type = "Option<String>")]
     pub dpa_client_id: Option<String>,
 }
 

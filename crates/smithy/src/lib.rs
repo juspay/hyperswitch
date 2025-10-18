@@ -284,6 +284,93 @@ fn generate_enum_impl(
                 let target_type_expr = if variant.fields.is_empty() {
                     // If there are no fields with `value_type`, this variant should be skipped.
                     return None;
+                } else if variant.nested_value_type {
+                    // Force nested structure creation when nested_value_type is specified
+                    let nested_struct_members = variant.fields.iter().map(|field| {
+                        let field_name = &field.name;
+                        let field_value_type = &field.value_type;
+                        let field_doc = field
+                            .documentation
+                            .as_ref()
+                            .map(|doc| quote! { Some(#doc.to_string()) })
+                            .unwrap_or(quote! { None });
+
+                        let mut field_constraints = field.constraints.clone();
+                        if !field.optional && !field_constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+                            field_constraints.push(SmithyConstraint::Required);
+                        }
+
+                        let field_traits = if field_constraints.is_empty() {
+                            quote! { vec![] }
+                        } else {
+                            let trait_tokens = field_constraints
+                                .iter()
+                                .map(|constraint| match constraint {
+                                    SmithyConstraint::Pattern(pattern) => quote! {
+                                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                                    },
+                                    SmithyConstraint::Range(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Range {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Length(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Length {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Required => quote! {
+                                        smithy_core::SmithyTrait::Required
+                                    },
+                                    SmithyConstraint::HttpLabel => quote! {
+                                        smithy_core::SmithyTrait::HttpLabel
+                                    },
+                                    SmithyConstraint::HttpQuery(name) => quote! {
+                                        smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                                    },
+                                })
+                                .collect::<Vec<_>>();
+
+                            quote! { vec![#(#trait_tokens),*] }
+                        };
+
+                        quote! {
+                            {
+                                let (field_target, field_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                                shapes.extend(field_shapes);
+                                nested_members.insert(#field_name.to_string(), smithy_core::SmithyMember {
+                                    target: field_target,
+                                    documentation: #field_doc,
+                                    traits: #field_traits,
+                                });
+                            }
+                        }
+                    });
+
+                    quote! {
+                        {
+                            let nested_struct_name = format!("{}NestedType", #variant_name);
+                            let mut nested_members = std::collections::HashMap::new();
+                            #(#nested_struct_members)*
+                            let nested_shape = smithy_core::SmithyShape::Structure {
+                                members: nested_members,
+                                documentation: None,
+                                traits: vec![],
+                            };
+                            shapes.insert(nested_struct_name.clone(), nested_shape);
+                            nested_struct_name
+                        }
+                    }
                 } else if variant.fields.len() == 1 {
                     // Single field - reference the type directly instead of creating a wrapper
                     let field = &variant.fields[0];
@@ -573,6 +660,7 @@ fn extract_enum_variants(
             fields,
             constraints: variant_attrs.constraints,
             documentation,
+            nested_value_type: variant_attrs.nested_value_type,
         });
     }
 
@@ -583,6 +671,7 @@ fn extract_enum_variants(
 struct SmithyFieldAttributes {
     value_type: Option<String>,
     constraints: Vec<SmithyConstraint>,
+    nested_value_type: bool,
 }
 
 #[derive(Default)]
@@ -837,6 +926,8 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
                                 .push(SmithyConstraint::HttpQuery(lit_str.value()));
                         }
                     }
+                } else if meta.path.is_ident("nested_value_type") {
+                    field_attributes.nested_value_type = true;
                 }
                 Ok(())
             })?;

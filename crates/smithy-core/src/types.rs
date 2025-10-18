@@ -119,6 +119,7 @@ pub struct SmithyEnumVariant {
     pub fields: Vec<SmithyField>,
     pub constraints: Vec<SmithyConstraint>,
     pub documentation: Option<String>,
+    pub nested_value_type: bool,
 }
 
 #[derive(Debug, Clone)]
