@@ -13,9 +13,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsSyncData, SetupMandateRequestData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,

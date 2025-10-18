@@ -17,11 +17,46 @@ use unified_connector_service_client::payments::{
     PaymentServiceTransformResponse,
 };
 
+use crate::grpc_client::LineageIds;
 use crate::{
     consts,
     grpc_client::{GrpcClientSettings, GrpcHeadersUcs},
     utils::deserialize_hashset,
 };
+use async_trait::async_trait;
+use hyperswitch_interfaces::unified_connector_service::{
+    UcsConnectorAuthMetadata, UcsHeaders, UnifiedConnectorServiceInterface,
+};
+
+/// Helper function to convert UCS headers to internal headers
+fn convert_ucs_headers_to_internal(headers: UcsHeaders) -> GrpcHeadersUcs {
+    let lineage_ids = LineageIds {
+        merchant_id: headers.lineage_ids.merchant_id,
+        profile_id: headers.lineage_ids.profile_id,
+    };
+
+    GrpcHeadersUcs {
+        tenant_id: headers.tenant_id,
+        request_id: headers.request_id,
+        lineage_ids,
+        external_vault_proxy_metadata: headers.external_vault_proxy_metadata,
+        merchant_reference_id: None,
+        shadow_mode: headers.shadow_mode,
+    }
+}
+
+/// Helper function to convert UCS auth metadata to internal auth metadata
+fn convert_ucs_auth_to_internal(auth: UcsConnectorAuthMetadata) -> ConnectorAuthMetadata {
+    ConnectorAuthMetadata {
+        connector_name: auth.connector_name,
+        auth_type: auth.auth_type,
+        api_key: auth.api_key,
+        key1: auth.key1,
+        api_secret: auth.api_secret,
+        auth_key_map: auth.auth_key_map,
+        merchant_id: auth.merchant_id,
+    }
+}
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
@@ -403,4 +438,87 @@ pub fn build_unified_connector_service_grpc_headers(
     }
 
     Ok(metadata)
+}
+
+#[async_trait]
+impl UnifiedConnectorServiceInterface for UnifiedConnectorServiceClient {
+    async fn payment_authorize(
+        &self,
+        request: payments_grpc::PaymentServiceAuthorizeRequest,
+        connector_auth_metadata: UcsConnectorAuthMetadata,
+        headers: UcsHeaders,
+    ) -> UnifiedConnectorServiceResult<PaymentServiceAuthorizeResponse> {
+        let internal_auth = convert_ucs_auth_to_internal(connector_auth_metadata);
+        let internal_headers = convert_ucs_headers_to_internal(headers);
+
+        let response = self
+            .payment_authorize(request, internal_auth, internal_headers)
+            .await?;
+
+        Ok(response.into_inner())
+    }
+
+    async fn payment_get(
+        &self,
+        request: payments_grpc::PaymentServiceGetRequest,
+        connector_auth_metadata: UcsConnectorAuthMetadata,
+        headers: UcsHeaders,
+    ) -> UnifiedConnectorServiceResult<payments_grpc::PaymentServiceGetResponse> {
+        let internal_auth = convert_ucs_auth_to_internal(connector_auth_metadata);
+        let internal_headers = convert_ucs_headers_to_internal(headers);
+
+        let response = self
+            .payment_get(request, internal_auth, internal_headers)
+            .await?;
+
+        Ok(response.into_inner())
+    }
+
+    async fn payment_setup_mandate(
+        &self,
+        request: payments_grpc::PaymentServiceRegisterRequest,
+        connector_auth_metadata: UcsConnectorAuthMetadata,
+        headers: UcsHeaders,
+    ) -> UnifiedConnectorServiceResult<payments_grpc::PaymentServiceRegisterResponse> {
+        let internal_auth = convert_ucs_auth_to_internal(connector_auth_metadata);
+        let internal_headers = convert_ucs_headers_to_internal(headers);
+
+        let response = self
+            .payment_setup_mandate(request, internal_auth, internal_headers)
+            .await?;
+
+        Ok(response.into_inner())
+    }
+
+    async fn payment_repeat(
+        &self,
+        request: payments_grpc::PaymentServiceRepeatEverythingRequest,
+        connector_auth_metadata: UcsConnectorAuthMetadata,
+        headers: UcsHeaders,
+    ) -> UnifiedConnectorServiceResult<payments_grpc::PaymentServiceRepeatEverythingResponse> {
+        let internal_auth = convert_ucs_auth_to_internal(connector_auth_metadata);
+        let internal_headers = convert_ucs_headers_to_internal(headers);
+
+        let response = self
+            .payment_repeat(request, internal_auth, internal_headers)
+            .await?;
+
+        Ok(response.into_inner())
+    }
+
+    async fn transform_incoming_webhook(
+        &self,
+        request: PaymentServiceTransformRequest,
+        connector_auth_metadata: UcsConnectorAuthMetadata,
+        headers: UcsHeaders,
+    ) -> UnifiedConnectorServiceResult<PaymentServiceTransformResponse> {
+        let internal_auth = convert_ucs_auth_to_internal(connector_auth_metadata);
+        let internal_headers = convert_ucs_headers_to_internal(headers);
+
+        let response = self
+            .transform_incoming_webhook(request, internal_auth, internal_headers)
+            .await?;
+
+        Ok(response.into_inner())
+    }
 }

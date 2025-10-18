@@ -274,6 +274,16 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
     fn event_handler(&self) -> &dyn hyperswitch_interfaces::events::EventHandlerInterface {
         &self.event_handler
     }
+    fn get_ucs_interface(
+        &self,
+    ) -> Option<
+        &dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface,
+    > {
+        self.grpc_client
+            .unified_connector_service_client
+            .as_ref()
+            .map(|client| client as &dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface)
+    }
 }
 #[derive(Clone)]
 pub struct AppState {

@@ -31,7 +31,9 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_response_types::PaymentsResponseData,
+    router_flow_types::refunds,
+    router_request_types::RefundsData,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -58,7 +60,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::{api, transformers::ForeignTryFrom},
 };
 
 pub mod transformers;
@@ -1107,4 +1109,24 @@ pub async fn send_comparison_data(
         });
 
     Ok(())
+}
+
+trait GrpcFlow {
+    async fn call_unified_connector_service_for_refund_execute(
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        merchant_context: &MerchantContext,
+        router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+        execution_mode: ExecutionMode,
+    ) {
+    }
+}
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_execute(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    merchant_context: &MerchantContext,
+    router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
+) {
 }

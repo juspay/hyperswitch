@@ -20,6 +20,7 @@ use reqwest::multipart::Form;
 use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
 use serde_json::json;
 
+use crate::unified_connector_service::UnifiedConnectorServiceInterface;
 use crate::{
     configs,
     connector_integration_interface::{
@@ -125,6 +126,7 @@ pub trait ApiClientWrapper: Send + Sync {
     fn get_connectors(&self) -> configs::Connectors;
     /// Get the event handler
     fn event_handler(&self) -> &dyn events::EventHandlerInterface;
+    fn get_ucs_interface(&self) -> Option<&dyn UnifiedConnectorServiceInterface>;
 }
 
 /// Handle the flow by interacting with connector module
