@@ -648,11 +648,14 @@ fn get_webhook_url_from_business_profile(
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    webhook_details
-        .webhook_url
+    let webhook_url = webhook_details
+        .multiple_webhooks_list
+        .and_then(|list| list.first().map(|first| first.webhook_url.clone()))
         .get_required_value("webhook_url")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
-        .map(ExposeInterface::expose)
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)?
+        .expose();
+
+    Ok(webhook_url)
 }
 
 pub(crate) fn get_outgoing_webhook_request(
