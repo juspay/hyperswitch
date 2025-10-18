@@ -1798,7 +1798,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
     fn foreign_try_from(
         item: api_types::webhook_events::EventListConstraints,
     ) -> Result<Self, Self::Error> {
-        if item.object_id.is_some()
+        if (item.object_id.is_some() || item.event_id.is_some())
             && (item.created_after.is_some()
                 || item.created_before.is_some()
                 || item.limit.is_some()
@@ -1808,15 +1808,29 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message:
-                    "Either only `object_id` must be specified, or one or more of \
-                          `created_after`, `created_before`, `limit`, `offset`, `event_classes` and `event_types` must be specified"
+                     "Either only `object_id` or `event_id` must be specified, or one or more of \
+                                `created_after`, `created_before`, `limit`, `offset`, `event_classes` and `event_types` must be specified"
                         .to_string()
             }));
         }
 
-        match item.object_id {
-            Some(object_id) => Ok(Self::ObjectIdFilter { object_id }),
-            None => Ok(Self::GenericFilter {
+        match (item.object_id.clone(), item.event_id.clone()) {
+            (Some(object_id), Some(event_id)) => Ok(Self::ObjectIdFilter {
+                object_id,
+                event_id,
+            }),
+
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                event_id: object_id.clone(),
+                object_id,
+            }),
+
+            (None, Some(event_id)) => Ok(Self::ObjectIdFilter {
+                object_id: event_id.clone(),
+                event_id,
+            }),
+
+            (None, None) => Ok(Self::GenericFilter {
                 created_after: item.created_after,
                 created_before: item.created_before,
                 limit: item.limit.map(i64::from),
