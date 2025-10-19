@@ -1221,19 +1221,17 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                            cloned_state,
-                            cloned_processor,
-                            business_profile,
-                            event_type,
-                            diesel_models::enums::EventClass::Payments,
-                            payment_id.get_string_repr().to_owned(),
-                            common_enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
-                                payments_response_json,
-                            )),
-                            primary_object_created_at,
-                        ))
+                        Box::pin(
+                            webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                                cloned_state,
+                                &business_profile,
+                                payment_id.get_string_repr(),
+                                event_type,
+                                diesel_models::enums::EventClass::Payments,
+                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                primary_object_created_at,
+                            ),
+                        )
                         .await
                     }
                     .in_current_span(),
@@ -1294,17 +1292,17 @@ pub async fn trigger_refund_outgoing_webhook(
             let processor = platform.get_processor().clone();
             tokio::spawn(
                 async move {
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        processor,
-                        business_profile,
-                        outgoing_event_type,
-                        diesel_models::enums::EventClass::Refunds,
-                        refund_id.to_string(),
-                        common_enums::EventObjectType::RefundDetails,
-                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
-                        primary_object_created_at,
-                    ))
+                    Box::pin(
+                        webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                            cloned_state,
+                            &business_profile,
+                            &refund_id,
+                            outgoing_event_type,
+                            diesel_models::enums::EventClass::Refunds,
+                            diesel_models::enums::EventObjectType::RefundDetails,
+                            primary_object_created_at,
+                        ),
+                    )
                     .await
                 }
                 .in_current_span(),
@@ -1371,17 +1369,17 @@ pub async fn trigger_payouts_webhook(
             tokio::spawn(
                 async move {
                     let primary_object_created_at = cloned_response.created;
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        processor,
-                        business_profile,
-                        event_type,
-                        diesel_models::enums::EventClass::Payouts,
-                        cloned_response.payout_id.get_string_repr().to_owned(),
-                        common_enums::EventObjectType::PayoutDetails,
-                        webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
-                        primary_object_created_at,
-                    ))
+                    Box::pin(
+                        webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                            cloned_state,
+                            &business_profile,
+                            &cloned_response.payout_id.get_string_repr(),
+                            event_type,
+                            enums::EventClass::Payouts,
+                            diesel_models::enums::EventObjectType::PayoutDetails,
+                            primary_object_created_at,
+                        ),
+                    )
                     .await
                 }
                 .in_current_span(),

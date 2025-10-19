@@ -1592,15 +1592,13 @@ impl RevenueRecoveryOutgoingWebhook {
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
                     ));
-                create_event_and_trigger_outgoing_webhook(
+                add_bulk_outgoing_webhook_task_to_process_tracker(
                     state.clone(),
-                    profile.clone(),
-                    platform.get_processor().get_key_store(),
-                    event_status,
-                    event_class,
-                    payment_attempt_id,
-                    common_enums::EventObjectType::PaymentDetails,
-                    outgoing_webhook_content,
+                    &profile.clone(),
+                    &refund_id,
+                    outgoing_event_type,
+                    diesel_models::enums::EventClass::Payment,
+                    diesel_models::enums::EventObjectType::PaymentDetails,
                     payment_intent.created_at,
                 )
                 .await
