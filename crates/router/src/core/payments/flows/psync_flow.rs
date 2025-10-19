@@ -24,6 +24,7 @@ use crate::{
     services::{self, api::ConnectorValidation, logger},
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
+use hyperswitch_interfaces::api::gateway as payment_gateway;
 
 #[cfg(feature = "v1")]
 #[async_trait]
@@ -145,7 +146,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut new_router_data = services::execute_connector_processing_step(
+                let mut new_router_data = payment_gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &self,
@@ -372,7 +373,7 @@ impl RouterDataPSync
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
             // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
-            let resp = services::execute_connector_processing_step(
+            let resp = payment_gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 self,
@@ -391,7 +392,7 @@ impl RouterDataPSync
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
-                let resp = services::execute_connector_processing_step(
+                let resp = payment_gateway::execute_payment_gateway(
                     state,
                     connector_integration.clone_box(),
                     &cloned_router_data,

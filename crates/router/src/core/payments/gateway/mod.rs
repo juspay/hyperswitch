@@ -6,12 +6,9 @@
 //! The common gateway traits are now in hyperswitch_interfaces::api::gateway,
 //! allowing other crates (like subscriptions) to use them without depending on router.
 
-pub mod direct;
-pub mod factory;
-pub mod ucs;
-
 use async_trait::async_trait;
-use hyperswitch_interfaces::api::gateway as gateway_interface;
+use hyperswitch_interfaces::api::gateway::{self as gateway_interface};
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 
 use crate::{
     routes::SessionState,
@@ -32,31 +29,35 @@ pub use gateway_interface::GatewayExecutionPath;
 /// * `Req` - Request data type (e.g., PaymentsAuthorizeData)
 /// * `Resp` - Response data type (e.g., PaymentsResponseData)
 #[async_trait]
-pub trait PaymentGateway<F, Req, Resp>:
+pub trait PaymentGateway<F, RouterCommonData, Req, Resp>:
     gateway_interface::PaymentGateway<
         SessionState,
-        api::ConnectorData,
-        MerchantConnectorAccountType,
+        RouterCommonData,
         F,
         Req,
         Resp,
     >
+where
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    RouterCommonData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
 {
 }
 
 /// Blanket implementation for any type that implements the interface trait
-impl<T, F, Req, Resp> PaymentGateway<F, Req, Resp> for T where
+impl<T, F, RouterCommonData, Req, Resp> PaymentGateway<F, RouterCommonData, Req, Resp> for T
+where
     T: gateway_interface::PaymentGateway<
         SessionState,
-        api::ConnectorData,
-        MerchantConnectorAccountType,
+        RouterCommonData,
         F,
         Req,
         Resp,
-    >
+    >,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    RouterCommonData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
 {
 }
-
-pub use direct::DirectGateway;
-pub use factory::GatewayFactory;
-pub use ucs::UnifiedConnectorServiceGateway;

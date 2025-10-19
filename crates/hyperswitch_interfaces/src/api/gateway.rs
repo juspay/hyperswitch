@@ -1,163 +1,227 @@
-//! Gateway Abstraction Layer
+//! Gateway abstraction layer for unified connector execution
 //!
-//! This module provides a unified interface for executing payment operations
-//! through either Direct connector integration or Unified Connector Service (UCS).
+//! This module provides a unified interface for executing payment operations through either:
+//! - Direct connector integration (traditional HTTP-based)
+//! - Unified Connector Service (UCS) via gRPC
 //!
-//! The gateway layer abstracts the execution path decision logic, allowing payment flows
-//! to use a consistent API regardless of the underlying execution path.
-//!
-//! This is a common abstraction that can be used by multiple services (router, subscriptions, etc.)
-//! without creating circular dependencies.
+//! The gateway abstraction allows seamless switching between execution paths without
+//! requiring changes to individual flow implementations.
 
 use async_trait::async_trait;
 use common_enums::CallConnectorAction;
+use common_utils::{errors::CustomResult, request::Request};
+use error_stack::ResultExt;
+use crate::{
+    api_client::{self, ApiClientWrapper},
+    connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
+    errors::ConnectorError,
+};
 use hyperswitch_domain_models::router_data::RouterData;
-use common_utils::errors::CustomResult;
 
-use crate::errors::ConnectorError;
-
-/// Gateway execution path
-///
-/// Determines how the payment operation should be executed:
-/// - Direct: Through direct connector integration
-/// - UnifiedConnectorService: Through UCS (gRPC service)
-/// - ShadowUnifiedConnectorService: Execute both paths for comparison/migration
+/// Execution path for gateway operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GatewayExecutionPath {
-    /// Execute through direct connector integration
+    /// Direct HTTP connector integration
     Direct,
-    /// Execute through Unified Connector Service
+    /// Unified Connector Service via gRPC
     UnifiedConnectorService,
-    /// Execute through direct with shadow UCS execution for comparison
+    /// Shadow mode - execute both paths for comparison
     ShadowUnifiedConnectorService,
 }
 
-/// Core trait for payment gateway execution
+/// Core trait for payment gateway operations
 ///
-/// This trait provides a unified interface for executing payment operations
-/// regardless of whether they go through Direct connector integration or UCS.
+/// This trait defines the interface for executing payment operations through different
+/// gateway implementations (Direct, UCS, etc.)
 ///
 /// # Type Parameters
-/// * `State` - Application state type (e.g., SessionState, SubscriptionState)
-/// * `ConnectorData` - Connector information type
-/// * `MerchantConnectorAccount` - Merchant connector account type
+/// * `State` - Application state type (e.g., SessionState)
+/// * `ConnectorData` - Connector data type (e.g., api::ConnectorData)
 /// * `F` - Flow type (e.g., api::Authorize, api::PSync)
 /// * `Req` - Request data type (e.g., PaymentsAuthorizeData)
 /// * `Resp` - Response data type (e.g., PaymentsResponseData)
-///
-/// # Example
-/// ```ignore
-/// // Router implementation
-/// impl PaymentGateway<SessionState, api::ConnectorData, MerchantConnectorAccountType, ...>
-///     for DirectGateway { ... }
-///
-/// // Subscriptions implementation
-/// impl PaymentGateway<SubscriptionState, SubscriptionConnectorData, SubscriptionMCAType, ...>
-///     for SubscriptionGateway { ... }
-/// ```
 #[async_trait]
-pub trait PaymentGateway<State, ConnectorData, MerchantConnectorAccount, F, Req, Resp>:
-    Send + Sync
+pub trait PaymentGateway<State, RouterCommonData, F, Req, Resp>: Send + Sync
+where
+    State: Clone + Send + Sync + 'static,
+    RouterCommonData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
 {
-    /// Execute the payment operation through this gateway
+    /// Execute the gateway operation
     ///
-    /// # Arguments
-    /// * `state` - Application state containing configuration and clients
-    /// * `router_data` - Payment context and request data
-    /// * `connector` - Connector information
-    /// * `merchant_connector_account` - Merchant's connector account details
-    /// * `call_connector_action` - Action to perform (Trigger, HandleResponse, etc.)
-    ///
-    /// # Returns
-    /// Updated RouterData with response or error
+    /// This method consumes self to match the ownership requirements of the underlying
+    /// connector integration functions.
     async fn execute(
-        self,
+        self: Box<Self>,
         state: &State,
-        router_data: RouterData<F, Req, Resp>,
-        connector: &ConnectorData,
-        merchant_connector_account: &MerchantConnectorAccount,
+        connector_integration: BoxedConnectorIntegrationInterface<F, RouterCommonData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
         call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
 }
 
-/// Factory trait for creating payment gateways
+/// Direct gateway implementation
 ///
-/// This trait allows different services to implement their own gateway creation logic
-/// while maintaining a consistent interface.
-///
-/// # Type Parameters
-/// * `State` - Application state type
-/// * `ConnectorData` - Connector information type
-/// * `PaymentData` - Payment data type used for decision making
-/// * `F` - Flow type
-/// * `Req` - Request data type
-/// * `Resp` - Response data type
-///
-/// # Example
-/// ```ignore
-/// // Router implementation
-/// impl GatewayFactory<SessionState, api::ConnectorData, PaymentData, ...>
-///     for RouterGatewayFactory {
-///     async fn create_gateway(...) -> Box<dyn PaymentGateway<...>> {
-///         // Router-specific logic to choose Direct vs UCS
-///     }
-/// }
-/// ```
-#[async_trait]
-pub trait GatewayFactory<State, ConnectorData, PaymentData, F, Req, Resp>: Send + Sync {
-    /// Create a gateway for the given flow
-    ///
-    /// # Arguments
-    /// * `state` - Application state
-    /// * `connector` - Connector data
-    /// * `router_data` - Payment router data
-    /// * `payment_data` - Optional payment data for decision making
-    ///
-    /// # Returns
-    /// A boxed PaymentGateway implementation (Direct, UCS, or Shadow)
-    async fn create_gateway(
-        self,
-        state: &State,
-        connector: &ConnectorData,
-        router_data: &RouterData<F, Req, Resp>,
-        payment_data: Option<&PaymentData>,
-    ) -> Result<Box<dyn PaymentGateway<State, ConnectorData, Self::MerchantConnectorAccount, F, Req, Resp>>, ConnectorError>;
+/// Wraps the existing `execute_connector_processing_step` function to provide
+/// traditional HTTP-based connector integration.
+pub struct DirectGateway;
 
-    /// Associated type for merchant connector account
-    type MerchantConnectorAccount;
+#[async_trait]
+impl<State, ConnectorData, F, Req, Resp>
+    PaymentGateway<State, ConnectorData, F, Req, Resp> for DirectGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+{
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+        // Delegate to existing execute_connector_processing_step
+        // The type parameters map as follows:
+        // - execute_connector_processing_step's T = our F (flow type)
+        // - execute_connector_processing_step's ResourceCommonData = our ConnectorData
+        api_client::execute_connector_processing_step::<F, ConnectorData, Req, Resp>(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+    }
 }
 
-/// Trait for determining gateway execution path
+/// Unified Connector Service gateway implementation
 ///
-/// This trait encapsulates the decision logic for choosing between
-/// Direct, UCS, or Shadow execution paths.
-///
-/// # Type Parameters
-/// * `State` - Application state type
-/// * `ConnectorData` - Connector information type
-/// * `PaymentData` - Payment data type
-/// * `F` - Flow type
-/// * `Req` - Request data type
-/// * `Resp` - Response data type
+/// Handles payment operations through the UCS gRPC service.
+/// Currently marked as incomplete - requires additional context for full implementation.
+pub struct UnifiedConnectorServiceGateway;
+
 #[async_trait]
-pub trait GatewayExecutionPathDecider<State, ConnectorData, PaymentData, F, Req, Resp>:
-    Send + Sync
+impl<State, ConnectorData, F, Req, Resp>
+    PaymentGateway<State, ConnectorData, F, Req, Resp>
+    for UnifiedConnectorServiceGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
 {
-    /// Determine the execution path for the given payment operation
+    async fn execute(
+        self: Box<Self>,
+        _state: &State,
+        _connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        _router_data: &RouterData<F, Req, Resp>,
+        _call_connector_action: CallConnectorAction,
+        _connector_request: Option<Request>,
+        _return_raw_connector_response: Option<bool>,
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+        // TODO: Implement UCS gateway execution
+        // This requires additional context that is not available at this layer:
+        // - MerchantContext
+        // - PaymentData
+        // - HeaderPayload
+        // - LineageIds
+        //
+        // These will need to be passed from the higher-level payment flow orchestration
+        todo!("UCS gateway implementation pending - requires additional context from payment flow layer")
+    }
+}
+
+/// Factory for creating appropriate gateway instances
+pub struct GatewayFactory;
+
+impl GatewayFactory {
+    /// Create a gateway instance based on execution path
     ///
-    /// # Arguments
-    /// * `state` - Application state
-    /// * `connector` - Connector data
-    /// * `router_data` - Payment router data
-    /// * `payment_data` - Optional payment data for decision making
-    ///
-    /// # Returns
-    /// The execution path to use (Direct, UCS, or Shadow)
-    async fn determine_execution_path(
-        &self,
-        state: &State,
-        connector: &ConnectorData,
-        router_data: &RouterData<F, Req, Resp>,
-        payment_data: Option<&PaymentData>,
-    ) -> Result<GatewayExecutionPath, ConnectorError>;
+    /// Currently always returns Direct gateway as UCS support is incomplete.
+    /// This will be enhanced to support dynamic path selection based on:
+    /// - Connector capabilities
+    /// - Merchant configuration
+    /// - Feature flags
+    /// - Rollout percentage
+    pub fn create<State, ConnectorData, F, Req, Resp>(
+        _execution_path: GatewayExecutionPath,
+    ) -> Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp>>
+    where
+        State: Clone + Send + Sync + 'static + ApiClientWrapper,
+        ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+        F: Clone + std::fmt::Debug + Send + Sync + 'static,
+        Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+        Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    {
+        // Always return Direct gateway for now
+        // TODO: Implement path selection logic when UCS is ready
+        Box::new(DirectGateway)
+    }
+}
+
+/// Execute payment gateway operation
+///
+/// This is the main entry point for all payment operations. It replaces direct calls to
+/// `execute_connector_processing_step` and provides a unified interface that can route
+/// to either Direct or UCS execution paths.
+///
+/// # Arguments
+///
+/// * `state` - Application state with API client and configuration
+/// * `connector_integration` - Connector-specific integration implementation
+/// * `router_data` - Payment operation data and context
+/// * `call_connector_action` - Action to perform (Trigger, HandleResponse, etc.)
+/// * `connector_request` - Pre-built connector request (optional)
+/// * `return_raw_connector_response` - Whether to include raw response in result
+///
+/// # Returns
+///
+/// Updated RouterData with response from the gateway execution
+pub async fn execute_payment_gateway<State, ConnectorData, F, Req, Resp>(
+    state: &State,
+    connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+    router_data: &RouterData<F, Req, Resp>,
+    call_connector_action: CallConnectorAction,
+    connector_request: Option<Request>,
+    return_raw_connector_response: Option<bool>,
+) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+{
+    // Determine execution path
+    // For now, always use Direct path until UCS implementation is complete
+    let execution_path = GatewayExecutionPath::Direct;
+
+    // Create appropriate gateway
+    let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp>> =
+        GatewayFactory::create(execution_path);
+
+    // Execute through gateway
+    gateway
+        .execute(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .attach_printable("Gateway execution failed")
 }
