@@ -374,6 +374,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -411,7 +412,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_order_reference_id)
             .lineage_ids(lineage_ids);

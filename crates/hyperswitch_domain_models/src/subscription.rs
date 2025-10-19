@@ -43,14 +43,12 @@ impl std::fmt::Display for ClientSecret {
 
 impl ApiEventMetric for ClientSecret {}
 
-#[cfg(feature = "v1")]
 impl From<api_models::subscription::ClientSecret> for ClientSecret {
     fn from(api_secret: api_models::subscription::ClientSecret) -> Self {
         Self::new(api_secret.as_str().to_string())
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<ClientSecret> for api_models::subscription::ClientSecret {
     fn from(domain_secret: ClientSecret) -> Self {
         Self::new(domain_secret.to_string())
@@ -73,6 +71,8 @@ pub struct Subscription {
     pub modified_at: PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -137,6 +137,8 @@ impl super::behaviour::Conversion for Subscription {
             modified_at: now,
             profile_id: self.profile_id,
             merchant_reference_id: self.merchant_reference_id,
+            plan_id: self.plan_id,
+            item_price_id: self.item_price_id,
         })
     }
 
@@ -164,6 +166,8 @@ impl super::behaviour::Conversion for Subscription {
             modified_at: item.modified_at,
             profile_id: item.profile_id,
             merchant_reference_id: item.merchant_reference_id,
+            plan_id: item.plan_id,
+            item_price_id: item.item_price_id,
         })
     }
 
@@ -181,6 +185,8 @@ impl super::behaviour::Conversion for Subscription {
             self.metadata,
             self.profile_id,
             self.merchant_reference_id,
+            self.plan_id,
+            self.item_price_id,
         ))
     }
 }
@@ -218,19 +224,25 @@ pub struct SubscriptionUpdate {
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 impl SubscriptionUpdate {
     pub fn new(
+        connector_subscription_id: Option<String>,
         payment_method_id: Option<Secret<String>>,
         status: Option<String>,
-        connector_subscription_id: Option<String>,
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
     ) -> Self {
         Self {
+            connector_subscription_id,
             payment_method_id: payment_method_id.map(|pmid| pmid.peek().clone()),
             status,
-            connector_subscription_id,
             modified_at: common_utils::date_time::now(),
+            plan_id,
+            item_price_id,
         }
     }
 }
@@ -246,6 +258,8 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             payment_method_id: self.payment_method_id,
             status: self.status,
             modified_at: self.modified_at,
+            plan_id: self.plan_id,
+            item_price_id: self.item_price_id,
         })
     }
 
@@ -263,6 +277,8 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             payment_method_id: item.payment_method_id,
             status: item.status,
             modified_at: item.modified_at,
+            plan_id: item.plan_id,
+            item_price_id: item.item_price_id,
         })
     }
 
@@ -272,6 +288,8 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             payment_method_id: self.payment_method_id,
             status: self.status,
             modified_at: self.modified_at,
+            plan_id: self.plan_id,
+            item_price_id: self.item_price_id,
         })
     }
 }
