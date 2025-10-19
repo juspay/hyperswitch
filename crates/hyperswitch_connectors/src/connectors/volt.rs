@@ -482,8 +482,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Volt"
-        }.into())
+            connector: "Volt",
+        }
+        .into())
     }
 }
 
@@ -654,8 +655,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Volt {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Refunds Retrieve".to_string(),
-            connector: "Volt"
-        }.into())
+            connector: "Volt",
+        }
+        .into())
     }
 }
 
@@ -771,24 +773,23 @@ impl webhooks::IncomingWebhook for Volt {
     }
 }
 
-static VOLT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static VOLT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut volt_supported_payment_methods = SupportedPaymentMethods::new();
-        volt_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::OpenBankingUk,
-            PaymentMethodDetails{
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods,
-                specific_features: None,
-            },
-        );
+    let mut volt_supported_payment_methods = SupportedPaymentMethods::new();
+    volt_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::OpenBankingUk,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
 
-        volt_supported_payment_methods
-    });
+    volt_supported_payment_methods
+});
 
 static VOLT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "VOLT",
@@ -798,10 +799,8 @@ static VOLT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static VOLT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-];
+static VOLT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Volt {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
