@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
+pub use hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceFlow;
 use masking::ExposeInterface;
 
 use crate::{
@@ -321,9 +322,9 @@ pub async fn do_auth_connector_call<F, Req, Res>(
     router_data: RouterData<F, Req, Res>,
 ) -> RouterResult<RouterData<F, Req, Res>>
 where
-    Req: std::fmt::Debug + Clone + 'static,
-    Res: std::fmt::Debug + Clone + 'static,
-    F: std::fmt::Debug + Clone + 'static,
+    Req: std::fmt::Debug + Send + Sync + Clone + 'static,
+    Res: std::fmt::Debug + Send + Sync + Clone + 'static,
+    F: std::fmt::Debug + Clone + Send + Sync + 'static + UnifiedConnectorServiceFlow<F, Req, Res>,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
     dyn api::ConnectorV2 + Sync:
         services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,

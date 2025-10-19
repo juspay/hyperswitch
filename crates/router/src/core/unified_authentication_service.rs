@@ -31,8 +31,8 @@ use hyperswitch_domain_models::{
         BrowserInformation,
     },
     types::{
-        UasAuthenticationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
+        UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
     },
 };
 use masking::{ExposeInterface, PeekInterface};

@@ -126,7 +126,8 @@ pub trait ApiClientWrapper: Send + Sync {
     fn get_connectors(&self) -> configs::Connectors;
     /// Get the event handler
     fn event_handler(&self) -> &dyn events::EventHandlerInterface;
-    fn get_ucs_interface(&self) -> Option<&dyn UnifiedConnectorServiceInterface>;
+    /// Get a reference to the Unified Connector Service (gRPC) implementation if available.
+    fn get_ucs_interface(&self) -> Option<Box<dyn UnifiedConnectorServiceInterface + Send + Sync>>;
 }
 
 /// Handle the flow by interacting with connector module
@@ -149,9 +150,20 @@ pub async fn execute_connector_processing_step<
     return_raw_connector_response: Option<bool>,
 ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
 where
-    T: Clone + Debug + 'static,
+    T: unified_connector_service::UnifiedConnectorServiceFlow<T, Req, Resp>
+        + Clone
+        + Debug
+        + 'static,
+    Req: Debug + Clone + Send + Sync + 'static,
+    Resp: Debug + Clone + Send + Sync + 'static,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
+    let d: Option<Box<dyn UnifiedConnectorServiceInterface + Send + Sync>> =
+        state.get_ucs_interface();
+    if let Some(ucs_client) = d.as_deref() {
+        let _result = T::execute_ucs_flow(ucs_client, req).await;
+    }
+
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     tracing::Span::current().record("connector_name", &req.connector);

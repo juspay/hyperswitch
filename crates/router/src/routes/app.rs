@@ -77,6 +77,7 @@ use super::{mandates::*, refunds::*};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
+use crate::core::unified_connector_service::UnifiedConnectorClient;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
@@ -277,12 +278,21 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
     fn get_ucs_interface(
         &self,
     ) -> Option<
-        &dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface,
+        Box<
+            dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface
+                + Send
+                + Sync,
+        >,
     > {
         self.grpc_client
-            .unified_connector_service_client
-            .as_ref()
-            .map(|client| client as &dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface)
+        .unified_connector_service_client
+        .as_ref()
+        .map(|client| {
+            // Wrap the existing client reference into your local wrapper type
+            // (requires Clone if UnifiedConnectorServiceClient is not Copy)
+            Box::new(UnifiedConnectorClient(client.clone()))
+                as Box<dyn hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceInterface + Send + Sync>
+        })
     }
 }
 #[derive(Clone)]

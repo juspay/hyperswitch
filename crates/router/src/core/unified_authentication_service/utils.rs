@@ -34,11 +34,17 @@ pub async fn do_auth_connector_call<F, Req, Res>(
     router_data: RouterData<F, Req, Res>,
 ) -> RouterResult<RouterData<F, Req, Res>>
 where
-    Req: std::fmt::Debug + Clone + 'static,
-    Res: std::fmt::Debug + Clone + 'static,
+    Req: std::fmt::Debug + Send + Sync + Clone + 'static,
+    Res: std::fmt::Debug + Send + Sync + Clone + 'static,
     F: std::fmt::Debug + Clone + 'static,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
     dyn api::ConnectorV2 + Sync: services::api::ConnectorIntegrationV2<F, UasFlowData, Req, Res>,
+    F: Clone
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + 'static
+        + hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceFlow<F, Req, Res>,
 {
     let connector_data =
         api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;

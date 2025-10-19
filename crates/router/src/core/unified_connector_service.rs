@@ -31,7 +31,9 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::payments::Authorize,
     router_flow_types::refunds,
+    router_request_types::PaymentsAuthorizeData,
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
@@ -39,8 +41,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod,
+    payment_service_client::PaymentServiceClient, CardDetails, CardPaymentMethodType,
+    PaymentServiceAuthorizeResponse, PaymentServiceTransformRequest,
+    PaymentServiceTransformResponse, RefundResponse, RewardPaymentMethodType,
 };
 
 #[cfg(feature = "v2")]
@@ -61,6 +65,13 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{api, transformers::ForeignTryFrom},
+};
+use async_trait::async_trait;
+use external_services::grpc_client::unified_connector_service::{
+    UnifiedConnectorServiceClient, UnifiedConnectorServiceResult as UnifiedConnectorServiceResponse,
+};
+use hyperswitch_interfaces::unified_connector_service::{
+    UcsConnectorAuthMetadata, UcsHeaders, UnifiedConnectorServiceInterface,
 };
 
 pub mod transformers;
@@ -1111,22 +1122,31 @@ pub async fn send_comparison_data(
     Ok(())
 }
 
-trait GrpcFlow {
-    async fn call_unified_connector_service_for_refund_execute(
-        state: &SessionState,
-        connector: &api::ConnectorData,
-        merchant_context: &MerchantContext,
-        router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
-        execution_mode: ExecutionMode,
+pub struct UnifiedConnectorClient(pub UnifiedConnectorServiceClient);
+
+#[async_trait]
+impl UnifiedConnectorServiceInterface for UnifiedConnectorClient {
+    async fn payment_authorize(
+        &self,
+        router_data: &mut RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
+        // delegate to the inner client if needed
+        todo!()
     }
-}
-#[instrument(skip_all)]
-pub async fn call_unified_connector_service_for_refund_execute(
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    merchant_context: &MerchantContext,
-    router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
-    execution_mode: ExecutionMode,
-) {
+
+    async fn refund_sync(
+        &self,
+        router_data: &mut RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+    ) {
+        // Implementation to call the actual gRPC client for refund sync
+        todo!()
+    }
+
+    async fn refund_execute(
+        &self,
+        router_data: &mut RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+    ) {
+        // Implementation to call the actual gRPC client for refund sync
+        todo!()
+    }
 }

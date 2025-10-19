@@ -869,13 +869,16 @@ pub trait ConnectorActions: Connector {
 }
 
 async fn call_connector<
-    T: Debug + Clone + 'static,
+    T: Debug
+        + Clone
+        + 'static
+        + hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceFlow<T, Req, Resp>,
     ResourceCommonData: Debug
         + Clone
         + services::connector_integration_interface::RouterDataConversion<T, Req, Resp>
         + 'static,
-    Req: Debug + Clone + 'static,
-    Resp: Debug + Clone + 'static,
+    Req: Debug + Clone + Send + Sync + 'static,
+    Resp: Debug + Clone + Send + Sync + 'static,
 >(
     request: RouterData<T, Req, Resp>,
     integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,

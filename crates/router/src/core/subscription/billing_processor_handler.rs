@@ -413,23 +413,45 @@ impl BillingHandler {
             Resp,
         >,
         operation_name: &str,
-        connector_integration: hyperswitch_interfaces::connector_integration_interface::BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
+        connector_integration: hyperswitch_interfaces::connector_integration_interface::BoxedConnectorIntegrationInterface<
+        F,
+        ResourceCommonData,
+        Req,
+        Resp,
+    >,
     ) -> errors::RouterResult<Result<Resp, hyperswitch_domain_models::router_data::ErrorResponse>>
     where
-        F: Clone + std::fmt::Debug + 'static,
-        Req: Clone + std::fmt::Debug + 'static,
-        Resp: Clone + std::fmt::Debug + 'static,
+        // Core data requirements
+        Req: Clone + std::fmt::Debug + Send + Sync + 'static,
+        Resp: Clone + std::fmt::Debug + Send + Sync + 'static,
         ResourceCommonData:
             hyperswitch_interfaces::connector_integration_interface::RouterDataConversion<
                     F,
                     Req,
                     Resp,
                 > + Clone
+                + Send
+                + Sync
                 + 'static,
+
+        F: Clone
+            + std::fmt::Debug
+            + Send
+            + Sync
+            + 'static
+            + hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceFlow<
+                F,
+                Req,
+                Resp,
+            >,
+
+        // Also this bound ensures the connector types align
+        dyn hyperswitch_interfaces::api::Connector + Sync:
+            hyperswitch_interfaces::api::ConnectorIntegration<F, Req, Resp>,
     {
         let old_router_data = ResourceCommonData::to_old_router_data(router_data).change_context(
             errors::ApiErrorResponse::SubscriptionError {
-                operation: { operation_name.to_string() },
+                operation: operation_name.to_string(),
             },
         )?;
 

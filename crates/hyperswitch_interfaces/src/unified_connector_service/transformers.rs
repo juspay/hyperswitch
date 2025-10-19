@@ -88,6 +88,9 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
     WebhookTransformFailure,
+    /// Error of unhandled grpc flow
+    #[error("UCS flow not implemented for this type")]
+    InternalError,
 }
 
 #[allow(missing_docs)]
