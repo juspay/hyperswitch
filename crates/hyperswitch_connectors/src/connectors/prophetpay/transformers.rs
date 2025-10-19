@@ -243,7 +243,7 @@ fn get_redirect_url_form(
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayCompleteRequest {
-    amount: f64,
+    amount: FloatMajorUnit,
     ref_info: String,
     inquiry_reference: String,
     profile: Secret<String>,
@@ -565,7 +565,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundRequest {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub card_token: Secret<String>,
     pub transaction_id: String,
     pub profile: Secret<String>,
