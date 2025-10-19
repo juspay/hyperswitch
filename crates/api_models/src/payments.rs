@@ -2515,13 +2515,13 @@ pub struct CardToken {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardRedirectData {
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     Knet {},
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     Benefit {},
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     MomoAtm {},
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     CardRedirect {},
 }
 
@@ -2549,7 +2549,7 @@ pub enum PayLaterData {
         token: String,
     },
     /// For Affirm redirect as PayLater Option
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
     #[smithy(nested_value_type)]
@@ -2564,20 +2564,20 @@ pub enum PayLaterData {
         billing_name: Option<Secret<String>>,
     },
     /// For PayBright Redirect as PayLater Option
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     PayBrightRedirect {},
     /// For Flexiti Redirect as PayLater long term finance Option
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     FlexitiRedirect {},
     /// For WalleyRedirect as PayLater Option
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     AlmaRedirect {},
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     AtomeRedirect {},
-    #[smithy(value_type = "smithy.api#Unit")]
+    #[smithy(nested_value_type)]
     BreadpayRedirect {},
 }
 

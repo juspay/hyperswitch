@@ -286,16 +286,9 @@ fn generate_enum_impl(
                     .map(|doc| quote! { Some(#doc.to_string()) })
                     .unwrap_or(quote! { None });
 
-                let target_type_expr = if variant.fields.is_empty() {
-                    // If there are no fields but variant has a value_type, use that
-                    if let Some(variant_value_type) = &variant.value_type {
-                        quote! { #variant_value_type.to_string() }
-                    } else {
-                        // If there are no fields and no variant value_type, this variant should be skipped
-                        return None;
-                    }
-                } else if variant.nested_value_type {
+                let target_type_expr = if variant.nested_value_type {
                     // Force nested structure creation when nested_value_type is specified
+                    // This works for both empty and non-empty variants
                     let nested_struct_members = variant.fields.iter().map(|field| {
                         let field_name = &field.name;
                         let field_value_type = &field.value_type;
@@ -380,6 +373,14 @@ fn generate_enum_impl(
                             shapes.insert(nested_struct_name.clone(), nested_shape);
                             nested_struct_name
                         }
+                    }
+                } else if variant.fields.is_empty() {
+                    // If there are no fields but variant has a value_type, use that
+                    if let Some(variant_value_type) = &variant.value_type {
+                        quote! { #variant_value_type.to_string() }
+                    } else {
+                        // If there are no fields and no variant value_type, this variant should be skipped
+                        return None;
                     }
                 } else if variant.fields.len() == 1 {
                     // Single field - reference the type directly instead of creating a wrapper
