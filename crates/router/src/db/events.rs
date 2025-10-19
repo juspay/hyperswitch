@@ -968,6 +968,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )
@@ -1085,6 +1086,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    webhook_endpoint_id: None,
                 },
                 &merchant_key_store,
             )
@@ -1438,16 +1440,14 @@ mod tests {
             let primary_object_id_clone = primary_object_id.clone();
 
             let handle = tokio::spawn(async move {
-                webhooks_core::create_event_and_trigger_outgoing_webhook(
+                webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
                     state_clone,
-                    merchant_context_clone,
                     business_profile_clone,
-                    event_type,
-                    event_class,
                     (*primary_object_id_clone).to_string(),
-                    primary_object_type,
-                    content_clone,
-                    primary_object_created_at,
+                    outgoing_event_type,
+                    diesel_models::enums::EventClass::Payments,
+                    diesel_models::enums::EventObjectType::PaymentDetails,
+                    payment_intent.created_at,
                 )
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))

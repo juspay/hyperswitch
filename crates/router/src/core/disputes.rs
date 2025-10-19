@@ -898,18 +898,17 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
-    Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
+    Box::pin(webhooks::add_bulk_outgoing_webhook_task_to_process_tracker(
         state.clone(),
-        merchant_context,
-        business_profile,
+        &business_profile,
+        &dispute_object.dispute_id,
         event_type,
         storage_enums::EventClass::Disputes,
-        dispute_object.dispute_id.clone(),
         storage_enums::EventObjectType::DisputeDetails,
-        api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
         Some(dispute_object.created_at),
     ))
-    .await?;
+    .await
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
     Ok(disputes_response)
 }
 

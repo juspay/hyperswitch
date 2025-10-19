@@ -1163,7 +1163,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    merchant_context: domain::MerchantContext,
+    _merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1218,19 +1218,17 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                            cloned_state,
-                            merchant_context.clone(),
-                            business_profile,
-                            event_type,
-                            diesel_models::enums::EventClass::Payments,
-                            payment_id.get_string_repr().to_owned(),
-                            diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
-                                payments_response_json,
-                            )),
-                            primary_object_created_at,
-                        ))
+                        Box::pin(
+                            webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                                cloned_state,
+                                &business_profile,
+                                payment_id.get_string_repr(),
+                                event_type,
+                                diesel_models::enums::EventClass::Payments,
+                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                primary_object_created_at,
+                            ),
+                        )
                         .await
                     }
                     .in_current_span(),
@@ -1289,22 +1287,21 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
-        let cloned_merchant_context = merchant_context.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
             tokio::spawn(
                 async move {
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        cloned_merchant_context,
-                        business_profile,
-                        outgoing_event_type,
-                        diesel_models::enums::EventClass::Refunds,
-                        refund_id.to_string(),
-                        diesel_models::enums::EventObjectType::RefundDetails,
-                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
-                        primary_object_created_at,
-                    ))
+                    Box::pin(
+                        webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                            cloned_state,
+                            &business_profile,
+                            &refund_id,
+                            outgoing_event_type,
+                            diesel_models::enums::EventClass::Refunds,
+                            diesel_models::enums::EventObjectType::RefundDetails,
+                            primary_object_created_at,
+                        ),
+                    )
                     .await
                 }
                 .in_current_span(),
@@ -1363,7 +1360,6 @@ pub async fn trigger_payouts_webhook(
     if should_trigger_webhook {
         let event_type = (*status).into();
         if let Some(event_type) = event_type {
-            let cloned_merchant_context = merchant_context.clone();
             let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
 
@@ -1373,17 +1369,17 @@ pub async fn trigger_payouts_webhook(
             tokio::spawn(
                 async move {
                     let primary_object_created_at = cloned_response.created;
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        cloned_merchant_context,
-                        business_profile,
-                        event_type,
-                        diesel_models::enums::EventClass::Payouts,
-                        cloned_response.payout_id.get_string_repr().to_owned(),
-                        diesel_models::enums::EventObjectType::PayoutDetails,
-                        webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
-                        primary_object_created_at,
-                    ))
+                    Box::pin(
+                        webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                            cloned_state,
+                            &business_profile,
+                            &cloned_response.payout_id.get_string_repr(),
+                            event_type,
+                            enums::EventClass::Payouts,
+                            diesel_models::enums::EventObjectType::PayoutDetails,
+                            primary_object_created_at,
+                        ),
+                    )
                     .await
                 }
                 .in_current_span(),
