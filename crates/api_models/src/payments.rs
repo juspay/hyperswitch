@@ -5258,102 +5258,145 @@ pub enum NextActionData {
         session_token: Option<SessionToken>,
     },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
+    #[smithy(nested_value_type)]
     QrCodeInformation {
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         /// Hyperswitch generated image data source url
         image_data_url: Option<Url>,
+        #[smithy(value_type = "Option<i64>")]
         display_to_timestamp: Option<i64>,
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         /// The url for Qr code given by the connector
         qr_code_url: Option<Url>,
+        #[smithy(value_type = "Option<String>")]
         display_text: Option<String>,
+        #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
     },
     /// Contains url to fetch Qr code data
+    #[smithy(nested_value_type)]
     FetchQrCodeInformation {
         #[schema(value_type = String)]
+        #[smithy(value_type = "String")]
         qr_code_fetch_url: Url,
     },
     /// Contains the download url and the reference number for transaction
+    #[smithy(nested_value_type)]
     DisplayVoucherInformation {
         #[schema(value_type = String)]
+        #[smithy(value_type = "VoucherNextStepData")]
         voucher_details: VoucherNextStepData,
     },
     /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
+    #[smithy(nested_value_type)]
     WaitScreenInformation {
+        #[smithy(value_type = "i128")]
         display_from_timestamp: i128,
+        #[smithy(value_type = "Option<i128>")]
         display_to_timestamp: Option<i128>,
+        #[smithy(value_type = "Option<PollConfig>")]
         poll_config: Option<PollConfig>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
+    #[smithy(nested_value_type)]
     ThreeDsInvoke {
+        #[smithy(value_type = "ThreeDsData")]
         three_ds_data: ThreeDsData,
     },
+    #[smithy(nested_value_type)]
     InvokeSdkClient {
+        #[smithy(value_type = "SdkNextActionData")]
         next_action_data: SdkNextActionData,
     },
     /// Contains consent to collect otp for mobile payment
+    #[smithy(nested_value_type)]
     CollectOtp {
+        #[smithy(value_type = "MobilePaymentConsent")]
         consent_data_required: MobilePaymentConsent,
     },
     /// Contains data required to invoke hidden iframe
+    #[smithy(nested_value_type)]
     InvokeHiddenIframe {
+        #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(tag = "method_key")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum IframeData {
     #[serde(rename = "threeDSMethodData")]
+    #[smithy(nested_value_type)]
     ThreedsInvokeAndCompleteAutorize {
         /// ThreeDS method url
+        #[smithy(value_type = "String")]
         three_ds_method_url: String,
         /// Whether ThreeDS method data submission is required
+        #[smithy(value_type = "bool")]
         three_ds_method_data_submission: bool,
         /// ThreeDS method data
+        #[smithy(value_type = "Option<String>")]
         three_ds_method_data: Option<String>,
         /// ThreeDS Server ID
+        #[smithy(value_type = "String")]
         directory_server_id: String,
         /// ThreeDS Protocol version
+        #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ThreeDsData {
     /// ThreeDS authentication url - to initiate authentication
+    #[smithy(value_type = "String")]
     pub three_ds_authentication_url: String,
     /// ThreeDS authorize url - to complete the payment authorization after authentication
+    #[smithy(value_type = "String")]
     pub three_ds_authorize_url: String,
     /// ThreeDS method details
+    #[smithy(value_type = "ThreeDsMethodData")]
     pub three_ds_method_details: ThreeDsMethodData,
     /// Poll config for a connector
+    #[smithy(value_type = "PollConfigResponse")]
     pub poll_config: PollConfigResponse,
     /// Message Version
+    #[smithy(value_type = "Option<String>")]
     pub message_version: Option<String>,
     /// Directory Server ID
+    #[smithy(value_type = "Option<String>")]
     pub directory_server_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ThreeDsMethodData {
     AcsThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
+        #[smithy(value_type = "bool")]
         three_ds_method_data_submission: bool,
         /// ThreeDS method data
+        #[smithy(value_type = "Option<String>")]
         three_ds_method_data: Option<String>,
         /// ThreeDS method url
+        #[smithy(value_type = "Option<String>")]
         three_ds_method_url: Option<String>,
         /// Three DS Method Key
+        #[smithy(value_type = "Option<ThreeDsMethodKey>")]
         three_ds_method_key: Option<ThreeDsMethodKey>,
         /// Indicates whethere to wait for Post message after 3DS method data submission
+        #[smithy(value_type = "bool")]
         consume_post_message_for_three_ds_method_completion: bool,
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ThreeDsMethodKey {
     #[serde(rename = "threeDSMethodData")]
     ThreeDsMethodData,
@@ -5361,13 +5404,17 @@ pub enum ThreeDsMethodKey {
     JWT,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PollConfigResponse {
     /// Poll Id
+    #[smithy(value_type = "String")]
     pub poll_id: String,
     /// Interval of the poll
+    #[smithy(value_type = "i8")]
     pub delay_in_secs: i8,
     /// Frequency of the poll
+    #[smithy(value_type = "i8")]
     pub frequency: i8,
 }
 
@@ -5397,10 +5444,13 @@ pub enum QrCodeInformation {
     },
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SdkNextActionData {
+    #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
+    #[smithy(value_type = "Option<String>")]
     pub order_id: Option<String>,
 }
 
@@ -5423,19 +5473,26 @@ pub struct BankTransferNextStepsData {
     pub receiver: Option<ReceiverDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct VoucherNextStepData {
     /// Voucher entry date
+    #[smithy(value_type = "Option<String>")]
     pub entry_date: Option<String>,
     /// Voucher expiry date and time
+    #[smithy(value_type = "Option<i64>")]
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction
+    #[smithy(value_type = "String")]
     pub reference: String,
     /// Url to download the payment instruction
+    #[smithy(value_type = "Option<String>")]
     pub download_url: Option<Url>,
     /// Url to payment instruction page
+    #[smithy(value_type = "Option<String>")]
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
+    #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
 }
 
@@ -5445,8 +5502,9 @@ pub struct MobilePaymentNextStepData {
     pub consent_data_required: MobilePaymentConsent,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MobilePaymentConsent {
     ConsentRequired,
     ConsentNotRequired,
@@ -5467,11 +5525,14 @@ pub struct WaitScreenInstructions {
     pub poll_config: Option<PollConfig>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PollConfig {
     /// Interval of the poll
+    #[smithy(value_type = "u16")]
     pub delay_in_secs: u16,
     /// Frequency of the poll
+    #[smithy(value_type = "u16")]
     pub frequency: u16,
 }
 

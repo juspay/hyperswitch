@@ -149,7 +149,7 @@ pub fn resolve_type_and_generate_shapes(
     let target_type = match value_type {
         "String" | "str" => "smithy.api#String".to_string(),
         "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => "smithy.api#Integer".to_string(),
-        "i64" | "u64" | "isize" | "usize" => "smithy.api#Long".to_string(),
+        "i64" | "u64" | "i128" | "isize" | "usize" => "smithy.api#Long".to_string(),
         "f32" => "smithy.api#Float".to_string(),
         "f64" => "smithy.api#Double".to_string(),
         "bool" => "smithy.api#Boolean".to_string(),
