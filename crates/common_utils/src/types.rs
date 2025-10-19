@@ -50,7 +50,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
-    impl_enum_str,
+    id_type, impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -1441,3 +1441,12 @@ impl_enum_str!(
         },
     }
 );
+
+#[allow(missing_docs)]
+pub trait TenantConfig: Send + Sync {
+    fn get_tenant_id(&self) -> &id_type::TenantId;
+    fn get_schema(&self) -> &str;
+    fn get_accounts_schema(&self) -> &str;
+    fn get_redis_key_prefix(&self) -> &str;
+    fn get_clickhouse_database(&self) -> &str;
+}

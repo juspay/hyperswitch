@@ -32,7 +32,7 @@ use crate::{
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
-pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
+pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
@@ -48,8 +48,8 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -338,14 +338,14 @@ fn get_flow_name<F>() -> RouterResult<String> {
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData, D>(
-    state: &routes::SessionState,
+pub async fn do_retry<'a, F, ApiRequest, FData, D>(
+    state: &'a routes::SessionState,
     req_state: ReqState,
-    connector: &api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
-    customer: &Option<domain::Customer>,
+    connector: &'a api::ConnectorData,
+    operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
+    customer: &'a Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
-    payment_data: &mut D,
+    payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -356,8 +356,8 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>

@@ -1404,6 +1404,16 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: None,
             },
         );
+        braintree_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
         braintree_supported_payment_methods
     });
 
@@ -1441,6 +1451,7 @@ impl ConnectorSpecifications for Braintree {
         vec![
             enums::PaymentMethodType::ApplePay,
             enums::PaymentMethodType::GooglePay,
+            enums::PaymentMethodType::Paypal,
         ]
     }
 }

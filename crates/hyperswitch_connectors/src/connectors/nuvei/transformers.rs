@@ -97,7 +97,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_minor_amount_required(
         &self,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>>;
-    fn get_customer_id_required(&self) -> Option<CustomerId>;
+    fn get_customer_id_optional(&self) -> Option<CustomerId>;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency_required(
         &self,
@@ -130,7 +130,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         }
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -221,7 +221,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
         Ok(self.authentication_data.clone())
     }
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -290,7 +290,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         None
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         None
     }
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -447,6 +447,14 @@ pub struct NuveiItem {
     pub image_url: Option<String>,
     pub product_url: Option<String>,
 }
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum IsRebilling {
+    #[serde(rename = "1")]
+    True,
+    #[serde(rename = "0")]
+    False,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -463,7 +471,7 @@ pub struct NuveiPaymentsRequest {
     //unique transaction id
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
-    pub is_rebilling: Option<String>,
+    pub is_rebilling: Option<IsRebilling>,
     pub payment_option: PaymentOption,
     pub is_moto: Option<bool>,
     pub device_details: DeviceDetails,
@@ -1124,7 +1132,7 @@ struct ApplePayPaymentMethodCamelCase {
 
 fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     brand: Option<String>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1163,7 +1171,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1237,7 +1245,7 @@ where
 
 fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     network: String,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1291,7 +1299,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1633,20 +1641,23 @@ where
         billing_address: None,
         shipping_address: None,
     };
-    let is_rebilling = if router_data.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
-    } else {
-        None
-    };
+    let is_rebilling = Some(IsRebilling::True);
+
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
+        user_token_id: Some(
+            router_data
+                .request
+                .get_customer_id_optional()
+                .ok_or_else(missing_field_err("customer_id"))?,
+        ),
         is_rebilling,
         ..Default::default()
     })
 }
 fn get_l2_l3_items(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
@@ -1705,7 +1716,7 @@ fn get_l2_l3_items(
 }
 
 fn get_amount_details(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
@@ -1736,7 +1747,8 @@ fn get_amount_details(
 
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
-    Req: NuveiAuthorizePreprocessingCommon,
+    Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
+    F: std::fmt::Debug,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1917,10 +1929,9 @@ where
         } else {
             request_data.device_details.clone()
         };
-
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
-            user_token_id: item.customer_id.clone(),
+            user_token_id: request_data.user_token_id,
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address,
@@ -1934,7 +1945,7 @@ where
             amount_details,
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
-
+            external_scheme_details: request_data.external_scheme_details,
             ..request
         })
     }
@@ -1969,7 +1980,7 @@ where
         match item.request.is_customer_initiated_mandate_payment() {
             true => {
                 (
-                    Some("0".to_string()), // In case of first installment, rebilling should be 0
+                    Some(IsRebilling::False), // In case of first installment, rebilling should be 0
                     Some(V2AdditionalParams {
                         rebill_expiry: Some(
                             time::OffsetDateTime::now_utc()
@@ -1983,7 +1994,7 @@ where
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
                         challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
-                    item.request.get_customer_id_required(),
+                    item.request.get_customer_id_optional(),
                 )
             }
             // non mandate transactions
@@ -2458,7 +2469,8 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
                 expiration_year: card_data.expiry_year,
             }),
             api_models::payouts::PayoutMethodData::Bank(_)
-            | api_models::payouts::PayoutMethodData::Wallet(_) => {
+            | api_models::payouts::PayoutMethodData::Wallet(_)
+            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )
@@ -2545,6 +2557,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: None,
                     error_message: None,
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -2558,6 +2571,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: Some(error_response_data.err_code.to_string()),
                     error_message: error_response_data.reason.clone(),
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -3513,7 +3527,7 @@ where
             let connector_mandate_id = &item.request.get_connector_mandate_id();
             let customer_id = item
                 .request
-                .get_customer_id_required()
+                .get_customer_id_optional()
                 .ok_or(missing_field_err("customer_id")())?;
             let related_transaction_id = item.request.get_related_transaction_id().clone();
 
@@ -3537,7 +3551,7 @@ where
                 device_details: DeviceDetails {
                     ip_address: Secret::new(ip_address),
                 },
-                is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                is_rebilling: Some(IsRebilling::True), // In case of second installment, rebilling should be 1
                 user_token_id: Some(customer_id),
                 payment_option: PaymentOption {
                     user_payment_option_id: connector_mandate_id.clone(),
