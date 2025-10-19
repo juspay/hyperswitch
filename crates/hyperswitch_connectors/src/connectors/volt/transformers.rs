@@ -13,7 +13,10 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, RefreshTokenRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{self, is_payment_failure, AddressDetailsData, RouterData as _},
 };
 
@@ -43,15 +46,12 @@ pub mod webhook_headers {
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
     amount: MinorUnit,
-    currency_code: enums::Currency,
-    #[serde(rename = "type")]
-    transaction_type: TransactionType,
-    merchant_internal_reference: String,
-    shopper: ShopperDetails,
-    payment_success_url: Option<String>,
-    payment_failure_url: Option<String>,
-    payment_pending_url: Option<String>,
-    payment_cancel_url: Option<String>,
+    currency: enums::Currency,
+    open_banking_u_k: OpenBankingUk,
+    internal_reference: String,
+    payer: PayerDetails,
+    payment_system: PaymentSystem,
+    communication: CommunicationDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,11 +65,45 @@ pub enum TransactionType {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ShopperDetails {
+pub struct OpenBankingUk {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayerDetails {
     reference: id_type::CustomerId,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentSystem {
+    OpenBankingEu,
+    OpenBankingUk,
+    NppPayToAu,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CommunicationDetails {
+    #[serde[rename = "return"]]
+    return_urls: ReturnUrls,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReturnUrls {
+    success: Link,
+    failure: Link,
+    pending: Link,
+    cancel: Link,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Link {
+    link: Option<String>,
 }
 
 impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPaymentsRequest {
@@ -81,16 +115,28 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
                 BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
-                    let currency_code = item.router_data.request.currency;
-                    let merchant_internal_reference =
+                    let currency = item.router_data.request.currency;
+                    let internal_reference =
                         item.router_data.connector_request_reference_id.clone();
-                    let payment_success_url = item.router_data.request.router_return_url.clone();
-                    let payment_failure_url = item.router_data.request.router_return_url.clone();
-                    let payment_pending_url = item.router_data.request.router_return_url.clone();
-                    let payment_cancel_url = item.router_data.request.router_return_url.clone();
+                    let communication = CommunicationDetails {
+                        return_urls: ReturnUrls {
+                            success: Link {
+                                link: item.router_data.request.router_return_url.clone(),
+                            },
+                            failure: Link {
+                                link: item.router_data.request.router_return_url.clone(),
+                            },
+                            pending: Link {
+                                link: item.router_data.request.router_return_url.clone(),
+                            },
+                            cancel: Link {
+                                link: item.router_data.request.router_return_url.clone(),
+                            },
+                        },
+                    };
                     let address = item.router_data.get_billing_address()?;
                     let first_name = address.get_first_name()?;
-                    let shopper = ShopperDetails {
+                    let payer = PayerDetails {
                         email: item.router_data.request.email.clone(),
                         first_name: first_name.to_owned(),
                         last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
@@ -100,14 +146,12 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
 
                     Ok(Self {
                         amount,
-                        currency_code,
-                        merchant_internal_reference,
-                        payment_success_url,
-                        payment_failure_url,
-                        payment_pending_url,
-                        payment_cancel_url,
-                        shopper,
-                        transaction_type,
+                        currency,
+                        internal_reference,
+                        communication,
+                        payer,
+                        payment_system: PaymentSystem::OpenBankingUk,
+                        open_banking_u_k: OpenBankingUk { transaction_type },
                     })
                 }
                 BankRedirectData::BancontactCard { .. }
@@ -240,22 +284,24 @@ fn get_attempt_status(
     (item, current_status): (VoltPaymentStatus, enums::AttemptStatus),
 ) -> enums::AttemptStatus {
     match item {
+        VoltPaymentStatus::AuthorisedByUser => enums::AttemptStatus::Authorized,
         VoltPaymentStatus::Received | VoltPaymentStatus::Settled => enums::AttemptStatus::Charged,
         VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => {
             enums::AttemptStatus::Pending
         }
         VoltPaymentStatus::NewPayment
         | VoltPaymentStatus::BankRedirect
-        | VoltPaymentStatus::AwaitingCheckoutAuthorisation => {
-            enums::AttemptStatus::AuthenticationPending
-        }
+        | VoltPaymentStatus::AwaitingCheckoutAuthorisation
+        | VoltPaymentStatus::AdditionalAuthorizationRequired
+        | VoltPaymentStatus::ApprovedByRisk => enums::AttemptStatus::AuthenticationPending,
         VoltPaymentStatus::RefusedByBank
         | VoltPaymentStatus::RefusedByRisk
         | VoltPaymentStatus::NotReceived
         | VoltPaymentStatus::ErrorAtBank
         | VoltPaymentStatus::CancelledByUser
         | VoltPaymentStatus::AbandonedByUser
-        | VoltPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        | VoltPaymentStatus::Failed
+        | VoltPaymentStatus::ProviderCommunicationError => enums::AttemptStatus::Failure,
         VoltPaymentStatus::Unknown => current_status,
     }
 }
@@ -263,8 +309,32 @@ fn get_attempt_status(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsResponse {
-    checkout_url: String,
     id: String,
+    amount: MinorUnit,
+    currency: enums::Currency,
+    status: VoltPaymentStatus,
+    payment_initiation_flow: VoltPaymentInitiationFlow,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltPaymentInitiationFlow {
+    status: String,
+    details: VoltPaymentInitiationFlowDetails,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltPaymentInitiationFlowDetails {
+    reason: String,
+    redirect: VoltRedirect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltRedirect {
+    url: url::Url,
+    direct_url: url::Url,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsResponseData>>
@@ -274,7 +344,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
     fn try_from(
         item: ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let url = item.response.checkout_url;
+        let url = item
+            .response
+            .payment_initiation_flow
+            .details
+            .redirect
+            .url
+            .to_string();
         let redirection_data = Some(RedirectForm::Form {
             endpoint: url,
             method: Method::Get,
@@ -302,6 +378,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
 #[derive(strum::Display)]
 pub enum VoltPaymentStatus {
     NewPayment,
+    ApprovedByRisk,
+    AdditionalAuthorizationRequired,
+    AuthorisedByUser,
+    ProviderCommunicationError,
     Completed,
     Received,
     NotReceived,
@@ -331,6 +411,8 @@ pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
     id: String,
     merchant_internal_reference: Option<String>,
+    amount: MinorUnit,
+    currency: enums::Currency,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsResponseData>>
@@ -426,6 +508,39 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
         }
     }
 }
+
+#[derive(Debug, Serialize, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltCancelResponse {
+    payment_id: String,
+    status: VoltPaymentStatus,
+}
+
+impl TryFrom<PaymentsCancelResponseRouterData<VoltCancelResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsCancelResponseRouterData<VoltCancelResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_attempt_status((item.response.status.clone(), item.data.status));
+        Ok(Self {
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.payment_id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 impl From<VoltWebhookPaymentStatus> for enums::AttemptStatus {
     fn from(status: VoltWebhookPaymentStatus) -> Self {
         match status {
@@ -604,7 +719,18 @@ impl From<VoltWebhookBodyEventType> for api_models::webhooks::IncomingWebhookEve
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct VoltErrorResponse {
-    pub exception: VoltErrorException,
+    pub code: String,
+    pub message: String,
+    pub errors: Option<Vec<Errors>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Errors {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub property_path: String,
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
