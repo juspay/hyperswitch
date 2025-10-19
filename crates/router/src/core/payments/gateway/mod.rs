@@ -10,11 +10,7 @@ use async_trait::async_trait;
 use hyperswitch_interfaces::api::gateway::{self as gateway_interface};
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 
-use crate::{
-    routes::SessionState,
-    types::api,
-};
-use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
+use crate::routes::SessionState;
 
 /// Re-export common gateway types from hyperswitch_interfaces
 pub use gateway_interface::GatewayExecutionPath;
