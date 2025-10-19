@@ -2511,52 +2511,73 @@ pub struct CardToken {
     pub card_cvc: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardRedirectData {
+    #[smithy(value_type = "smithy.api#Unit")]
     Knet {},
+    #[smithy(value_type = "smithy.api#Unit")]
     Benefit {},
+    #[smithy(value_type = "smithy.api#Unit")]
     MomoAtm {},
+    #[smithy(value_type = "smithy.api#Unit")]
     CardRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
+    #[smithy(nested_value_type)]
     KlarnaRedirect {
         /// The billing email
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         billing_email: Option<Email>,
         // The billing country code
         #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         billing_country: Option<api_enums::CountryAlpha2>,
     },
     /// For Klarna Sdk as PayLater Option
+    #[smithy(nested_value_type)]
     KlarnaSdk {
         /// The token for the sdk workflow
+        #[smithy(value_type = "String")]
         token: String,
     },
     /// For Affirm redirect as PayLater Option
+    #[smithy(value_type = "smithy.api#Unit")]
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
+    #[smithy(nested_value_type)]
     AfterpayClearpayRedirect {
         /// The billing email
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         billing_email: Option<Email>,
         /// The billing name
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         billing_name: Option<Secret<String>>,
     },
     /// For PayBright Redirect as PayLater Option
+    #[smithy(value_type = "smithy.api#Unit")]
     PayBrightRedirect {},
     /// For Flexiti Redirect as PayLater long term finance Option
+    #[smithy(value_type = "smithy.api#Unit")]
     FlexitiRedirect {},
     /// For WalleyRedirect as PayLater Option
+    #[smithy(value_type = "smithy.api#Unit")]
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
+    #[smithy(value_type = "smithy.api#Unit")]
     AlmaRedirect {},
+    #[smithy(value_type = "smithy.api#Unit")]
     AtomeRedirect {},
+    #[smithy(value_type = "smithy.api#Unit")]
     BreadpayRedirect {},
 }
 
@@ -3006,10 +3027,12 @@ pub enum PaymentMethodData {
     #[smithy(value_type = "Card")]
     Card(Card),
     #[schema(title = "CardRedirect")]
+    #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
     #[schema(title = "Wallet")]
     Wallet(WalletData),
     #[schema(title = "PayLater")]
+    #[smithy(value_type = "PayLaterData")]
     PayLater(PayLaterData),
     #[schema(title = "BankRedirect")]
     BankRedirect(BankRedirectData),

@@ -287,8 +287,13 @@ fn generate_enum_impl(
                     .unwrap_or(quote! { None });
 
                 let target_type_expr = if variant.fields.is_empty() {
-                    // If there are no fields with `value_type`, this variant should be skipped.
-                    return None;
+                    // If there are no fields but variant has a value_type, use that
+                    if let Some(variant_value_type) = &variant.value_type {
+                        quote! { #variant_value_type.to_string() }
+                    } else {
+                        // If there are no fields and no variant value_type, this variant should be skipped
+                        return None;
+                    }
                 } else if variant.nested_value_type {
                     // Force nested structure creation when nested_value_type is specified
                     let nested_struct_members = variant.fields.iter().map(|field| {
@@ -834,6 +839,7 @@ fn extract_enum_variants(
             constraints: variant_attrs.constraints,
             documentation,
             nested_value_type: variant_attrs.nested_value_type,
+            value_type: variant_attrs.value_type,
         });
     }
 
