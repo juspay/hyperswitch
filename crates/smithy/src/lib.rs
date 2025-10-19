@@ -209,10 +209,15 @@ fn generate_enum_impl(
         .map(|doc| quote! { Some(#doc.to_string()) })
         .unwrap_or(quote! { None });
 
-    // Check if this is a string enum (all variants are unit variants) or a union
+    // Check if this is a tagged enum, string enum, or union
     let is_string_enum = variants.iter().all(|v| v.fields.is_empty());
+    let is_tagged_enum = serde_enum_attrs.tag.is_some() && !is_string_enum;
 
-    if is_string_enum {
+    if is_tagged_enum {
+        // Generate tagged enum as a structure with tag field + all variant fields as optional
+        // Plus a separate enum for the variants
+        generate_tagged_enum_impl(name, namespace, &variants, &serde_enum_attrs, &enum_doc_expr)
+    } else if is_string_enum {
         // Generate as Smithy enum
         let variant_implementations = variants
             .iter()
@@ -524,6 +529,174 @@ fn generate_enum_impl(
     }
 }
 
+fn generate_tagged_enum_impl(
+    name: &syn::Ident,
+    namespace: &str,
+    variants: &[SmithyEnumVariant],
+    serde_enum_attrs: &SerdeEnumAttributes,
+    enum_doc_expr: &proc_macro2::TokenStream,
+) -> syn::Result<TokenStream2> {
+    let tag_field_name = serde_enum_attrs.tag.as_ref().unwrap();
+    let variants_enum_name = format!("{}EnumVariants", name);
+    
+    // Collect all unique fields from all variants
+    let mut all_fields = std::collections::HashMap::new();
+    
+    for variant in variants {
+        for field in &variant.fields {
+            // Make all variant fields optional by wrapping in Option<> if not already
+            let optional_type = if field.optional {
+                field.value_type.clone()
+            } else {
+                format!("Option<{}>", field.value_type)
+            };
+            
+            all_fields.insert(field.name.clone(), (optional_type, field.documentation.clone(), field.constraints.clone()));
+        }
+    }
+    
+    // Generate field implementations for the main structure
+    let field_implementations = all_fields.iter().map(|(field_name, (value_type, documentation, constraints))| {
+        let field_doc = documentation
+            .as_ref()
+            .map(|doc| quote! { Some(#doc.to_string()) })
+            .unwrap_or(quote! { None });
+
+        let traits = if constraints.is_empty() {
+            quote! { vec![] }
+        } else {
+            let trait_tokens = constraints
+                .iter()
+                .map(|constraint| match constraint {
+                    SmithyConstraint::Pattern(pattern) => quote! {
+                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                    },
+                    SmithyConstraint::Range(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Range {
+                                min: #min_expr,
+                                max: #max_expr
+                            }
+                        }
+                    },
+                    SmithyConstraint::Length(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Length {
+                                min: #min_expr,
+                                max: #max_expr
+                            }
+                        }
+                    },
+                    SmithyConstraint::Required => quote! {
+                        smithy_core::SmithyTrait::Required
+                    },
+                    SmithyConstraint::HttpLabel => quote! {
+                        smithy_core::SmithyTrait::HttpLabel
+                    },
+                    SmithyConstraint::HttpQuery(name) => quote! {
+                        smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                    },
+                })
+                .collect::<Vec<_>>();
+
+            quote! { vec![#(#trait_tokens),*] }
+        };
+
+        quote! {
+            {
+                let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
+                shapes.extend(new_shapes);
+                members.insert(#field_name.to_string(), smithy_core::SmithyMember {
+                    target: target_type,
+                    documentation: #field_doc,
+                    traits: #traits,
+                });
+            }
+        }
+    });
+    
+    // Generate variant enum values
+    let variant_implementations = variants
+        .iter()
+        .map(|variant| {
+            let variant_name = &variant.name;
+            let variant_doc = variant
+                .documentation
+                .as_ref()
+                .map(|doc| quote! { Some(#doc.to_string()) })
+                .unwrap_or(quote! { None });
+
+            // Apply serde rename transformation if specified
+            let rename_all = serde_enum_attrs.rename_all.as_deref();
+            let transformed_name = if let Some(rename_pattern) = rename_all {
+                let transformed = transform_variant_name(variant_name, Some(rename_pattern));
+                quote! { #transformed.to_string() }
+            } else {
+                quote! { #variant_name.to_string() }
+            };
+
+            quote! {
+                enum_values.insert(#transformed_name, smithy_core::SmithyEnumValue {
+                    name: #transformed_name,
+                    documentation: #variant_doc,
+                    is_default: false,
+                });
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let expanded = quote! {
+        impl smithy_core::SmithyModelGenerator for #name {
+            fn generate_smithy_model() -> smithy_core::SmithyModel {
+                let mut shapes = std::collections::HashMap::new();
+                let mut members = std::collections::HashMap::new();
+
+                // Add all variant fields as optional members
+                #(#field_implementations;)*
+
+                // Add the tag field - required and references the variants enum
+                members.insert(#tag_field_name.to_string(), smithy_core::SmithyMember {
+                    target: #variants_enum_name.to_string(),
+                    documentation: Some("Discriminator field for the tagged enum".to_string()),
+                    traits: vec![smithy_core::SmithyTrait::Required],
+                });
+
+                // Create the main structure
+                let main_shape = smithy_core::SmithyShape::Structure {
+                    members,
+                    documentation: #enum_doc_expr,
+                    traits: vec![]
+                };
+
+                shapes.insert(stringify!(#name).to_string(), main_shape);
+
+                // Create the variants enum
+                let mut enum_values = std::collections::HashMap::new();
+                #(#variant_implementations)*
+
+                let variants_shape = smithy_core::SmithyShape::Enum {
+                    values: enum_values,
+                    documentation: Some(format!("Enum variants for {}", stringify!(#name))),
+                    traits: vec![]
+                };
+
+                shapes.insert(#variants_enum_name.to_string(), variants_shape);
+
+                smithy_core::SmithyModel {
+                    namespace: #namespace.to_string(),
+                    shapes
+                }
+            }
+        }
+    };
+
+    Ok(expanded)
+}
+
 fn extract_namespace_and_mixin(attrs: &[Attribute]) -> syn::Result<(String, bool)> {
     for attr in attrs {
         if attr.path().is_ident("smithy") {
@@ -677,11 +850,13 @@ struct SmithyFieldAttributes {
 #[derive(Default)]
 struct SerdeAttributes {
     flatten: bool,
+    tag: Option<String>,
 }
 
 #[derive(Default)]
 struct SerdeEnumAttributes {
     rename_all: Option<String>,
+    tag: Option<String>,
 }
 
 fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
@@ -689,16 +864,81 @@ fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
 
     for attr in attrs {
         if attr.path().is_ident("serde") {
-            if let Ok(list) = attr.meta.require_list() {
-                if list.path.is_ident("serde") {
-                    for item in list.tokens.clone() {
-                        if let Some(ident) = item.to_string().split_whitespace().next() {
-                            if ident == "flatten" {
-                                serde_attributes.flatten = true;
-                            }
+            // Use more robust parsing that handles all serde attributes
+            let parse_result = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("flatten") {
+                    serde_attributes.flatten = true;
+                } else if meta.path.is_ident("tag") {
+                    // Parse and capture the tag attribute
+                    if let Ok(value) = meta.value() {
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_attributes.tag = Some(lit_str.value());
                         }
                     }
+                } else if meta.path.is_ident("rename_all") {
+                    // Parse and ignore the rename_all attribute for structs
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("content") {
+                    // Parse and ignore the content attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("rename") {
+                    // Parse and ignore the rename attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("deny_unknown_fields") {
+                    // Handle deny_unknown_fields (no value needed)
+                } else if meta.path.is_ident("skip_serializing") {
+                    // Handle skip_serializing
+                } else if meta.path.is_ident("skip_deserializing") {
+                    // Handle skip_deserializing
+                } else if meta.path.is_ident("skip_serializing_if") {
+                    // Handle skip_serializing_if
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<syn::Expr>();
+                    }
+                } else if meta.path.is_ident("default") {
+                    // Handle default attribute
+                    if meta.value().is_ok() {
+                        let _ = meta.value().and_then(|v| v.parse::<syn::Expr>());
+                    }
+                } else if meta.path.is_ident("untagged") {
+                    // Handle untagged (flag attribute)
+                } else if meta.path.is_ident("bound") {
+                    // Handle bound attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("with") {
+                    // Handle with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("serialize_with") {
+                    // Handle serialize_with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("deserialize_with") {
+                    // Handle deserialize_with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
                 }
+                // Silently ignore any other serde attributes to prevent parsing errors
+                Ok(())
+            });
+
+            // If parsing failed, provide a more helpful error message
+            if let Err(e) = parse_result {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    format!("Failed to parse serde attribute: {}. This may be due to multiple serde attributes on separate lines. Consider consolidating them into a single #[serde(...)] attribute.", e)
+                ));
             }
         }
     }
@@ -720,9 +960,11 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                         }
                     }
                 } else if meta.path.is_ident("tag") {
-                    // Parse and ignore the tag attribute
+                    // Parse and capture the tag attribute
                     if let Ok(value) = meta.value() {
-                        let _ = value.parse::<Lit>();
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.tag = Some(lit_str.value());
+                        }
                     }
                 } else if meta.path.is_ident("content") {
                     // Parse and ignore the content attribute

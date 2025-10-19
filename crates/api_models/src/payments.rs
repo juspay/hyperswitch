@@ -5226,13 +5226,11 @@ pub enum NextActionType {
 pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v1")]
-    #[smithy(nested_value_type)]
     RedirectToUrl {
         #[smithy(value_type = "String")]
         redirect_to_url: String,
     },
     #[cfg(feature = "v1")]
-    #[smithy(nested_value_type)]
     RedirectInsidePopup {
         #[smithy(value_type = "String")]
         popup_url: String,
@@ -5246,19 +5244,16 @@ pub enum NextActionData {
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
-    #[smithy(nested_value_type)]
     DisplayBankTransferInformation {
         #[smithy(value_type = "BankTransferNextStepsData")]
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    #[smithy(nested_value_type)]
     ThirdPartySdkSessionToken {
         #[smithy(value_type = "Option<SessionToken>")]
         session_token: Option<SessionToken>,
     },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
-    #[smithy(nested_value_type)]
     QrCodeInformation {
         #[schema(value_type = String)]
         #[smithy(value_type = "String")]
@@ -5276,21 +5271,18 @@ pub enum NextActionData {
         border_color: Option<String>,
     },
     /// Contains url to fetch Qr code data
-    #[smithy(nested_value_type)]
     FetchQrCodeInformation {
         #[schema(value_type = String)]
         #[smithy(value_type = "String")]
         qr_code_fetch_url: Url,
     },
     /// Contains the download url and the reference number for transaction
-    #[smithy(nested_value_type)]
     DisplayVoucherInformation {
         #[schema(value_type = String)]
         #[smithy(value_type = "VoucherNextStepData")]
         voucher_details: VoucherNextStepData,
     },
     /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
-    #[smithy(nested_value_type)]
     WaitScreenInformation {
         #[smithy(value_type = "i128")]
         display_from_timestamp: i128,
@@ -5300,24 +5292,20 @@ pub enum NextActionData {
         poll_config: Option<PollConfig>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
-    #[smithy(nested_value_type)]
     ThreeDsInvoke {
         #[smithy(value_type = "ThreeDsData")]
         three_ds_data: ThreeDsData,
     },
-    #[smithy(nested_value_type)]
     InvokeSdkClient {
         #[smithy(value_type = "SdkNextActionData")]
         next_action_data: SdkNextActionData,
     },
     /// Contains consent to collect otp for mobile payment
-    #[smithy(nested_value_type)]
     CollectOtp {
         #[smithy(value_type = "MobilePaymentConsent")]
         consent_data_required: MobilePaymentConsent,
     },
     /// Contains data required to invoke hidden iframe
-    #[smithy(nested_value_type)]
     InvokeHiddenIframe {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
