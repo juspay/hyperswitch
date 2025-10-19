@@ -41,10 +41,10 @@ impl<T> From<(FloatMajorUnit, T)> for AuthipayRouterData<T> {
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total: FloatMajorUnit,
-    currency: String,
+    pub total: FloatMajorUnit,
+    pub currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    components: Option<AmountComponents>,
+    pub components: Option<AmountComponents>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -252,7 +252,7 @@ pub struct AuthipayPaymentsResponse {
     terminal_id: Option<String>,
     merchant_id: Option<String>,
     transaction_time: i64,
-    approved_amount: Amount,
+    pub approved_amount: Amount,
     transaction_amount: Amount,
     // For payment transactions (SALE)
     transaction_status: Option<String>,
