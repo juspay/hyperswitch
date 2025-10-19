@@ -109,6 +109,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             call_connector_action.clone(),
             connector_request,
             None,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -248,6 +250,8 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             connector_integration,
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )

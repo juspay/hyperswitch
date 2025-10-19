@@ -1451,6 +1451,8 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     call_connector_action,
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .await
                 .to_payment_failed_response()?;

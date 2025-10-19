@@ -1177,6 +1177,8 @@ pub async fn create_recipient(
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None,
+            None,
         )
         .await
         .to_payout_failed_response()?;
@@ -1460,6 +1462,8 @@ pub async fn check_payout_eligibility(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_payout_failed_response()?;
@@ -1678,6 +1682,8 @@ pub async fn create_payout(
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                None,
+                None,
             )
             .await
             .to_payout_failed_response()?
@@ -1809,6 +1815,8 @@ async fn complete_payout_quote_steps_if_required<F>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None,
+            None,
         )
         .await
         .to_payout_failed_response()?;
@@ -1901,6 +1909,8 @@ pub async fn create_payout_retrieve(
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
+                None,
                 None,
                 None,
             )
@@ -2070,6 +2080,8 @@ pub async fn create_recipient_disburse_account(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
+        None,
         None,
         None,
     )
@@ -2265,6 +2277,8 @@ pub async fn cancel_payout(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_payout_failed_response()?;
@@ -2408,6 +2422,8 @@ pub async fn fulfill_payout(
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
+                None,
                 None,
                 None,
             )

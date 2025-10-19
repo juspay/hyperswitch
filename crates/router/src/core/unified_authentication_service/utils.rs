@@ -57,6 +57,8 @@ where
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_payment_failed_response()?;

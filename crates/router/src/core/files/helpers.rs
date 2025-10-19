@@ -177,6 +177,8 @@ pub async fn retrieve_file_from_connector(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_files_failed_response()
@@ -363,6 +365,8 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
+                    None,
+                    None
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

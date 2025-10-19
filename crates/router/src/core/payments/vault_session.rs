@@ -387,6 +387,8 @@ where
         CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_vault_failed_response()

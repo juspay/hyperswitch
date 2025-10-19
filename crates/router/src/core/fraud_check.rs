@@ -866,6 +866,8 @@ pub async fn make_fulfillment_api_call(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_payment_failed_response()?;

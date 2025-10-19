@@ -27,6 +27,7 @@ use crate::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
             handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper,
+            AppState,
         },
     },
     logger,
@@ -209,6 +210,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
+                None,
+                None,
             )
             .await
             .to_payment_failed_response()?;
@@ -290,6 +293,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )
@@ -479,6 +484,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                None,
+                None,
             )
             .await
             .to_payment_failed_response()?;
@@ -662,6 +669,8 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -745,6 +754,8 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             connector_integration,
             &postprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )
@@ -889,9 +900,10 @@ async fn call_unified_connector_service_authorize(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_order_reference_id)
         .lineage_ids(lineage_ids);
+    let state_enum = AppState::Session(&state);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
-        state,
+        state_enum,
         payment_authorize_request,
         headers_builder,
         |mut router_data, payment_authorize_request, grpc_headers| async move {
@@ -979,9 +991,10 @@ async fn call_unified_connector_service_repeat_payment(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_order_reference_id)
         .lineage_ids(lineage_ids);
+    let state_enum = AppState::Session(&state);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
-        state,
+        state_enum,
         payment_repeat_request,
         headers_builder,
         |mut router_data, payment_repeat_request, grpc_headers| async move {

@@ -13,50 +13,16 @@ use tonic::{
 };
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient,
-    PaymentServiceAuthorizeResponse, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse,
+    refund_service_client::RefundServiceClient, PaymentServiceAuthorizeResponse,
+    PaymentServiceRefundRequest, PaymentServiceTransformRequest, PaymentServiceTransformResponse,
+    RefundResponse, RefundServiceGetRequest,
 };
 
-use crate::grpc_client::LineageIds;
 use crate::{
     consts,
     grpc_client::{GrpcClientSettings, GrpcHeadersUcs},
     utils::deserialize_hashset,
 };
-
-// use hyperswitch_interfaces::unified_connector_service::{
-//     UcsConnectorAuthMetadata, UcsHeaders, UnifiedConnectorServiceInterface,
-// };
-
-/// Helper function to convert UCS headers to internal headers
-// fn convert_ucs_headers_to_internal(headers: UcsHeaders) -> GrpcHeadersUcs {
-//     let lineage_ids = LineageIds {
-//         merchant_id: headers.lineage_ids.merchant_id,
-//         profile_id: headers.lineage_ids.profile_id,
-//     };
-
-//     GrpcHeadersUcs {
-//         tenant_id: headers.tenant_id,
-//         request_id: headers.request_id,
-//         lineage_ids,
-//         external_vault_proxy_metadata: headers.external_vault_proxy_metadata,
-//         merchant_reference_id: None,
-//         shadow_mode: headers.shadow_mode,
-//     }
-// }
-
-// /// Helper function to convert UCS auth metadata to internal auth metadata
-// fn convert_ucs_auth_to_internal(auth: UcsConnectorAuthMetadata) -> ConnectorAuthMetadata {
-//     ConnectorAuthMetadata {
-//         connector_name: auth.connector_name,
-//         auth_type: auth.auth_type,
-//         api_key: auth.api_key,
-//         key1: auth.key1,
-//         api_secret: auth.api_secret,
-//         auth_key_map: auth.auth_key_map,
-//         merchant_id: auth.merchant_id,
-//     }
-// }
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
@@ -65,6 +31,8 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 pub struct UnifiedConnectorServiceClient {
     /// The Unified Connector Service Client
     pub client: PaymentServiceClient<tonic::transport::Channel>,
+    /// The Refund Service Client
+    pub refund_client: RefundServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -145,22 +113,31 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let connect_result = timeout(
+                let payment_client_result = timeout(
                     Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    PaymentServiceClient::connect(uri),
+                    PaymentServiceClient::connect(uri.clone()),
                 )
                 .await;
 
-                match connect_result {
-                    Ok(Ok(client)) => {
+                let refund_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    RefundServiceClient::connect(uri),
+                )
+                .await;
+
+                match (payment_client_result, refund_client_result) {
+                    (Ok(Ok(client)), Ok(Ok(refund_client))) => {
                         logger::info!("Successfully connected to Unified Connector Service");
-                        Some(Self { client })
+                        Some(Self {
+                            client,
+                            refund_client,
+                        })
                     }
-                    Ok(Err(err)) => {
+                    (Ok(Err(err)), _) | (_, Ok(Err(err))) => {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
                         None
                     }
-                    Err(err) => {
+                    (Err(err), _) | (_, Err(err)) => {
                         logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
                         None
                     }
@@ -319,6 +296,64 @@ impl UnifiedConnectorServiceClient {
                     method="transform_incoming_webhook",
                     connector_name=?connector_name,
                     "UCS webhook transform gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Refund through PaymentService.Refund
+    pub async fn payment_refund(
+        &self,
+        payment_refund_request: PaymentServiceRefundRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
+        let mut request = tonic::Request::new(payment_refund_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .refund(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentRefundFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_refund",
+                    connector_name=?connector_name,
+                    "UCS payment refund gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Refund Sync through RefundService.Get
+    pub async fn refund_sync(
+        &self,
+        refund_sync_request: RefundServiceGetRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
+        let mut request = tonic::Request::new(refund_sync_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.refund_client
+            .clone()
+            .get(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::RefundSyncFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="refund_sync",
+                    connector_name=?connector_name,
+                    "UCS refund sync gRPC call failed"
                 )
             })
     }

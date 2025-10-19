@@ -1024,6 +1024,7 @@ impl BillingConnectorPaymentsSyncResponseData {
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None,
         )
         .await
         .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
@@ -1190,6 +1191,7 @@ impl BillingConnectorInvoiceSyncResponseData {
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
             None,
         )

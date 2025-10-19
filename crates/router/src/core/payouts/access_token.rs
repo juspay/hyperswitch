@@ -156,6 +156,8 @@ pub async fn refresh_connector_auth(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await;
 

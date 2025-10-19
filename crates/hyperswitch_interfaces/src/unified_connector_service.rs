@@ -1,6 +1,5 @@
-use crate::api;
 use crate::helpers::ForeignTryFrom;
-use crate::types;
+use crate::types::merchant_context::MerchantContext;
 use async_trait::async_trait;
 use common_enums::AttemptStatus;
 use common_utils::errors::CustomResult;
@@ -17,10 +16,10 @@ use hyperswitch_domain_models::{
 };
 use unified_connector_service_client::payments::{
     self as payments_grpc, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
-    PaymentServiceGetRequest, PaymentServiceGetResponse, PaymentServiceRegisterRequest,
-    PaymentServiceRegisterResponse, PaymentServiceRepeatEverythingRequest,
-    PaymentServiceRepeatEverythingResponse, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse,
+    PaymentServiceGetRequest, PaymentServiceGetResponse, PaymentServiceRefundResponse,
+    PaymentServiceRegisterRequest, PaymentServiceRegisterResponse,
+    PaymentServiceRepeatEverythingRequest, PaymentServiceRepeatEverythingResponse,
+    PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
 /// Flow-specific implementations for UCS mapping
 pub mod flow_implementations;
@@ -37,6 +36,7 @@ type UnifiedConnectorServiceResult = CustomResult<
     ),
     transformers::UnifiedConnectorServiceError,
 >;
+use crate::api_client::ApiClientWrapper;
 
 /// Connector authentication metadata required for UCS calls
 #[derive(Debug, Clone)]
@@ -379,11 +379,20 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
         &self,
         router_data: &mut RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     );
+    //  -> CustomResult<PaymentServiceRefundResponse, transformers::UnifiedConnectorServiceError>;
 
     async fn refund_execute(
         &self,
         router_data: &mut RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
-    );
+        merchant_context: Option<&MerchantContext>,
+        merchant_connector_account: Option<
+            &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+        >,
+        state: &dyn ApiClientWrapper,
+    ) -> CustomResult<
+        RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+        transformers::UnifiedConnectorServiceError,
+    >;
 
     // ===== PAYOUT FLOWS =====
 
@@ -596,5 +605,10 @@ where
     async fn execute_ucs_flow(
         ucs_interface: &dyn UnifiedConnectorServiceInterface,
         router_data: &RouterData<T, Req, Resp>,
+        merchant_context: Option<&MerchantContext>,
+        merchant_connector_account: Option<
+            &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+        >,
+        state: &dyn ApiClientWrapper,
     ) -> CustomResult<String, transformers::UnifiedConnectorServiceError>;
 }

@@ -145,6 +145,8 @@ pub async fn payments_check_gift_card_balance_core(
         CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

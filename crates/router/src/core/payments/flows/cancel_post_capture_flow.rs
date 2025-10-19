@@ -101,6 +101,8 @@ impl Feature<api::PostCaptureVoid, types::PaymentsCancelPostCaptureData>
             call_connector_action,
             connector_request,
             None,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;

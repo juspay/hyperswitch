@@ -102,6 +102,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             call_connector_action.clone(),
             connector_request,
             return_raw_connector_response,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -146,6 +148,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )

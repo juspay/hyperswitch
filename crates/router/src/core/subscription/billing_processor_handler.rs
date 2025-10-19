@@ -462,6 +462,8 @@ impl BillingHandler {
             payments_core::CallConnectorAction::Trigger,
             None,
             None,
+            None,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::SubscriptionError {

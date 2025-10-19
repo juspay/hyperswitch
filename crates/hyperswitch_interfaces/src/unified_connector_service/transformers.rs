@@ -88,6 +88,13 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
     WebhookTransformFailure,
+    /// Failed to perform Payment Refund from gRPC Server
+    #[error("Failed to perform Payment Refund from gRPC Server")]
+    PaymentRefundFailure,
+
+    /// Failed to perform Refund Sync from gRPC Server
+    #[error("Failed to perform Refund Sync from gRPC Server")]
+    RefundSyncFailure,
     /// Error of unhandled grpc flow
     #[error("UCS flow not implemented for this type")]
     InternalError,

@@ -23,6 +23,7 @@ use serde_json::json;
 use crate::unified_connector_service::UnifiedConnectorServiceInterface;
 use crate::{
     configs,
+    configs::MerchantConnectorAccountType,
     connector_integration_interface::{
         BoxedConnectorIntegrationInterface, ConnectorEnum, RouterDataConversion,
     },
@@ -31,10 +32,10 @@ use crate::{
     events,
     events::connector_api_logs::ConnectorEvent,
     metrics, types,
+    types::merchant_context::MerchantContext,
     types::Proxy,
     unified_connector_service,
 };
-
 /// A trait representing a converter for connector names to their corresponding enum variants.
 pub trait ConnectorConverter: Send + Sync {
     /// Get the connector enum variant by its name
@@ -148,6 +149,13 @@ pub async fn execute_connector_processing_step<
     call_connector_action: common_enums::CallConnectorAction,
     connector_request: Option<Request>,
     return_raw_connector_response: Option<bool>,
+    merchant_context: Option<&MerchantContext>,
+    merchant_connector_account: Option<
+        &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+    // #[cfg(feature = "v2")] merchant_connector_account: Option<
+    //     domain::MerchantConnectorAccountTypeDetails,
+    // >,
 ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
 where
     T: unified_connector_service::UnifiedConnectorServiceFlow<T, Req, Resp>
@@ -161,7 +169,14 @@ where
     let d: Option<Box<dyn UnifiedConnectorServiceInterface + Send + Sync>> =
         state.get_ucs_interface();
     if let Some(ucs_client) = d.as_deref() {
-        let _result = T::execute_ucs_flow(ucs_client, req).await;
+        let _result = T::execute_ucs_flow(
+            ucs_client,
+            req,
+            merchant_context,
+            merchant_connector_account,
+            state,
+        )
+        .await;
     }
 
     // If needed add an error stack as follows

@@ -223,6 +223,8 @@ pub async fn refresh_connector_auth(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await;
 
@@ -315,6 +317,8 @@ pub async fn execute_authentication_token<
         connector_integration,
         &auth_token_router_data,
         payments::CallConnectorAction::Trigger,
+        None,
+        None,
         None,
         None,
     )

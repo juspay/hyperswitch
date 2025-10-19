@@ -743,6 +743,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

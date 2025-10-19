@@ -93,6 +93,8 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
             call_connector_action,
             connector_request,
             return_raw_connector_response,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;

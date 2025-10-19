@@ -17,7 +17,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, ucs_logging_wrapper, AppState,
         },
     },
     routes::SessionState,
@@ -152,6 +152,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
+                    None,
+                    None,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -291,9 +293,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
+        let state_enum = AppState::Session(&state);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
-            state,
+            state_enum,
             payment_get_request,
             header_payload,
             |mut router_data, payment_get_request, grpc_headers| async move {
@@ -379,6 +382,8 @@ impl RouterDataPSync
                 call_connector_action.clone(),
                 None,
                 return_raw_connector_response,
+                None,
+                None,
             )
             .await
             .to_payment_failed_response()?;
@@ -398,6 +403,8 @@ impl RouterDataPSync
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
+                    None,
+                    None,
                 )
                 .await
                 .to_payment_failed_response()?;

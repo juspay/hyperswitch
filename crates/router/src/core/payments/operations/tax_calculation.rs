@@ -301,6 +301,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                None,
+                None,
             )
             .await
             .to_payment_failed_response()

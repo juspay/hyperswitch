@@ -2352,6 +2352,8 @@ pub async fn vault_payment_method_external(
         payments_core::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_vault_failed_response()?;
@@ -2405,6 +2407,8 @@ pub async fn vault_payment_method_external_v1(
         connector_integration,
         &old_router_data,
         payments_core::CallConnectorAction::Trigger,
+        None,
+        None,
         None,
         None,
     )

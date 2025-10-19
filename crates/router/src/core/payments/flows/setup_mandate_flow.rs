@@ -21,6 +21,7 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_register, ucs_logging_wrapper,
+            AppState,
         },
     },
     routes::SessionState,
@@ -145,6 +146,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             call_connector_action.clone(),
             connector_request,
             None,
+            None,
+            None,
         )
         .await
         .to_setup_mandate_failed_response()?;
@@ -190,6 +193,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )
@@ -309,9 +314,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
+        let state_enum = AppState::Session(&state);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
-            state,
+            state_enum,
             payment_register_request,
             header_payload,
             |mut router_data, payment_register_request, grpc_headers| async move {
@@ -415,6 +421,8 @@ pub async fn setup_mandate_preprocessing_steps<F: Clone>(
             connector_integration,
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
+            None,
             None,
             None,
         )

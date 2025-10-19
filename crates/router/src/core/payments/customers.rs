@@ -49,6 +49,8 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        None,
+        None,
     )
     .await
     .to_payment_failed_response()?;

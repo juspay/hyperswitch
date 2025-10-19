@@ -107,6 +107,8 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             call_connector_action,
             connector_request,
             None,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;

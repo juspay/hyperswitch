@@ -427,3 +427,5 @@ pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
     ConnectorCustomerData,
     PaymentsResponseData,
 >;
+
+pub use hyperswitch_domain_models::merchant_context;

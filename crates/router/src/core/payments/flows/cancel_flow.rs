@@ -106,6 +106,8 @@ impl Feature<api::Void, types::PaymentsCancelData>
             call_connector_action,
             connector_request,
             None,
+            None,
+            None,
         )
         .await
         .to_payment_failed_response()?;

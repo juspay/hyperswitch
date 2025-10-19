@@ -119,6 +119,8 @@ pub async fn revoke_mandate(
                 CallConnectorAction::Trigger,
                 None,
                 None,
+                None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
