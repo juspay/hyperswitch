@@ -596,44 +596,55 @@ impl GPayPredecryptData {
         Ok(self.card_exp_month.clone())
     }
 }
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted.
 pub enum ApplePayPaymentData {
     /// This variant contains the decrypted Apple Pay payment data as a structured object.
+    #[smithy(value_type = "ApplePayPredecryptData")]
     Decrypted(ApplePayPredecryptData),
     /// This variant contains the encrypted Apple Pay payment data as a string.
+    #[smithy(value_type = "String")]
     Encrypted(String),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Apple Pay payment data
 pub struct ApplePayPredecryptData {
     /// The primary account number
     #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
     pub application_primary_account_number: cards::CardNumber,
     /// The application expiration date (PAN expiry month)
     #[schema(value_type = String, example = "12")]
+    #[smithy(value_type = "String")]
     pub application_expiration_month: Secret<String>,
     /// The application expiration date (PAN expiry year)
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     #[schema(value_type = ApplePayCryptogramData)]
+    #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the cryptogram data for Apple Pay transactions
 pub struct ApplePayCryptogramData {
     /// The online payment cryptogram
     #[schema(value_type = String, example = "A1B2C3D4E5F6G7H8")]
+    #[smithy(value_type = "String")]
     pub online_payment_cryptogram: Secret<String>,
     /// The ECI (Electronic Commerce Indicator) value
     #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "Option<String>")]
     pub eci_indicator: Option<String>,
 }
 

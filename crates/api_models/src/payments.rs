@@ -3077,10 +3077,8 @@ pub enum PaymentMethodData {
     #[smithy(value_type = "CryptoData")]
     Crypto(CryptoData),
     #[schema(title = "MandatePayment")]
-    #[smithy(value_type = "smithy.api#Unit")]
     MandatePayment,
     #[schema(title = "Reward")]
-    #[smithy(value_type = "smithy.api#Unit")]
     Reward,
     #[schema(title = "Upi")]
     #[smithy(value_type = "UpiData")]
@@ -4300,110 +4298,144 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum WalletData {
     /// The wallet data for Ali Pay HK redirect
     #[schema(title = "AliPayHkRedirect")]
+    #[smithy(value_type = "AliPayHkRedirection")]
     AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Ali Pay QrCode
     #[schema(title = "AliPayQr")]
+    #[smithy(value_type = "AliPayQr")]
     AliPayQr(Box<AliPayQr>),
     /// The wallet data for Ali Pay redirect
     #[schema(title = "AliPayRedirect")]
+    #[smithy(value_type = "AliPayRedirection")]
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Amazon Pay
     #[schema(title = "AmazonPay")]
+    #[smithy(value_type = "AmazonPayWalletData")]
     AmazonPay(AmazonPayWalletData),
     /// The wallet data for Amazon Pay redirect
     #[schema(title = "AmazonPayRedirect")]
+    #[smithy(value_type = "AmazonPayRedirectData")]
     AmazonPayRedirect(AmazonPayRedirectData),
     /// The wallet data for Apple pay
     #[schema(title = "ApplePay")]
+    #[smithy(value_type = "ApplePayWalletData")]
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     #[schema(title = "ApplePayRedirect")]
+    #[smithy(value_type = "ApplePayRedirectData")]
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
     #[schema(title = "ApplePayThirdPartySdk")]
+    #[smithy(value_type = "ApplePayThirdPartySdkData")]
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     /// The wallet data for Bluecode QR Code Redirect
     #[schema(title = "BluecodeRedirect")]
+    #[smithy(nested_value_type)]
     BluecodeRedirect {},
     /// The wallet data for Cashapp Qr
     #[schema(title = "CashappQr")]
+    #[smithy(value_type = "CashappQr")]
     CashappQr(Box<CashappQr>),
     /// Wallet data for DANA redirect flow
     #[schema(title = "DanaRedirect")]
+    #[smithy(nested_value_type)]
     DanaRedirect {},
     /// The wallet data for Gcash redirect
     #[schema(title = "GcashRedirect")]
+    #[smithy(value_type = "GcashRedirection")]
     GcashRedirect(GcashRedirection),
     /// The wallet data for GoPay redirect
     #[schema(title = "GoPayRedirect")]
+    #[smithy(value_type = "GoPayRedirection")]
     GoPayRedirect(GoPayRedirection),
     /// The wallet data for Google pay
     #[schema(title = "GooglePay")]
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
     #[schema(title = "GooglePayRedirect")]
+    #[smithy(value_type = "GooglePayRedirectData")]
     GooglePayRedirect(Box<GooglePayRedirectData>),
     /// Wallet data for Google pay third party sdk flow
     #[schema(title = "GooglePayThirdPartySdk")]
+    #[smithy(value_type = "GooglePayThirdPartySdkData")]
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
     /// The wallet data for KakaoPay redirect
     #[schema(title = "KakaoPayRedirect")]
+    #[smithy(value_type = "KakaoPayRedirection")]
     KakaoPayRedirect(KakaoPayRedirection),
     /// Wallet data for MbWay redirect flow
     #[schema(title = "MbWayRedirect")]
+    #[smithy(value_type = "MbWayRedirection")]
     MbWayRedirect(Box<MbWayRedirection>),
     // The wallet data for Mifinity Ewallet
     #[schema(title = "Mifinity")]
+    #[smithy(value_type = "MifinityData")]
     Mifinity(MifinityData),
     /// The wallet data for MobilePay redirect
     #[schema(title = "MobilePayRedirect")]
+    #[smithy(value_type = "MobilePayRedirection")]
     MobilePayRedirect(Box<MobilePayRedirection>),
     /// The wallet data for Momo redirect
     #[schema(title = "MomoRedirect")]
+    #[smithy(value_type = "MomoRedirection")]
     MomoRedirect(MomoRedirection),
     /// This is for paypal redirection
     #[schema(title = "PaypalRedirect")]
+    #[smithy(value_type = "PaypalRedirection")]
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     #[schema(title = "PaypalSdk")]
+    #[smithy(value_type = "PayPalWalletData")]
     PaypalSdk(PayPalWalletData),
     /// The wallet data for Paysera
     #[schema(title = "Paysera")]
+    #[smithy(value_type = "PayseraData")]
     Paysera(PayseraData),
     /// The wallet data for Paze
     #[schema(title = "Paze")]
+    #[smithy(value_type = "PazeWalletData")]
     Paze(PazeWalletData),
     // The wallet data for RevolutPay
     #[schema(title = "RevolutPay")]
+    #[smithy(value_type = "RevolutPayData")]
     RevolutPay(RevolutPayData),
     /// The wallet data for Samsung Pay
     #[schema(title = "SamsungPay")]
+    #[smithy(value_type = "SamsungPayWalletData")]
     SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for Skrill
     #[schema(title = "Skrill")]
+    #[smithy(value_type = "SkrillData")]
     Skrill(SkrillData),
     // The wallet data for Swish
     #[schema(title = "SwishQr")]
+    #[smithy(value_type = "SwishQrData")]
     SwishQr(SwishQrData),
     /// The wallet data for Touch n Go Redirection
     #[schema(title = "TouchNGoRedirect")]
+    #[smithy(value_type = "TouchNGoRedirection")]
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// Wallet data for Twint Redirection
     #[schema(title = "TwintRedirect")]
+    #[smithy(nested_value_type)]
     TwintRedirect {},
     /// Wallet data for Vipps Redirection
     #[schema(title = "VippsRedirect")]
+    #[smithy(nested_value_type)]
     VippsRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
+    #[smithy(value_type = "WeChatPayQr")]
     WeChatPayQr(Box<WeChatPayQr>),
     /// The wallet data for WeChat Pay Redirection
     #[schema(title = "WeChatPayRedirect")]
+    #[smithy(value_type = "WeChatPayRedirection")]
     WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
@@ -4473,16 +4505,21 @@ pub struct PazeWalletData {
     pub complete_response: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayWalletData {
+    #[smithy(value_type = "SamsungPayWalletCredentials")]
     pub payment_credential: SamsungPayWalletCredentials,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case", untagged)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayWalletCredentials {
+    #[smithy(value_type = "SamsungPayWebWalletData")]
     SamsungPayWalletDataForWeb(SamsungPayWebWalletData),
+    #[smithy(value_type = "SamsungPayAppWalletData")]
     SamsungPayWalletDataForApp(SamsungPayAppWalletData),
 }
 
@@ -4498,60 +4535,80 @@ impl From<SamsungPayCardBrand> for common_enums::SamsungPayCardBrand {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayAppWalletData {
     /// Samsung Pay token data
     #[serde(rename = "3_d_s")]
+    #[smithy(value_type = "SamsungPayTokenData")]
     pub token_data: SamsungPayTokenData,
     /// Brand of the payment card
+    #[smithy(value_type = "SamsungPayCardBrand")]
     pub payment_card_brand: SamsungPayCardBrand,
     /// Currency type of the payment
+    #[smithy(value_type = "String")]
     pub payment_currency_type: String,
     /// Last 4 digits of the device specific card number
+    #[smithy(value_type = "Option<String>")]
     pub payment_last4_dpan: Option<String>,
     /// Last 4 digits of the card number
+    #[smithy(value_type = "String")]
     pub payment_last4_fpan: String,
     /// Merchant reference id that was passed in the session call request
+    #[smithy(value_type = "Option<String>")]
     pub merchant_ref: Option<String>,
     /// Specifies authentication method used
+    #[smithy(value_type = "Option<String>")]
     pub method: Option<String>,
     /// Value if credential is enabled for recurring payment
+    #[smithy(value_type = "Option<bool>")]
     pub recurring_payment: Option<bool>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayWebWalletData {
     /// Specifies authentication method used
+    #[smithy(value_type = "Option<String>")]
     pub method: Option<String>,
     /// Value if credential is enabled for recurring payment
+    #[smithy(value_type = "Option<bool>")]
     pub recurring_payment: Option<bool>,
     /// Brand of the payment card
+    #[smithy(value_type = "SamsungPayCardBrand")]
     pub card_brand: SamsungPayCardBrand,
     /// Last 4 digits of the card number
     #[serde(rename = "card_last4digits")]
+    #[smithy(value_type = "String")]
     pub card_last_four_digits: String,
     /// Samsung Pay token data
     #[serde(rename = "3_d_s")]
+    #[smithy(value_type = "SamsungPayTokenData")]
     pub token_data: SamsungPayTokenData,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayTokenData {
     /// 3DS type used by Samsung Pay
     #[serde(rename = "type")]
+    #[smithy(value_type = "Option<String>")]
     pub three_ds_type: Option<String>,
     /// 3DS version used by Samsung Pay
+    #[smithy(value_type = "String")]
     pub version: String,
     /// Samsung Pay encrypted payment credential data
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub data: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayCardBrand {
     #[serde(alias = "VI")]
     Visa,
@@ -4620,77 +4677,101 @@ pub struct AmazonPayMerchantCredentials {
     pub store_id: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SkrillData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PayseraData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayThirdPartySdkData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayThirdPartySdkData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPay {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CashappQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaypalRedirection {
     /// paypal's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayHkRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BluecodeQrRedirect {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MomoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct KakaoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GcashRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MobilePayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
+    #[smithy(value_type = "Option<String>")]
     pub telephone_number: Option<Secret<String>>,
 }
 
@@ -4716,53 +4797,71 @@ pub struct GooglePayAssuranceDetails {
     pub account_verified: bool,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PayPalWalletData {
     /// Token generated for the Apple pay
+    #[smithy(value_type = "String")]
     pub token: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct TouchNGoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SwishQrData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RevolutPayData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MifinityData {
     #[schema(value_type = Date)]
+    #[smithy(value_type = "String")]
     pub date_of_birth: Secret<Date>,
+    #[smithy(value_type = "Option<String>")]
     pub language_preference: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayWalletData {
     /// Checkout Session identifier
+    #[smithy(value_type = "String")]
     pub checkout_session_id: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
     #[schema(value_type = ApplePayPaymentData)]
+    #[smithy(value_type = "ApplePayPaymentData")]
     pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
+    #[smithy(value_type = "ApplepayPaymentMethod")]
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
+    #[smithy(value_type = "String")]
     pub transaction_identifier: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepayPaymentMethod {
     /// The name to be displayed on Apple Pay button
+    #[smithy(value_type = "String")]
     pub display_name: String,
     /// The network of the Apple pay payment method
+    #[smithy(value_type = "String")]
     pub network: String,
     /// The type of the payment method
     #[serde(rename = "type")]
+    #[smithy(value_type = "String")]
     pub pm_type: String,
 }
 
