@@ -2626,69 +2626,93 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankDebitData {
     /// Payment Method data for Ach bank debit
+    #[smithy(nested_value_type)]
     AchBankDebit {
         /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
         /// Account number for ach bank debit payment
         #[schema(value_type = String, example = "000123456789")]
+        #[smithy(value_type = "String")]
         account_number: Secret<String>,
         /// Routing number for ach bank debit payment
         #[schema(value_type = String, example = "110000000")]
+        #[smithy(value_type = "String")]
         routing_number: Secret<String>,
 
         #[schema(value_type = String, example = "John Test")]
+        #[smithy(value_type = "Option<String>")]
         card_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "John Doe")]
+        #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "ACH")]
+        #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
+        #[smithy(value_type = "Option<BankType>")]
         bank_type: Option<common_enums::BankType>,
 
         #[schema(value_type = String, example = "Personal")]
+        #[smithy(value_type = "Option<BankHolderType>")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
+    #[smithy(nested_value_type)]
     SepaBankDebit {
         /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
+        #[smithy(value_type = "String")]
         iban: Secret<String>,
         /// Owner name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
+        #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    #[smithy(nested_value_type)]
     BecsBankDebit {
         /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
         /// Account number for Becs payment method
         #[schema(value_type = String, example = "000123456")]
+        #[smithy(value_type = "String")]
         account_number: Secret<String>,
         /// Bank-State-Branch (bsb) number
         #[schema(value_type = String, example = "000000")]
+        #[smithy(value_type = "String")]
         bsb_number: Secret<String>,
         /// Owner name for bank debit
         #[schema(value_type = Option<String>, example = "A. Schneider")]
+        #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    #[smithy(nested_value_type)]
     BacsBankDebit {
         /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
         /// Account number for Bacs payment method
         #[schema(value_type = String, example = "00012345")]
+        #[smithy(value_type = "String")]
         account_number: Secret<String>,
         /// Sort code for Bacs payment method
         #[schema(value_type = String, example = "108800")]
+        #[smithy(value_type = "String")]
         sort_code: Secret<String>,
         /// holder name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
+        #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
 }
@@ -3035,10 +3059,13 @@ pub enum PaymentMethodData {
     #[smithy(value_type = "PayLaterData")]
     PayLater(PayLaterData),
     #[schema(title = "BankRedirect")]
+    #[smithy(value_type = "BankRedirectData")]
     BankRedirect(BankRedirectData),
     #[schema(title = "BankDebit")]
+    #[smithy(value_type = "BankDebitData")]
     BankDebit(BankDebitData),
     #[schema(title = "BankTransfer")]
+    #[smithy(value_type = "BankTransferData")]
     BankTransfer(Box<BankTransferData>),
     #[schema(title = "RealTimePayment")]
     RealTimePayment(Box<RealTimePaymentData>),
@@ -3509,147 +3536,200 @@ pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankRedirectData {
+    #[smithy(nested_value_type)]
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
+        #[smithy(value_type = "Option<String>")]
         card_number: Option<CardNumber>,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
+        #[smithy(value_type = "Option<String>")]
         card_exp_month: Option<Secret<String>>,
 
         /// The card's expiry year
         #[schema(value_type = String, example = "24")]
+        #[smithy(value_type = "Option<String>")]
         card_exp_year: Option<Secret<String>>,
 
         /// The card holder's name
         #[schema(value_type = String, example = "John Test")]
+        #[smithy(value_type = "Option<String>")]
         card_holder_name: Option<Secret<String>>,
 
         //Required by Stripes
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
     },
+    #[smithy(nested_value_type)]
     Bizum {},
+    #[smithy(nested_value_type)]
     Blik {
         // Blik Code
+        #[smithy(value_type = "Option<String>")]
         blik_code: Option<String>,
     },
+    #[smithy(nested_value_type)]
     Eps {
         /// The billing details for bank redirection
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
+        #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
+    #[smithy(nested_value_type)]
     Giropay {
         /// The billing details for bank redirection
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
 
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         /// Bank account bic code
         bank_account_bic: Option<Secret<String>>,
 
         /// Bank account iban
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         bank_account_iban: Option<Secret<String>>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
+    #[smithy(nested_value_type)]
     Ideal {
         /// The billing details for bank redirection
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
+        #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
+    #[smithy(nested_value_type)]
     Interac {
         /// The country for bank payment
         #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
 
         #[schema(value_type = Option<String>, example = "john.doe@example.com")]
+        #[smithy(value_type = "Option<String>")]
         email: Option<Email>,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingCzechRepublic {
         // Issuer banks
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingFinland {
         // Shopper Email
         #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
         email: Option<Email>,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingPoland {
         // Issuer banks
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
+    #[smithy(nested_value_type)]
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "Option<BankNames>")]
         issuer: Option<common_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
+    #[smithy(nested_value_type)]
     Przelewy24 {
         //Issuer banks
         #[schema(value_type = Option<BankNames>)]
+        #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
     },
+    #[smithy(nested_value_type)]
     Sofort {
         /// The billing details for bank redirection
+        #[smithy(value_type = "Option<BankRedirectBilling>")]
         billing_details: Option<BankRedirectBilling>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
 
         /// The preferred language
         #[schema(example = "en")]
+        #[smithy(value_type = "Option<String>")]
         preferred_language: Option<String>,
     },
+    #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "CountryAlpha2")]
         country: api_enums::CountryAlpha2,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingFpx {
         // Issuer banks
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
+    #[smithy(nested_value_type)]
     OnlineBankingThailand {
         #[schema(value_type = BankNames)]
+        #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
+    #[smithy(nested_value_type)]
     LocalBankRedirect {},
+    #[smithy(nested_value_type)]
     Eft {
         /// The preferred eft provider
         #[schema(example = "ozow")]
+        #[smithy(value_type = "String")]
         provider: String,
     },
 }
@@ -3815,39 +3895,50 @@ pub struct JCSVoucherData {
     pub phone_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
     #[schema(value_type = Option<String>, example = "Jane")]
+    #[smithy(value_type = "Option<String>")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Doku
     #[schema(value_type = Option<String>, example = "Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Doku billing
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MultibancoBillingDetails {
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
     /// The billing name for SEPA and BACS billing
     #[schema(value_type = Option<String>, example = "Jane Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
 }
 
@@ -3882,13 +3973,16 @@ pub struct SofortBilling {
     pub billing_country: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub billing_name: Option<Secret<String>>,
     /// The billing email for bank redirect
     #[schema(value_type = String, example = "example@example.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
@@ -3914,87 +4008,126 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferData {
+    #[smithy(nested_value_type)]
     AchBankTransfer {
         /// The billing details for ACH Bank Transfer
+        #[smithy(value_type = "Option<AchBillingDetails>")]
         billing_details: Option<AchBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     SepaBankTransfer {
         /// The billing details for SEPA
+        #[smithy(value_type = "Option<SepaAndBacsBillingDetails>")]
         billing_details: Option<SepaAndBacsBillingDetails>,
 
         /// The two-letter ISO country code for SEPA and BACS
         #[schema(value_type = CountryAlpha2, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
+    #[smithy(nested_value_type)]
     BacsBankTransfer {
         /// The billing details for SEPA
+        #[smithy(value_type = "Option<SepaAndBacsBillingDetails>")]
         billing_details: Option<SepaAndBacsBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     MultibancoBankTransfer {
         /// The billing details for Multibanco
+        #[smithy(value_type = "Option<MultibancoBillingDetails>")]
         billing_details: Option<MultibancoBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     PermataBankTransfer {
         /// The billing details for Permata Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     BcaBankTransfer {
         /// The billing details for BCA Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     BniVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     BriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     CimbVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     DanamonVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     MandiriVaBankTransfer {
         /// The billing details for BniVa Bank Transfer
+        #[smithy(value_type = "Option<DokuBillingDetails>")]
         billing_details: Option<DokuBillingDetails>,
     },
+    #[smithy(nested_value_type)]
     Pix {
         /// Unique key for pix transfer
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
+        #[smithy(value_type = "Option<String>")]
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
         #[schema(value_type = Option<String>, example = "10599054689")]
+        #[smithy(value_type = "Option<String>")]
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
         #[schema(value_type = Option<String>, example = "74469027417312")]
+        #[smithy(value_type = "Option<String>")]
         cnpj: Option<Secret<String>>,
         /// Source bank account number
         #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
+        #[smithy(value_type = "Option<String>")]
         source_bank_account_id: Option<MaskedBankAccount>,
         /// Partially masked destination bank account number _Deprecated: Will be removed in next stable release._
         #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b", deprecated)]
+        #[smithy(value_type = "Option<String>")]
         destination_bank_account_id: Option<MaskedBankAccount>,
         /// The expiration date and time for the Pix QR code in ISO 8601 format
         #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
         #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+        #[smithy(value_type = "Option<String>")]
         expiry_date: Option<PrimitiveDateTime>,
     },
+    #[smithy(nested_value_type)]
     Pse {},
+    #[smithy(nested_value_type)]
     LocalBankTransfer {
+        #[smithy(value_type = "Option<String>")]
         bank_code: Option<String>,
     },
+    #[smithy(nested_value_type)]
     InstantBankTransfer {},
+    #[smithy(nested_value_type)]
     InstantBankTransferFinland {},
+    #[smithy(nested_value_type)]
     InstantBankTransferPoland {},
+    #[smithy(nested_value_type)]
     IndonesianBankTransfer {
         #[schema(value_type = Option<BankNames>, example = "bri")]
+        #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
 }
@@ -4075,15 +4208,19 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankDebitBilling {
     /// The billing name for bank debits
     #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub name: Option<Secret<String>>,
     /// The billing email for bank debits
     #[schema(value_type = Option<String>, example = "example@example.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
     /// The billing address for bank debits
+    #[smithy(value_type = "Option<AddressDetails>")]
     pub address: Option<AddressDetails>,
 }
 
