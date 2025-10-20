@@ -18873,14 +18873,6 @@
           "propertyName": "type"
         }
       },
-      "OutgoingWebhookEndpointStatus": {
-        "type": "string",
-        "enum": [
-          "active",
-          "inactive",
-          "deprecated"
-        ]
-      },
       "OutgoingWebhookRequestContent": {
         "type": "object",
         "description": "The request information (headers and body) sent in the webhook.",
@@ -30984,14 +30976,6 @@
               "success",
               "failed"
             ],
-            "nullable": true
-          },
-          "multiple_webhooks_list": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MultipleWebhookDetail"
-            },
-            "description": "List of multiple outgoing webhook endpoints detail",
             "nullable": true
           }
         },
