@@ -249,11 +249,25 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
                         Ok(payments_response)
                     },
-                    _ => Err(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unexpected webhook transform response from UCS"),
+                    Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
+                        Err(ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("UCS webhook contains refund response but payment response was expected")
+                    },
+                    Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
+                        Err(ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("UCS webhook contains dispute response but payments response was expected")
+                    },
+                    Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+                        Err(ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("UCS webhook contains incomplete transformation but payments response was expected")
+                    },
+                    None => {
+                        Err(ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("Missing payments response UCS webhook content")
+                    }
                 }?;
 
-                let (router_data_response, status_code, router_data_update) =
+                let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
                     )
@@ -265,14 +279,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     response
                 });
                 self.response = router_data_response;
-                self.amount_captured = router_data_update.amount_captured;
-                self.minor_amount_captured = router_data_update.minor_amount_captured;
                 self.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()
                     .map(Secret::new);
                 self.connector_http_status_code = Some(status_code);
-                Ok(())
             }
             common_enums::CallConnectorAction::UCSHandleResponse(_)
             | common_enums::CallConnectorAction::Trigger => {
@@ -351,7 +362,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                         let payment_get_response = response.into_inner();
 
-                        let (router_data_response, status_code, router_data_update) =
+                        let (router_data_response, status_code) =
                             handle_unified_connector_service_response_for_payment_get(
                                 payment_get_response.clone(),
                             )
@@ -364,9 +375,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                                 response
                             });
                         router_data.response = router_data_response;
-                        router_data.amount_captured = router_data_update.amount_captured;
-                        router_data.minor_amount_captured =
-                            router_data_update.minor_amount_captured;
                         router_data.raw_connector_response = payment_get_response
                             .raw_connector_response
                             .clone()
@@ -380,7 +388,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                 // Copy back the updated data
                 *self = updated_router_data;
-                Ok(())
             }
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::Avoid
@@ -389,6 +396,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .attach_printable("Should not call UCS for this CallConnectorAction")?
             }
         }
+        Ok(())
     }
 }
 

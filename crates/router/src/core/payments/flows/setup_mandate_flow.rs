@@ -328,7 +328,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
                 let payment_register_response = response.into_inner();
 
-                let (router_data_response, status_code, _) =
+                let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_register(
                         payment_register_response.clone(),
                     )

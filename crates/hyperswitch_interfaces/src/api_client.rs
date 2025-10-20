@@ -167,7 +167,7 @@ where
         common_enums::CallConnectorAction::UCSConsumeResponse(_)
         | common_enums::CallConnectorAction::UCSHandleResponse(_) => {
             Err(ConnectorError::ProcessingStepFailed(Some(
-                "Should call UCS for second step to process webhook"
+                "UCS payment webhook was processed via Direct Gateway system instead of UCS Gateway system"
                     .to_string()
                     .into(),
             ))
