@@ -392,8 +392,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::Avoid
             | common_enums::CallConnectorAction::StatusUpdate { .. } => {
-                Err(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Invalid CallConnectorAction for payment sync via UCS Gateway system")?
+                Err(ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid CallConnectorAction for payment sync via UCS Gateway system",
+                )?
             }
         }
         Ok(())
