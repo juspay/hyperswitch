@@ -3,23 +3,17 @@ use crate::types::merchant_context::MerchantContext;
 use async_trait::async_trait;
 use common_enums::AttemptStatus;
 use common_utils::errors::CustomResult;
-use common_utils::id_type;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
-        access_token_auth::*, authentication::*, dispute::*, files::*, fraud_check::*,
-        mandate_revoke::*, payments::*, payouts::*, refunds, revenue_recovery::*, subscriptions::*,
-        unified_authentication_service::*, vault::*, webhooks::*,
+        access_token_auth::*, dispute::*, files::*, fraud_check::*, mandate_revoke::*, payments::*,
+        payouts::*, refunds, webhooks::*,
     },
     router_request_types::*,
     router_response_types::*,
 };
 use unified_connector_service_client::payments::{
-    self as payments_grpc, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
-    PaymentServiceGetRequest, PaymentServiceGetResponse, PaymentServiceRefundResponse,
-    PaymentServiceRegisterRequest, PaymentServiceRegisterResponse,
-    PaymentServiceRepeatEverythingRequest, PaymentServiceRepeatEverythingResponse,
-    PaymentServiceTransformRequest, PaymentServiceTransformResponse,
+    self as payments_grpc, PaymentServiceGetResponse,
 };
 /// Flow-specific implementations for UCS mapping
 pub mod flow_implementations;
@@ -38,42 +32,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 >;
 use crate::api_client::ApiClientWrapper;
 
-/// Connector authentication metadata required for UCS calls
-#[derive(Debug, Clone)]
-#[allow(missing_docs)]
-
-pub struct UcsConnectorAuthMetadata {
-    pub connector_name: String,
-    pub auth_type: String,
-    pub api_key: Option<masking::Secret<String>>,
-    pub key1: Option<masking::Secret<String>>,
-    pub api_secret: Option<masking::Secret<String>>,
-    pub auth_key_map: Option<
-        std::collections::HashMap<
-            common_enums::enums::Currency,
-            common_utils::pii::SecretSerdeValue,
-        >,
-    >,
-    pub merchant_id: masking::Secret<String>,
-}
-#[derive(Debug, serde::Serialize, Clone)]
-#[allow(missing_docs)]
-pub struct LineageIds {
-    pub merchant_id: id_type::MerchantId,
-    pub profile_id: id_type::ProfileId,
-}
-/// Headers required for UCS gRPC calls
-#[derive(Debug, Clone)]
-#[allow(missing_docs)]
-pub struct UcsHeaders {
-    pub tenant_id: String,
-    pub request_id: Option<String>,
-    pub lineage_ids: LineageIds, // URL-encoded lineage ids
-    pub external_vault_proxy_metadata: Option<String>,
-    pub merchant_reference_id: Option<String>,
-    pub shadow_mode: Option<bool>,
-}
-
 #[allow(missing_docs)]
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: PaymentServiceGetResponse,
@@ -86,15 +44,32 @@ pub fn handle_unified_connector_service_response_for_payment_get(
     Ok((router_data_response, status_code))
 }
 
+type UnifiedConnectorServiceRefundResult = CustomResult<
+    (Result<RefundsResponseData, ErrorResponse>, u16),
+    transformers::UnifiedConnectorServiceError,
+>;
+#[allow(missing_docs)]
+pub fn handle_unified_connector_service_response_for_refund_execute(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response: Result<RefundsResponseData, ErrorResponse> =
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 #[async_trait]
 #[allow(missing_docs)]
 pub trait UnifiedConnectorServiceInterface: Send + Sync {
     /// Performs Payment Authorization
     async fn payment_authorize(
         &self,
-        router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-    );
-    // -> CustomResult<PaymentServiceAuthorizeResponse, transformers::UnifiedConnectorServiceError>;
+        _router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+    ) {
+        todo!()
+    }
 
     // ===== PAYMENT FLOWS =====
 
@@ -364,7 +339,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_gift_card_balance_check(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             GiftCardBalanceCheck,
             GiftCardBalanceCheckRequestData,
             GiftCardBalanceCheckResponseData,
@@ -377,9 +352,10 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn refund_sync(
         &self,
-        router_data: &mut RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
-    );
-    //  -> CustomResult<PaymentServiceRefundResponse, transformers::UnifiedConnectorServiceError>;
+        _router_data: &mut RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+    ) {
+        todo!()
+    }
 
     async fn refund_execute(
         &self,
@@ -610,5 +586,5 @@ where
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, transformers::UnifiedConnectorServiceError>;
+    ) -> CustomResult<RouterData<T, Req, Resp>, transformers::UnifiedConnectorServiceError>;
 }

@@ -23,7 +23,6 @@ use serde_json::json;
 use crate::unified_connector_service::UnifiedConnectorServiceInterface;
 use crate::{
     configs,
-    configs::MerchantConnectorAccountType,
     connector_integration_interface::{
         BoxedConnectorIntegrationInterface, ConnectorEnum, RouterDataConversion,
     },
@@ -153,9 +152,6 @@ pub async fn execute_connector_processing_step<
     merchant_connector_account: Option<
         &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     >,
-    // #[cfg(feature = "v2")] merchant_connector_account: Option<
-    //     domain::MerchantConnectorAccountTypeDetails,
-    // >,
 ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
 where
     T: unified_connector_service::UnifiedConnectorServiceFlow<T, Req, Resp>
@@ -166,6 +162,7 @@ where
     Resp: Debug + Clone + Send + Sync + 'static,
     // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
+    // cutoff need to be implementation over here
     let d: Option<Box<dyn UnifiedConnectorServiceInterface + Send + Sync>> =
         state.get_ucs_interface();
     if let Some(ucs_client) = d.as_deref() {

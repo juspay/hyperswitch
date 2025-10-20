@@ -1,14 +1,14 @@
 use crate::api_client::ApiClientWrapper;
 use crate::types::merchant_context::MerchantContext;
 use crate::unified_connector_service::{
-    transformers::UnifiedConnectorServiceError, UcsConnectorAuthMetadata, UcsHeaders,
-    UnifiedConnectorServiceFlow, UnifiedConnectorServiceInterface,
+    transformers::UnifiedConnectorServiceError, UnifiedConnectorServiceFlow,
+    UnifiedConnectorServiceInterface,
 };
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, AccessTokenAuthenticationResponse, ErrorResponse, RouterData},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_flow_types::{
         access_token_auth::*, authentication::*, dispute::*, files::*, fraud_check::*,
         mandate_revoke::*, payments::*, payouts::*, refunds, revenue_recovery::*, subscriptions::*,
@@ -68,17 +68,18 @@ impl UnifiedConnectorServiceFlow<refunds::RSync, RefundsData, RefundsResponseDat
     for refunds::RSync
 {
     async fn execute_ucs_flow(
-        ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        router_data: &RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
-        merchant_context: Option<&MerchantContext>,
-        merchant_connector_account: Option<
+        _ucs_interface: &dyn UnifiedConnectorServiceInterface,
+        _router_data: &RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+        _merchant_context: Option<&MerchantContext>,
+        _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        let mut data = router_data.clone();
-        let response = ucs_interface.refund_sync(&mut data).await;
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("RSync".to_string()).into())
     }
 }
 
@@ -94,17 +95,19 @@ impl UnifiedConnectorServiceFlow<refunds::Execute, RefundsData, RefundsResponseD
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
+    ) -> CustomResult<
+        RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
         let mut data = router_data.clone();
-        let response = ucs_interface
+        ucs_interface
             .refund_execute(
                 &mut data,
                 merchant_context,
                 merchant_connector_account,
                 state,
             )
-            .await;
-        Err(UnifiedConnectorServiceError::InternalError.into())
+            .await
     }
 }
 
@@ -130,8 +133,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("InvoiceRecordBack".to_string()).into())
     }
 }
 
@@ -151,8 +157,11 @@ impl UnifiedConnectorServiceFlow<Authorize, PaymentsAuthorizeData, PaymentsRespo
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Authorize".to_string()).into())
     }
 }
 
@@ -166,8 +175,11 @@ impl UnifiedConnectorServiceFlow<Capture, PaymentsCaptureData, PaymentsResponseD
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Capture".to_string()).into())
     }
 }
 
@@ -181,8 +193,11 @@ impl UnifiedConnectorServiceFlow<PSync, PaymentsSyncData, PaymentsResponseData> 
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("PSync".to_string()).into())
     }
 }
 
@@ -196,8 +211,11 @@ impl UnifiedConnectorServiceFlow<Void, PaymentsCancelData, PaymentsResponseData>
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Void".to_string()).into())
     }
 }
 
@@ -221,8 +239,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("PostCaptureVoid".to_string()).into())
     }
 }
 
@@ -248,8 +269,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("AuthorizeSessionToken".to_string()).into())
     }
 }
 
@@ -265,8 +289,11 @@ impl UnifiedConnectorServiceFlow<CompleteAuthorize, CompleteAuthorizeData, Payme
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("CompleteAuthorize".to_string()).into())
     }
 }
 
@@ -280,8 +307,11 @@ impl UnifiedConnectorServiceFlow<Approve, PaymentsApproveData, PaymentsResponseD
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Approve, PaymentsApproveData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Approve".to_string()).into())
     }
 }
 
@@ -295,8 +325,11 @@ impl UnifiedConnectorServiceFlow<Reject, PaymentsRejectData, PaymentsResponseDat
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Reject, PaymentsRejectData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Reject".to_string()).into())
     }
 }
 
@@ -310,8 +343,11 @@ impl UnifiedConnectorServiceFlow<Session, PaymentsSessionData, PaymentsResponseD
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Session".to_string()).into())
     }
 }
 
@@ -329,8 +365,11 @@ impl UnifiedConnectorServiceFlow<InitPayment, PaymentsAuthorizeData, PaymentsRes
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("InitPayment".to_string()).into())
     }
 }
 
@@ -346,8 +385,11 @@ impl UnifiedConnectorServiceFlow<SetupMandate, SetupMandateRequestData, Payments
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("SetupMandate".to_string()).into())
     }
 }
 
@@ -371,8 +413,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("PaymentMethodToken".to_string()).into())
     }
 }
 
@@ -396,8 +441,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("CreateConnectorCustomer".to_string()).into())
     }
 }
 
@@ -421,8 +469,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Balance, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Balance".to_string()).into())
     }
 }
 
@@ -440,8 +491,11 @@ impl UnifiedConnectorServiceFlow<PreProcessing, PaymentsPreProcessingData, Payme
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -457,8 +511,11 @@ impl UnifiedConnectorServiceFlow<PostProcessing, PaymentsPostProcessingData, Pay
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -482,8 +539,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -501,8 +565,11 @@ impl UnifiedConnectorServiceFlow<PaymentCreateIntent, PaymentsAuthorizeData, Pay
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PaymentCreateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -518,25 +585,11 @@ impl UnifiedConnectorServiceFlow<PaymentGetIntent, PaymentsSyncData, PaymentsRes
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
-    }
-}
-
-#[async_trait]
-impl UnifiedConnectorServiceFlow<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>
-    for PaymentUpdateIntent
-{
-    async fn execute_ucs_flow(
-        _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
-        _merchant_context: Option<&MerchantContext>,
-        _merchant_connector_account: Option<
-            &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-        >,
-        _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -562,8 +615,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -587,8 +643,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -612,8 +671,31 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
+    }
+}
+
+#[async_trait]
+impl UnifiedConnectorServiceFlow<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>
+    for PaymentUpdateIntent
+{
+    async fn execute_ucs_flow(
+        _ucs_interface: &dyn UnifiedConnectorServiceInterface,
+        _router_data: &RouterData<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        _merchant_context: Option<&MerchantContext>,
+        _merchant_connector_account: Option<
+            &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+        >,
+        _state: &dyn ApiClientWrapper,
+    ) -> CustomResult<
+        RouterData<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -629,8 +711,11 @@ impl UnifiedConnectorServiceFlow<RecordAttempt, PaymentsAuthorizeData, PaymentsR
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -646,8 +731,11 @@ impl UnifiedConnectorServiceFlow<UpdateMetadata, PaymentsUpdateMetadataData, Pay
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -663,8 +751,11 @@ impl UnifiedConnectorServiceFlow<CreateOrder, CreateOrderRequestData, PaymentsRe
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -680,8 +771,11 @@ impl UnifiedConnectorServiceFlow<PaymentGetListAttempts, PaymentsSyncData, Payme
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PaymentGetListAttempts, PaymentsSyncData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -705,8 +799,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -730,8 +827,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            GiftCardBalanceCheck,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -748,8 +852,11 @@ impl UnifiedConnectorServiceFlow<PoCancel, PayoutsData, PayoutsResponseData> for
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoCancel, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -764,8 +871,11 @@ impl UnifiedConnectorServiceFlow<PoCreate, PayoutsData, PayoutsResponseData> for
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -782,8 +892,11 @@ impl UnifiedConnectorServiceFlow<PoEligibility, PayoutsData, PayoutsResponseData
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoEligibility, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -798,8 +911,11 @@ impl UnifiedConnectorServiceFlow<PoFulfill, PayoutsData, PayoutsResponseData> fo
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -814,8 +930,11 @@ impl UnifiedConnectorServiceFlow<PoQuote, PayoutsData, PayoutsResponseData> for 
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -830,8 +949,11 @@ impl UnifiedConnectorServiceFlow<PoRecipient, PayoutsData, PayoutsResponseData> 
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoRecipient, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -848,8 +970,11 @@ impl UnifiedConnectorServiceFlow<PoRecipientAccount, PayoutsData, PayoutsRespons
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoRecipientAccount, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -864,8 +989,11 @@ impl UnifiedConnectorServiceFlow<PoSync, PayoutsData, PayoutsResponseData> for P
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PoSync, PayoutsData, PayoutsResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -883,8 +1011,11 @@ impl UnifiedConnectorServiceFlow<Accept, AcceptDisputeRequestData, AcceptDispute
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -900,8 +1031,11 @@ impl UnifiedConnectorServiceFlow<Evidence, SubmitEvidenceRequestData, SubmitEvid
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -917,8 +1051,11 @@ impl UnifiedConnectorServiceFlow<Defend, DefendDisputeRequestData, DefendDispute
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -932,8 +1069,11 @@ impl UnifiedConnectorServiceFlow<Fetch, FetchDisputesRequestData, FetchDisputesR
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -947,8 +1087,11 @@ impl UnifiedConnectorServiceFlow<Dsync, DisputeSyncData, DisputeSyncResponse> fo
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -966,8 +1109,11 @@ impl UnifiedConnectorServiceFlow<AccessTokenAuth, AccessTokenRequestData, Access
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -991,8 +1137,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            AccessTokenAuthentication,
+            AccessTokenAuthenticationRequestData,
+            AccessTokenAuthenticationResponse,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1018,8 +1171,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1043,8 +1199,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            PostAuthenticate,
+            UasPostAuthenticationRequestData,
+            UasAuthenticationResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1064,8 +1227,11 @@ impl UnifiedConnectorServiceFlow<PreAuthentication, PreAuthNRequestData, Authent
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1089,8 +1255,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1114,8 +1283,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1139,8 +1311,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1164,8 +1339,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            PostAuthentication,
+            ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1189,8 +1371,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            AuthenticationConfirmation,
+            UasConfirmationRequestData,
+            UasAuthenticationResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1206,8 +1395,11 @@ impl UnifiedConnectorServiceFlow<Upload, UploadFileRequestData, UploadFileRespon
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1223,8 +1415,11 @@ impl UnifiedConnectorServiceFlow<Retrieve, RetrieveFileRequestData, RetrieveFile
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1240,8 +1435,11 @@ impl UnifiedConnectorServiceFlow<Sale, FraudCheckSaleData, FraudCheckResponseDat
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1257,8 +1455,11 @@ impl UnifiedConnectorServiceFlow<Checkout, FraudCheckCheckoutData, FraudCheckRes
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1274,8 +1475,11 @@ impl UnifiedConnectorServiceFlow<Transaction, FraudCheckTransactionData, FraudCh
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1291,8 +1495,11 @@ impl UnifiedConnectorServiceFlow<Fulfillment, FraudCheckFulfillmentData, FraudCh
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1308,8 +1515,11 @@ impl UnifiedConnectorServiceFlow<RecordReturn, FraudCheckRecordReturnData, Fraud
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1331,8 +1541,11 @@ impl UnifiedConnectorServiceFlow<MandateRevoke, MandateRevokeRequestData, Mandat
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1350,8 +1563,11 @@ impl UnifiedConnectorServiceFlow<ExternalVaultInsertFlow, VaultRequestData, Vaul
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1367,8 +1583,11 @@ impl UnifiedConnectorServiceFlow<ExternalVaultRetrieveFlow, VaultRequestData, Va
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1394,8 +1613,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1419,8 +1641,11 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1444,8 +1669,18 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            GetSubscriptionPlanPrices,
+            GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlanPricesResponse,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(
+            UnifiedConnectorServiceError::NotImplemented("GetSubscriptionPlanPrices".to_string())
+                .into(),
+        )
     }
 }
 
@@ -1469,8 +1704,15 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            GetSubscriptionEstimate,
+            GetSubscriptionEstimateRequest,
+            GetSubscriptionEstimateResponse,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }
 
@@ -1496,7 +1738,14 @@ impl
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
-    ) -> CustomResult<String, UnifiedConnectorServiceError> {
-        Err(UnifiedConnectorServiceError::InternalError.into())
+    ) -> CustomResult<
+        RouterData<
+            VerifyWebhookSource,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        >,
+        UnifiedConnectorServiceError,
+    > {
+        Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
     }
 }

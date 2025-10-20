@@ -34,3 +34,5 @@ pub mod webhooks;
 /// Crm interface
 pub mod crm;
 
+// /// Diesel
+// pub mod diesel_models;

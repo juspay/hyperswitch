@@ -32,9 +32,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::payments::Authorize,
     router_flow_types::refunds,
-    router_request_types::PaymentsAuthorizeData,
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
@@ -42,10 +40,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod,
-    payment_service_client::PaymentServiceClient, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, PaymentServiceRefundResponse, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse, RefundResponse, RewardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
+    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
 };
 
 #[cfg(feature = "v2")]
@@ -66,17 +62,14 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     services::client::ApiClientWrapper,
-    types::{api, transformers::ForeignTryFrom},
+    types::transformers::ForeignTryFrom,
 };
-use ::hyperswitch_interfaces::configs::Tenant;
 use async_trait::async_trait;
-use external_services::grpc_client::unified_connector_service::{
-    UnifiedConnectorServiceClient, UnifiedConnectorServiceResult as UnifiedConnectorServiceResponse,
-};
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient;
+// use hyperswitch_interfaces::helpers::ForeignTryFrom;
 use hyperswitch_interfaces::unified_connector_service::{
-    UcsConnectorAuthMetadata, UcsHeaders, UnifiedConnectorServiceInterface,
+    handle_unified_connector_service_response_for_refund_execute, UnifiedConnectorServiceInterface,
 };
-// use self::settings::Tenant;
 
 pub mod transformers;
 
@@ -836,19 +829,6 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
-type UnifiedConnectorServiceRefundResult =
-    CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
-pub fn handle_unified_connector_service_response_for_refund_execute(
-    response: payments_grpc::RefundResponse,
-) -> UnifiedConnectorServiceRefundResult {
-    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
-
-    let router_data_response: Result<RefundsResponseData, ErrorResponse> =
-        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
-
-    Ok((router_data_response, status_code))
-}
-
 /// High-level abstraction for calling UCS webhook transformation
 /// This provides a clean interface similar to payment flow UCS calls
 pub async fn call_unified_connector_service_for_webhook(
@@ -1171,22 +1151,6 @@ pub struct UnifiedConnectorClient(pub UnifiedConnectorServiceClient);
 
 #[async_trait]
 impl UnifiedConnectorServiceInterface for UnifiedConnectorClient {
-    async fn payment_authorize(
-        &self,
-        router_data: &mut RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-    ) {
-        // delegate to the inner client if needed
-        todo!()
-    }
-
-    async fn refund_sync(
-        &self,
-        router_data: &mut RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
-    ) {
-        // Implementation to call the actual gRPC client for refund sync
-        todo!()
-    }
-
     async fn refund_execute(
         &self,
         router_data: &mut RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
@@ -1201,7 +1165,7 @@ impl UnifiedConnectorServiceInterface for UnifiedConnectorClient {
     > {
         let client = &self.0;
         let ucs_refund_request =
-            payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+            <payments_grpc::PaymentServiceRefundRequest as hyperswitch_interfaces::helpers::ForeignTryFrom<_>>::foreign_try_from(&router_data)
                 .change_context(UnifiedConnectorServiceError::InternalError)
                 .attach_printable("Failed to transform router data to UCS refund request")?;
 
