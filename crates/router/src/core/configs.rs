@@ -81,7 +81,7 @@ pub async fn get_config_bool(
     };
 
     // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
+    let result = if let Some(value) = superposition_result {
         Ok(value)
     } else {
         let config = state
@@ -93,7 +93,9 @@ pub async fn get_config_bool(
             .config
             .parse::<bool>()
             .change_context(errors::StorageError::DeserializationFailed)
-    }
+    };
+
+    result
 }
 
 /// Get a string configuration value with superposition and database fallback
@@ -124,7 +126,7 @@ pub async fn get_config_string(
     };
 
     // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
+    let result = if let Some(value) = superposition_result {
         Ok(value)
     } else {
         let config = state
@@ -133,7 +135,9 @@ pub async fn get_config_string(
             .await?;
 
         Ok(config.config)
-    }
+    };
+
+    result
 }
 
 /// Get an integer configuration value with superposition and database fallback
@@ -164,7 +168,7 @@ pub async fn get_config_int(
     };
 
     // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
+    let result = if let Some(value) = superposition_result {
         Ok(value)
     } else {
         let config = state
@@ -176,7 +180,9 @@ pub async fn get_config_int(
             .config
             .parse::<i64>()
             .change_context(errors::StorageError::DeserializationFailed)
-    }
+    };
+
+    result
 }
 
 /// Get a float configuration value with superposition and database fallback
@@ -207,7 +213,7 @@ pub async fn get_config_float(
     };
 
     // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
+    let result = if let Some(value) = superposition_result {
         Ok(value)
     } else {
         let config = state
@@ -219,7 +225,9 @@ pub async fn get_config_float(
             .config
             .parse::<f64>()
             .change_context(errors::StorageError::DeserializationFailed)
-    }
+    };
+
+    result
 }
 
 /// Get an object configuration value with superposition and database fallback
@@ -256,7 +264,7 @@ where
     };
 
     // Use superposition result or fall back to database
-    if let Some(superposition_result) = superposition_result {
+    let result = if let Some(superposition_result) = superposition_result {
         superposition_result
     } else {
         let config = state
@@ -272,5 +280,7 @@ where
 
         serde_json::from_str::<T>(&config.config)
             .change_context(errors::StorageError::DeserializationFailed)
-    }
+    };
+
+    result
 }

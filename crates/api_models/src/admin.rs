@@ -718,19 +718,6 @@ pub struct WebhookDetails {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
-
-    /// List of multiple outgoing webhook endpoints detail
-    #[schema(value_type = Option<Vec<MultipleWebhookDetail>>)]
-    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct MultipleWebhookDetail {
-    pub webhook_endpoint_id: Option<id_type::WebhookEndpointId>,
-    pub webhook_url: Secret<String>,
-    pub events: HashSet<common_enums::EventType>,
-    pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 
 impl WebhookDetails {

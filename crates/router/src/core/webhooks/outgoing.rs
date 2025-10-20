@@ -644,13 +644,14 @@ fn get_webhook_url_from_business_profile(
 ) -> CustomResult<String, errors::WebhooksFlowError> {
     let webhook_details = business_profile
         .webhook_details
-        .clone()
+        .as_ref()
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
     let webhook_url = webhook_details
         .multiple_webhooks_list
-        .and_then(|list| list.first().map(|first| first.webhook_url.clone()))
+        .as_ref()
+        .and_then(|list| list.get_legacy_url())
         .get_required_value("webhook_url")
         .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)?
         .expose();

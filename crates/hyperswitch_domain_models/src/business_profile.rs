@@ -28,6 +28,7 @@ pub struct MultipleWebhookDetail {
     pub webhook_url: Secret<String>,
     pub events: HashSet<common_enums::EventType>,
     pub status: common_enums::OutgoingWebhookEndpointStatus,
+    pub is_legacy_url: bool,
 }
 
 impl ForeignFrom<storage_types::MultipleWebhookDetail> for MultipleWebhookDetail {
@@ -37,6 +38,7 @@ impl ForeignFrom<storage_types::MultipleWebhookDetail> for MultipleWebhookDetail
             webhook_url: item.webhook_url,
             events: item.events,
             status: item.status,
+            is_legacy_url: false,
         }
     }
 }
@@ -48,7 +50,67 @@ impl ForeignFrom<MultipleWebhookDetail> for storage_types::MultipleWebhookDetail
             webhook_url: item.webhook_url,
             events: item.events,
             status: item.status,
+            is_legacy_url: item.is_legacy_url,
         }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WebhookUrls(pub Vec<MultipleWebhookDetail>);
+
+impl From<Vec<MultipleWebhookDetail>> for WebhookUrls {
+    fn from(item: Vec<MultipleWebhookDetail>) -> Self {
+        Self(item)
+    }
+}
+
+impl WebhookUrls {
+    pub fn get_legacy_url(&self) -> Option<Secret<String>> {
+        self.0
+            .iter()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+            .map(|webhook_detail| webhook_detail.webhook_url.clone())
+    }
+
+    pub fn update_legacy_webhook_url(&mut self, new_url: Secret<String>) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            legacy_webhook.webhook_url = new_url;
+        }
+    }
+
+    pub fn get_multiple_webhook_urls(
+        legacy_url: Option<Secret<String>>,
+        multiple_urls: Option<Vec<storage_types::MultipleWebhookDetail>>,
+    ) -> Self {
+        let mut urls = Vec::new();
+        let mut processed_urls = HashSet::new();
+
+        if let Some(legacy_url_value) = legacy_url {
+            if processed_urls.insert(legacy_url_value.peek().clone()) {
+                urls.push(MultipleWebhookDetail {
+                    webhook_endpoint_id:
+                        common_utils::generate_webhook_endpoint_id_of_default_length(),
+                    webhook_url: legacy_url_value,
+                    events: common_enums::EventType::iter().collect(),
+                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
+                    is_legacy_url: true,
+                });
+            }
+        }
+
+        if let Some(multiple_urls_list) = multiple_urls {
+            for detail in multiple_urls_list {
+                if processed_urls.insert(detail.webhook_url.peek().clone()) {
+                    urls.push(detail.foreign_into());
+                }
+            }
+        }
+
+        Self(urls)
     }
 }
 
@@ -63,37 +125,13 @@ pub struct WebhookDetails {
     pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
     pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
     pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
-    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
+    pub multiple_webhooks_list: Option<WebhookUrls>,
 }
 
 impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
     fn foreign_from(item: storage_types::WebhookDetails) -> Self {
-        let mut multiple_webhooks_list: Vec<_> = Vec::new();
-
-        // Add webhook_url as the first element in multiple_webhooks_list if present
-        // Handle if no duplicate values are stored
-        if let Some(url) = item.webhook_url {
-            if item
-                .multiple_webhooks_list
-                .as_ref()
-                .and_then(|list| list.first())
-                .is_some_and(|first| first.webhook_url.peek() == url.peek())
-            {
-                let events: HashSet<_> = common_enums::EventType::iter().collect();
-                multiple_webhooks_list.push(MultipleWebhookDetail {
-                    webhook_endpoint_id:
-                        common_utils::generate_webhook_endpoint_id_of_default_length(),
-                    webhook_url: url,
-                    events,
-                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
-                });
-            }
-        }
-
-        // Append existing multiple_webhooks_list
-        if let Some(list) = item.multiple_webhooks_list {
-            multiple_webhooks_list.extend(list.into_iter().map(ForeignFrom::foreign_from));
-        }
+        let webhook_urls =
+            WebhookUrls::get_multiple_webhook_urls(item.webhook_url, item.multiple_webhooks_list);
 
         Self {
             webhook_version: item.webhook_version,
@@ -105,7 +143,7 @@ impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
-            multiple_webhooks_list: Some(multiple_webhooks_list),
+            multiple_webhooks_list: Some(webhook_urls),
         }
     }
 }
@@ -115,7 +153,7 @@ impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetails {
         let webhook_url = item
             .multiple_webhooks_list
             .as_ref()
-            .and_then(|list| list.first().map(|first| first.webhook_url.clone()));
+            .and_then(|list| list.get_legacy_url());
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -129,7 +167,7 @@ impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetails {
             payout_statuses_enabled: item.payout_statuses_enabled,
             multiple_webhooks_list: item
                 .multiple_webhooks_list
-                .map(|url| url.into_iter().map(ForeignFrom::foreign_from).collect()),
+                .map(|urls| urls.0.into_iter().map(ForeignFrom::foreign_from).collect()),
         }
     }
 }
@@ -138,7 +176,7 @@ use crate::{
     behaviour::Conversion,
     errors::api_error_response,
     merchant_key_store::MerchantKeyStore,
-    transformers::ForeignFrom,
+    transformers::{ForeignFrom, ForeignInto},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -1561,12 +1599,8 @@ impl Profile {
     pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
         self.webhook_details
             .as_ref()
-            .and_then(|details| {
-                details
-                    .multiple_webhooks_list
-                    .as_ref()
-                    .and_then(|list| list.first().map(|first| first.webhook_url.clone()))
-            })
+            .and_then(|details| details.multiple_webhooks_list.as_ref())
+            .and_then(|list| list.get_legacy_url())
             .get_required_value("webhook_details.webhook_url")
             .map(ExposeInterface::expose)
     }
