@@ -598,6 +598,7 @@ pub enum CallConnectorAction {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -605,6 +606,7 @@ pub enum CallConnectorAction {
     ToSchema,
 )]
 #[serde(rename_all = "UPPERCASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum DocumentKind {
     Cnpj,
     Cpf,

@@ -211,13 +211,14 @@ fn generate_enum_impl(
 
     // Check if this is a tagged enum, string enum, or union
     let is_string_enum = variants.iter().all(|v| v.fields.is_empty());
+    let has_nested_value_type = variants.iter().any(|v| v.nested_value_type);
     let is_tagged_enum = serde_enum_attrs.tag.is_some() && !is_string_enum;
 
     if is_tagged_enum {
         // Generate tagged enum as a structure with tag field + all variant fields as optional
         // Plus a separate enum for the variants
         generate_tagged_enum_impl(name, namespace, &variants, &serde_enum_attrs, &enum_doc_expr)
-    } else if is_string_enum {
+    } else if is_string_enum && !has_nested_value_type {
         // Generate as Smithy enum
         let variant_implementations = variants
             .iter()

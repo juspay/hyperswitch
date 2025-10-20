@@ -2499,15 +2499,18 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
 }
 
@@ -3068,24 +3071,34 @@ pub enum PaymentMethodData {
     #[smithy(value_type = "BankTransferData")]
     BankTransfer(Box<BankTransferData>),
     #[schema(title = "RealTimePayment")]
+    #[smithy(value_type = "RealTimePaymentData")]
     RealTimePayment(Box<RealTimePaymentData>),
     #[schema(title = "Crypto")]
+    #[smithy(value_type = "CryptoData")]
     Crypto(CryptoData),
     #[schema(title = "MandatePayment")]
+    #[smithy(value_type = "smithy.api#Unit")]
     MandatePayment,
     #[schema(title = "Reward")]
+    #[smithy(value_type = "smithy.api#Unit")]
     Reward,
     #[schema(title = "Upi")]
+    #[smithy(value_type = "UpiData")]
     Upi(UpiData),
     #[schema(title = "Voucher")]
+    #[smithy(value_type = "VoucherData")]
     Voucher(VoucherData),
     #[schema(title = "GiftCard")]
+    #[smithy(value_type = "GiftCardData")]
     GiftCard(Box<GiftCardData>),
     #[schema(title = "CardToken")]
+    #[smithy(value_type = "CardToken")]
     CardToken(CardToken),
     #[schema(title = "OpenBanking")]
+    #[smithy(value_type = "OpenBankingData")]
     OpenBanking(OpenBankingData),
     #[schema(title = "MobilePayment")]
+    #[smithy(value_type = "MobilePaymentData")]
     MobilePayment(MobilePaymentData),
 }
 
@@ -3374,38 +3387,50 @@ impl GetPaymentMethodType for GiftCardData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GiftCardData {
+    #[smithy(value_type = "GiftCardDetails")]
     Givex(GiftCardDetails),
+    #[smithy(nested_value_type)]
     PaySafeCard {},
+    #[smithy(value_type = "BHNGiftCardDetails")]
     BhnCardNetwork(BHNGiftCardDetails),
 }
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BHNGiftCardDetails {
     /// The gift card or account number
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub account_number: Secret<String>,
     /// The security PIN for gift cards requiring it
     #[schema(value_type = String)]
+    #[smithy(value_type = "Option<String>")]
     pub pin: Option<Secret<String>>,
     /// The CVV2 code for Open Loop/VPLN products
     #[schema(value_type = String)]
+    #[smithy(value_type = "Option<String>")]
     pub cvv2: Option<Secret<String>>,
     /// The expiration date in MMYYYY format for Open Loop/VPLN products
     #[schema(value_type = String)]
+    #[smithy(value_type = "Option<String>")]
     pub expiration_date: Option<String>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GiftCardDetails {
     /// The gift card number
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub number: Secret<String>,
     /// The card verification code.
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub cvc: Secret<String>,
 }
 
@@ -3853,45 +3878,58 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = Option<String>, example = "Jane")]
+    #[smithy(value_type = "Option<String>")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
     #[schema(value_type = Option<String>, example = "Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = Option<String>, example = "Jane")]
+    #[smithy(value_type = "Option<String>")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name for Alfamart
     #[schema(value_type = Option<String>, example = "Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Alfamart
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "Jane")]
+    #[smithy(value_type = "Option<String>")]
     pub first_name: Option<Secret<String>>,
     /// The billing second name Japanese convenience stores
     #[schema(value_type = Option<String>, example = "Doe")]
+    #[smithy(value_type = "Option<String>")]
     pub last_name: Option<Secret<String>>,
     /// The Email ID for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "example@me.com")]
+    #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
     /// The telephone number for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
     pub phone_number: Option<String>,
 }
 
@@ -3942,28 +3980,37 @@ pub struct SepaAndBacsBillingDetails {
     pub name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CryptoData {
+    #[smithy(value_type = "Option<String>")]
     pub pay_currency: Option<String>,
+    #[smithy(value_type = "Option<String>")]
     pub network: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum UpiData {
+    #[smithy(value_type = "UpiCollectData")]
     UpiCollect(UpiCollectData),
+    #[smithy(value_type = "UpiIntentData")]
     UpiIntent(UpiIntentData),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
+    #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiIntentData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4132,12 +4179,17 @@ pub enum BankTransferData {
     },
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RealTimePaymentData {
+    #[smithy(nested_value_type)]
     Fps {},
+    #[smithy(nested_value_type)]
     DuitNow {},
+    #[smithy(nested_value_type)]
     PromptPay {},
+    #[smithy(nested_value_type)]
     VietQr {},
 }
 
@@ -4513,22 +4565,28 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum OpenBankingData {
     #[serde(rename = "open_banking_pis")]
+    #[smithy(nested_value_type)]
     OpenBankingPIS {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MobilePaymentData {
+    #[smithy(nested_value_type)]
     DirectCarrierBilling {
         /// The phone number of the user
         #[schema(value_type = String, example = "1234567890")]
+        #[smithy(value_type = "String")]
         msisdn: String,
         /// Unique user id
         #[schema(value_type = Option<String>, example = "02iacdYXGI9CnyJdoN8c7")]
+        #[smithy(value_type = "Option<String>")]
         client_uid: Option<String>,
     },
 }
@@ -4736,62 +4794,87 @@ pub struct RewardData {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BoletoVoucherData {
     /// The shopper's social security number (CPF or CNPJ)
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub social_security_number: Option<Secret<String>>,
 
     /// The shopper's bank account number associated with the boleto
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
     #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    #[smithy(value_type = "Option<DocumentKind>")]
     pub document_type: Option<common_enums::DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub fine_percentage: Option<String>,
 
     /// The number of days after the due date when the fine is applied
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub fine_quantity_days: Option<String>,
 
     /// The interest percentage charged on late payments
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub interest_percentage: Option<String>,
 
     /// The number of days after which the boleto is written off (canceled)
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub write_off_quantity_days: Option<String>,
 
     /// Custom messages or instructions to display on the boleto
     #[schema(value_type = Option<Vec<String>>)]
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub messages: Option<Vec<String>>,
 
     // #[serde(with = "common_utils::custom_serde::date_yyyy_mm_dd::option")]
     #[schema(value_type = Option<String>, format = "date", example = "2025-08-22")]
+    #[smithy(value_type = "Option<String>")]
     // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
     pub due_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum VoucherData {
+    #[smithy(value_type = "BoletoVoucherData")]
     Boleto(Box<BoletoVoucherData>),
+    #[smithy(value_type = "smithy.api#Unit")]
     Efecty,
+    #[smithy(value_type = "smithy.api#Unit")]
     PagoEfectivo,
+    #[smithy(value_type = "smithy.api#Unit")]
     RedCompra,
+    #[smithy(value_type = "smithy.api#Unit")]
     RedPagos,
+    #[smithy(value_type = "AlfamartVoucherData")]
     Alfamart(Box<AlfamartVoucherData>),
+    #[smithy(value_type = "IndomaretVoucherData")]
     Indomaret(Box<IndomaretVoucherData>),
+    #[smithy(value_type = "smithy.api#Unit")]
     Oxxo,
+    #[smithy(value_type = "JCSVoucherData")]
     SevenEleven(Box<JCSVoucherData>),
+    #[smithy(value_type = "JCSVoucherData")]
     Lawson(Box<JCSVoucherData>),
+    #[smithy(value_type = "JCSVoucherData")]
     MiniStop(Box<JCSVoucherData>),
+    #[smithy(value_type = "JCSVoucherData")]
     FamilyMart(Box<JCSVoucherData>),
+    #[smithy(value_type = "JCSVoucherData")]
     Seicomart(Box<JCSVoucherData>),
+    #[smithy(value_type = "JCSVoucherData")]
     PayEasy(Box<JCSVoucherData>),
 }
 
