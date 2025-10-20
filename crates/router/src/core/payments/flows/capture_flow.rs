@@ -184,6 +184,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        unified_connector_service_execution_mode: common_enums::ExecutionMode,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -213,7 +214,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);

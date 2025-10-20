@@ -87,65 +87,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
     }
 }
 
-impl ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceCaptureRequest
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
-
-        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-
-        let browser_info = router_data
-            .request
-            .browser_info
-            .clone()
-            .map(payments_grpc::BrowserInformation::foreign_try_from)
-            .transpose()?;
-
-        Ok(Self {
-            transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    connector_transaction_id,
-                )),
-            }),
-            request_ref_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
-            access_token: None,
-            amount_to_capture: router_data
-                .request
-                .minor_amount_to_capture
-                .get_amount_as_i64(),
-            currency: currency.into(),
-            metadata: router_data
-                .request
-                .metadata
-                .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
-                .unwrap_or_default(),
-            browser_info,
-            multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
-                |multiple_capture_request_data| payments_grpc::MultipleCaptureRequestData {
-                    capture_sequence: multiple_capture_request_data.capture_sequence.into(),
-                    capture_reference: multiple_capture_request_data.capture_reference.clone(),
-                },
-            ),
-        })
-    }
-}
-
-impl ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
+impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceCaptureRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
@@ -727,6 +669,76 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCaptureResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let resource_id: hyperswitch_domain_models::router_request_types::ResponseId = match response.transaction_id.as_ref().and_then(|id| id.id_type.clone()) {
+            Some(payments_grpc::identifier::IdType::Id(id)) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(encoded_data),
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+        };
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
                     charges: None,
                 },
                 status,
