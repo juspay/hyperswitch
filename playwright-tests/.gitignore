@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test artifacts
+test-state.json
+test-state-*.json
+*.log
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Screenshots and videos (keep for debugging, but large)
+# Uncomment if you want to ignore:
+# screenshots/
+# videos/

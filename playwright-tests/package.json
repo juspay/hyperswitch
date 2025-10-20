@@ -1,0 +1,47 @@
+{
+  "name": "playwright-tests",
+  "version": "1.0.0",
+  "description": "Playwright test framework for Hyperswitch - Migrated from Cypress",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "HEADLESS=false playwright test",
+    "test:ui": "playwright test --ui",
+    "test:stripe": "PLAYWRIGHT_CONNECTOR=stripe playwright test",
+    "test:cybersource": "PLAYWRIGHT_CONNECTOR=cybersource playwright test",
+    "test:setup": "playwright test --project=1-core-setup --project=2-account-setup --project=3-customer-setup --project=4-connector-setup",
+    "test:parallel": "playwright test --project=stripe-parallel --project=cybersource-parallel",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen",
+    "install:browsers": "playwright install chromium",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "e2e",
+    "hyperswitch",
+    "payments"
+  ],
+  "author": "Hyperswitch",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
