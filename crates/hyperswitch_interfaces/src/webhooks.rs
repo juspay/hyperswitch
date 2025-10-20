@@ -324,6 +324,7 @@ pub trait OutgoingWebhooksImplementor: Send + Sync {
     /// Implements the logic to trigger an outgoing webhook
     async fn trigger_outgoing_webhook(
         &self,
+        // db: Box<dyn crate::common_state::CommonStorageInterface>,
         event_type: common_enums::EventType,
         event_class: common_enums::EventClass,
         primary_object_id: String,

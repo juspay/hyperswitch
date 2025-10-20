@@ -51,12 +51,17 @@ pub struct OutgoingWebhooksHandler;
 impl hyperswitch_interfaces::webhooks::OutgoingWebhooksImplementor for OutgoingWebhooksHandler {
     async fn trigger_outgoing_webhook(
         &self,
+        // db: Box<dyn hyperswitch_interfaces::common_state::CommonStorageInterface>,
         event_type: enums::EventType,
         event_class: enums::EventClass,
         primary_object_id: String,
         primary_object_type: enums::EventObjectType,
         content: api::OutgoingWebhookContent,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        // let router_store = crate::db::StorageInterface::from_subscription_interface(db)
+        //     .change_context(errors::ApiErrorResponse::SubscriptionError {
+        //         operation: "outgoing webhooks".to_string(),
+        //     })?;
         Ok(())
     }
 }
