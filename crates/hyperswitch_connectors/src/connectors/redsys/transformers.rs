@@ -881,7 +881,7 @@ fn get_redsys_attempt_status(
     capture_method: Option<enums::CaptureMethod>,
 ) -> Result<enums::AttemptStatus, error_stack::Report<errors::ConnectorError>> {
     // Redsys consistently provides a 4-digit response code, where numbers ranging from 0000 to 0099 indicate successful transactions
-    if ds_response.0.starts_with("00") {
+    if ds_response.0.starts_with("00") && ds_response.0.as_str() != "0002" {
         match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => Ok(enums::AttemptStatus::Charged),
             Some(enums::CaptureMethod::Manual) => Ok(enums::AttemptStatus::Authorized),
@@ -890,14 +890,21 @@ fn get_redsys_attempt_status(
     } else {
         match ds_response.0.as_str() {
             "0900" => Ok(enums::AttemptStatus::Charged),
-            "0400" => Ok(enums::AttemptStatus::Voided),
+            "0400" | "0481" | "0940" | "9915" => Ok(enums::AttemptStatus::Voided),
             "0950" => Ok(enums::AttemptStatus::VoidFailed),
-            "9998" => Ok(enums::AttemptStatus::AuthenticationPending),
-            "9256" | "9257" | "0184" => Ok(enums::AttemptStatus::AuthenticationFailed),
-            "0101" | "0102" | "0106" | "0125" | "0129" | "0172" | "0173" | "0174" | "0180"
-            | "0190" | "0191" | "0195" | "0202" | "0904" | "0909" | "0913" | "0944" | "9912"
-            | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253" | "9261"
-            | "9915" | "9997" | "9999" => Ok(enums::AttemptStatus::Failure),
+            "0112" | "0195" | "8210" | "8220" | "9998" | "9999" => {
+                Ok(enums::AttemptStatus::AuthenticationPending)
+            }
+            "0129" | "0184" | "9256" | "9257" => Ok(enums::AttemptStatus::AuthenticationFailed),
+            "0107" | "0126" | "0187" => Ok(enums::AttemptStatus::Unresolved),
+            "0101" | "0102" | "0104" | "0106" | "0110" | "0114" | "0115" | "0116" | "0117"
+            | "0118" | "0121" | "0123" | "0125" | "0130" | "0162" | "0163" | "0171" | "0172"
+            | "0173" | "0174" | "0180" | "0181" | "0182" | "0190" | "0191" | "0193" | "0201"
+            | "0202" | "0204" | "0206" | "0290" | "0881" | "0904" | "0909" | "0912" | "0913"
+            | "0941" | "0944" | "0945" | "0965" | "9912" | "9064" | "9078" | "9093" | "9094"
+            | "9104" | "9218" | "9253" | "9261" | "9997" | "0002" => {
+                Ok(enums::AttemptStatus::Failure)
+            }
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
                 .attach_printable(format!("Received Unknown Status:{error}"))?,
         }
