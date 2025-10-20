@@ -959,7 +959,7 @@ pub enum AppState<'a> {
     ApiClient(&'a dyn ApiClientWrapper),
 }
 
-impl<'a> AppState<'a> {
+impl AppState<'_> {
     fn tenant_id(&self) -> id_type::TenantId {
         match self {
             AppState::Session(session) => session.tenant.tenant_id.clone(),
@@ -999,12 +999,7 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
-    F: FnOnce(
-            RouterData<T, Req, Resp>,
-            GrpcReq,
-            external_services::grpc_client::GrpcHeadersUcs,
-        ) -> Fut
-        + Send,
+    F: FnOnce(RouterData<T, Req, Resp>, GrpcReq, GrpcHeadersUcs) -> Fut + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
@@ -1165,7 +1160,7 @@ impl UnifiedConnectorServiceInterface for UnifiedConnectorClient {
     > {
         let client = &self.0;
         let ucs_refund_request =
-            <payments_grpc::PaymentServiceRefundRequest as hyperswitch_interfaces::helpers::ForeignTryFrom<_>>::foreign_try_from(&router_data)
+            <payments_grpc::PaymentServiceRefundRequest as hyperswitch_interfaces::helpers::ForeignTryFrom<_>>::foreign_try_from(router_data)
                 .change_context(UnifiedConnectorServiceError::InternalError)
                 .attach_printable("Failed to transform router data to UCS refund request")?;
 

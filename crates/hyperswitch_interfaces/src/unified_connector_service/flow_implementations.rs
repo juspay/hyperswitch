@@ -64,19 +64,17 @@ use hyperswitch_domain_models::{
 // ===== EXISTING REFUND FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<refunds::RSync, RefundsData, RefundsResponseData>
-    for refunds::RSync
-{
+impl UnifiedConnectorServiceFlow<Self, RefundsData, RefundsResponseData> for refunds::RSync {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+        _router_data: &RouterData<Self, RefundsData, RefundsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+        RouterData<Self, RefundsData, RefundsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("RSync".to_string()).into())
@@ -84,19 +82,17 @@ impl UnifiedConnectorServiceFlow<refunds::RSync, RefundsData, RefundsResponseDat
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<refunds::Execute, RefundsData, RefundsResponseData>
-    for refunds::Execute
-{
+impl UnifiedConnectorServiceFlow<Self, RefundsData, RefundsResponseData> for refunds::Execute {
     async fn execute_ucs_flow(
         ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        router_data: &RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+        router_data: &RouterData<Self, RefundsData, RefundsResponseData>,
         merchant_context: Option<&MerchantContext>,
         merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+        RouterData<Self, RefundsData, RefundsResponseData>,
         UnifiedConnectorServiceError,
     > {
         let mut data = router_data.clone();
@@ -114,17 +110,13 @@ impl UnifiedConnectorServiceFlow<refunds::Execute, RefundsData, RefundsResponseD
 // ===== REVENUE RECOVERY FLOWS =====
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        InvoiceRecordBack,
-        InvoiceRecordBackRequest,
-        InvoiceRecordBackResponse,
-    > for InvoiceRecordBack
+impl UnifiedConnectorServiceFlow<Self, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+    for InvoiceRecordBack
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            InvoiceRecordBack,
+            Self,
             InvoiceRecordBackRequest,
             InvoiceRecordBackResponse,
         >,
@@ -134,7 +126,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>,
+        RouterData<Self, InvoiceRecordBackRequest, InvoiceRecordBackResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("InvoiceRecordBack".to_string()).into())
@@ -146,19 +138,17 @@ impl
 // Core Payment Operations
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Authorize
-{
+impl UnifiedConnectorServiceFlow<Self, PaymentsAuthorizeData, PaymentsResponseData> for Authorize {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Authorize".to_string()).into())
@@ -166,17 +156,17 @@ impl UnifiedConnectorServiceFlow<Authorize, PaymentsAuthorizeData, PaymentsRespo
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Capture, PaymentsCaptureData, PaymentsResponseData> for Capture {
+impl UnifiedConnectorServiceFlow<Self, PaymentsCaptureData, PaymentsResponseData> for Capture {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsCaptureData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        RouterData<Self, PaymentsCaptureData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Capture".to_string()).into())
@@ -184,17 +174,17 @@ impl UnifiedConnectorServiceFlow<Capture, PaymentsCaptureData, PaymentsResponseD
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PSync, PaymentsSyncData, PaymentsResponseData> for PSync {
+impl UnifiedConnectorServiceFlow<Self, PaymentsSyncData, PaymentsResponseData> for PSync {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("PSync".to_string()).into())
@@ -202,17 +192,17 @@ impl UnifiedConnectorServiceFlow<PSync, PaymentsSyncData, PaymentsResponseData> 
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Void, PaymentsCancelData, PaymentsResponseData> for Void {
+impl UnifiedConnectorServiceFlow<Self, PaymentsCancelData, PaymentsResponseData> for Void {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsCancelData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        RouterData<Self, PaymentsCancelData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Void".to_string()).into())
@@ -220,17 +210,13 @@ impl UnifiedConnectorServiceFlow<Void, PaymentsCancelData, PaymentsResponseData>
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        PostCaptureVoid,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for PostCaptureVoid
+impl UnifiedConnectorServiceFlow<Self, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    for PostCaptureVoid
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PostCaptureVoid,
+            Self,
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
@@ -240,7 +226,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        RouterData<Self, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("PostCaptureVoid".to_string()).into())
@@ -250,17 +236,13 @@ impl
 // Advanced Payment Operations
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        AuthorizeSessionToken,
-        AuthorizeSessionTokenData,
-        PaymentsResponseData,
-    > for AuthorizeSessionToken
+impl UnifiedConnectorServiceFlow<Self, AuthorizeSessionTokenData, PaymentsResponseData>
+    for AuthorizeSessionToken
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            AuthorizeSessionToken,
+            Self,
             AuthorizeSessionTokenData,
             PaymentsResponseData,
         >,
@@ -270,27 +252,30 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>,
+        RouterData<Self, AuthorizeSessionTokenData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
-        Err(UnifiedConnectorServiceError::NotImplemented("AuthorizeSessionToken".to_string()).into())
+        Err(
+            UnifiedConnectorServiceError::NotImplemented("AuthorizeSessionToken".to_string())
+                .into(),
+        )
     }
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, CompleteAuthorizeData, PaymentsResponseData>
     for CompleteAuthorize
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, CompleteAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, CompleteAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("CompleteAuthorize".to_string()).into())
@@ -298,17 +283,17 @@ impl UnifiedConnectorServiceFlow<CompleteAuthorize, CompleteAuthorizeData, Payme
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Approve, PaymentsApproveData, PaymentsResponseData> for Approve {
+impl UnifiedConnectorServiceFlow<Self, PaymentsApproveData, PaymentsResponseData> for Approve {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Approve, PaymentsApproveData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsApproveData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Approve, PaymentsApproveData, PaymentsResponseData>,
+        RouterData<Self, PaymentsApproveData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Approve".to_string()).into())
@@ -316,17 +301,17 @@ impl UnifiedConnectorServiceFlow<Approve, PaymentsApproveData, PaymentsResponseD
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Reject, PaymentsRejectData, PaymentsResponseData> for Reject {
+impl UnifiedConnectorServiceFlow<Self, PaymentsRejectData, PaymentsResponseData> for Reject {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Reject, PaymentsRejectData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsRejectData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Reject, PaymentsRejectData, PaymentsResponseData>,
+        RouterData<Self, PaymentsRejectData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Reject".to_string()).into())
@@ -334,17 +319,17 @@ impl UnifiedConnectorServiceFlow<Reject, PaymentsRejectData, PaymentsResponseDat
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Session, PaymentsSessionData, PaymentsResponseData> for Session {
+impl UnifiedConnectorServiceFlow<Self, PaymentsSessionData, PaymentsResponseData> for Session {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsSessionData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+        RouterData<Self, PaymentsSessionData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Session".to_string()).into())
@@ -354,19 +339,19 @@ impl UnifiedConnectorServiceFlow<Session, PaymentsSessionData, PaymentsResponseD
 // Payment Setup & Management
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsAuthorizeData, PaymentsResponseData>
     for InitPayment
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("InitPayment".to_string()).into())
@@ -374,19 +359,19 @@ impl UnifiedConnectorServiceFlow<InitPayment, PaymentsAuthorizeData, PaymentsRes
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, SetupMandateRequestData, PaymentsResponseData>
     for SetupMandate
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, SetupMandateRequestData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        RouterData<Self, SetupMandateRequestData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("SetupMandate".to_string()).into())
@@ -394,17 +379,13 @@ impl UnifiedConnectorServiceFlow<SetupMandate, SetupMandateRequestData, Payments
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for PaymentMethodToken
+impl UnifiedConnectorServiceFlow<Self, PaymentMethodTokenizationData, PaymentsResponseData>
+    for PaymentMethodToken
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PaymentMethodToken,
+            Self,
             PaymentMethodTokenizationData,
             PaymentsResponseData,
         >,
@@ -414,7 +395,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        RouterData<Self, PaymentMethodTokenizationData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("PaymentMethodToken".to_string()).into())
@@ -422,17 +403,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        CreateConnectorCustomer,
-        ConnectorCustomerData,
-        PaymentsResponseData,
-    > for CreateConnectorCustomer
+impl UnifiedConnectorServiceFlow<Self, ConnectorCustomerData, PaymentsResponseData>
+    for CreateConnectorCustomer
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            CreateConnectorCustomer,
+            Self,
             ConnectorCustomerData,
             PaymentsResponseData,
         >,
@@ -442,17 +419,20 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
+        RouterData<Self, ConnectorCustomerData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
-        Err(UnifiedConnectorServiceError::NotImplemented("CreateConnectorCustomer".to_string()).into())
+        Err(
+            UnifiedConnectorServiceError::NotImplemented("CreateConnectorCustomer".to_string())
+                .into(),
+        )
     }
 }
 
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        Balance,
+        Self,
         GiftCardBalanceCheckRequestData,
         GiftCardBalanceCheckResponseData,
     > for Balance
@@ -460,7 +440,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            Balance,
+            Self,
             GiftCardBalanceCheckRequestData,
             GiftCardBalanceCheckResponseData,
         >,
@@ -470,7 +450,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Balance, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>,
+        RouterData<Self, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Balance".to_string()).into())
@@ -480,19 +460,19 @@ impl
 // Processing Flows
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsPreProcessingData, PaymentsResponseData>
     for PreProcessing
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsPreProcessingData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>,
+        RouterData<Self, PaymentsPreProcessingData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -500,19 +480,19 @@ impl UnifiedConnectorServiceFlow<PreProcessing, PaymentsPreProcessingData, Payme
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsPostProcessingData, PaymentsResponseData>
     for PostProcessing
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsPostProcessingData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>,
+        RouterData<Self, PaymentsPostProcessingData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -520,17 +500,13 @@ impl UnifiedConnectorServiceFlow<PostProcessing, PaymentsPostProcessingData, Pay
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        IncrementalAuthorization,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for IncrementalAuthorization
+impl UnifiedConnectorServiceFlow<Self, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
+    for IncrementalAuthorization
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            IncrementalAuthorization,
+            Self,
             PaymentsIncrementalAuthorizationData,
             PaymentsResponseData,
         >,
@@ -541,7 +517,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            IncrementalAuthorization,
+            Self,
             PaymentsIncrementalAuthorizationData,
             PaymentsResponseData,
         >,
@@ -554,19 +530,19 @@ impl
 // Intent Management
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PaymentCreateIntent, PaymentsAuthorizeData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsAuthorizeData, PaymentsResponseData>
     for PaymentCreateIntent
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PaymentCreateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PaymentCreateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -574,19 +550,19 @@ impl UnifiedConnectorServiceFlow<PaymentCreateIntent, PaymentsAuthorizeData, Pay
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsSyncData, PaymentsResponseData>
     for PaymentGetIntent
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>,
+        RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -596,17 +572,13 @@ impl UnifiedConnectorServiceFlow<PaymentGetIntent, PaymentsSyncData, PaymentsRes
 // Specialized Operations
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        CalculateTax,
-        PaymentsTaxCalculationData,
-        TaxCalculationResponseData,
-    > for CalculateTax
+impl UnifiedConnectorServiceFlow<Self, PaymentsTaxCalculationData, TaxCalculationResponseData>
+    for CalculateTax
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            CalculateTax,
+            Self,
             PaymentsTaxCalculationData,
             TaxCalculationResponseData,
         >,
@@ -616,7 +588,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>,
+        RouterData<Self, PaymentsTaxCalculationData, TaxCalculationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -624,17 +596,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        SdkSessionUpdate,
-        SdkPaymentsSessionUpdateData,
-        PaymentsResponseData,
-    > for SdkSessionUpdate
+impl UnifiedConnectorServiceFlow<Self, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+    for SdkSessionUpdate
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            SdkSessionUpdate,
+            Self,
             SdkPaymentsSessionUpdateData,
             PaymentsResponseData,
         >,
@@ -644,7 +612,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>,
+        RouterData<Self, SdkPaymentsSessionUpdateData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -652,17 +620,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        PostSessionTokens,
-        PaymentsPostSessionTokensData,
-        PaymentsResponseData,
-    > for PostSessionTokens
+impl UnifiedConnectorServiceFlow<Self, PaymentsPostSessionTokensData, PaymentsResponseData>
+    for PostSessionTokens
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PostSessionTokens,
+            Self,
             PaymentsPostSessionTokensData,
             PaymentsResponseData,
         >,
@@ -672,7 +636,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>,
+        RouterData<Self, PaymentsPostSessionTokensData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -680,19 +644,19 @@ impl
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsAuthorizeData, PaymentsResponseData>
     for PaymentUpdateIntent
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PaymentUpdateIntent, PaymentsAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -700,19 +664,19 @@ impl UnifiedConnectorServiceFlow<PaymentUpdateIntent, PaymentsAuthorizeData, Pay
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsAuthorizeData, PaymentsResponseData>
     for RecordAttempt
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>,
+        RouterData<Self, PaymentsAuthorizeData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -720,19 +684,19 @@ impl UnifiedConnectorServiceFlow<RecordAttempt, PaymentsAuthorizeData, PaymentsR
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsUpdateMetadataData, PaymentsResponseData>
     for UpdateMetadata
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsUpdateMetadataData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>,
+        RouterData<Self, PaymentsUpdateMetadataData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -740,19 +704,19 @@ impl UnifiedConnectorServiceFlow<UpdateMetadata, PaymentsUpdateMetadataData, Pay
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, CreateOrderRequestData, PaymentsResponseData>
     for CreateOrder
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, CreateOrderRequestData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>,
+        RouterData<Self, CreateOrderRequestData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -760,19 +724,19 @@ impl UnifiedConnectorServiceFlow<CreateOrder, CreateOrderRequestData, PaymentsRe
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PaymentGetListAttempts, PaymentsSyncData, PaymentsResponseData>
+impl UnifiedConnectorServiceFlow<Self, PaymentsSyncData, PaymentsResponseData>
     for PaymentGetListAttempts
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PaymentGetListAttempts, PaymentsSyncData, PaymentsResponseData>,
+        _router_data: &RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PaymentGetListAttempts, PaymentsSyncData, PaymentsResponseData>,
+        RouterData<Self, PaymentsSyncData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -780,17 +744,13 @@ impl UnifiedConnectorServiceFlow<PaymentGetListAttempts, PaymentsSyncData, Payme
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        ExternalVaultProxy,
-        ExternalVaultProxyPaymentsData,
-        PaymentsResponseData,
-    > for ExternalVaultProxy
+impl UnifiedConnectorServiceFlow<Self, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+    for ExternalVaultProxy
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            ExternalVaultProxy,
+            Self,
             ExternalVaultProxyPaymentsData,
             PaymentsResponseData,
         >,
@@ -800,7 +760,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+        RouterData<Self, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -810,7 +770,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        GiftCardBalanceCheck,
+        Self,
         GiftCardBalanceCheckRequestData,
         GiftCardBalanceCheckResponseData,
     > for GiftCardBalanceCheck
@@ -818,7 +778,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            GiftCardBalanceCheck,
+            Self,
             GiftCardBalanceCheckRequestData,
             GiftCardBalanceCheckResponseData,
         >,
@@ -829,7 +789,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            GiftCardBalanceCheck,
+            Self,
             GiftCardBalanceCheckRequestData,
             GiftCardBalanceCheckResponseData,
         >,
@@ -843,17 +803,17 @@ impl
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoCancel, PayoutsData, PayoutsResponseData> for PoCancel {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoCancel {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoCancel, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoCancel, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -862,17 +822,17 @@ impl UnifiedConnectorServiceFlow<PoCancel, PayoutsData, PayoutsResponseData> for
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoCreate, PayoutsData, PayoutsResponseData> for PoCreate {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoCreate {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -881,19 +841,17 @@ impl UnifiedConnectorServiceFlow<PoCreate, PayoutsData, PayoutsResponseData> for
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoEligibility, PayoutsData, PayoutsResponseData>
-    for PoEligibility
-{
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoEligibility {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoEligibility, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoEligibility, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -902,17 +860,17 @@ impl UnifiedConnectorServiceFlow<PoEligibility, PayoutsData, PayoutsResponseData
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoFulfill, PayoutsData, PayoutsResponseData> for PoFulfill {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoFulfill {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -921,17 +879,17 @@ impl UnifiedConnectorServiceFlow<PoFulfill, PayoutsData, PayoutsResponseData> fo
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoQuote, PayoutsData, PayoutsResponseData> for PoQuote {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoQuote {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -940,17 +898,17 @@ impl UnifiedConnectorServiceFlow<PoQuote, PayoutsData, PayoutsResponseData> for 
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoRecipient, PayoutsData, PayoutsResponseData> for PoRecipient {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoRecipient {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoRecipient, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoRecipient, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -959,19 +917,17 @@ impl UnifiedConnectorServiceFlow<PoRecipient, PayoutsData, PayoutsResponseData> 
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoRecipientAccount, PayoutsData, PayoutsResponseData>
-    for PoRecipientAccount
-{
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoRecipientAccount {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoRecipientAccount, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoRecipientAccount, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -980,17 +936,17 @@ impl UnifiedConnectorServiceFlow<PoRecipientAccount, PayoutsData, PayoutsRespons
 
 #[cfg(feature = "payouts")]
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PoSync, PayoutsData, PayoutsResponseData> for PoSync {
+impl UnifiedConnectorServiceFlow<Self, PayoutsData, PayoutsResponseData> for PoSync {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<PoSync, PayoutsData, PayoutsResponseData>,
+        _router_data: &RouterData<Self, PayoutsData, PayoutsResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PoSync, PayoutsData, PayoutsResponseData>,
+        RouterData<Self, PayoutsData, PayoutsResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1000,19 +956,17 @@ impl UnifiedConnectorServiceFlow<PoSync, PayoutsData, PayoutsResponseData> for P
 // ===== DISPUTE FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>
-    for Accept
-{
+impl UnifiedConnectorServiceFlow<Self, AcceptDisputeRequestData, AcceptDisputeResponse> for Accept {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
+        _router_data: &RouterData<Self, AcceptDisputeRequestData, AcceptDisputeResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
+        RouterData<Self, AcceptDisputeRequestData, AcceptDisputeResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1020,19 +974,19 @@ impl UnifiedConnectorServiceFlow<Accept, AcceptDisputeRequestData, AcceptDispute
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>
+impl UnifiedConnectorServiceFlow<Self, SubmitEvidenceRequestData, SubmitEvidenceResponse>
     for Evidence
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+        _router_data: &RouterData<Self, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+        RouterData<Self, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1040,19 +994,17 @@ impl UnifiedConnectorServiceFlow<Evidence, SubmitEvidenceRequestData, SubmitEvid
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Defend, DefendDisputeRequestData, DefendDisputeResponse>
-    for Defend
-{
+impl UnifiedConnectorServiceFlow<Self, DefendDisputeRequestData, DefendDisputeResponse> for Defend {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>,
+        _router_data: &RouterData<Self, DefendDisputeRequestData, DefendDisputeResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>,
+        RouterData<Self, DefendDisputeRequestData, DefendDisputeResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1060,17 +1012,17 @@ impl UnifiedConnectorServiceFlow<Defend, DefendDisputeRequestData, DefendDispute
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Fetch, FetchDisputesRequestData, FetchDisputesResponse> for Fetch {
+impl UnifiedConnectorServiceFlow<Self, FetchDisputesRequestData, FetchDisputesResponse> for Fetch {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>,
+        _router_data: &RouterData<Self, FetchDisputesRequestData, FetchDisputesResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>,
+        RouterData<Self, FetchDisputesRequestData, FetchDisputesResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1078,17 +1030,17 @@ impl UnifiedConnectorServiceFlow<Fetch, FetchDisputesRequestData, FetchDisputesR
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Dsync, DisputeSyncData, DisputeSyncResponse> for Dsync {
+impl UnifiedConnectorServiceFlow<Self, DisputeSyncData, DisputeSyncResponse> for Dsync {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>,
+        _router_data: &RouterData<Self, DisputeSyncData, DisputeSyncResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>,
+        RouterData<Self, DisputeSyncData, DisputeSyncResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1098,19 +1050,17 @@ impl UnifiedConnectorServiceFlow<Dsync, DisputeSyncData, DisputeSyncResponse> fo
 // ===== ACCESS TOKEN FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for AccessTokenAuth
-{
+impl UnifiedConnectorServiceFlow<Self, AccessTokenRequestData, AccessToken> for AccessTokenAuth {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _router_data: &RouterData<Self, AccessTokenRequestData, AccessToken>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        RouterData<Self, AccessTokenRequestData, AccessToken>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1120,7 +1070,7 @@ impl UnifiedConnectorServiceFlow<AccessTokenAuth, AccessTokenRequestData, Access
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        AccessTokenAuthentication,
+        Self,
         AccessTokenAuthenticationRequestData,
         AccessTokenAuthenticationResponse,
     > for AccessTokenAuthentication
@@ -1128,7 +1078,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            AccessTokenAuthentication,
+            Self,
             AccessTokenAuthenticationRequestData,
             AccessTokenAuthenticationResponse,
         >,
@@ -1139,7 +1089,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            AccessTokenAuthentication,
+            Self,
             AccessTokenAuthenticationRequestData,
             AccessTokenAuthenticationResponse,
         >,
@@ -1154,7 +1104,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        PreAuthenticate,
+        Self,
         UasPreAuthenticationRequestData,
         UasAuthenticationResponseData,
     > for PreAuthenticate
@@ -1162,7 +1112,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PreAuthenticate,
+            Self,
             UasPreAuthenticationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1172,7 +1122,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>,
+        RouterData<Self, UasPreAuthenticationRequestData, UasAuthenticationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1182,7 +1132,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        PostAuthenticate,
+        Self,
         UasPostAuthenticationRequestData,
         UasAuthenticationResponseData,
     > for PostAuthenticate
@@ -1190,7 +1140,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PostAuthenticate,
+            Self,
             UasPostAuthenticationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1201,7 +1151,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            PostAuthenticate,
+            Self,
             UasPostAuthenticationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1212,13 +1162,13 @@ impl
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+impl UnifiedConnectorServiceFlow<Self, PreAuthNRequestData, AuthenticationResponseData>
     for PreAuthentication
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PreAuthentication,
+            Self,
             PreAuthNRequestData,
             AuthenticationResponseData,
         >,
@@ -1228,7 +1178,7 @@ impl UnifiedConnectorServiceFlow<PreAuthentication, PreAuthNRequestData, Authent
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>,
+        RouterData<Self, PreAuthNRequestData, AuthenticationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1236,17 +1186,13 @@ impl UnifiedConnectorServiceFlow<PreAuthentication, PreAuthNRequestData, Authent
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        PreAuthenticationVersionCall,
-        PreAuthNRequestData,
-        AuthenticationResponseData,
-    > for PreAuthenticationVersionCall
+impl UnifiedConnectorServiceFlow<Self, PreAuthNRequestData, AuthenticationResponseData>
+    for PreAuthenticationVersionCall
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PreAuthenticationVersionCall,
+            Self,
             PreAuthNRequestData,
             AuthenticationResponseData,
         >,
@@ -1256,7 +1202,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>,
+        RouterData<Self, PreAuthNRequestData, AuthenticationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1266,7 +1212,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        Authentication,
+        Self,
         ConnectorAuthenticationRequestData,
         AuthenticationResponseData,
     > for Authentication
@@ -1274,7 +1220,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            Authentication,
+            Self,
             ConnectorAuthenticationRequestData,
             AuthenticationResponseData,
         >,
@@ -1284,7 +1230,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>,
+        RouterData<Self, ConnectorAuthenticationRequestData, AuthenticationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1292,17 +1238,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        Authenticate,
-        UasAuthenticationRequestData,
-        UasAuthenticationResponseData,
-    > for Authenticate
+impl UnifiedConnectorServiceFlow<Self, UasAuthenticationRequestData, UasAuthenticationResponseData>
+    for Authenticate
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            Authenticate,
+            Self,
             UasAuthenticationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1312,7 +1254,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>,
+        RouterData<Self, UasAuthenticationRequestData, UasAuthenticationResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1322,7 +1264,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        PostAuthentication,
+        Self,
         ConnectorPostAuthenticationRequestData,
         AuthenticationResponseData,
     > for PostAuthentication
@@ -1330,7 +1272,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            PostAuthentication,
+            Self,
             ConnectorPostAuthenticationRequestData,
             AuthenticationResponseData,
         >,
@@ -1341,7 +1283,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            PostAuthentication,
+            Self,
             ConnectorPostAuthenticationRequestData,
             AuthenticationResponseData,
         >,
@@ -1352,17 +1294,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        AuthenticationConfirmation,
-        UasConfirmationRequestData,
-        UasAuthenticationResponseData,
-    > for AuthenticationConfirmation
+impl UnifiedConnectorServiceFlow<Self, UasConfirmationRequestData, UasAuthenticationResponseData>
+    for AuthenticationConfirmation
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            AuthenticationConfirmation,
+            Self,
             UasConfirmationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1373,7 +1311,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            AuthenticationConfirmation,
+            Self,
             UasConfirmationRequestData,
             UasAuthenticationResponseData,
         >,
@@ -1386,17 +1324,17 @@ impl
 // ===== FILE FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Upload, UploadFileRequestData, UploadFileResponse> for Upload {
+impl UnifiedConnectorServiceFlow<Self, UploadFileRequestData, UploadFileResponse> for Upload {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        _router_data: &RouterData<Self, UploadFileRequestData, UploadFileResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        RouterData<Self, UploadFileRequestData, UploadFileResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1404,19 +1342,17 @@ impl UnifiedConnectorServiceFlow<Upload, UploadFileRequestData, UploadFileRespon
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>
-    for Retrieve
-{
+impl UnifiedConnectorServiceFlow<Self, RetrieveFileRequestData, RetrieveFileResponse> for Retrieve {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
+        _router_data: &RouterData<Self, RetrieveFileRequestData, RetrieveFileResponse>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
+        RouterData<Self, RetrieveFileRequestData, RetrieveFileResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1426,17 +1362,17 @@ impl UnifiedConnectorServiceFlow<Retrieve, RetrieveFileRequestData, RetrieveFile
 // ===== FRAUD CHECK FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Sale, FraudCheckSaleData, FraudCheckResponseData> for Sale {
+impl UnifiedConnectorServiceFlow<Self, FraudCheckSaleData, FraudCheckResponseData> for Sale {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>,
+        _router_data: &RouterData<Self, FraudCheckSaleData, FraudCheckResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>,
+        RouterData<Self, FraudCheckSaleData, FraudCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1444,19 +1380,19 @@ impl UnifiedConnectorServiceFlow<Sale, FraudCheckSaleData, FraudCheckResponseDat
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
+impl UnifiedConnectorServiceFlow<Self, FraudCheckCheckoutData, FraudCheckResponseData>
     for Checkout
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+        _router_data: &RouterData<Self, FraudCheckCheckoutData, FraudCheckResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+        RouterData<Self, FraudCheckCheckoutData, FraudCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1464,19 +1400,19 @@ impl UnifiedConnectorServiceFlow<Checkout, FraudCheckCheckoutData, FraudCheckRes
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
+impl UnifiedConnectorServiceFlow<Self, FraudCheckTransactionData, FraudCheckResponseData>
     for Transaction
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
+        _router_data: &RouterData<Self, FraudCheckTransactionData, FraudCheckResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
+        RouterData<Self, FraudCheckTransactionData, FraudCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1484,19 +1420,19 @@ impl UnifiedConnectorServiceFlow<Transaction, FraudCheckTransactionData, FraudCh
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
+impl UnifiedConnectorServiceFlow<Self, FraudCheckFulfillmentData, FraudCheckResponseData>
     for Fulfillment
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>,
+        _router_data: &RouterData<Self, FraudCheckFulfillmentData, FraudCheckResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>,
+        RouterData<Self, FraudCheckFulfillmentData, FraudCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1504,19 +1440,19 @@ impl UnifiedConnectorServiceFlow<Fulfillment, FraudCheckFulfillmentData, FraudCh
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
+impl UnifiedConnectorServiceFlow<Self, FraudCheckRecordReturnData, FraudCheckResponseData>
     for RecordReturn
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>,
+        _router_data: &RouterData<Self, FraudCheckRecordReturnData, FraudCheckResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>,
+        RouterData<Self, FraudCheckRecordReturnData, FraudCheckResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1526,13 +1462,13 @@ impl UnifiedConnectorServiceFlow<RecordReturn, FraudCheckRecordReturnData, Fraud
 // ===== MANDATE REVOKE FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+impl UnifiedConnectorServiceFlow<Self, MandateRevokeRequestData, MandateRevokeResponseData>
     for MandateRevoke
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            MandateRevoke,
+            Self,
             MandateRevokeRequestData,
             MandateRevokeResponseData,
         >,
@@ -1542,7 +1478,7 @@ impl UnifiedConnectorServiceFlow<MandateRevoke, MandateRevokeRequestData, Mandat
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>,
+        RouterData<Self, MandateRevokeRequestData, MandateRevokeResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1552,19 +1488,19 @@ impl UnifiedConnectorServiceFlow<MandateRevoke, MandateRevokeRequestData, Mandat
 // ===== VAULT FLOWS =====
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
+impl UnifiedConnectorServiceFlow<Self, VaultRequestData, VaultResponseData>
     for ExternalVaultInsertFlow
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>,
+        _router_data: &RouterData<Self, VaultRequestData, VaultResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>,
+        RouterData<Self, VaultRequestData, VaultResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1572,19 +1508,19 @@ impl UnifiedConnectorServiceFlow<ExternalVaultInsertFlow, VaultRequestData, Vaul
 }
 
 #[async_trait]
-impl UnifiedConnectorServiceFlow<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
+impl UnifiedConnectorServiceFlow<Self, VaultRequestData, VaultResponseData>
     for ExternalVaultRetrieveFlow
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        _router_data: &RouterData<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>,
+        _router_data: &RouterData<Self, VaultRequestData, VaultResponseData>,
         _merchant_context: Option<&MerchantContext>,
         _merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>,
+        RouterData<Self, VaultRequestData, VaultResponseData>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1594,17 +1530,13 @@ impl UnifiedConnectorServiceFlow<ExternalVaultRetrieveFlow, VaultRequestData, Va
 // ===== SUBSCRIPTION FLOWS =====
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        SubscriptionCreate,
-        SubscriptionCreateRequest,
-        SubscriptionCreateResponse,
-    > for SubscriptionCreate
+impl UnifiedConnectorServiceFlow<Self, SubscriptionCreateRequest, SubscriptionCreateResponse>
+    for SubscriptionCreate
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            SubscriptionCreate,
+            Self,
             SubscriptionCreateRequest,
             SubscriptionCreateResponse,
         >,
@@ -1614,7 +1546,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>,
+        RouterData<Self, SubscriptionCreateRequest, SubscriptionCreateResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1622,17 +1554,13 @@ impl
 }
 
 #[async_trait]
-impl
-    UnifiedConnectorServiceFlow<
-        GetSubscriptionPlans,
-        GetSubscriptionPlansRequest,
-        GetSubscriptionPlansResponse,
-    > for GetSubscriptionPlans
+impl UnifiedConnectorServiceFlow<Self, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>
+    for GetSubscriptionPlans
 {
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            GetSubscriptionPlans,
+            Self,
             GetSubscriptionPlansRequest,
             GetSubscriptionPlansResponse,
         >,
@@ -1642,7 +1570,7 @@ impl
         >,
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
-        RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>,
+        RouterData<Self, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>,
         UnifiedConnectorServiceError,
     > {
         Err(UnifiedConnectorServiceError::NotImplemented("Flow".to_string()).into())
@@ -1652,7 +1580,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        GetSubscriptionPlanPrices,
+        Self,
         GetSubscriptionPlanPricesRequest,
         GetSubscriptionPlanPricesResponse,
     > for GetSubscriptionPlanPrices
@@ -1660,7 +1588,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            GetSubscriptionPlanPrices,
+            Self,
             GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlanPricesResponse,
         >,
@@ -1671,7 +1599,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            GetSubscriptionPlanPrices,
+            Self,
             GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlanPricesResponse,
         >,
@@ -1687,7 +1615,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        GetSubscriptionEstimate,
+        Self,
         GetSubscriptionEstimateRequest,
         GetSubscriptionEstimateResponse,
     > for GetSubscriptionEstimate
@@ -1695,7 +1623,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            GetSubscriptionEstimate,
+            Self,
             GetSubscriptionEstimateRequest,
             GetSubscriptionEstimateResponse,
         >,
@@ -1706,7 +1634,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            GetSubscriptionEstimate,
+            Self,
             GetSubscriptionEstimateRequest,
             GetSubscriptionEstimateResponse,
         >,
@@ -1721,7 +1649,7 @@ impl
 #[async_trait]
 impl
     UnifiedConnectorServiceFlow<
-        VerifyWebhookSource,
+        Self,
         VerifyWebhookSourceRequestData,
         VerifyWebhookSourceResponseData,
     > for VerifyWebhookSource
@@ -1729,7 +1657,7 @@ impl
     async fn execute_ucs_flow(
         _ucs_interface: &dyn UnifiedConnectorServiceInterface,
         _router_data: &RouterData<
-            VerifyWebhookSource,
+            Self,
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
         >,
@@ -1740,7 +1668,7 @@ impl
         _state: &dyn ApiClientWrapper,
     ) -> CustomResult<
         RouterData<
-            VerifyWebhookSource,
+            Self,
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
         >,

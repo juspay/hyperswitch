@@ -314,7 +314,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let state_enum = AppState::Session(&state);
+        let state_enum = AppState::Session(state);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state_enum,

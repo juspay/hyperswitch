@@ -38,10 +38,10 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let router_data_response =
+    let _router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok((_router_data_response, status_code))
 }
 
 type UnifiedConnectorServiceRefundResult = CustomResult<
@@ -54,10 +54,10 @@ pub fn handle_unified_connector_service_response_for_refund_execute(
 ) -> UnifiedConnectorServiceRefundResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
-    let router_data_response: Result<RefundsResponseData, ErrorResponse> =
+    let _router_data_response: Result<RefundsResponseData, ErrorResponse> =
         Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok((_router_data_response, status_code))
 }
 
 #[async_trait]
@@ -75,7 +75,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_authorize_session_token(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             AuthorizeSessionToken,
             AuthorizeSessionTokenData,
             PaymentsResponseData,
@@ -86,7 +86,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_complete_authorize(
         &self,
-        router_data: &mut RouterData<
+        _fraud_check_router_data: &mut RouterData<
             CompleteAuthorize,
             CompleteAuthorizeData,
             PaymentsResponseData,
@@ -97,14 +97,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_approve(
         &self,
-        router_data: &mut RouterData<Approve, PaymentsApproveData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Approve, PaymentsApproveData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_balance(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             Balance,
             GiftCardBalanceCheckRequestData,
             GiftCardBalanceCheckResponseData,
@@ -115,35 +115,35 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_init_payment(
         &self,
-        router_data: &mut RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_capture(
         &self,
-        router_data: &mut RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_sync(
         &self,
-        router_data: &mut RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        _router_data: &mut RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_void(
         &self,
-        router_data: &mut RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_post_capture_void(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PostCaptureVoid,
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
@@ -154,21 +154,21 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_reject(
         &self,
-        router_data: &mut RouterData<Reject, PaymentsRejectData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Reject, PaymentsRejectData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_session(
         &self,
-        router_data: &mut RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_method_token(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PaymentMethodToken,
             PaymentMethodTokenizationData,
             PaymentsResponseData,
@@ -179,7 +179,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_create_connector_customer(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             CreateConnectorCustomer,
             ConnectorCustomerData,
             PaymentsResponseData,
@@ -190,14 +190,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_setup_mandate(
         &self,
-        router_data: &mut RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _router_data: &mut RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_pre_processing(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PreProcessing,
             PaymentsPreProcessingData,
             PaymentsResponseData,
@@ -208,7 +208,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_incremental_authorization(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             IncrementalAuthorization,
             PaymentsIncrementalAuthorizationData,
             PaymentsResponseData,
@@ -219,7 +219,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_post_processing(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PostProcessing,
             PaymentsPostProcessingData,
             PaymentsResponseData,
@@ -230,7 +230,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_calculate_tax(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             CalculateTax,
             PaymentsTaxCalculationData,
             TaxCalculationResponseData,
@@ -241,7 +241,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_sdk_session_update(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             SdkSessionUpdate,
             SdkPaymentsSessionUpdateData,
             PaymentsResponseData,
@@ -252,7 +252,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_create_intent(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PaymentCreateIntent,
             PaymentsAuthorizeData,
             PaymentsResponseData,
@@ -263,14 +263,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_get_intent(
         &self,
-        router_data: &mut RouterData<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>,
+        _router_data: &mut RouterData<PaymentGetIntent, PaymentsSyncData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_update_intent(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PaymentUpdateIntent,
             PaymentsAuthorizeData,
             PaymentsResponseData,
@@ -281,7 +281,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_post_session_tokens(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PostSessionTokens,
             PaymentsPostSessionTokensData,
             PaymentsResponseData,
@@ -292,14 +292,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_record_attempt(
         &self,
-        router_data: &mut RouterData<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<RecordAttempt, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_update_metadata(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             UpdateMetadata,
             PaymentsUpdateMetadataData,
             PaymentsResponseData,
@@ -310,14 +310,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_create_order(
         &self,
-        router_data: &mut RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>,
+        _router_data: &mut RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn payment_get_list_attempts(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             PaymentGetListAttempts,
             PaymentsSyncData,
             PaymentsResponseData,
@@ -328,7 +328,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn payment_external_vault_proxy(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             ExternalVaultProxy,
             ExternalVaultProxyPaymentsData,
             PaymentsResponseData,
@@ -375,7 +375,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_cancel(
         &self,
-        router_data: &mut RouterData<PoCancel, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoCancel, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -383,7 +383,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_create(
         &self,
-        router_data: &mut RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -391,7 +391,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_eligibility(
         &self,
-        router_data: &mut RouterData<PoEligibility, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoEligibility, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -399,7 +399,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_fulfill(
         &self,
-        router_data: &mut RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -407,7 +407,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_quote(
         &self,
-        router_data: &mut RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -415,7 +415,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_recipient(
         &self,
-        router_data: &mut RouterData<PoRecipient, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoRecipient, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -423,7 +423,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_recipient_account(
         &self,
-        router_data: &mut RouterData<PoRecipientAccount, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoRecipientAccount, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -431,7 +431,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
     #[cfg(feature = "payouts")]
     async fn payout_sync(
         &self,
-        router_data: &mut RouterData<PoSync, PayoutsData, PayoutsResponseData>,
+        _router_data: &mut RouterData<PoSync, PayoutsData, PayoutsResponseData>,
     ) {
         todo!()
     }
@@ -440,35 +440,35 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn dispute_accept(
         &self,
-        router_data: &mut RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
+        _router_data: &mut RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
     ) {
         todo!()
     }
 
     async fn dispute_evidence(
         &self,
-        router_data: &mut RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+        _router_data: &mut RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
     ) {
         todo!()
     }
 
     async fn dispute_defend(
         &self,
-        router_data: &mut RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>,
+        _router_data: &mut RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>,
     ) {
         todo!()
     }
 
     async fn dispute_fetch(
         &self,
-        router_data: &mut RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>,
+        _router_data: &mut RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>,
     ) {
         todo!()
     }
 
     async fn dispute_sync(
         &self,
-        router_data: &mut RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>,
+        _router_data: &mut RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>,
     ) {
         todo!()
     }
@@ -477,7 +477,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn access_token_auth(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             AccessTokenAuth,
             AccessTokenAuthenticationRequestData,
             PaymentsResponseData,
@@ -490,14 +490,14 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn file_upload(
         &self,
-        router_data: &mut RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        _router_data: &mut RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
     ) {
         todo!()
     }
 
     async fn file_retrieve(
         &self,
-        router_data: &mut RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
+        _router_data: &mut RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>,
     ) {
         todo!()
     }
@@ -506,35 +506,35 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn fraud_check_sale(
         &self,
-        router_data: &mut RouterData<Sale, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Sale, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn fraud_check_checkout(
         &self,
-        router_data: &mut RouterData<Checkout, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Checkout, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn fraud_check_transaction(
         &self,
-        router_data: &mut RouterData<Transaction, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Transaction, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn fraud_check_fulfillment(
         &self,
-        router_data: &mut RouterData<Fulfillment, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<Fulfillment, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
 
     async fn fraud_check_record_return(
         &self,
-        router_data: &mut RouterData<RecordReturn, PaymentsAuthorizeData, PaymentsResponseData>,
+        _router_data: &mut RouterData<RecordReturn, PaymentsAuthorizeData, PaymentsResponseData>,
     ) {
         todo!()
     }
@@ -543,7 +543,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn mandate_revoke(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             MandateRevoke,
             MandateRevokeRequestData,
             MandateRevokeResponseData,
@@ -556,7 +556,7 @@ pub trait UnifiedConnectorServiceInterface: Send + Sync {
 
     async fn webhook_verify_source(
         &self,
-        router_data: &mut RouterData<
+        _router_data: &mut RouterData<
             VerifyWebhookSource,
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
@@ -580,7 +580,7 @@ where
     /// Execute the appropriate UCS method for this flow type
     async fn execute_ucs_flow(
         ucs_interface: &dyn UnifiedConnectorServiceInterface,
-        router_data: &RouterData<T, Req, Resp>,
+        _router_data: &RouterData<T, Req, Resp>,
         merchant_context: Option<&MerchantContext>,
         merchant_connector_account: Option<
             &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,

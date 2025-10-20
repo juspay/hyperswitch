@@ -9,14 +9,13 @@ use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, PSync, SetupMandate},
-        refunds::{Execute, RSync},
         ExternalVaultProxy,
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsSyncData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
