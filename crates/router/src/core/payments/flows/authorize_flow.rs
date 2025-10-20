@@ -848,6 +848,7 @@ async fn process_capture_flow(
     Ok(router_data)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_authorize(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -883,7 +884,7 @@ async fn call_unified_connector_service_authorize(
     let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
-        .or_else(|| merchant_order_reference_id)
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -941,6 +942,7 @@ async fn call_unified_connector_service_authorize(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_repeat_payment(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -975,7 +977,7 @@ async fn call_unified_connector_service_repeat_payment(
     let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
-        .or_else(|| merchant_order_reference_id)
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))

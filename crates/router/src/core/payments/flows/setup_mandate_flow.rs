@@ -299,7 +299,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
-            .or_else(|| merchant_order_reference_id)
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
