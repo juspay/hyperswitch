@@ -348,11 +348,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
-                merchant_connector_account
-                    .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: connector_name_or_mca_id.to_string(),
-                    })?
-                    .merchant_connector_id,
             )
             .await;
 
@@ -536,7 +531,6 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -842,7 +836,7 @@ async fn process_webhook_business_logic(
                     connector,
                     request_details,
                     event_type,
-                    billing_connector_mca_id,
+                    merchant_connector_account,
                 ))
                 .await
                 .attach_printable("Incoming webhook flow for subscription failed")
@@ -1222,6 +1216,7 @@ async fn payouts_incoming_webhook_flow(
             is_eligible: payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
         };
 
         let action_req =
