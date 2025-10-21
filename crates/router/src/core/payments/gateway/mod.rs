@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use hyperswitch_interfaces::api::gateway::{self as gateway_interface};
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 
+use crate::core::payments::PaymentData;
 use crate::routes::SessionState;
 
 /// Re-export common gateway types from hyperswitch_interfaces
@@ -32,6 +33,7 @@ pub trait PaymentGateway<F, RouterCommonData, Req, Resp>:
         F,
         Req,
         Resp,
+        PaymentData<F>
     >
 where
     F: Clone + std::fmt::Debug + Send + Sync + 'static,
@@ -50,6 +52,7 @@ where
         F,
         Req,
         Resp,
+        PaymentData<F>
     >,
     F: Clone + std::fmt::Debug + Send + Sync + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,

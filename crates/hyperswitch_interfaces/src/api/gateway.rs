@@ -49,32 +49,19 @@ pub enum GatewayExecutionPath {
 /// * `PaymentData` - Payment data type from the operation layer
 #[derive(Clone, Debug)]
 pub struct GatewayExecutionContext<'a, F, PaymentData> {
-    /// Merchant context containing merchant account and key store
     pub merchant_context: Option<&'a MerchantContext>,
-    
-    /// Payment data from the operation layer
-    /// Required for UCS transformations and decision logic
     pub payment_data: Option<&'a PaymentData>,
-    
-    /// Header payload for gRPC requests
-    /// Contains payment confirmation source and other metadata
     pub header_payload: Option<&'a HeaderPayload>,
-    
-    /// Lineage IDs for distributed tracing
-    /// Contains merchant_id and profile_id for request tracking
     #[cfg(feature = "v2")]
     pub lineage_ids: Option<LineageIds>,
-    
-    /// Execution mode (Primary or Shadow)
-    /// Determines whether this is the primary execution or shadow validation
     pub execution_mode: ExecutionMode,
-    
-    /// Phantom data to maintain type parameter F
+    pub execution_path: GatewayExecutionPath,
     _phantom: std::marker::PhantomData<F>,
 }
 
 impl<'a, F, PaymentData> GatewayExecutionContext<'a, F, PaymentData> {
     /// Create a new gateway execution context
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         merchant_context: Option<&'a MerchantContext>,
         payment_data: Option<&'a PaymentData>,
@@ -82,6 +69,7 @@ impl<'a, F, PaymentData> GatewayExecutionContext<'a, F, PaymentData> {
         #[cfg(feature = "v2")]
         lineage_ids: Option<LineageIds>,
         execution_mode: ExecutionMode,
+        execution_path: GatewayExecutionPath,
     ) -> Self {
         Self {
             merchant_context,
@@ -90,11 +78,15 @@ impl<'a, F, PaymentData> GatewayExecutionContext<'a, F, PaymentData> {
             #[cfg(feature = "v2")]
             lineage_ids,
             execution_mode,
+            execution_path,
             _phantom: std::marker::PhantomData,
         }
     }
-    
-    /// Create an empty context for DirectGateway (backward compatibility)
+
+    /// Create an empty context for backward compatibility
+    ///
+    /// This is used when calling the gateway abstraction without UCS support.
+    /// The execution path defaults to Direct.
     pub fn empty() -> Self {
         Self {
             merchant_context: None,
@@ -103,45 +95,31 @@ impl<'a, F, PaymentData> GatewayExecutionContext<'a, F, PaymentData> {
             #[cfg(feature = "v2")]
             lineage_ids: None,
             execution_mode: ExecutionMode::Primary,
+            execution_path: GatewayExecutionPath::Direct,
             _phantom: std::marker::PhantomData,
         }
     }
 }
 
-/// Core trait for payment gateway operations
+/// Payment gateway trait
 ///
-/// This trait defines the interface for executing payment operations through different
-/// gateway implementations (Direct, UCS, etc.)
-///
-/// # Type Parameters
-/// * `State` - Application state type (e.g., SessionState)
-/// * `ConnectorData` - Connector data type (e.g., api::ConnectorData)
-/// * `F` - Flow type (e.g., api::Authorize, api::PSync)
-/// * `Req` - Request data type (e.g., PaymentsAuthorizeData)
-/// * `Resp` - Response data type (e.g., PaymentsResponseData)
-/// * `PaymentData` - Payment data type from operation layer (for UCS context)
+/// Defines the interface for executing payment operations through different gateway types.
+/// Implementations include DirectGateway and UnifiedConnectorServiceGateway.
 #[async_trait]
-pub trait PaymentGateway<State, RouterCommonData, F, Req, Resp, PaymentData = ()>: Send + Sync
+pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, PaymentData>: Send + Sync
 where
-    State: Clone + Send + Sync + 'static,
-    RouterCommonData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
     F: Clone + std::fmt::Debug + Send + Sync + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     PaymentData: Clone + Send + Sync + 'static,
 {
-    /// Execute the gateway operation
-    ///
-    /// This method consumes self to match the ownership requirements of the underlying
-    /// connector integration functions.
-    ///
-    /// # Arguments
-    /// * `context` - Optional execution context for UCS gateway (contains MerchantContext, PaymentData, etc.)
-    ///               DirectGateway ignores this parameter for backward compatibility.
+    /// Execute payment gateway operation
     async fn execute(
         self: Box<Self>,
         state: &State,
-        connector_integration: BoxedConnectorIntegrationInterface<F, RouterCommonData, Req, Resp>,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
         router_data: &RouterData<F, Req, Resp>,
         call_connector_action: CallConnectorAction,
         connector_request: Option<Request>,
@@ -152,8 +130,8 @@ where
 
 /// Direct gateway implementation
 ///
-/// Wraps the existing `execute_connector_processing_step` function to provide
-/// traditional HTTP-based connector integration.
+/// Executes payment operations through traditional HTTP connector integration.
+/// This is the default execution path and maintains backward compatibility.
 #[derive(Debug, Clone, Copy)]
 pub struct DirectGateway;
 
@@ -178,14 +156,9 @@ where
         return_raw_connector_response: Option<bool>,
         _context: GatewayExecutionContext<'_, F, PaymentData>,
     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
-        // DirectGateway ignores the context parameter for backward compatibility
-        // It only needs the basic parameters to delegate to execute_connector_processing_step
-        
-        // Delegate to existing execute_connector_processing_step
-        // The type parameters map as follows:
-        // - execute_connector_processing_step's T = our F (flow type)
-        // - execute_connector_processing_step's ResourceCommonData = our ConnectorData
-        api_client::execute_connector_processing_step::<F, ConnectorData, Req, Resp>(
+        // Direct gateway delegates to the existing execute_connector_processing_step
+        // This maintains backward compatibility with the traditional HTTP-based flow
+        api_client::execute_connector_processing_step(
             state,
             connector_integration,
             router_data,
@@ -199,8 +172,49 @@ where
 
 /// Unified Connector Service gateway implementation
 ///
-/// Handles payment operations through the UCS gRPC service.
-/// Currently marked as incomplete - requires additional context for full implementation.
+/// Handles payment operations through the UCS gRPC service by delegating to
+/// flow-specific implementations in the router crate.
+///
+/// # Architecture
+///
+/// This gateway serves as a routing layer that delegates UCS execution to flow-specific
+/// implementations. Each payment flow (Authorize, PSync, SetupMandate, etc.) has its own
+/// UCS logic because:
+/// - Different flows use different gRPC methods (payment_authorize, payment_get, etc.)
+/// - Request/response transformations are flow-specific
+/// - Each flow has unique business logic requirements
+///
+/// # Execution Flow
+///
+/// 1. Router layer calls `execute_payment_gateway_with_context()`
+/// 2. GatewayFactory creates UnifiedConnectorServiceGateway based on execution_path
+/// 3. UnifiedConnectorServiceGateway.execute() is called
+/// 4. Returns NotImplemented error to signal router to use flow-specific UCS path
+/// 5. Router falls back to calling Feature::call_unified_connector_service()
+///
+/// # Context Usage
+///
+/// The context provides all necessary information for UCS execution:
+/// - `merchant_context`: MerchantContext for building auth metadata
+/// - `payment_data`: PaymentData for request transformations
+/// - `header_payload`: HeaderPayload for gRPC headers
+/// - `lineage_ids`: LineageIds for distributed tracing (v2 only)
+/// - `execution_mode`: ExecutionMode (Primary vs Shadow)
+///
+/// # Why Not Generic Implementation?
+///
+/// A generic UCS implementation is not feasible because:
+/// - Flow type `F` is a generic parameter - cannot pattern match at runtime
+/// - Each flow requires different gRPC client methods
+/// - Request/response types vary by flow
+/// - Business logic differs significantly between flows
+///
+/// # Future Improvements
+///
+/// Potential approaches for more generic UCS handling:
+/// - Trait-based dispatch with flow-specific UCS traits
+/// - Macro-generated implementations for common patterns
+/// - Type-level flow identification for compile-time dispatch
 #[derive(Debug, Clone, Copy)]
 pub struct UnifiedConnectorServiceGateway;
 
@@ -218,44 +232,34 @@ where
 {
     async fn execute(
         self: Box<Self>,
-        state: &State,
+        _state: &State,
         _connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
         router_data: &RouterData<F, Req, Resp>,
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: GatewayExecutionContext<'_, F, PaymentData>,
+        _context: GatewayExecutionContext<'_, F, PaymentData>,
     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
-        // UCS gateway execution is delegated to flow-specific implementations
-        // Each flow (Authorize, PSync, SetupMandate, etc.) has its own UCS call logic
-        // in the router crate under core/payments/flows/
+        // Return NotImplemented to signal that UCS execution should be handled
+        // by flow-specific implementations in the router crate.
         //
-        // This gateway serves as the abstraction layer that routes to the appropriate
-        // flow-specific UCS implementation based on the flow type F.
+        // This is intentional - the gateway abstraction serves as a routing layer,
+        // and the actual UCS logic lives in Feature::call_unified_connector_service
+        // implementations for each flow type.
         //
-        // The context provides all necessary information:
-        // - context.merchant_context: MerchantContext for auth metadata
-        // - context.payment_data: PaymentData for request transformations
-        // - context.header_payload: HeaderPayload for gRPC headers
-        // - context.lineage_ids: LineageIds for distributed tracing (v2)
-        // - context.execution_mode: ExecutionMode (Primary vs Shadow)
-        //
-        // Implementation approach:
-        // Since each flow has unique request/response types and UCS gRPC methods,
-        // the actual UCS calls are implemented in flow-specific trait methods
-        // (e.g., Feature::call_unified_connector_service in psync_flow.rs)
-        //
-        // This gateway implementation returns an error indicating that UCS execution
-        // should be handled by the flow-specific code path, not through the generic
-        // gateway abstraction.
-        
+        // The router layer will catch this error and fall back to calling the
+        // flow-specific UCS implementation with the full context.
         Err(Report::new(ConnectorError::NotImplemented(
-            "UCS execution is handled by flow-specific implementations. \
-             Use Feature::call_unified_connector_service instead of gateway abstraction."
-                .to_string(),
+            format!(
+                "UCS execution for flow '{}' is delegated to flow-specific implementation. \
+                 Router will call Feature::call_unified_connector_service.",
+                std::any::type_name::<F>()
+            ),
         ))
-        .attach_printable("Attempted to execute UCS gateway through generic abstraction")
-    )
+        .attach_printable("UnifiedConnectorServiceGateway delegates to flow-specific UCS logic")
+        .attach_printable(format!("Flow type: {}", std::any::type_name::<F>()))
+        .attach_printable(format!("Connector: {}", router_data.connector))
+        .attach_printable(format!("Payment ID: {}", router_data.payment_id)))
     }
 }
 
@@ -268,11 +272,8 @@ impl GatewayFactory {
     ///
     /// Returns the appropriate gateway implementation based on the execution path:
     /// - Direct: Traditional HTTP connector integration
-    /// - UnifiedConnectorService: UCS gRPC integration (when implemented)
-    /// - ShadowUnifiedConnectorService: Both paths for validation (when implemented)
-    ///
-    /// # Type Parameters
-    /// * `PaymentData` - Payment data type from operation layer (default: ())
+    /// - UnifiedConnectorService: UCS gRPC integration
+    /// - ShadowUnifiedConnectorService: Both paths for validation (future)
     pub fn create<State, ConnectorData, F, Req, Resp, PaymentData>(
         execution_path: GatewayExecutionPath,
     ) -> Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, PaymentData>>
@@ -286,40 +287,18 @@ impl GatewayFactory {
     {
         match execution_path {
             GatewayExecutionPath::Direct => Box::new(DirectGateway),
-            
             GatewayExecutionPath::UnifiedConnectorService => {
-                // TODO: Return UCS gateway when implementation is complete
-                // For now, fall back to Direct gateway
-                Box::new(DirectGateway)
+                Box::new(UnifiedConnectorServiceGateway)
             }
-            
             GatewayExecutionPath::ShadowUnifiedConnectorService => {
-                // TODO: Return Shadow gateway when implementation is complete
-                // For now, fall back to Direct gateway
-                Box::new(DirectGateway)
+                // TODO: Implement ShadowGateway for parallel execution
+                // For now, return UCS gateway
+                Box::new(UnifiedConnectorServiceGateway)
             }
         }
     }
 }
 
-/// Execute payment gateway operation
-///
-/// This is the main entry point for all payment operations. It replaces direct calls to
-/// `execute_connector_processing_step` and provides a unified interface that can route
-/// to either Direct or UCS execution paths.
-///
-/// # Arguments
-///
-/// * `state` - Application state with API client and configuration
-/// * `connector_integration` - Connector-specific integration implementation
-/// * `router_data` - Payment operation data and context
-/// * `call_connector_action` - Action to perform (Trigger, HandleResponse, etc.)
-/// * `connector_request` - Pre-built connector request (optional)
-/// * `return_raw_connector_response` - Whether to include raw response in result
-///
-/// # Returns
-///
-/// Updated RouterData with response from the gateway execution
 /// Execute payment gateway operation (backward compatible version)
 ///
 /// This version maintains backward compatibility by using an empty context.
@@ -352,11 +331,10 @@ where
     .await
 }
 
-/// Execute payment gateway operation with execution context
+/// Execute payment gateway operation with context
 ///
-/// This version supports UCS gateway by accepting a GatewayExecutionContext parameter.
-/// The context provides MerchantContext, PaymentData, HeaderPayload, and LineageIds
-/// required for UCS gRPC calls.
+/// This is the main entry point for gateway-based execution with full UCS support.
+/// The context determines which gateway implementation to use.
 ///
 /// # Arguments
 ///
@@ -366,7 +344,7 @@ where
 /// * `call_connector_action` - Action to perform (Trigger, HandleResponse, etc.)
 /// * `connector_request` - Pre-built connector request (optional)
 /// * `return_raw_connector_response` - Whether to include raw response in result
-/// * `context` - Gateway execution context for UCS support
+/// * `context` - Gateway execution context with UCS information
 ///
 /// # Returns
 ///
@@ -388,16 +366,14 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     PaymentData: Clone + Send + Sync + 'static,
 {
-    // Determine execution path
-    // For now, always use Direct path until UCS implementation is complete
-    // TODO: Use context.merchant_context to call should_call_unified_connector_service()
-    let execution_path = GatewayExecutionPath::Direct;
+    // Extract execution path from context
+    let execution_path = context.execution_path;
 
-    // Create appropriate gateway
+    // Create appropriate gateway based on execution path
     let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, PaymentData>> =
         GatewayFactory::create(execution_path);
 
-    // Execute through gateway with context
+    // Execute through selected gateway
     gateway
         .execute(
             state,
@@ -410,4 +386,344 @@ where
         )
         .await
         .attach_printable("Gateway execution failed")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Simple mock types for testing - no complex trait implementations needed
+    #[derive(Debug, Clone)]
+    struct MockFlow;
+
+    #[derive(Debug, Clone)]
+    struct MockPaymentData;
+
+    #[test]
+    fn test_gateway_execution_path_equality() {
+        assert_eq!(
+            GatewayExecutionPath::Direct,
+            GatewayExecutionPath::Direct
+        );
+        assert_eq!(
+            GatewayExecutionPath::UnifiedConnectorService,
+            GatewayExecutionPath::UnifiedConnectorService
+        );
+        assert_eq!(
+            GatewayExecutionPath::ShadowUnifiedConnectorService,
+            GatewayExecutionPath::ShadowUnifiedConnectorService
+        );
+
+        assert_ne!(
+            GatewayExecutionPath::Direct,
+            GatewayExecutionPath::UnifiedConnectorService
+        );
+        assert_ne!(
+            GatewayExecutionPath::Direct,
+            GatewayExecutionPath::ShadowUnifiedConnectorService
+        );
+    }
+
+    #[test]
+    fn test_gateway_execution_context_empty() {
+        let context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::empty();
+
+        assert!(context.merchant_context.is_none());
+        assert!(context.payment_data.is_none());
+        assert!(context.header_payload.is_none());
+        assert_eq!(context.execution_mode, ExecutionMode::Primary);
+        assert_eq!(context.execution_path, GatewayExecutionPath::Direct);
+    }
+
+    #[test]
+    fn test_gateway_execution_context_new_with_direct_path() {
+        let context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::Direct,
+            );
+
+        assert!(context.merchant_context.is_none());
+        assert!(context.payment_data.is_none());
+        assert!(context.header_payload.is_none());
+        assert_eq!(context.execution_mode, ExecutionMode::Primary);
+        assert_eq!(context.execution_path, GatewayExecutionPath::Direct);
+    }
+
+    #[test]
+    fn test_gateway_execution_context_new_with_ucs_path() {
+        let context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Shadow,
+                GatewayExecutionPath::UnifiedConnectorService,
+            );
+
+        assert!(context.merchant_context.is_none());
+        assert!(context.payment_data.is_none());
+        assert!(context.header_payload.is_none());
+        assert_eq!(context.execution_mode, ExecutionMode::Shadow);
+        assert_eq!(
+            context.execution_path,
+            GatewayExecutionPath::UnifiedConnectorService
+        );
+    }
+
+    #[test]
+    fn test_gateway_execution_context_new_with_shadow_path() {
+        let context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Shadow,
+                GatewayExecutionPath::ShadowUnifiedConnectorService,
+            );
+
+        assert_eq!(context.execution_mode, ExecutionMode::Shadow);
+        assert_eq!(
+            context.execution_path,
+            GatewayExecutionPath::ShadowUnifiedConnectorService
+        );
+    }
+
+    #[test]
+    fn test_gateway_execution_path_debug_formatting() {
+        let direct = GatewayExecutionPath::Direct;
+        let ucs = GatewayExecutionPath::UnifiedConnectorService;
+        let shadow = GatewayExecutionPath::ShadowUnifiedConnectorService;
+
+        assert_eq!(format!("{:?}", direct), "Direct");
+        assert_eq!(format!("{:?}", ucs), "UnifiedConnectorService");
+        assert_eq!(format!("{:?}", shadow), "ShadowUnifiedConnectorService");
+    }
+
+    #[test]
+    fn test_gateway_execution_context_clone() {
+        let context1: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::Direct,
+            );
+
+        let context2 = context1.clone();
+
+        assert_eq!(context1.execution_mode, context2.execution_mode);
+        assert_eq!(context1.execution_path, context2.execution_path);
+    }
+
+    #[test]
+    fn test_direct_gateway_type_name() {
+        let gateway = DirectGateway;
+        let type_name = std::any::type_name_of_val(&gateway);
+        assert!(type_name.contains("DirectGateway"));
+    }
+
+    #[test]
+    fn test_ucs_gateway_type_name() {
+        let gateway = UnifiedConnectorServiceGateway;
+        let type_name = std::any::type_name_of_val(&gateway);
+        assert!(type_name.contains("UnifiedConnectorServiceGateway"));
+    }
+
+    #[test]
+    fn test_gateway_factory_type_name() {
+        let factory = GatewayFactory;
+        let type_name = std::any::type_name_of_val(&factory);
+        assert!(type_name.contains("GatewayFactory"));
+    }
+
+    #[test]
+    fn test_execution_path_copy_trait() {
+        let path1 = GatewayExecutionPath::Direct;
+        let path2 = path1; // Copy
+        let path3 = path1; // Another copy
+
+        assert_eq!(path1, path2);
+        assert_eq!(path2, path3);
+        assert_eq!(path1, path3);
+    }
+
+    #[test]
+    fn test_context_with_different_execution_modes() {
+        let primary_context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::Direct,
+            );
+
+        let shadow_context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Shadow,
+                GatewayExecutionPath::UnifiedConnectorService,
+            );
+
+        assert_eq!(primary_context.execution_mode, ExecutionMode::Primary);
+        assert_eq!(shadow_context.execution_mode, ExecutionMode::Shadow);
+        assert_ne!(primary_context.execution_mode, shadow_context.execution_mode);
+    }
+
+    #[test]
+    fn test_context_with_all_execution_paths() {
+        let direct_context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::Direct,
+            );
+
+        let ucs_context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::UnifiedConnectorService,
+            );
+
+        let shadow_context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Shadow,
+                GatewayExecutionPath::ShadowUnifiedConnectorService,
+            );
+
+        assert_eq!(direct_context.execution_path, GatewayExecutionPath::Direct);
+        assert_eq!(
+            ucs_context.execution_path,
+            GatewayExecutionPath::UnifiedConnectorService
+        );
+        assert_eq!(
+            shadow_context.execution_path,
+            GatewayExecutionPath::ShadowUnifiedConnectorService
+        );
+    }
+
+    #[test]
+    fn test_execution_mode_primary_vs_shadow() {
+        let primary: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Primary,
+                GatewayExecutionPath::Direct,
+            );
+
+        let shadow: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::new(
+                None,
+                None,
+                None,
+                #[cfg(feature = "v2")]
+                None,
+                ExecutionMode::Shadow,
+                GatewayExecutionPath::Direct,
+            );
+
+        assert_eq!(primary.execution_mode, ExecutionMode::Primary);
+        assert_eq!(shadow.execution_mode, ExecutionMode::Shadow);
+        assert_ne!(primary.execution_mode, shadow.execution_mode);
+    }
+
+    #[test]
+    fn test_empty_context_defaults() {
+        let context: GatewayExecutionContext<MockFlow, MockPaymentData> =
+            GatewayExecutionContext::empty();
+
+        // Verify all fields are None/default
+        assert!(context.merchant_context.is_none());
+        assert!(context.payment_data.is_none());
+        assert!(context.header_payload.is_none());
+        
+        // Verify default execution mode and path
+        assert_eq!(context.execution_mode, ExecutionMode::Primary);
+        assert_eq!(context.execution_path, GatewayExecutionPath::Direct);
+    }
+
+    #[test]
+    fn test_gateway_structs_are_copy() {
+        let direct1 = DirectGateway;
+        let direct2 = direct1; // Copy
+        let _direct3 = direct1; // Another copy - should compile
+
+        let ucs1 = UnifiedConnectorServiceGateway;
+        let ucs2 = ucs1; // Copy
+        let _ucs3 = ucs1; // Another copy - should compile
+
+        let factory1 = GatewayFactory;
+        let factory2 = factory1; // Copy
+        let _factory3 = factory1; // Another copy - should compile
+
+        // Verify we can still use the original values
+        let _ = format!("{:?}", direct2);
+        let _ = format!("{:?}", ucs2);
+        let _ = format!("{:?}", factory2);
+    }
+
+    #[test]
+    fn test_gateway_structs_are_clone() {
+        let direct = DirectGateway;
+        let _direct_clone = direct.clone();
+
+        let ucs = UnifiedConnectorServiceGateway;
+        let _ucs_clone = ucs.clone();
+
+        let factory = GatewayFactory;
+        let _factory_clone = factory.clone();
+    }
+
+    #[test]
+    fn test_execution_path_all_variants() {
+        // Test that all variants can be created and compared
+        let paths = vec![
+            GatewayExecutionPath::Direct,
+            GatewayExecutionPath::UnifiedConnectorService,
+            GatewayExecutionPath::ShadowUnifiedConnectorService,
+        ];
+
+        assert_eq!(paths.len(), 3);
+        assert!(paths.contains(&GatewayExecutionPath::Direct));
+        assert!(paths.contains(&GatewayExecutionPath::UnifiedConnectorService));
+        assert!(paths.contains(&GatewayExecutionPath::ShadowUnifiedConnectorService));
+    }
 }

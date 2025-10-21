@@ -38,6 +38,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+use hyperswitch_interfaces::api::gateway as payment_gateway;
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -202,7 +203,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = services::execute_connector_processing_step(
+            let mut auth_router_data = payment_gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &self,
@@ -285,7 +286,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             &self,
             types::AuthorizeSessionTokenData::foreign_from(&self),
         ));
-        let resp = services::execute_connector_processing_step(
+        let resp = payment_gateway::execute_payment_gateway(
             state,
             connector_integration,
             authorize_data,
@@ -472,7 +473,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     response_data,
                 );
 
-            let resp = services::execute_connector_processing_step(
+            let resp = payment_gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &createorder_router_data,
@@ -655,7 +656,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                 preprocessing_response_data,
             );
 
-        let resp = services::execute_connector_processing_step(
+        let resp = payment_gateway::execute_payment_gateway(
             state,
             connector_integration,
             &preprocessing_router_data,
@@ -740,7 +741,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
                 postprocessing_response_data,
             );
 
-        let resp = services::execute_connector_processing_step(
+        let resp = payment_gateway::execute_payment_gateway(
             state,
             connector_integration,
             &postprocessing_router_data,
