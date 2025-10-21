@@ -534,6 +534,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
@@ -544,6 +545,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_connector_account,
                 merchant_context,
                 unified_connector_service_execution_mode,
+                merchant_order_reference_id,
             ))
             .await
         } else {
@@ -555,6 +557,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_connector_account,
                 merchant_context,
                 unified_connector_service_execution_mode,
+                merchant_order_reference_id,
             ))
             .await
         }
@@ -845,6 +848,7 @@ async fn process_capture_flow(
     Ok(router_data)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_authorize(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -858,6 +862,7 @@ async fn call_unified_connector_service_authorize(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -875,9 +880,11 @@ async fn call_unified_connector_service_authorize(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-    let merchant_order_reference_id = header_payload
+
+    let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -887,7 +894,7 @@ async fn call_unified_connector_service_authorize(
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_order_reference_id)
+        .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
@@ -935,6 +942,7 @@ async fn call_unified_connector_service_authorize(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_repeat_payment(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -948,6 +956,7 @@ async fn call_unified_connector_service_repeat_payment(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -965,9 +974,10 @@ async fn call_unified_connector_service_repeat_payment(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-    let merchant_order_reference_id = header_payload
+    let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -977,7 +987,7 @@ async fn call_unified_connector_service_repeat_payment(
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_order_reference_id)
+        .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),

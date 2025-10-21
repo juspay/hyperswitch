@@ -276,6 +276,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -298,6 +299,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
