@@ -112,13 +112,13 @@ async fn determine_connector_integration_type(
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = ucs_config.ucs_only_connectors.contains(&connector);
-            let is_rollout_enabled = should_execute_based_on_rollout(state, config_key).await?;
+            let rollout_result = should_execute_based_on_rollout(state, config_key).await?;
 
-            if is_ucs_only || is_rollout_enabled {
+            if is_ucs_only || rollout_result.should_execute {
                 router_env::logger::debug!(
                     connector = ?connector,
                     ucs_only_list = is_ucs_only,
-                    rollout_enabled = is_rollout_enabled,
+                    rollout_enabled = rollout_result.should_execute,
                     "Using UcsConnector"
                 );
                 Ok(ConnectorIntegrationType::UcsConnector)
@@ -145,7 +145,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
-) -> RouterResult<(ExecutionPath, SessionState))>
+) -> RouterResult<(ExecutionPath, SessionState)>
 where
     D: OperationSessionGetters<F>,
 {
@@ -185,7 +185,7 @@ where
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let shadow_rollout_availability =
-        if should_execute_based_on_rollout(state, &shadow_rollout_key).await? {
+        if should_execute_based_on_rollout(state, &shadow_rollout_key).await?.should_execute {
             ShadowRolloutAvailability::IsAvailable
         } else {
             ShadowRolloutAvailability::NotAvailable
@@ -214,7 +214,56 @@ where
         flow_name
     );
 
-    Ok(execution_path)
+    // Handle proxy configuration for Shadow UCS flows
+    let session_state = match execution_path {
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            // For shadow UCS, we need to check if proxy overrides are available
+            let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+            
+            match rollout_result.proxy_override {
+                Some(proxy_override) => {
+                    router_env::logger::debug!(
+                        proxy_override = ?proxy_override,
+                        "Creating updated session state with proxy configuration for Shadow UCS"
+                    );
+                    create_updated_session_state_with_proxy(state.clone(), &proxy_override)
+                }
+                None => {
+                    router_env::logger::debug!("No proxy override available for Shadow UCS, using original state");
+                    state.clone()
+                }
+            }
+        }
+        _ => {
+            // For Direct and UCS flows, use original state
+            state.clone()
+        }
+    };
+
+    Ok((execution_path, session_state))
+}
+
+/// Creates a new SessionState with proxy configuration updated from the override
+fn create_updated_session_state_with_proxy(
+    state: SessionState,
+    proxy_override: &ProxyOverride,
+) -> SessionState {
+    let mut updated_state = state;
+
+    // Create updated configuration with proxy overrides
+    let mut updated_conf = (*updated_state.conf).clone();
+    
+    // Update proxy URLs with overrides, falling back to existing values
+    if let Some(ref http_url) = proxy_override.http_url {
+        updated_conf.proxy.http_url = Some(http_url.clone());
+    }
+    if let Some(ref https_url) = proxy_override.https_url {
+        updated_conf.proxy.https_url = Some(https_url.clone());
+    }
+    
+    updated_state.conf = std::sync::Arc::new(updated_conf);
+
+    updated_state
 }
 
 fn decide_execution_path(
