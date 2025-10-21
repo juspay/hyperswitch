@@ -117,11 +117,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        access_token::add_access_token(state, connector, self, creds_identifier).await
     }
 
     async fn add_session_token<'a>(
