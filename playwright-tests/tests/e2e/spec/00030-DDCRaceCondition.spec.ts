@@ -21,7 +21,7 @@ import { getConnectorDetails, shouldContinueFurther, shouldIncludeConnector, CON
 
 test.describe.configure({ mode: 'parallel' });
 
-test.describe('DDC Race Condition Tests', () => {
+test.describe.serial('DDC Race Condition Tests', () => {
   test.skip(({ globalState }) => {
     const connector = globalState.get('connectorId');
 

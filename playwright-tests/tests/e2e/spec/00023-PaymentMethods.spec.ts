@@ -21,7 +21,6 @@ function getConnectorDetails(connectorId: string): any {
               card_exp_month: '10',
               card_exp_year: '50',
               card_holder_name: 'John Doe',
-              card_cvc: '123',
             },
           },
         },
@@ -171,6 +170,12 @@ test.describe('Payment Methods Tests', () => {
       });
 
       const body = await response.json();
+
+      if (response.status() !== data.Response.status) {
+        console.error(`❌ Payment method creation failed with status ${response.status()}`);
+        console.error(`Error response:`, JSON.stringify(body, null, 2));
+      }
+
       expect(response.status()).toBe(data.Response.status);
       expect(body.payment_method_id).toBeTruthy();
 

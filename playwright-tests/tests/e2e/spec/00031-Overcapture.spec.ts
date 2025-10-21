@@ -19,7 +19,7 @@ import { getConnectorDetails, shouldContinueFurther, shouldIncludeConnector, CON
 
 test.describe.configure({ mode: 'parallel' });
 
-test.describe('Overcapture Pre-Auth Tests', () => {
+test.describe.serial('Overcapture Pre-Auth Tests', () => {
   test.skip(({ globalState }) => {
     const connector = globalState.get('connectorId');
     // Skip if connector is not in the inclusion list

@@ -44,6 +44,7 @@ test.describe.serial('Incremental Authorization - Payment Tests', () => {
       {
         ...fixtures.createPaymentBody,
         ...newData,
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'manual'
       },
@@ -139,6 +140,7 @@ test.describe.serial('Incremental Authorization - Saved Card Tests', () => {
       {
         ...fixtures.createPaymentBody,
         ...createData,
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'manual'
       },

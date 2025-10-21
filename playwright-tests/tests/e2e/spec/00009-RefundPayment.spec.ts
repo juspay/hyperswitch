@@ -48,6 +48,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
         ...fixtures.createPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'automatic',
       };
@@ -139,7 +140,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
       const paymentId = globalState.get('paymentId');
       const clientSecret = globalState.get('clientSecret');
 
-      const response = await request.get(`${baseUrl}/payments/${paymentId}?client_secret=${clientSecret}`, {
+      const response = await request.get(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey,
@@ -256,6 +257,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
         ...fixtures.createPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'automatic',
       };
@@ -347,7 +349,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
       const paymentId = globalState.get('paymentId');
       const clientSecret = globalState.get('clientSecret');
 
-      const response = await request.get(`${baseUrl}/payments/${paymentId}?client_secret=${clientSecret}`, {
+      const response = await request.get(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey,
@@ -507,6 +509,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
         ...fixtures.createConfirmPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'automatic',
       };
@@ -544,7 +547,7 @@ test.describe('Card - Refund flow - No 3DS', () => {
       const paymentId = globalState.get('paymentId');
       const clientSecret = globalState.get('clientSecret');
 
-      const response = await request.get(`${baseUrl}/payments/${paymentId}?client_secret=${clientSecret}`, {
+      const response = await request.get(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey,

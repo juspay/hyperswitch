@@ -47,6 +47,7 @@ test.describe('Card - NoThreeDS Manual payment flow test', () => {
         ...fixtures.createPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'manual',
       };
@@ -138,7 +139,7 @@ test.describe('Card - NoThreeDS Manual payment flow test', () => {
       const paymentId = globalState.get('paymentId');
       const clientSecret = globalState.get('clientSecret');
 
-      const response = await request.get(`${baseUrl}/payments/${paymentId}?client_secret=${clientSecret}`, {
+      const response = await request.get(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey,
@@ -218,6 +219,7 @@ test.describe('Card - NoThreeDS Manual payment flow test', () => {
         ...fixtures.createPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'manual',
       };
@@ -325,6 +327,7 @@ test.describe('Card - NoThreeDS Manual payment flow test', () => {
         ...fixtures.createPaymentBody,
         ...data.Request,
         profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+        customer_id: globalState.get('customerId'),
         authentication_type: 'no_three_ds',
         capture_method: 'manual',
       };
@@ -416,7 +419,7 @@ test.describe('Card - NoThreeDS Manual payment flow test', () => {
       const paymentId = globalState.get('paymentId');
       const clientSecret = globalState.get('clientSecret');
 
-      const response = await request.get(`${baseUrl}/payments/${paymentId}?client_secret=${clientSecret}`, {
+      const response = await request.get(`${baseUrl}/payments/${paymentId}`, {
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey,

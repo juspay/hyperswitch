@@ -49,7 +49,7 @@ function shouldContinueFurther(data: any): boolean {
   return true;
 }
 
-test.describe('Customer Create flow test', () => {
+test.describe.serial('Customer Create flow test', () => {
   let shouldContinue = true;
 
   test.beforeEach(async () => {

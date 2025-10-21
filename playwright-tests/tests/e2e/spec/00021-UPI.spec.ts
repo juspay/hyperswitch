@@ -84,7 +84,7 @@ function shouldContinueFurther(data: any): boolean {
 }
 
 
-test.describe('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
+test.describe.serial('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
   let shouldContinue = true;
 
   test.beforeEach(async ({ globalState }) => {
@@ -95,7 +95,22 @@ test.describe('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
 
   test('Create payment intent', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['PaymentIntent'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or PaymentIntent
+
+    if (!connectorConfig?.upi_pm?.PaymentIntent) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.PaymentIntent;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');
@@ -157,7 +172,22 @@ test.describe('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
 
   test('Confirm payment', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['UpiCollect'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or UpiCollect
+
+    if (!connectorConfig?.upi_pm?.UpiCollect) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.UpiCollect;
 
     const baseUrl = globalState.get('baseUrl');
     const publishableKey = globalState.get('publishableKey');
@@ -211,7 +241,22 @@ test.describe('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
 
   test('Retrieve payment', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['UpiCollect'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or UpiCollect
+
+    if (!connectorConfig?.upi_pm?.UpiCollect) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.UpiCollect;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');
@@ -234,7 +279,22 @@ test.describe('[Payment] [UPI - UPI Collect] Create & Confirm + Refund', () => {
 
   test('Refund payment', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['Refund'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or Refund
+
+    if (!connectorConfig?.upi_pm?.Refund) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.Refund;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');
@@ -279,7 +339,22 @@ test.describe.skip('[Payment] [UPI - UPI Intent] Create & Confirm', () => {
 
   test('Create payment intent', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['PaymentIntent'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or PaymentIntent
+
+    if (!connectorConfig?.upi_pm?.PaymentIntent) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.PaymentIntent;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');
@@ -340,7 +415,22 @@ test.describe.skip('[Payment] [UPI - UPI Intent] Create & Confirm', () => {
 
   test('Confirm payment', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['UpiIntent'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or UpiIntent
+
+    if (!connectorConfig?.upi_pm?.UpiIntent) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.UpiIntent;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');
@@ -391,7 +481,22 @@ test.describe.skip('[Payment] [UPI - UPI Intent] Create & Confirm', () => {
 
   test('Retrieve payment', async ({ request, globalState }) => {
     const connectorId = globalState.get('connectorId');
-    const data = getConnectorDetails(connectorId)['upi_pm']['UpiIntent'];
+
+    const connectorConfig = getConnectorDetails(connectorId);
+
+
+    // Skip if connector doesn't support upi_pm or UpiIntent
+
+    if (!connectorConfig?.upi_pm?.UpiIntent) {
+
+      test.skip();
+
+      return;
+
+    }
+
+
+    const data = connectorConfig.upi_pm.UpiIntent;
 
     const baseUrl = globalState.get('baseUrl');
     const apiKey = globalState.get('apiKey');

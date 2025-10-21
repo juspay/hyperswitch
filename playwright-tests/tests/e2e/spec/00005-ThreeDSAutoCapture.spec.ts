@@ -20,7 +20,8 @@ const getConnectorConfig = (connectorId: string) => {
   return configs[connectorId.toLowerCase()] || null;
 };
 
-test.describe('Card - ThreeDS payment flow test', () => {
+// Use serial execution to ensure tests run in order (create → methods → confirm → redirect)
+test.describe.serial('Card - ThreeDS payment flow test', () => {
   let shouldContinue = true;
 
   test.beforeEach(async ({}, testInfo) => {
@@ -46,6 +47,7 @@ test.describe('Card - ThreeDS payment flow test', () => {
       ...fixtures.createPaymentBody,
       ...data.Request,
       profile_id: globalState.get('profileId'),  // Override placeholder with actual profileId
+      customer_id: globalState.get('customerId'),
       authentication_type: 'three_ds',
       capture_method: 'automatic',
     };
@@ -139,7 +141,12 @@ test.describe('Card - ThreeDS payment flow test', () => {
 
     // Store next_action URL for redirection handling
     if (body.next_action) {
-      globalState.set('nextActionUrl', body.next_action.redirect_to_url);
+      const url = body.next_action.redirect_to_url;
+      console.log(`📍 Storing nextActionUrl: ${url}`);
+      globalState.set('nextActionUrl', url);
+      console.log(`✅ Stored nextActionUrl in state`);
+    } else {
+      console.log('⚠️ No next_action in response body');
     }
 
     console.log(`✓ Payment confirmed with 3DS: ${body.status}`);
@@ -149,6 +156,11 @@ test.describe('Card - ThreeDS payment flow test', () => {
     const connectorId = globalState.get('connectorId');
     const expectedRedirection = fixtures.confirmBody.return_url;
     const nextActionUrl = globalState.get('nextActionUrl');
+
+    console.log(`🔍 Retrieved from state:`);
+    console.log(`  - connectorId: ${connectorId}`);
+    console.log(`  - expectedRedirection: ${expectedRedirection}`);
+    console.log(`  - nextActionUrl: ${nextActionUrl}`);
 
     // Verify URLs exist
     expect(nextActionUrl).toBeTruthy();

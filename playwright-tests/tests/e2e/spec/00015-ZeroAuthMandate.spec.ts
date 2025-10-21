@@ -12,8 +12,8 @@
 import { test } from '../../fixtures/imports';
 import { getConnectorDetails } from '../configs/Commons';
 
-test.describe('Card - SingleUse Mandates flow test', () => {
-  test.describe('Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test', () => {
+test.describe.serial('Card - SingleUse Mandates flow test', () => {
+  test.describe.serial('Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       // TODO: Implement createCustomerCallTest helper
       // cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
@@ -97,7 +97,7 @@ test.describe('Card - SingleUse Mandates flow test', () => {
     });
   });
 
-  test.describe('Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test', () => {
+  test.describe.serial('Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test', () => {
     test('Confirm No 3DS CIT', async ({ request, globalState }) => {
       const connectorDetails = getConnectorDetails(globalState.get('connectorId'));
       const data = connectorDetails.card_pm?.ZeroAuthMandate;
@@ -211,7 +211,7 @@ test.describe('Card - SingleUse Mandates flow test', () => {
     });
   });
 
-  test.describe('Card - Zero Auth Payment', () => {
+  test.describe.serial('Card - Zero Auth Payment', () => {
     test('Create No 3DS Payment Intent', async ({ request, globalState }) => {
       const connectorDetails = getConnectorDetails(globalState.get('connectorId'));
       const data = connectorDetails.card_pm?.ZeroAuthPaymentIntent;

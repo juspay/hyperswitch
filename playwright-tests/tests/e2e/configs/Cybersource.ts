@@ -5,15 +5,18 @@
  * Ported from Cypress Cybersource.js - Simplified for POC
  */
 
-import {
-  customerAcceptance,
-  cardRequiredField,
-  successfulNo3DSCardDetails,
-  successfulThreeDSTestCardDetails,
-  singleUseMandateData,
-  multiUseMandateData,
-} from './Commons';
 import type { ConnectorConfig } from './ConnectorTypes';
+
+// Customer acceptance data (defined locally to avoid circular dependency)
+const customerAcceptance = {
+  acceptance_type: 'offline',
+  accepted_at: '1963-05-03T04:07:52.723Z',
+  online: {
+    ip_address: '127.0.0.1',
+    user_agent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.38.101;FBBV/756351453;FBDV/iPhone14,7;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/fr_FR;FBOP/5;FBRV/760683563;IABMV/1]',
+  },
+};
 
 // Cybersource-specific card details
 const cybersourceNo3DSCardDetails = {
@@ -53,6 +56,126 @@ export const connectorDetails: ConnectorConfig = {
         body: {
           status: 'requires_payment_method',
           setup_future_usage: 'on_session',
+        },
+      },
+    },
+
+    PaymentIntentOffSession: {
+      Request: {
+        currency: 'USD',
+        amount: 6000,
+        authentication_type: 'no_three_ds',
+        customer_acceptance: null,
+        setup_future_usage: 'off_session',
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: 'requires_payment_method',
+          setup_future_usage: 'off_session',
+        },
+      },
+    },
+
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method: 'card',
+        payment_method_data: {
+          card: cybersourceNo3DSCardDetails,
+        },
+        currency: 'USD',
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: 'succeeded',
+        },
+      },
+    },
+
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method: 'card',
+        payment_method_data: {
+          card: cybersourceNo3DSCardDetails,
+        },
+        currency: 'USD',
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: 'requires_capture',
+        },
+      },
+    },
+
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: 'card',
+        payment_method_data: {
+          card: cybersourceThreeDSCardDetails,
+        },
+        currency: 'USD',
+        mandate_data: null,
+        authentication_type: 'three_ds',
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: 'requires_customer_action',
+        },
+      },
+    },
+
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: 'card',
+        payment_method_data: {
+          card: cybersourceThreeDSCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: 'three_ds',
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: 'requires_customer_action',
+        },
+      },
+    },
+
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: 'succeeded',
+        },
+      },
+    },
+
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: 'requires_capture',
+        },
+      },
+    },
+
+    MITWithoutBillingAddress: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: 'succeeded',
         },
       },
     },
@@ -161,10 +284,10 @@ export const connectorDetails: ConnectorConfig = {
       Response: {
         status: 200,
         body: {
-          status: 'succeeded',
+          status: 'processing',  // Cybersource captures are async
           amount: 6000,
-          amount_capturable: 0,
-          amount_received: 6000,
+          amount_capturable: 6000,  // Stays at 6000 during processing
+          amount_received: null,     // null until processed
         },
       },
     },
@@ -176,10 +299,10 @@ export const connectorDetails: ConnectorConfig = {
       Response: {
         status: 200,
         body: {
-          status: 'partially_captured',
+          status: 'processing',  // Cybersource partial captures are also async
           amount: 6000,
-          amount_capturable: 0,
-          amount_received: 2000,
+          amount_capturable: 6000,  // Stays at 6000 during processing
+          amount_received: null,     // null until processed
         },
       },
     },
@@ -222,7 +345,7 @@ export const connectorDetails: ConnectorConfig = {
       Response: {
         status: 200,
         body: {
-          status: 'succeeded',
+          status: 'pending',  // Cybersource refunds are async, stay pending
         },
       },
     },

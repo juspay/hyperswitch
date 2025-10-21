@@ -5,7 +5,7 @@
  * Provides typed HTTP request helpers for Hyperswitch API testing
  */
 
-import { APIRequestContext, expect } from '@playwright/test';
+import { APIRequestContext, expect, test } from '@playwright/test';
 import { State } from '../utils/State';
 import * as RequestBodyUtils from '../utils/RequestBodyUtils';
 import * as fs from 'fs';
@@ -644,8 +644,14 @@ export class ApiHelpers {
 
     logRequestId(response.headers()['x-request-id']);
 
-    expect(response.status()).toBe(200);
     const body = await response.json();
+
+    if (response.status() !== 200) {
+      console.error(`❌ Business profile update failed with status ${response.status()}`);
+      console.error(`Error response:`, JSON.stringify(body, null, 2));
+    }
+
+    expect(response.status()).toBe(200);
 
     expect(body.profile_id).toBe(profileId);
 
@@ -704,31 +710,47 @@ export class ApiHelpers {
     data: any,
     authType: string = 'HeaderKey'
   ): Promise<void> {
-    const baseUrl = this.state.get('baseUrl');
-    const apiKey =
-      authType === 'PublishableKey'
-        ? this.state.get('publishableKey')
-        : this.state.get('apiKey');
+    return await test.step('POST /payments - Create Payment Intent', async () => {
+      const baseUrl = this.state.get('baseUrl');
+      const apiKey =
+        authType === 'PublishableKey'
+          ? this.state.get('publishableKey')
+          : this.state.get('apiKey');
 
-    const response = await this.request.post(`${baseUrl}/payments`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-      },
-      data: data,
+      // Always add customer_id and profile_id from state (matching Cypress behavior)
+      // profile_id is always overridden to avoid template variables like '{{profile_id}}'
+      const requestData = {
+        ...data,
+        customer_id: data.customer_id || this.state.get('customerId'),
+        profile_id: this.state.get('profileId'),
+      };
+
+      const response = await this.request.post(`${baseUrl}/payments`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': apiKey,
+        },
+        data: requestData,
+      });
+
+      logRequestId(response.headers()['x-request-id']);
+
+      const statusCode = response.status();
+      const body = await response.json();
+
+      if (statusCode !== 200 && statusCode !== 201) {
+        console.error(`❌ Payment creation failed with status ${statusCode}`);
+        console.error(`Error response:`, JSON.stringify(body, null, 2));
+      }
+
+      expect([200, 201]).toContain(statusCode);
+
+      this.state.set('paymentId', body.payment_id);
+      this.state.set('clientSecret', body.client_secret);
+      this.state.set('status', body.status);
+
+      console.log(`✓ Payment created: ${body.payment_id}`);
     });
-
-    logRequestId(response.headers()['x-request-id']);
-
-    const statusCode = response.status();
-    expect([200, 201]).toContain(statusCode);
-
-    const body = await response.json();
-    this.state.set('paymentId', body.payment_id);
-    this.state.set('clientSecret', body.client_secret);
-    this.state.set('status', body.status);
-
-    console.log(`✓ Payment intent created: ${body.payment_id}`);
   }
 
   /**
@@ -739,38 +761,40 @@ export class ApiHelpers {
     confirmData: any,
     authType: string = 'HeaderKey'
   ): Promise<void> {
-    const baseUrl = this.state.get('baseUrl');
     const paymentId = this.state.get('paymentId');
-    const apiKey =
-      authType === 'PublishableKey'
-        ? this.state.get('publishableKey')
-        : this.state.get('apiKey');
+    return await test.step(`POST /payments/${paymentId}/confirm - Confirm Payment`, async () => {
+      const baseUrl = this.state.get('baseUrl');
+      const apiKey =
+        authType === 'PublishableKey'
+          ? this.state.get('publishableKey')
+          : this.state.get('apiKey');
 
-    // Use client_secret from confirmData if provided, otherwise from state
-    const clientSecret =
-      confirmData.client_secret || this.state.get('clientSecret');
-    if (clientSecret && !confirmData.client_secret) {
-      confirmData.client_secret = clientSecret;
-    }
-
-    const response = await this.request.post(
-      `${baseUrl}/payments/${paymentId}/confirm`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': apiKey,
-        },
-        data: confirmData,
+      // Use client_secret from confirmData if provided, otherwise from state
+      const clientSecret =
+        confirmData.client_secret || this.state.get('clientSecret');
+      if (clientSecret && !confirmData.client_secret) {
+        confirmData.client_secret = clientSecret;
       }
-    );
 
-    logRequestId(response.headers()['x-request-id']);
+      const response = await this.request.post(
+        `${baseUrl}/payments/${paymentId}/confirm`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': apiKey,
+          },
+          data: confirmData,
+        }
+      );
 
-    const body = await response.json();
-    this.state.set('status', body.status);
-    this.state.set('paymentMethod', body.payment_method);
+      logRequestId(response.headers()['x-request-id']);
 
-    console.log(`✓ Payment confirmed: ${paymentId}`);
+      const body = await response.json();
+      this.state.set('status', body.status);
+      this.state.set('paymentMethod', body.payment_method);
+
+      console.log(`✓ Payment confirmed: ${body.status}`);
+    });
   }
 
   /**
@@ -902,28 +926,30 @@ export class ApiHelpers {
    * List Available Payment Methods
    */
   async paymentMethodsList(data: any): Promise<void> {
-    const baseUrl = this.state.get('baseUrl');
-    const publishableKey = this.state.get('publishableKey');
+    return await test.step('POST /account/payment_methods - List Payment Methods', async () => {
+      const baseUrl = this.state.get('baseUrl');
+      const publishableKey = this.state.get('publishableKey');
 
-    const response = await this.request.post(
-      `${baseUrl}/account/payment_methods`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': publishableKey,
-        },
-        data: data,
-      }
-    );
+      const response = await this.request.post(
+        `${baseUrl}/account/payment_methods`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': publishableKey,
+          },
+          data: data,
+        }
+      );
 
-    logRequestId(response.headers()['x-request-id']);
-    expect(response.status()).toBe(200);
+      logRequestId(response.headers()['x-request-id']);
+      expect(response.status()).toBe(200);
 
-    const body = await response.json();
+      const body = await response.json();
 
-    console.log(
-      `✓ Available payment methods retrieved: ${body.payment_methods?.length || 0} methods`
-    );
+      console.log(
+        `✓ Payment methods: ${body.payment_methods?.length || 0} available`
+      );
+    });
   }
 
   /**

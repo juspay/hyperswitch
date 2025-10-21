@@ -8,6 +8,7 @@
 import { test } from '../../fixtures/imports';
 import { getConnectorDetails, shouldContinueFurther } from '../configs/Payment/Utils';
 import * as fixtures from '../../fixtures/imports';
+import { handleGenericRedirection } from '../../helpers/RedirectionHelper';
 
 test.describe.configure({ mode: 'parallel' });
 
@@ -15,7 +16,15 @@ test.describe('Bank Transfers', () => {
   test.describe.serial('Bank transfer - Pix forward flow', () => {
     test('create-payment-call-test', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['PaymentIntent']('Pix');
+      const connectorConfig = getConnectorDetails(connectorId);
+
+      // Skip if connector doesn't support bank_transfer_pm
+      if (!connectorConfig?.bank_transfer_pm?.PaymentIntent) {
+        test.skip();
+        return;
+      }
+
+      const data = connectorConfig.bank_transfer_pm.PaymentIntent('Pix');
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -74,7 +83,15 @@ test.describe('Bank Transfers', () => {
 
     test('Confirm bank transfer', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['Pix'];
+      const connectorConfig = getConnectorDetails(connectorId);
+
+      // Skip if connector doesn't support bank_transfer_pm or Pix
+      if (!connectorConfig?.bank_transfer_pm?.Pix) {
+        test.skip();
+        return;
+      }
+
+      const data = connectorConfig.bank_transfer_pm.Pix;
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -118,9 +135,7 @@ test.describe('Bank Transfers', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await page.goto(nextActionUrl);
-        // Handle bank transfer flow here
-        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
+        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
         console.log(`✓ Bank transfer (${paymentMethodType}) redirection handled`);
       }
     });
@@ -129,9 +144,22 @@ test.describe('Bank Transfers', () => {
   test.describe.serial('Bank transfer - Instant Bank Transfer Finland forward flow', () => {
     test('create-payment-call-test', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['PaymentIntent'](
-        'InstantBankTransferFinland'
-      );
+
+      const connectorConfig = getConnectorDetails(connectorId);
+
+
+      // Skip if connector doesn't support bank_transfer_pm
+
+      if (!connectorConfig?.bank_transfer_pm?.PaymentIntent) {
+
+        test.skip();
+
+        return;
+
+      }
+
+
+      const data = connectorConfig.bank_transfer_pm.PaymentIntent('InstantBankTransferFinland');
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -190,7 +218,22 @@ test.describe('Bank Transfers', () => {
 
     test('Confirm bank transfer', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['InstantBankTransferFinland'];
+
+      const connectorConfig = getConnectorDetails(connectorId);
+
+
+      // Skip if connector doesn't support bank_transfer_pm or InstantBankTransferFinland
+
+      if (!connectorConfig?.bank_transfer_pm?.InstantBankTransferFinland) {
+
+        test.skip();
+
+        return;
+
+      }
+
+
+      const data = connectorConfig.bank_transfer_pm.InstantBankTransferFinland;
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -234,8 +277,7 @@ test.describe('Bank Transfers', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await page.goto(nextActionUrl);
-        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
+        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
         console.log(`✓ Bank transfer (${paymentMethodType}) redirection handled`);
       }
     });
@@ -244,9 +286,22 @@ test.describe('Bank Transfers', () => {
   test.describe.serial('Bank transfer - Instant Bank Transfer Poland forward flow', () => {
     test('create-payment-call-test', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['PaymentIntent'](
-        'InstantBankTransferPoland'
-      );
+
+      const connectorConfig = getConnectorDetails(connectorId);
+
+
+      // Skip if connector doesn't support bank_transfer_pm
+
+      if (!connectorConfig?.bank_transfer_pm?.PaymentIntent) {
+
+        test.skip();
+
+        return;
+
+      }
+
+
+      const data = connectorConfig.bank_transfer_pm.PaymentIntent('InstantBankTransferPoland');
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -305,7 +360,22 @@ test.describe('Bank Transfers', () => {
 
     test('Confirm bank transfer', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['InstantBankTransferPoland'];
+
+      const connectorConfig = getConnectorDetails(connectorId);
+
+
+      // Skip if connector doesn't support bank_transfer_pm or InstantBankTransferPoland
+
+      if (!connectorConfig?.bank_transfer_pm?.InstantBankTransferPoland) {
+
+        test.skip();
+
+        return;
+
+      }
+
+
+      const data = connectorConfig.bank_transfer_pm.InstantBankTransferPoland;
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -349,8 +419,7 @@ test.describe('Bank Transfers', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await page.goto(nextActionUrl);
-        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
+        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
         console.log(`✓ Bank transfer (${paymentMethodType}) redirection handled`);
       }
     });
@@ -359,7 +428,15 @@ test.describe('Bank Transfers', () => {
   test.describe.serial('Bank transfer - Ach flow', () => {
     test('create-payment-call-test', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['PaymentIntent']('Ach');
+      const connectorConfig = getConnectorDetails(connectorId);
+
+      // Skip if connector doesn't support bank_transfer_pm
+      if (!connectorConfig?.bank_transfer_pm?.PaymentIntent) {
+        test.skip();
+        return;
+      }
+
+      const data = connectorConfig.bank_transfer_pm.PaymentIntent('Ach');
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -418,7 +495,22 @@ test.describe('Bank Transfers', () => {
 
     test('Confirm bank transfer', async ({ request, globalState }) => {
       const connectorId = globalState.get('connectorId');
-      const data = getConnectorDetails(connectorId)['bank_transfer_pm']['Ach'];
+
+      const connectorConfig = getConnectorDetails(connectorId);
+
+
+      // Skip if connector doesn't support bank_transfer_pm or Ach
+
+      if (!connectorConfig?.bank_transfer_pm?.Ach) {
+
+        test.skip();
+
+        return;
+
+      }
+
+
+      const data = connectorConfig.bank_transfer_pm.Ach;
 
       if (!shouldContinueFurther(data)) {
         test.skip();
@@ -469,8 +561,7 @@ test.describe('Bank Transfers', () => {
       }
 
       if (nextActionUrl) {
-        await page.goto(nextActionUrl);
-        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
+        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
         console.log(`✓ Bank transfer (${paymentMethodType}) redirection handled`);
       }
     });

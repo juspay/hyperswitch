@@ -17,8 +17,8 @@
 import { test } from '../../fixtures/imports';
 import { getConnectorDetails } from '../configs/Commons';
 
-test.describe('Card - SaveCard payment flow test', () => {
-  test.describe('Save card for NoThreeDS automatic capture payment - Create+Confirm [on_session]', () => {
+test.describe.serial('Card - SaveCard payment flow test', () => {
+  test.describe.serial('Save card for NoThreeDS automatic capture payment - Create+Confirm [on_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       // TODO: Implement createCustomerCallTest helper
       // cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
@@ -106,7 +106,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Save card for NoThreeDS manual full capture payment - Create+Confirm [on_session]', () => {
+  test.describe.serial('Save card for NoThreeDS manual full capture payment - Create+Confirm [on_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       // TODO: Implement createCustomerCallTest helper
       console.log('TODO: Implement createCustomerCallTest');
@@ -201,7 +201,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Save card for NoThreeDS manual partial capture payment - Create + Confirm [on_session]', () => {
+  test.describe.serial('Save card for NoThreeDS manual partial capture payment - Create + Confirm [on_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });
@@ -295,7 +295,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Save card for NoThreeDS automatic capture payment [off_session]', () => {
+  test.describe.serial('Save card for NoThreeDS automatic capture payment [off_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });
@@ -353,7 +353,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Save card for NoThreeDS manual capture payment - Create+Confirm [off_session]', () => {
+  test.describe.serial('Save card for NoThreeDS manual capture payment - Create+Confirm [off_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });
@@ -471,7 +471,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Save card for NoThreeDS automatic capture payment - create and confirm [off_session]', () => {
+  test.describe.serial('Save card for NoThreeDS automatic capture payment - create and confirm [off_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });
@@ -541,7 +541,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Use billing address from payment method during subsequent payment [off_session]', () => {
+  test.describe.serial('Use billing address from payment method during subsequent payment [off_session]', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });
@@ -599,7 +599,7 @@ test.describe('Card - SaveCard payment flow test', () => {
     });
   });
 
-  test.describe('Check if card fields are populated when saving card again after a metadata update', () => {
+  test.describe.serial('Check if card fields are populated when saving card again after a metadata update', () => {
     test('customer-create-call-test', async ({ request, globalState }) => {
       console.log('TODO: Implement createCustomerCallTest');
     });

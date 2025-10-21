@@ -12,8 +12,8 @@
 import { test } from '../../fixtures/imports';
 import { getConnectorDetails } from '../configs/Commons';
 
-test.describe('Card - SingleUse Mandates flow test', () => {
-  test.describe('Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test', () => {
+test.describe.serial('Card - SingleUse Mandates flow test', () => {
+  test.describe.serial('Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test', () => {
     test('Confirm No 3DS CIT', async ({ request, globalState }) => {
       const connectorDetails = getConnectorDetails(globalState.get('connectorId'));
       const data = connectorDetails.card_pm?.MandateSingleUseNo3DSAutoCapture;
@@ -60,7 +60,7 @@ test.describe('Card - SingleUse Mandates flow test', () => {
     });
   });
 
-  test.describe('Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test', () => {
+  test.describe.serial('Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test', () => {
     test('Confirm No 3DS CIT', async ({ request, globalState }) => {
       const connectorDetails = getConnectorDetails(globalState.get('connectorId'));
       const data = connectorDetails.card_pm?.MandateSingleUseNo3DSManualCapture;
@@ -144,7 +144,7 @@ test.describe('Card - SingleUse Mandates flow test', () => {
     });
   });
 
-  test.describe('Card - No threeDS Create + Confirm Manual CIT and MIT payment flow test', () => {
+  test.describe.serial('Card - No threeDS Create + Confirm Manual CIT and MIT payment flow test', () => {
     test('Create No 3DS CIT', async ({ request, globalState }) => {
       const connectorDetails = getConnectorDetails(globalState.get('connectorId'));
       const data = connectorDetails.card_pm?.MandateSingleUseNo3DSManualCapture;

@@ -576,6 +576,15 @@ export const connectorDetails: ConnectorConfig = {
         },
       },
     },
+    MITWithoutBillingAddress: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: 'succeeded',
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: 'card',

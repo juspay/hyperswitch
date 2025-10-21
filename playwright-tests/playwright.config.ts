@@ -22,15 +22,24 @@ function getOptimalWorkers(): number {
  * Playwright Configuration for Hyperswitch E2E Tests
  *
  * Architecture:
- * 1. Setup tests (0000-0003): Run sequentially to create shared state
- * 2. Parallel tests (0004+): Run in 20 isolated browser contexts (tabs) per connector
+ * - Browser Pool Strategy: Reusable browser contexts for maximum parallelism
+ * - 2 browsers (Stripe + Cybersource)
+ * - 25 contexts per browser (configurable via CONTEXTS_PER_BROWSER env var)
+ * - 50 total concurrent tests (maximum throughput with minimal RAM)
  *
- * Execution:
- * - Stripe: 20 tabs running simultaneously
- * - Cybersource: 20 tabs running simultaneously
- * - Both connectors run in parallel
+ * Execution Flow:
+ * 1. Setup Phase (Sequential): Tests 0000-0003 run sequentially per connector
+ * 2. Parallel Phase: Tests 0004+ run with 50 concurrent browser contexts
  *
- * RAM Usage: ~11.6 GB (5.8 GB per connector)
+ * Browser Pool Mode (USE_BROWSER_POOL=true):
+ * - Stripe: 1 browser with 25 reusable contexts
+ * - Cybersource: 1 browser with 25 reusable contexts
+ * - Total: 50 concurrent tests, ~14-15 GB RAM
+ * - Speedup: ~20x vs sequential execution
+ *
+ * Traditional Mode (USE_BROWSER_POOL=false):
+ * - Each test gets its own browser instance (Playwright default)
+ * - Sequential execution, higher resource usage
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -45,8 +54,13 @@ export default defineConfig({
     timeout: 30000, // 30 seconds for assertions
   },
 
-  // Workers: 1 (sequential execution to share state properly)
-  workers: 1,
+  // Workers Configuration:
+  // - Browser Pool Mode: Can use many workers (25-50) since each uses pooled context
+  // - Traditional Mode: Limited to 2 (1 per connector) to control RAM usage
+  // The actual parallelism limit is set by CONTEXTS_PER_BROWSER (default: 25)
+  workers: process.env.USE_BROWSER_POOL === 'true'
+    ? parseInt(process.env.CONTEXTS_PER_BROWSER || '25')
+    : 2,
 
   // Test execution
   fullyParallel: false, // Controlled by project dependencies
@@ -56,12 +70,14 @@ export default defineConfig({
   // Reporter configuration
   reporter: process.env.CI
     ? [
+        ['./reporters/performance-reporter.ts'],
         ['html', { outputFolder: 'playwright-report', open: 'never' }],
         ['json', { outputFile: 'test-results/results.json' }],
         ['list'],
         ['github'],
       ]
     : [
+        ['./reporters/performance-reporter.ts'],
         ['html', { outputFolder: 'playwright-report', open: 'never' }],
         ['json', { outputFile: 'test-results/results.json' }],
         ['list'],
@@ -92,23 +108,91 @@ export default defineConfig({
   },
 
   /**
-   * Project Configuration
+   * Project Configuration - Parallel Connector Testing
    *
-   * Sequential Setup Projects (0000-0003):
-   * - Create merchant, API keys, customer, connectors
-   * - Save state to test-state.json
+   * Architecture:
+   * - Stripe and Cybersource run in parallel (workers: 2)
+   * - Each connector has its own setup → tests pipeline
+   * - State isolated via connector-specific files (test-state-stripe.json, test-state-cybersource.json)
    *
-   * Parallel Test Projects (0004-0032):
-   * - Each test file runs in its own browser context (tab)
-   * - 29 tests run simultaneously per connector
-   * - Both connectors (Stripe + Cybersource) run in parallel
+   * Execution Flow:
+   * ┌─────────────────────────────────────────────┐
+   * │ Worker 1: Stripe                            │
+   * │ stripe-1-core → stripe-2-account →          │
+   * │ stripe-3-customer → stripe-4-connector →    │
+   * │ stripe-parallel-tests                       │
+   * └─────────────────────────────────────────────┘
+   * ┌─────────────────────────────────────────────┐
+   * │ Worker 2: Cybersource                       │
+   * │ cybersource-1-core → cybersource-2-account →│
+   * │ cybersource-3-customer → cybersource-4-connector → │
+   * │ cybersource-parallel-tests                  │
+   * └─────────────────────────────────────────────┘
    */
   projects: [
     // ==========================================
-    //  SETUP TESTS (Sequential Dependencies)
+    //  STRIPE - Setup Tests (Sequential)
     // ==========================================
     {
-      name: '1-core-setup',
+      name: 'stripe-1-core-setup',
+      testMatch: '**/setup/00000-CoreFlows.spec.ts',
+      fullyParallel: false,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+      metadata: { connector: 'stripe' },
+    },
+    {
+      name: 'stripe-2-account-setup',
+      testMatch: '**/setup/00001-AccountCreate.spec.ts',
+      dependencies: ['stripe-1-core-setup'],
+      fullyParallel: false,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'stripe-3-customer-setup',
+      testMatch: '**/setup/00002-CustomerCreate.spec.ts',
+      dependencies: ['stripe-2-account-setup'],
+      fullyParallel: false,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'stripe-4-connector-setup',
+      testMatch: '**/setup/00003-ConnectorCreate.spec.ts',
+      dependencies: ['stripe-3-customer-setup'],
+      fullyParallel: false,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'stripe-parallel-tests',
+      testMatch: [
+        '**/spec/0000[4-9]-*.spec.ts',
+        '**/spec/0001[0-9]-*.spec.ts',
+        '**/spec/0002[0-9]-*.spec.ts',
+        '**/spec/0003[0-2]-*.spec.ts',
+      ],
+      testIgnore: '**/setup/**',
+      dependencies: ['stripe-4-connector-setup'],
+      // Enable full parallelism for tests 00004+
+      // With browser pool: 25 concurrent contexts
+      // Without browser pool: Limited by workers config
+      fullyParallel: true,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
+    // ==========================================
+    //  CYBERSOURCE - Setup Tests (Sequential)
+    // ==========================================
+    {
+      name: 'cybersource-1-core-setup',
       testMatch: '**/setup/00000-CoreFlows.spec.ts',
       fullyParallel: false,
       use: {
@@ -116,52 +200,48 @@ export default defineConfig({
       },
     },
     {
-      name: '2-account-setup',
+      name: 'cybersource-2-account-setup',
       testMatch: '**/setup/00001-AccountCreate.spec.ts',
-      dependencies: ['1-core-setup'],
+      dependencies: ['cybersource-1-core-setup'],
       fullyParallel: false,
       use: {
         ...devices['Desktop Chrome'],
       },
     },
     {
-      name: '3-customer-setup',
+      name: 'cybersource-3-customer-setup',
       testMatch: '**/setup/00002-CustomerCreate.spec.ts',
-      dependencies: ['2-account-setup'],
+      dependencies: ['cybersource-2-account-setup'],
       fullyParallel: false,
       use: {
         ...devices['Desktop Chrome'],
       },
     },
     {
-      name: '4-connector-setup',
+      name: 'cybersource-4-connector-setup',
       testMatch: '**/setup/00003-ConnectorCreate.spec.ts',
-      dependencies: ['3-customer-setup'],
+      dependencies: ['cybersource-3-customer-setup'],
       fullyParallel: false,
       use: {
         ...devices['Desktop Chrome'],
       },
     },
-
-    // ==========================================
-    //  PARALLEL TESTS (Multi-Tab Execution)
-    //  Tests 00004-00032 (29 tests total)
-    //  Each test file = 1 browser context (tab)
-    // ==========================================
     {
-      name: 'parallel-tests',
+      name: 'cybersource-parallel-tests',
       testMatch: [
-        '**/spec/0000[4-9]-*.spec.ts',  // 00004-00009
-        '**/spec/0001[0-9]-*.spec.ts',  // 00010-00019
-        '**/spec/0002[0-9]-*.spec.ts',  // 00020-00029
-        '**/spec/0003[0-2]-*.spec.ts',  // 00030-00032
+        '**/spec/0000[4-9]-*.spec.ts',
+        '**/spec/0001[0-9]-*.spec.ts',
+        '**/spec/0002[0-9]-*.spec.ts',
+        '**/spec/0003[0-2]-*.spec.ts',
       ],
-      testIgnore: '**/setup/**', // Ignore setup directory
-      dependencies: ['4-connector-setup'],
-      fullyParallel: false, // Tests within each file run sequentially (they share state)
+      testIgnore: '**/setup/**',
+      dependencies: ['cybersource-4-connector-setup'],
+      // Enable full parallelism for tests 00004+
+      // With browser pool: 25 concurrent contexts
+      // Without browser pool: Limited by workers config
+      fullyParallel: true,
       use: {
         ...devices['Desktop Chrome'],
-        // Each test file gets its own browser context (tab)
       },
     },
   ],

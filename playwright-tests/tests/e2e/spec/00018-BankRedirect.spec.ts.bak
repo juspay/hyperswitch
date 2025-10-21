@@ -274,7 +274,8 @@ test.describe('Bank Redirect tests', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
+        await page.goto(nextActionUrl);
+        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
         console.log(`✓ Bank redirect (${paymentMethodType}) redirection handled`);
       }
     });
@@ -415,7 +416,8 @@ test.describe('Bank Redirect tests', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
+        await page.goto(nextActionUrl);
+        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
         console.log(`✓ Bank redirect (${paymentMethodType}) redirection handled`);
       }
     });
@@ -556,7 +558,8 @@ test.describe('Bank Redirect tests', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
+        await page.goto(nextActionUrl);
+        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
         console.log(`✓ Bank redirect (${paymentMethodType}) redirection handled`);
       }
     });
@@ -697,7 +700,8 @@ test.describe('Bank Redirect tests', () => {
       const paymentMethodType = globalState.get('paymentMethodType');
 
       if (nextActionUrl) {
-        await handleGenericRedirection(page, nextActionUrl, expectedRedirection);
+        await page.goto(nextActionUrl);
+        await page.waitForURL(new RegExp(expectedRedirection), { timeout: 30000 });
         console.log(`✓ Bank redirect (${paymentMethodType}) redirection handled`);
       }
     });
