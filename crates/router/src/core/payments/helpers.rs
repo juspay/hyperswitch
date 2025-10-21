@@ -7921,6 +7921,11 @@ where
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
     );
+    // Extract merchant_order_reference_id from payment data for UCS audit trail
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
     let (mut router_data, should_continue) = router_data
         .call_preprocessing_through_unified_connector_service(
             state,
@@ -7930,6 +7935,7 @@ where
             merchant_context,
             connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
+            merchant_order_reference_id,
         )
         .await?;
 
@@ -7951,12 +7957,6 @@ where
 
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
-        // Extract merchant_order_reference_id from payment data for UCS audit trail
-        let merchant_order_reference_id = payment_data
-            .get_payment_intent()
-            .merchant_order_reference_id
-            .clone();
-
         router_data
             .call_unified_connector_service(
                 state,

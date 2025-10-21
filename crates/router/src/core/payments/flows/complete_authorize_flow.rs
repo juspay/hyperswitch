@@ -228,6 +228,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         _merchant_context: &domain::MerchantContext,
         connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<(Self, bool)> {
         let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
             request_data: &self.request,
@@ -269,6 +270,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         _merchant_context: &domain::MerchantContext,
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         // Call UCS for Authorize flow
         Ok(())
