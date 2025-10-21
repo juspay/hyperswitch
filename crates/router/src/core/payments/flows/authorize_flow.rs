@@ -38,7 +38,7 @@ use crate::{
     },
     utils::OptionExt,
 };
-use hyperswitch_interfaces::api::gateway as payment_gateway;
+use hyperswitch_interfaces::api::gateway::{self as payment_gateway, GatewayExecutionContext};
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -210,6 +210,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
+                None::<GatewayExecutionContext<'_, api::Authorize, PaymentData<api::Authorize>>>,
             )
             .await
             .to_payment_failed_response()?;
@@ -293,6 +294,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None::<GatewayExecutionContext<'_, api::AuthorizeSessionToken, PaymentData<api::AuthorizeSessionToken>>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -480,6 +482,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                None::<GatewayExecutionContext<'_, api::CreateOrder, PaymentData<api::CreateOrder>>>
             )
             .await
             .to_payment_failed_response()?;
@@ -663,6 +666,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None::<GatewayExecutionContext<'_, api::PreProcessing, PaymentData<api::PreProcessing>>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -748,6 +752,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            None::<GatewayExecutionContext<'_, api::PostProcessing, PaymentData<api::PostProcessing>>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -873,7 +878,7 @@ async fn call_unified_connector_service_authorize(
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+        build_unified_connector_service_auth_metadata(&merchant_connector_account, &merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_order_reference_id = header_payload
@@ -963,7 +968,7 @@ async fn call_unified_connector_service_repeat_payment(
             .attach_printable("Failed to construct Payment Repeat Request")?;
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+        build_unified_connector_service_auth_metadata(&merchant_connector_account, &merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_order_reference_id = header_payload

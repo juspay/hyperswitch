@@ -6,7 +6,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
+use hyperswitch_interfaces::{api::gateway::GatewayExecutionContext, unified_connector_service::handle_unified_connector_service_response_for_payment_get};
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -153,6 +153,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
+                    None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -273,8 +274,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
+            &merchant_connector_account,
+            &merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
@@ -380,6 +381,7 @@ impl RouterDataPSync
                 call_connector_action.clone(),
                 None,
                 return_raw_connector_response,
+                None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
             )
             .await
             .to_payment_failed_response()?;
@@ -399,6 +401,7 @@ impl RouterDataPSync
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
+                    None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
                 )
                 .await
                 .to_payment_failed_response()?;

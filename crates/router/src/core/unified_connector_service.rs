@@ -586,8 +586,8 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
     }
 }
 pub fn build_unified_connector_service_auth_metadata(
-    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+    #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     merchant_context: &MerchantContext,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
@@ -867,7 +867,7 @@ pub async fn call_unified_connector_service_for_webhook(
                 mca.clone(),
             ));
 
-            build_unified_connector_service_auth_metadata(mca_type, merchant_context)
+            build_unified_connector_service_auth_metadata(&mca_type, &merchant_context)
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
