@@ -33,9 +33,6 @@ use common_enums::{
     enums::{
         self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
     },
-    enums::{
-        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
-    },
     PaymentMethod,
 };
 use common_utils::{
