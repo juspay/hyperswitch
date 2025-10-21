@@ -1,5 +1,4 @@
 import { customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -238,117 +237,55 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-      ResponseCustom: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Execute is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    PartialRefund: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
-        },
-      },
-      ResponseCustom: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Execute is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    manualPaymentRefund: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    Refund: {
       Request: {
         amount: 6000,
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
-      ResponseCustom: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Execute is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    manualPaymentPartialRefund: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    },
+    PartialRefund: {
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
-      ResponseCustom: {
-        status: 501,
+    },
+    manualPaymentRefund: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Execute is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
-    }),
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     SyncRefund: {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     },
