@@ -21,7 +21,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, gateway::RouterGatewayContext, helpers, tokenization, transformers, PaymentData
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
@@ -38,7 +38,7 @@ use crate::{
     },
     utils::OptionExt,
 };
-use hyperswitch_interfaces::api::gateway::{self as payment_gateway, GatewayExecutionContext};
+use hyperswitch_interfaces::api::gateway::{self as payment_gateway};
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -210,7 +210,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
-                None::<GatewayExecutionContext<'_, api::Authorize, PaymentData<api::Authorize>>>,
+                None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>
             )
             .await
             .to_payment_failed_response()?;
@@ -294,7 +294,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<GatewayExecutionContext<'_, api::AuthorizeSessionToken, PaymentData<api::AuthorizeSessionToken>>>,
+            None::<RouterGatewayContext<'_,  types::PaymentsAuthorizeData>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -482,7 +482,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
-                None::<GatewayExecutionContext<'_, api::CreateOrder, PaymentData<api::CreateOrder>>>
+                None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>
             )
             .await
             .to_payment_failed_response()?;
@@ -666,7 +666,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<GatewayExecutionContext<'_, api::PreProcessing, PaymentData<api::PreProcessing>>>,
+            None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -752,7 +752,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<GatewayExecutionContext<'_, api::PostProcessing, PaymentData<api::PostProcessing>>>,
+            None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>,
         )
         .await
         .to_payment_failed_response()?;

@@ -7,12 +7,14 @@
 //! that handles the specific GRPC endpoint and request/response transformations.
 
 pub mod authorize;
+pub mod context;
 pub mod helpers;
 pub mod psync;
 pub mod setup_mandate;
 
 // Re-export for convenience
 pub use authorize::*;
+pub use context::*;
 pub use helpers::*;
 pub use psync::*;
 pub use setup_mandate::*;

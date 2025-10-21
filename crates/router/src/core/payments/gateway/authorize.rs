@@ -4,26 +4,26 @@
 //! handling both regular payments (payment_authorize) and mandate payments (payment_repeat).
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionMode};
+use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
-use external_services::grpc_client::{
-    self, unified_connector_service::ConnectorAuthMetadata, LineageIds,
-};
+use external_services::grpc_client::{self, LineageIds};
 use hyperswitch_domain_models::{
-    router_flow_types as domain,
     merchant_context::MerchantContext, payments::HeaderPayload, router_data::RouterData,
+    router_flow_types as domain,
 };
 use hyperswitch_interfaces::{
-    api::{self, gateway as payment_gateway},
-    api_client::ApiClientWrapper,
+    api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client};
+use super::{
+    context::RouterGatewayContext,
+    helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client},
+};
 use crate::{
     core::{
         payments::helpers,
@@ -40,7 +40,7 @@ use crate::{
 // #[derive(Debug, Clone, Copy)]
 // pub struct AuthorizeGateway;
 
-/// Implementation of PaymentGateway for api::Authorize flow
+/// Implementation of PaymentGateway for domain::Authorize flow
 #[async_trait]
 impl<PaymentData, RCD>
     payment_gateway::PaymentGateway<
@@ -49,7 +49,7 @@ impl<PaymentData, RCD>
         domain::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::Authorize
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -75,53 +75,22 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: payment_gateway::GatewayExecutionContext<'_, domain::Authorize, PaymentData>,
+        context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        // Extract required context
-        let merchant_context = todo!();
-        //  context
-        //     .merchant_context
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "merchant_context",
-        //     })?;
-
-        let header_payload = todo!();
-        // context
-        //     .header_payload
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "header_payload",
-        //     })?;
-
-        
-        let lineage_ids = todo!();
-        
-        // context
-        //     .lineage_ids
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "lineage_ids",
-        //     })?;
-
-        // Extract payment_data to get merchant_connector_account
-        let payment_data = context
-            .payment_data
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "payment_data",
-            })?;
-
         // Determine which GRPC endpoint to call based on mandate_id
         let updated_router_data = if router_data.request.mandate_id.is_some() {
             // Call payment_repeat for mandate payments
             execute_payment_repeat(
                 state,
                 router_data,
-                payment_data,
-                merchant_context,
-                header_payload,
-                lineage_ids,
-                context.execution_mode,
+                context.merchant_context,
+                context.header_payload,
+                context.lineage_ids,
+                context.merchant_connector_account,
+                context.execution_path,
             )
             .await?
         } else {
@@ -129,11 +98,11 @@ where
             execute_payment_authorize(
                 state,
                 router_data,
-                payment_data,
-                merchant_context,
-                header_payload,
-                lineage_ids,
-                context.execution_mode,
+                context.merchant_context,
+                context.header_payload,
+                context.lineage_ids,
+                context.merchant_connector_account,
+                context.execution_path,
             )
             .await?
         };
@@ -142,7 +111,7 @@ where
     }
 }
 
-/// Implementation of FlowGateway for api::Authorize
+/// Implementation of FlowGateway for domain::Authorize
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<PaymentData, RCD>
@@ -151,17 +120,17 @@ impl<PaymentData, RCD>
         RCD,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::Authorize
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        execution_path: payment_gateway::GatewayExecutionPath,
+        execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -169,15 +138,15 @@ where
             Self,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         match execution_path {
-            payment_gateway::GatewayExecutionPath::Direct => {
+            ExecutionPath::Direct => {
                 Box::new(payment_gateway::DirectGateway)
             }
-            payment_gateway::GatewayExecutionPath::UnifiedConnectorService
-            | payment_gateway::GatewayExecutionPath::ShadowUnifiedConnectorService => {
+            ExecutionPath::UnifiedConnectorService
+            | ExecutionPath::ShadowUnifiedConnectorService => {
                 Box::new(domain::Authorize)
             }
         }
@@ -185,25 +154,25 @@ where
 }
 
 /// Execute payment_authorize GRPC call
-async fn execute_payment_authorize<PaymentData>(
+async fn execute_payment_authorize(
     state: &SessionState,
     router_data: &RouterData<
         domain::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     >,
-    payment_data: &PaymentData,
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
-    execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")]
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")]
+    merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ConnectorError,
->
-where
-    PaymentData: Clone + Send + Sync + 'static,
-{
+> {
     todo!();
     // Get GRPC client
     // let client = get_grpc_client(state)?;
@@ -278,25 +247,25 @@ where
 }
 
 /// Execute payment_repeat GRPC call
-async fn execute_payment_repeat<PaymentData>(
+async fn execute_payment_repeat(
     state: &SessionState,
     router_data: &RouterData<
         domain::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     >,
-    payment_data: &PaymentData,
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
-    execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")]
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")]
+    merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ConnectorError,
->
-where
-    PaymentData: Clone + Send + Sync + 'static,
-{
+> {
     todo!();
     // // Get GRPC client
     // let client = get_grpc_client(state)?;
@@ -366,30 +335,7 @@ where
     // Ok(updated_router_data)
 }
 
-/// Helper to build GRPC auth metadata from payment data
-/// This is a temporary implementation that needs to be updated based on actual PaymentData structure
-fn build_grpc_auth_metadata_from_payment_data<PaymentData>(
-    _payment_data: &PaymentData,
-    _merchant_context: &MerchantContext,
-) -> CustomResult<ConnectorAuthMetadata, ConnectorError>
-where
-    PaymentData: Clone + Send + Sync + 'static,
-{
-    // TODO: Extract merchant_connector_account from payment_data
-    // This requires knowing the structure of PaymentData
-    // For now, we'll return an error indicating this needs to be implemented
 
-    // Placeholder implementation - needs to be replaced with actual extraction logic
-    // The actual implementation should:
-    // 1. Extract merchant_connector_account from payment_data
-    // 2. Call build_grpc_auth_metadata with the extracted account
-
-    Err(ConnectorError::NotImplemented(
-        "build_grpc_auth_metadata_from_payment_data needs PaymentData structure implementation"
-            .to_string(),
-    )
-    .into())
-}
 
 /// Implementation of PaymentGateway for domain::AuthorizeSessionToken flow with todo!()
 #[async_trait]
@@ -400,10 +346,10 @@ impl<PaymentData, RCD>
         domain::AuthorizeSessionToken,
         types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::AuthorizeSessionToken
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::AuthorizeSessionToken,
         types::AuthorizeSessionTokenData,
@@ -426,7 +372,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: payment_gateway::GatewayExecutionContext<'_, domain::AuthorizeSessionToken, PaymentData>,
+        _context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<
             domain::AuthorizeSessionToken,
@@ -448,10 +394,10 @@ impl<PaymentData, RCD>
         domain::PreProcessing,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PreProcessing
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::PreProcessing,
         types::PaymentsPreProcessingData,
@@ -474,7 +420,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: payment_gateway::GatewayExecutionContext<'_, domain::PreProcessing, PaymentData>,
+        _context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<
             domain::PreProcessing,
@@ -496,10 +442,10 @@ impl<PaymentData, RCD>
         domain::PostProcessing,
         types::PaymentsPostProcessingData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PostProcessing
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::PostProcessing,
         types::PaymentsPostProcessingData,
@@ -522,7 +468,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: payment_gateway::GatewayExecutionContext<'_, domain::PostProcessing, PaymentData>,
+        _context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<
             domain::PostProcessing,
@@ -535,24 +481,24 @@ where
     }
 }
 
-/// Implementation of FlowGateway for api::AuthorizeSessionToken with todo!()
+/// Implementation of FlowGateway for domain::AuthorizeSessionToken with todo!()
 impl<PaymentData, RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
         types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::AuthorizeSessionToken
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::AuthorizeSessionToken,
         types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        _execution_path: payment_gateway::GatewayExecutionPath,
+        _execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -560,31 +506,31 @@ where
             Self,
             types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         todo!();
     }
 }
 
-/// Implementation of FlowGateway for api::PreProcessing with todo!()
+/// Implementation of FlowGateway for domain::PreProcessing with todo!()
 impl<PaymentData, RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PreProcessing
 where
-    PaymentData: Clone + Send + Sync + 'static,
+    PaymentData: Clone + Send + Sync,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::PreProcessing,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        _execution_path: payment_gateway::GatewayExecutionPath,
+        _execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -592,21 +538,21 @@ where
             Self,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         todo!();
     }
 }
 
-/// Implementation of FlowGateway for api::PostProcessing with todo!()
+/// Implementation of FlowGateway for domain::PostProcessing with todo!()
 impl<PaymentData, RCD>
     payment_gateway::FlowGateway<   
         SessionState,
         RCD,
         types::PaymentsPostProcessingData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PostProcessing
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -616,7 +562,7 @@ where
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        _execution_path: payment_gateway::GatewayExecutionPath,
+        _execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -624,7 +570,7 @@ where
             Self,
             types::PaymentsPostProcessingData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         todo!();
@@ -640,7 +586,7 @@ impl<PaymentData, RCD>
         domain::CreateOrder,
         types::CreateOrderRequestData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::CreateOrder
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -666,7 +612,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: payment_gateway::GatewayExecutionContext<'_, domain::CreateOrder, PaymentData>,
+        _context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<
             domain::CreateOrder,
@@ -679,14 +625,14 @@ where
     }
 }
 
-/// Implementation of FlowGateway for api::CreateOrder with todo!()
+/// Implementation of FlowGateway for domain::CreateOrder with todo!()
 impl<PaymentData, RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
         types::CreateOrderRequestData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::CreateOrder
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -696,7 +642,7 @@ where
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        _execution_path: payment_gateway::GatewayExecutionPath,
+        _execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -704,7 +650,7 @@ where
             Self,
             types::CreateOrderRequestData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         todo!();

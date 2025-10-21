@@ -6,9 +6,10 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::{api::gateway::GatewayExecutionContext, unified_connector_service::handle_unified_connector_service_response_for_payment_get};
+use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
+use crate::core::payments::gateway::RouterGatewayContext;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -153,7 +154,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
-                    None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
+                    None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -381,7 +382,7 @@ impl RouterDataPSync
                 call_connector_action.clone(),
                 None,
                 return_raw_connector_response,
-                None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
+                None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
             )
             .await
             .to_payment_failed_response()?;
@@ -401,7 +402,7 @@ impl RouterDataPSync
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
-                    None::<GatewayExecutionContext<'_, api::PSync, PaymentData<api::PSync>>>,
+                    None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
                 )
                 .await
                 .to_payment_failed_response()?;

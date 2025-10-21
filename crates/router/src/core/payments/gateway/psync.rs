@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use std::str::FromStr;
-use common_enums::{connector_enums::Connector, CallConnectorAction, ExecutionMode};
+use common_enums::{connector_enums::Connector, CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use external_services::grpc_client::{
@@ -24,6 +24,7 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
+use crate::core::payments::gateway::RouterGatewayContext;
 
 use super::helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client};
 use crate::{
@@ -45,7 +46,7 @@ impl<PaymentData, RCD>
         domain::PSync,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PSync
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -67,7 +68,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: payment_gateway::GatewayExecutionContext<'_, domain::PSync, PaymentData>,
+        context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         ConnectorError,
@@ -107,10 +108,7 @@ where
         //     })?;
 
         let payment_data = context
-            .payment_data
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "payment_data",
-            })?;
+            .payment_data;
 
         // Execute payment_get GRPC call
         let updated_router_data = execute_payment_get(
@@ -120,7 +118,7 @@ where
             merchant_context,
             header_payload,
             lineage_ids,
-            context.execution_mode,
+            context.execution_path,
         )
         .await?;
 
@@ -137,7 +135,7 @@ impl<PaymentData, RCD>
         RCD,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::PSync
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -147,7 +145,7 @@ where
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        execution_path: payment_gateway::GatewayExecutionPath,
+        execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -155,15 +153,15 @@ where
             Self,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         match execution_path {
-            payment_gateway::GatewayExecutionPath::Direct => {
+            ExecutionPath::Direct => {
                 Box::new(payment_gateway::DirectGateway)
             }
-            payment_gateway::GatewayExecutionPath::UnifiedConnectorService
-            | payment_gateway::GatewayExecutionPath::ShadowUnifiedConnectorService => {
+            ExecutionPath::UnifiedConnectorService
+            | ExecutionPath::ShadowUnifiedConnectorService => {
                 Box::new(domain::PSync)
             }
         }
@@ -178,7 +176,7 @@ async fn execute_payment_get<PaymentData>(
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
-    execution_mode: ExecutionMode,
+    execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ConnectorError,

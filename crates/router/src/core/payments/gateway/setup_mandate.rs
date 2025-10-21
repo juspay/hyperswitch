@@ -4,7 +4,7 @@
 //! handling mandate registration via the payment_setup_mandate GRPC endpoint.
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionMode};
+use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use external_services::grpc_client::{
@@ -22,6 +22,7 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
+use crate::core::payments::gateway::RouterGatewayContext;
 
 use super::helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client};
 use crate::{
@@ -48,7 +49,7 @@ impl<PaymentData, RCD>
         domain::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::SetupMandate
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -74,7 +75,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: payment_gateway::GatewayExecutionContext<'_, domain::SetupMandate, PaymentData>,
+        context: RouterGatewayContext<'static, PaymentData>,
     ) -> CustomResult<
         RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
         ConnectorError,
@@ -103,10 +104,7 @@ where
 
 
         let payment_data = context
-            .payment_data
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "payment_data",
-            })?;
+            .payment_data;
 
         // Execute payment_setup_mandate GRPC call
         let updated_router_data = execute_payment_setup_mandate(
@@ -116,7 +114,7 @@ where
             merchant_context,
             header_payload,
             lineage_ids,
-            context.execution_mode,
+            context.execution_path,
         )
         .await?;
 
@@ -133,7 +131,7 @@ impl<PaymentData, RCD>
         RCD,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        PaymentData,
+        RouterGatewayContext<'static, PaymentData>,
     > for domain::SetupMandate
 where
     PaymentData: Clone + Send + Sync + 'static,
@@ -143,7 +141,7 @@ where
         types::PaymentsResponseData,>,
 {
     fn get_gateway(
-        execution_path: payment_gateway::GatewayExecutionPath,
+        execution_path: ExecutionPath,
     ) -> Box<
         dyn payment_gateway::PaymentGateway<
             SessionState,
@@ -151,15 +149,15 @@ where
             Self,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
-            PaymentData,
+            RouterGatewayContext<'static, PaymentData>,
         >,
     > {
         match execution_path {
-            payment_gateway::GatewayExecutionPath::Direct => {
+            ExecutionPath::Direct => {
                 Box::new(payment_gateway::DirectGateway)
             }
-            payment_gateway::GatewayExecutionPath::UnifiedConnectorService
-            | payment_gateway::GatewayExecutionPath::ShadowUnifiedConnectorService => {
+            ExecutionPath::UnifiedConnectorService
+            | ExecutionPath::ShadowUnifiedConnectorService => {
                 Box::new(domain::SetupMandate)
             }
         }
@@ -177,7 +175,7 @@ async fn execute_payment_setup_mandate<PaymentData>(
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
-    execution_mode: ExecutionMode,
+    execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
     ConnectorError,
