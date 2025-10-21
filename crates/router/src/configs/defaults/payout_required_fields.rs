@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::{
     enums::{
         CountryAlpha2, FieldType,
-        PaymentMethod::{BankTransfer, Card, Wallet},
+        PaymentMethod::{BankRedirect, BankTransfer, Card, Wallet},
         PaymentMethodType, PayoutConnectors,
     },
     payment_methods::RequiredFieldInfo,
@@ -59,6 +59,21 @@ impl Default for PayoutRequiredFields {
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Adyenplatform,
                         PaymentMethodType::Paypal,
+                    ),
+                ])),
+            ),
+            (
+                BankRedirect,
+                PaymentMethodTypeInfo(HashMap::from([
+                    // Gigadat
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Gigadat,
+                        PaymentMethodType::Interac,
+                    ),
+                    // Loonio
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Loonio,
+                        PaymentMethodType::Interac,
                     ),
                 ])),
             ),
