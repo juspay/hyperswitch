@@ -229,7 +229,7 @@ pub async fn perform_execute_payment(
                     db.as_scheduler()
                         .finish_process_with_business_status(
                             execute_task_process.clone(),
-                            business_status::EXECUTE_WORKFLOW_COMPLETE_DUE_TO_NO_TOKEN_FOUND,
+                            business_status::EXECUTE_WORKFLOW_COMPLETE,
                         )
                         .await?;
 
