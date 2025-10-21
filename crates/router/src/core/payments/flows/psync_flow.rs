@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use common_enums::{self, enums};
-use common_utils::{id_type, ucs_types};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
@@ -279,6 +279,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     response
                 });
                 self.response = router_data_response;
+                self.amount_captured = payment_get_response.captured_amount;
+                self.minor_amount_captured = payment_get_response.minor_captured_amount.map(MinorUnit::new);
                 self.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()
@@ -375,6 +377,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                                 response
                             });
                         router_data.response = router_data_response;
+                        router_data.amount_captured = payment_get_response.captured_amount;
+                        router_data.minor_amount_captured = payment_get_response.minor_captured_amount.map(MinorUnit::new);
                         router_data.raw_connector_response = payment_get_response
                             .raw_connector_response
                             .clone()
