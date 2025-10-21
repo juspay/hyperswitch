@@ -805,9 +805,8 @@ impl RedisTokenManager {
                         None,
                     )
                     .await?;
-                    
+
                     None
-                    
                 } else {
                     Some(t)
                 }
