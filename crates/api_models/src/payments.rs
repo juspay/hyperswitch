@@ -679,19 +679,15 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GiftCardBalanceCheckResponse {
+pub struct PaymentMethodBalanceCheckResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the gift card
+    /// The balance of the payment method
     pub balance: MinorUnit,
-    /// The currency of the Gift Card
+    /// The currency of the payment method
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
-    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
-    pub needs_additional_pm_data: bool,
-    /// Transaction amount left after subtracting gift card balance (Used for split payments)
-    pub remaining_amount: MinorUnit,
 }
 
 #[cfg(feature = "v2")]
@@ -3171,6 +3167,13 @@ pub enum GiftCardData {
     PaySafeCard {},
     BhnCardNetwork(BHNGiftCardDetails),
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BalanceCheckPaymentMethodData {
+    GiftCard(GiftCardData),
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct BHNGiftCardDetails {
@@ -5984,12 +5987,14 @@ pub struct PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Gift Card balance check
+/// Request for Payment method balance check
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentsGiftCardBalanceCheckRequest {
-    pub gift_card_data: GiftCardData,
+pub struct PaymentMethodBalanceCheckRequest {
+    /// The payment method data to be used for the balance check request. It can
+    /// only be a payment method that supports checking balance e.g. gift card
+    pub payment_method_data: BalanceCheckPaymentMethodData,
 }
 
 #[cfg(feature = "v2")]

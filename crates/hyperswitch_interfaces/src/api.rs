@@ -33,6 +33,9 @@ use common_enums::{
     enums::{
         self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
     },
+    enums::{
+        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
+    },
     PaymentMethod,
 };
 use common_utils::{
@@ -64,7 +67,7 @@ use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsAuthorizeData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
