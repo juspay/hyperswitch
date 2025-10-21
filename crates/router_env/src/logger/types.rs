@@ -475,6 +475,8 @@ pub enum Flow {
     DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Extend Authorization flow
+    PaymentsExtendAuthorization,
     /// Get action URL for connector onboarding
     GetActionUrl,
     /// Sync connector onboarding status
@@ -678,8 +680,8 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
-    /// Gift card balance check flow
-    GiftCardBalanceCheck,
+    /// Payment Method balance check flow
+    PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
 }
