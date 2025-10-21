@@ -5,9 +5,8 @@ use common_enums::{enums, AttemptStatus};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
-    id_type,
     request::Method,
-    types::{AmountConvertor, FloatMajorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};
 use error_stack::ResultExt;
@@ -31,16 +30,30 @@ use serde_json::Value;
 use url::Url;
 
 use crate::{
+    connectors::santander::{
+        requests::{
+            Discount, DiscountType, Environment, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            SantanderBoletoPaymentRequest, SantanderBoletoUpdateRequest, SantanderDebtor,
+            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
+            SantanderPaymentsCancelRequest, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderRefundRequest,
+            SantanderRouterData, SantanderValue,
+        },
+        responses::{
+            BoletoDocumentKind, FunctionType, Payer, PaymentType, SanatanderAccessTokenResponse,
+            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
+            SantanderPixVoidResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderVoidStatus, SantanderWebhookBody,
+        },
+    },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self as connector_utils, QrImage, RouterData as _},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
-
-pub struct SantanderRouterData<T> {
-    pub amount: StringMajorUnit,
-    pub router_data: T,
-}
 
 impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
     fn from((amount, item): (StringMajorUnit, T)) -> Self {
@@ -49,37 +62,6 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             router_data: item,
         }
     }
-}
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderMetadataObject {
-    pub pix_key: Secret<String>,
-    pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
-    pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
-    pub merchant_city: String,
-    pub merchant_name: String,
-    pub workspace_id: String,
-    pub covenant_code: String, // max_size : 9
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderBoletoUpdateRequest {
-    #[serde(skip_deserializing)]
-    pub covenant_code: String,
-    #[serde(skip_deserializing)]
-    pub bank_number: String,
-    pub due_date: Option<String>,
-    pub discount: Option<Discount>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub interest: Option<InterestPercentage>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InterestPercentage {
-    pub interest_percentage: String,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadataObject {
@@ -230,66 +212,9 @@ pub fn generate_emv_string(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SanatanderAccessTokenResponse {
-    Response(SanatanderTokenResponse),
-    Error(SantanderTokenErrorResponse),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SanatanderTokenResponse {
-    #[serde(rename = "refreshUrl")]
-    pub refresh_url: String,
-    pub token_type: String,
-    pub client_id: Secret<String>,
-    pub access_token: Secret<String>,
-    pub scopes: String,
-    pub expires_in: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SantanderTokenErrorResponse {
-    #[serde(rename = "type")]
-    pub error_type: String,
-    pub title: String,
-    pub status: u16,
-    pub detail: String,
-}
-
-#[derive(Default, Debug, Serialize)]
-pub struct SantanderCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPSyncBoletoRequest {
     payer_document_number: Secret<i64>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SantanderAuthType {
-    pub(super) client_id: Secret<String>,
-    pub(super) client_secret: Secret<String>,
-    pub(super) certificate: Secret<String>,
-    pub(super) certificate_key: Secret<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SantanderAuthRequest {
-    client_id: Secret<String>,
-    client_secret: Secret<String>,
-    grant_type: SantanderGrantType,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SantanderGrantType {
-    ClientCredentials,
 }
 
 impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
@@ -659,236 +584,6 @@ impl
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum SantanderPaymentRequest {
-    PixQR(Box<SantanderPixQRPaymentRequest>),
-    Boleto(Box<SantanderBoletoPaymentRequest>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Discount {
-    #[serde(rename = "type")]
-    pub discount_type: DiscountType,
-    pub discount_one: Option<DiscountObject>,
-    pub discount_two: Option<DiscountObject>,
-    pub discount_three: Option<DiscountObject>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderBoletoPaymentRequest {
-    pub environment: Environment,
-    pub nsu_code: String,
-    pub nsu_date: String,
-    pub covenant_code: String,
-    pub bank_number: Secret<String>,
-    pub client_number: Option<id_type::CustomerId>,
-    pub due_date: String,
-    pub issue_date: String,
-    pub currency: Option<enums::Currency>,
-    pub nominal_value: StringMajorUnit,
-    pub participant_code: Option<String>,
-    pub payer: Payer,
-    pub beneficiary: Option<Beneficiary>,
-    pub document_kind: BoletoDocumentKind,
-    pub discount: Option<Discount>,
-    pub fine_percentage: Option<String>,
-    pub fine_quantity_days: Option<String>,
-    pub interest_percentage: Option<String>,
-    pub deduction_value: Option<FloatMajorUnit>,
-    pub protest_type: Option<ProtestType>,
-    pub protest_quantity_days: Option<i64>,
-    pub write_off_quantity_days: Option<String>,
-    pub payment_type: PaymentType,
-    pub parcels_quantity: Option<i64>,
-    pub value_type: Option<String>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub iof_percentage: Option<f64>,
-    pub sharing: Option<Sharing>,
-    pub key: Option<Key>,
-    pub tx_id: Option<String>,
-    pub messages: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Payer {
-    pub name: Secret<String>,
-    pub document_type: enums::DocumentKind,
-    pub document_number: Option<Secret<String>>,
-    pub address: Secret<String>,
-    pub neighborhood: Secret<String>,
-    pub city: String,
-    pub state: Secret<String>,
-    pub zipcode: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Beneficiary {
-    pub name: Option<Secret<String>>,
-    pub document_type: Option<enums::DocumentKind>,
-    pub document_number: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum Environment {
-    #[serde(rename = "Teste")]
-    Sandbox,
-    #[serde(rename = "Producao")]
-    Production,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum SantanderDocumentKind {
-    Cpf,
-    Cnpj,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BoletoDocumentKind {
-    #[serde(rename = "DUPLICATA_MERCANTIL")]
-    DuplicateMercantil,
-    #[serde(rename = "DUPLICATA_SERVICO")]
-    DuplicateService,
-    #[serde(rename = "NOTA_PROMISSORIA")]
-    PromissoryNote,
-    #[serde(rename = "NOTA_PROMISSORIA_RURAL")]
-    RuralPromissoryNote,
-    #[serde(rename = "RECIBO")]
-    Receipt,
-    #[serde(rename = "APOLICE_SEGURO")]
-    InsurancePolicy,
-    #[serde(rename = "BOLETO_CARTAO_CREDITO")]
-    BillCreditCard,
-    #[serde(rename = "BOLETO_PROPOSTA")]
-    BillProposal,
-    #[serde(rename = "BOLETO_DEPOSITO_APORTE")]
-    BoletoDepositoAponte,
-    #[serde(rename = "CHEQUE")]
-    Check,
-    #[serde(rename = "NOTA_PROMISSORIA_DIRETA")]
-    DirectPromissoryNote,
-    #[serde(rename = "OUTROS")]
-    Others,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DiscountType {
-    #[serde(rename = "ISENTO")]
-    Free,
-    #[serde(rename = "VALOR_DATA_FIXA")]
-    FixedDateValue,
-    #[serde(rename = "VALOR_DIA_CORRIDO")]
-    ValueDayConductor,
-    #[serde(rename = "VALOR_DIA_UTIL")]
-    ValueWorthDay,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub struct DiscountObject {
-    pub value: f64,
-    pub limit_date: String, // YYYY-MM-DD
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProtestType {
-    #[serde(rename = "SEM_PROTESTO")]
-    WithoutProtest,
-    #[serde(rename = "DIAS_CORRIDOS")]
-    DaysConducted,
-    #[serde(rename = "DIAS_UTEIS")]
-    WorkingDays,
-    #[serde(rename = "CADASTRO_CONVENIO")]
-    RegistrationAgreement,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum PaymentType {
-    #[serde(rename = "REGISTRO")]
-    Registration,
-    #[serde(rename = "DIVERGENTE")]
-    Divergent,
-    #[serde(rename = "PARCIAL")]
-    Partial,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Sharing {
-    pub code: String,
-    pub value: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Key {
-    #[serde(rename = "type")]
-    pub key_type: Option<String>,
-    pub dict_key: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderDebtor {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cnpj: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpf: Option<Secret<String>>,
-    #[serde(rename = "nome")]
-    pub name: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "logradouro")]
-    pub street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "cidade")]
-    pub city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "uf")]
-    pub state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "cep")]
-    pub zip_code: Option<Secret<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderValue {
-    pub original: StringMajorUnit,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderAdditionalInfo {
-    #[serde(rename = "nome")]
-    pub name: String,
-    #[serde(rename = "valor")]
-    pub value: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum SantanderPaymentStatus {
-    #[serde(rename = "ATIVA")]
-    Active,
-    #[serde(rename = "CONCLUIDA")]
-    Completed,
-    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
-    RemovedByReceivingUser,
-    #[serde(rename = "REMOVIDA_PELO_PSP")]
-    RemovedByPSP,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SantanderVoidStatus {
-    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
-    RemovedByReceivingUser,
-}
-
 impl From<SantanderPaymentStatus> for AttemptStatus {
     fn from(item: SantanderPaymentStatus) -> Self {
         match item {
@@ -907,312 +602,6 @@ impl From<router_env::env::Env> for Environment {
             router_env::env::Env::Production => Self::Production,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SantanderPaymentsResponse {
-    PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
-    Boleto(Box<SantanderBoletoPaymentsResponse>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderBoletoPaymentsResponse {
-    pub environment: Environment,
-    pub nsu_code: String,
-    pub nsu_date: String,
-    pub covenant_code: String,
-    pub bank_number: Secret<String>,
-    pub client_number: Option<id_type::CustomerId>,
-    pub due_date: String,
-    pub issue_date: String,
-    pub participant_code: Option<String>,
-    pub nominal_value: StringMajorUnit,
-    pub payer: Payer,
-    pub beneficiary: Option<Beneficiary>,
-    pub document_kind: BoletoDocumentKind,
-    pub discount: Option<Discount>,
-    pub fine_percentage: Option<String>,
-    pub fine_quantity_days: Option<String>,
-    pub interest_percentage: Option<String>,
-    pub deduction_value: Option<FloatMajorUnit>,
-    pub protest_type: Option<ProtestType>,
-    pub protest_quantity_days: Option<i64>,
-    pub write_off_quantity_days: Option<String>,
-    pub payment_type: PaymentType,
-    pub parcels_quantity: Option<i64>,
-    pub value_type: Option<String>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub iof_percentage: Option<f64>,
-    pub sharing: Option<Sharing>,
-    pub key: Option<Key>,
-    pub tx_id: Option<String>,
-    pub messages: Option<Vec<String>>,
-    pub barcode: Option<String>,
-    pub digitable_line: Option<Secret<String>>,
-    pub entry_date: Option<String>,
-    pub qr_code_pix: Option<String>,
-    pub qr_code_url: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SantanderPixRequestCalendar {
-    Immediate(SantanderPixImmediateCalendarRequest),
-    Scheduled(SantanderPixDueDateCalendarRequest),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixDueDateCalendarRequest {
-    #[serde(rename = "dataDeVencimento")]
-    pub expiration_date: String,
-    #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_expiration: Option<i32>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixQRCodePaymentsResponse {
-    pub status: SantanderPaymentStatus,
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: Option<Value>,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
-    pub location: Option<String>,
-    #[serde(rename = "recebedor")]
-    pub recipient: Option<Recipient>,
-    #[serde(rename = "valor")]
-    pub value: SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-    pub pix: Option<Vec<SantanderPix>>,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixQRCodeSyncResponse {
-    pub status: SantanderPaymentStatus,
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: Value,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
-    pub location: Option<String>,
-    #[serde(rename = "valor")]
-    pub value: SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-    pub pix: Option<Vec<SantanderPix>>,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixQRPaymentRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "calendario")]
-    pub calendar: Option<SantanderPixRequestCalendar>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "valor")]
-    pub value: Option<SantanderValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "chave")]
-    pub key: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixVoidResponse {
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: Value,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
-    #[serde(rename = "recebedor")]
-    pub recebedor: Recipient,
-    pub status: SantanderPaymentStatus,
-    #[serde(rename = "valor")]
-    pub value: ValueResponse,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<Secret<String>>,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValueResponse {
-    #[serde(rename = "original")]
-    pub original: String,
-    #[serde(rename = "multa")]
-    pub fine: Fine,
-    #[serde(rename = "juros")]
-    pub interest: Interest,
-    #[serde(rename = "desconto")]
-    pub discount: DiscountResponse,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Fine {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Interest {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiscountResponse {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "descontoDataFixa")]
-    pub fixed_date_discount: Vec<FixedDateDiscount>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FixedDateDiscount {
-    #[serde(rename = "data")]
-    pub date: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Recipient {
-    pub cnpj: Option<Secret<String>>,
-    #[serde(rename = "nome")]
-    pub name: Option<Secret<String>>,
-    #[serde(rename = "nomeFantasia")]
-    pub business_name: Option<Secret<String>>,
-    #[serde(rename = "logradouro")]
-    pub street: Option<Secret<String>>,
-    #[serde(rename = "cidade")]
-    pub city: Option<Secret<String>>,
-    #[serde(rename = "uf")]
-    pub state: Option<Secret<String>>,
-    #[serde(rename = "cep")]
-    pub zip_code: Option<Secret<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderPixImmediateCalendarRequest {
-    #[serde(rename = "expiracao")]
-    pub expiration: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderCalendarResponse {
-    #[serde(rename = "criacao")]
-    pub creation: String,
-    #[serde(rename = "expiracao")]
-    pub expiration: Option<String>,
-    #[serde(rename = "dataDeVencimento")]
-    pub due_date: Option<String>,
-    #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_due: Option<Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SantanderPaymentsSyncResponse {
-    PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
-    Boleto(Box<SantanderBoletoPSyncResponse>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderBoletoPSyncResponse {
-    pub link: Option<Url>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPix {
-    pub end_to_end_id: Secret<String>,
-    #[serde(rename = "txid")]
-    pub transaction_id: Secret<String>,
-    #[serde(rename = "valor")]
-    pub value: String,
-    #[serde(rename = "horario")]
-    pub time: String,
-    #[serde(rename = "infoPagador")]
-    pub info_payer: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixCancelRequest {
-    pub status: Option<SantanderVoidStatus>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SantanderPaymentsCancelRequest {
-    PixQR(SantanderPixCancelRequest),
-    Boleto(SantanderBoletoCancelRequest),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderBoletoCancelRequest {
-    pub covenant_code: String,
-    pub bank_number: String,
-    pub operation: SantanderBoletoCancelOperation,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub enum SantanderBoletoCancelOperation {
-    #[serde(rename = "PROTESTAR")]
-    Protest,
-    #[serde(rename = "CANCELAR_PROTESTO")]
-    CancelProtest,
-    #[serde(rename = "BAIXAR")]
-    #[default]
-    WriteOff,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderUpdateBoletoResponse {
-    pub covenant_code: Option<String>,
-    pub bank_number: Option<String>,
-    pub message: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, PaymentsResponseData>>
@@ -1589,19 +978,6 @@ fn convert_pix_data_to_value(
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
-#[derive(Default, Debug, Serialize)]
-pub struct SantanderRefundRequest {
-    #[serde(rename = "valor")]
-    pub value: StringMajorUnit,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct QrDataUrlSantander {
-    pub qr_code_url: Url,
-    pub display_to_timestamp: Option<i64>,
-    pub variant: Option<api_models::payments::SantanderVariant>,
-}
-
 impl<F> TryFrom<&SantanderRouterData<&RefundsRouterData<F>>> for SantanderRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SantanderRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
@@ -1609,14 +985,6 @@ impl<F> TryFrom<&SantanderRouterData<&RefundsRouterData<F>>> for SantanderRefund
             value: item.amount.to_owned(),
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum SantanderRefundStatus {
-    InProcessing,
-    Returned,
-    NotDone,
 }
 
 impl From<SantanderRefundStatus> for enums::RefundStatus {
@@ -1627,29 +995,6 @@ impl From<SantanderRefundStatus> for enums::RefundStatus {
             SantanderRefundStatus::InProcessing => Self::Pending,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderRefundResponse {
-    pub id: Secret<String>,
-    pub rtr_id: Secret<String>,
-    #[serde(rename = "valor")]
-    pub value: StringMajorUnit,
-    #[serde(rename = "horario")]
-    pub time: SantanderTime,
-    pub status: SantanderRefundStatus,
-    #[serde(rename = "motivo")]
-    pub reason: String,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderTime {
-    #[serde(rename = "solicitacao")]
-    pub request: Option<String>,
-    #[serde(rename = "liquidacao")]
-    pub liquidation: Option<String>,
 }
 
 impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for RefundsRouterData<F> {
@@ -1665,187 +1010,6 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
             ..item.data
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SantanderErrorResponse {
-    PixQrCode(SantanderPixQRCodeErrorResponse),
-    Boleto(SantanderBoletoErrorResponse),
-    Generic(SantanderGenericErrorResponse),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderBoletoErrorResponse {
-    #[serde(rename = "_errorCode")]
-    pub error_code: i64,
-
-    #[serde(rename = "_message")]
-    pub error_message: String,
-
-    #[serde(rename = "_details")]
-    pub issuer_error_message: String,
-
-    #[serde(rename = "_timestamp")]
-    pub timestamp: String,
-
-    #[serde(rename = "_traceId")]
-    pub trace_id: String,
-
-    #[serde(rename = "_errors")]
-    pub errors: Option<Vec<ErrorObject>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderGenericErrorResponse {
-    #[serde(rename = "type")]
-    pub card_type: String,
-    pub title: String,
-    pub status: Value,
-    pub detail: Option<String>,
-    #[serde(rename = "correlationId")]
-    pub correlation_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ErrorObject {
-    #[serde(rename = "_code")]
-    pub code: Option<i64>,
-
-    #[serde(rename = "_field")]
-    pub field: Option<String>,
-
-    #[serde(rename = "_message")]
-    pub message: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixQRCodeErrorResponse {
-    #[serde(rename = "type")]
-    pub field_type: Secret<String>,
-    pub title: String,
-    pub status: String,
-    pub detail: Option<String>,
-    pub correlation_id: Option<String>,
-    #[serde(rename = "violacoes")]
-    pub violations: Option<Vec<SantanderViolations>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SantanderViolations {
-    #[serde(rename = "razao")]
-    pub reason: Option<String>,
-    #[serde(rename = "propriedade")]
-    pub property: Option<String>,
-    #[serde(rename = "valor")]
-    pub value: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderWebhookBody {
-    pub message: MessageCode,   // meaning of this enum variant is not clear
-    pub function: FunctionType, // event type of the webhook
-    pub payment_type: WebhookPaymentType,
-    pub issue_date: String,
-    pub payment_date: String,
-    pub bank_code: String,
-    pub payment_channel: PaymentChannel,
-    pub payment_kind: PaymentKind,
-    pub covenant: String,
-    pub type_of_person_agreement: enums::DocumentKind,
-    pub agreement_document: String,
-    pub bank_number: String,
-    pub client_number: String,
-    pub participant_code: String,
-    pub tx_id: String,
-    pub payer_document_type: enums::DocumentKind,
-    pub payer_document_number: String,
-    pub payer_name: String,
-    pub final_beneficiary_document_type: enums::DocumentKind,
-    pub final_beneficiary_document_number: String,
-    pub final_beneficiary_name: String,
-    pub due_date: String,
-    pub nominal_value: StringMajorUnit,
-    #[serde(rename = "payed_value")]
-    pub paid_value: String,
-    pub interest_value: String,
-    pub fine: String,
-    pub deduction_value: String,
-    pub rebate_value: String,
-    pub iof_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MessageCode {
-    Wbhkpagest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FunctionType {
-    Pagamento, // Payment
-    Estorno,   // Refund
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum WebhookPaymentType {
-    Santander,
-    OutrosBancos,
-    Pix,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-/// Represents the channel through which a boleto payment was made.
-pub enum PaymentChannel {
-    /// Payment made at a bank branch or ATM (self-service).
-    #[serde(rename = "AgenciasAutoAtendimento")]
-    BankBranchOrAtm,
-
-    /// Payment made through online banking.
-    #[serde(rename = "InternetBanking")]
-    OnlineBanking,
-
-    /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
-    #[serde(rename = "CorrespondenteBancarioFisico")]
-    PhysicalCorrespondentAgent,
-
-    /// Payment made via Santander’s call center.
-    #[serde(rename = "CentralDeAtendimento")]
-    CallCenter,
-
-    /// Payment made via electronic file, typically for bulk company payments.
-    #[serde(rename = "ArquivoEletronico")]
-    ElectronicFile,
-
-    /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
-    #[serde(rename = "Dda")]
-    DirectDebitAuthorized,
-
-    /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
-    #[serde(rename = "CorrespondenteBancarioDigital")]
-    DigitalCorrespondentAgent,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-/// Represents the type of payment instrument used to pay a boleto.
-pub enum PaymentKind {
-    /// Payment made in cash or physical form (not via account or card).
-    Especie,
-
-    /// Payment made via direct debit from a bank account.
-    DebitoEmConta,
-
-    /// Payment made via credit card.
-    CartaoDeCredito,
-
-    /// Payment made via check.
-    Cheque,
 }
 
 pub(crate) fn get_webhook_object_from_body(
