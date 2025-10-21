@@ -1,12 +1,17 @@
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{
+    payments as payment_types,
+    payments::{ApplePaySessionResponse, SessionToken},
+    webhooks::IncomingWebhookEvent,
+};
 use common_enums::enums;
 use common_utils::{
+    ext_traits::{OptionExt, ValueExt},
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -24,16 +29,21 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use strum::Display;
 use time::PrimitiveDateTime;
 
 use crate::{
-    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCaptureResponseRouterData, PaymentsSessionResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     unimplemented_payment_method,
     utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         RefundsRequestData, RouterData as _,
     },
 };
+
 pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
 pub const TOKENIZE_CREDIT_CARD: &str = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }";
@@ -47,6 +57,12 @@ pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCar
 pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
 pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
 pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
+pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const AUTHORIZE_GOOGLE_PAY_MUTATION: &str = "mutation authorizeGPay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
+pub const CHARGE_APPLE_PAY_MUTATION: &str = "mutation ChargeApplepay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const AUTHORIZE_APPLE_PAY_MUTATION: &str = "mutation authorizeApplepay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
+pub const CHARGE_PAYPAL_MUTATION: &str = "mutation ChargePaypal($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+pub const AUTHORIZE_PAYPAL_MUTATION: &str = "mutation authorizePaypal($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
 
 pub type CardPaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
 pub type MandatePaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
@@ -68,6 +84,23 @@ pub type VariableCaptureInput = GenericVariableInput<CaptureInputData>;
 pub type BraintreeRefundVariables = GenericVariableInput<BraintreeRefundInput>;
 pub type PSyncInput = GenericVariableInput<TransactionSearchInput>;
 pub type RSyncInput = GenericVariableInput<RefundSearchInput>;
+
+pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<WalletPaymentInput>>;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    order_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletPaymentInput {
+    payment_method_id: Secret<String>,
+    transaction: WalletTransactionBody,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GenericBraintreeRequest<T> {
@@ -188,6 +221,8 @@ pub enum BraintreePaymentsRequest {
     Card(CardPaymentRequest),
     CardThreeDs(BraintreeClientTokenRequest),
     Mandate(MandatePaymentRequest),
+    Wallet(BraintreeWalletRequest),
+    Session(BraintreeClientTokenRequest),
 }
 
 #[derive(Debug, Deserialize)]
@@ -342,8 +377,94 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     metadata,
                 ))?))
             }
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                WalletData::GooglePayThirdPartySdk(ref req_wallet) => {
+                    let payment_method_id = &req_wallet.token;
+                    let query = match item.router_data.request.is_auto_capture()? {
+                        true => CHARGE_GOOGLE_PAY_MUTATION.to_string(),
+                        false => AUTHORIZE_GOOGLE_PAY_MUTATION.to_string(),
+                    };
+
+                    Ok(Self::Wallet(BraintreeWalletRequest {
+                        query,
+                        variables: GenericVariableInput {
+                            input: WalletPaymentInput {
+                                payment_method_id: payment_method_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "google_pay token",
+                                    },
+                                )?,
+
+                                transaction: WalletTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                    order_id: item
+                                        .router_data
+                                        .connector_request_reference_id
+                                        .clone(),
+                                },
+                            },
+                        },
+                    }))
+                }
+                WalletData::ApplePayThirdPartySdk(ref req_wallet) => {
+                    let payment_method_id = &req_wallet.token;
+
+                    let query = match item.router_data.request.is_auto_capture()? {
+                        true => CHARGE_APPLE_PAY_MUTATION.to_string(),
+                        false => AUTHORIZE_APPLE_PAY_MUTATION.to_string(),
+                    };
+
+                    Ok(Self::Wallet(BraintreeWalletRequest {
+                        query,
+                        variables: GenericVariableInput {
+                            input: WalletPaymentInput {
+                                payment_method_id: payment_method_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "apple_pay token",
+                                    },
+                                )?,
+                                transaction: WalletTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                    order_id: item
+                                        .router_data
+                                        .connector_request_reference_id
+                                        .clone(),
+                                },
+                            },
+                        },
+                    }))
+                }
+                WalletData::PaypalSdk(ref req_wallet) => {
+                    let payment_method_id = req_wallet.token.clone();
+                    let query = match item.router_data.request.is_auto_capture()? {
+                        true => CHARGE_PAYPAL_MUTATION.to_string(),
+                        false => AUTHORIZE_PAYPAL_MUTATION.to_string(),
+                    };
+                    Ok(Self::Wallet(BraintreeWalletRequest {
+                        query,
+                        variables: GenericVariableInput {
+                            input: WalletPaymentInput {
+                                payment_method_id: payment_method_id.clone().into(),
+                                transaction: WalletTransactionBody {
+                                    amount: item.amount.clone(),
+                                    merchant_account_id: metadata.merchant_account_id,
+                                    order_id: item
+                                        .router_data
+                                        .connector_request_reference_id
+                                        .clone(),
+                                },
+                            },
+                        },
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into()),
+            },
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -415,6 +536,7 @@ pub enum BraintreeAuthResponse {
     AuthResponse(Box<AuthResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
+    WalletAuthResponse(Box<WalletAuthResponse>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -473,9 +595,9 @@ impl<F>
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
                     Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                        code: transaction_data.status.to_string().clone(),
-                        message: transaction_data.status.to_string().clone(),
-                        reason: Some(transaction_data.status.to_string().clone()),
+                        code: transaction_data.status.to_string(),
+                        message: transaction_data.status.to_string(),
+                        reason: Some(transaction_data.status.to_string()),
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
@@ -528,6 +650,42 @@ impl<F>
                 }),
                 ..item.data
             }),
+            BraintreeAuthResponse::WalletAuthResponse(wallet_response) => {
+                let txn = &wallet_response.data.authorize_payment_method.transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: txn.legacy_id.clone(),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -716,6 +874,45 @@ impl<F>
                 }),
                 ..item.data
             }),
+            BraintreePaymentsResponse::WalletPaymentsResponse(google_pay_payments_response) => {
+                let txn = &google_pay_payments_response
+                    .data
+                    .charge_payment_method
+                    .transaction;
+                let status = enums::AttemptStatus::from(txn.status.clone());
+
+                let response = if utils::is_payment_failure(status) {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                        code: txn.status.to_string(),
+                        message: txn.status.to_string(),
+                        reason: Some(txn.status.to_string()),
+                        attempt_status: None,
+                        connector_transaction_id: Some(txn.id.clone()),
+                        status_code: item.http_code,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -866,9 +1063,54 @@ pub struct PaymentsResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WalletPaymentsResponse {
+    pub data: WalletDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletDataResponse {
+    pub charge_payment_method: WalletTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WalletTransactionWrapper {
+    pub transaction: WalletTransaction,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletTransaction {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_id: Option<String>,
+    pub status: BraintreePaymentStatus,
+    pub amount: Amount,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Amount {
+    pub value: String,
+    pub currency_code: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WalletAuthResponse {
+    pub data: WalletAuthDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletAuthDataResponse {
+    pub authorize_payment_method: WalletTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BraintreePaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
+    WalletPaymentsResponse(Box<WalletPaymentsResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
@@ -981,7 +1223,6 @@ pub struct BraintreeRefundTransactionBody {
     pub id: String,
     pub status: BraintreeRefundStatus,
 }
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BraintreeRefundTransaction {
     pub refund: BraintreeRefundTransactionBody,
@@ -1260,8 +1501,15 @@ pub struct ClientTokenData {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientTokenExtensions {
+    request_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientTokenResponse {
     data: ClientTokenData,
+    extensions: ClientTokenExtensions,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1278,6 +1526,13 @@ pub struct ErrorResponse {
 #[serde(untagged)]
 pub enum BraintreeTokenResponse {
     TokenResponse(Box<TokenResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeSessionResponse {
+    SessionTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
 
@@ -1309,6 +1564,246 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
             },
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Clone, Display, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GooglePayPriceStatus {
+    #[strum(serialize = "FINAL")]
+    Final,
+}
+
+#[derive(Debug, Clone, Display, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalFlow {
+    Checkout,
+}
+
+impl From<PaypalFlow> for payment_types::PaypalFlow {
+    fn from(item: PaypalFlow) -> Self {
+        match item {
+            PaypalFlow::Checkout => Self::Checkout,
+        }
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentsSessionResponseRouterData<BraintreeSessionResponse>,
+        Self,
+    )> for types::PaymentsSessionRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, data): (
+            PaymentsSessionResponseRouterData<BraintreeSessionResponse>,
+            Self,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        match response {
+            BraintreeSessionResponse::SessionTokenResponse(res) => {
+                let session_token = match data.payment_method_type {
+                    Some(common_enums::PaymentMethodType::ApplePay) => {
+                        let payment_request_data: payment_types::PaymentRequestMetadata =
+                            if let Some(connector_meta) = data.connector_meta_data.clone() {
+                                let meta_value: serde_json::Value = connector_meta.expose();
+                                meta_value
+                                    .get("apple_pay_combined")
+                                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("Missing apple_pay_combined metadata")?
+                                    .get("manual")
+                                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("Missing manual metadata")?
+                                    .get("payment_request_data")
+                                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("Missing payment_request_data metadata")?
+                                    .clone()
+                                    .parse_value("PaymentRequestMetadata")
+                                    .change_context(errors::ConnectorError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to parse apple_pay_combined.manual.payment_request_data metadata",
+                                    )?
+                            } else {
+                                return Err(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("connector_meta_data is None");
+                            };
+
+                        let session_token_data = Some(ApplePaySessionResponse::ThirdPartySdk(
+                            payment_types::ThirdPartySdkSessionResponse {
+                                secrets: payment_types::SecretInfoToInitiateSdk {
+                                    display: res.data.create_client_token.client_token.clone(),
+                                    payment: None,
+                                },
+                            },
+                        ));
+                        SessionToken::ApplePay(Box::new(
+                            api_models::payments::ApplepaySessionTokenResponse {
+                                session_token_data,
+                                payment_request_data: Some(
+                                    api_models::payments::ApplePayPaymentRequest {
+                                        country_code: data.request.country.ok_or(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "country",
+                                            },
+                                        )?,
+                                        currency_code: data.request.currency,
+                                        total: api_models::payments::AmountInfo {
+                                            label: payment_request_data.label,
+                                            total_type: None,
+                                            amount: StringMajorUnitForConnector
+                                                .convert(
+                                                    MinorUnit::new(data.request.amount),
+                                                    data.request.currency,
+                                                )
+                                                .change_context(
+                                                    errors::ConnectorError::AmountConversionFailed,
+                                                )?,
+                                        },
+                                        merchant_capabilities: Some(
+                                            payment_request_data.merchant_capabilities,
+                                        ),
+                                        supported_networks: Some(
+                                            payment_request_data.supported_networks,
+                                        ),
+                                        merchant_identifier: None,
+                                        required_billing_contact_fields: None,
+                                        required_shipping_contact_fields: None,
+                                        recurring_payment_request: None,
+                                    },
+                                ),
+                                connector: data.connector.clone(),
+                                delayed_session_token: false,
+                                sdk_next_action: api_models::payments::SdkNextAction {
+                                    next_action: api_models::payments::NextActionCall::Confirm,
+                                },
+                                connector_reference_id: None,
+                                connector_sdk_public_key: None,
+                                connector_merchant_id: None,
+                            },
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::GooglePay) => {
+                        let gpay_data: payment_types::GpaySessionTokenData =
+                            if let Some(connector_meta) = data.connector_meta_data.clone() {
+                                connector_meta
+                                    .expose()
+                                    .parse_value("GpaySessionTokenData")
+                                    .change_context(errors::ConnectorError::ParsingFailed)
+                                    .attach_printable("Failed to parse gpay metadata")?
+                            } else {
+                                return Err(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("connector_meta_data is None");
+                            };
+
+                        SessionToken::GooglePay(Box::new(
+                            api_models::payments::GpaySessionTokenResponse::GooglePaySession(
+                                api_models::payments::GooglePaySessionResponse {
+                                    merchant_info: payment_types::GpayMerchantInfo {
+                                        merchant_name: gpay_data.data.merchant_info.merchant_name,
+                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
+                                    },
+                                    shipping_address_required: false,
+                                    email_required: false,
+                                    shipping_address_parameters:
+                                        payment_types::GpayShippingAddressParameters {
+                                            phone_number_required: false,
+                                        },
+                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                                    transaction_info: payment_types::GpayTransactionInfo {
+                                        country_code: data.request.country.ok_or(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "country",
+                                            },
+                                        )?,
+                                        currency_code: data.request.currency,
+                                        total_price_status: GooglePayPriceStatus::Final.to_string(),
+                                        total_price: StringMajorUnitForConnector
+                                            .convert(
+                                                MinorUnit::new(data.request.amount),
+                                                data.request.currency,
+                                            )
+                                            .change_context(
+                                                errors::ConnectorError::AmountConversionFailed,
+                                            )?,
+                                    },
+                                    secrets: Some(payment_types::SecretInfoToInitiateSdk {
+                                        display: res.data.create_client_token.client_token.clone(),
+                                        payment: None,
+                                    }),
+                                    delayed_session_token: false,
+                                    connector: data.connector.clone(),
+                                    sdk_next_action: payment_types::SdkNextAction {
+                                        next_action: payment_types::NextActionCall::Confirm,
+                                    },
+                                },
+                            ),
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::Paypal) => {
+                        let paypal_sdk_data = data
+                            .connector_meta_data
+                            .clone()
+                            .parse_value::<payment_types::PaypalSdkSessionTokenData>(
+                                "PaypalSdkSessionTokenData",
+                            )
+                            .change_context(errors::ConnectorError::NoConnectorMetaData)
+                            .attach_printable("Failed to parse paypal_sdk metadata.".to_string())?;
+
+                        SessionToken::Paypal(Box::new(
+                            api_models::payments::PaypalSessionTokenResponse {
+                                connector: data.connector.clone(),
+                                session_token: paypal_sdk_data.data.client_id,
+                                sdk_next_action: api_models::payments::SdkNextAction {
+                                    next_action: api_models::payments::NextActionCall::Confirm,
+                                },
+                                client_token: Some(
+                                    res.data.create_client_token.client_token.clone().expose(),
+                                ),
+                                transaction_info: Some(
+                                    api_models::payments::PaypalTransactionInfo {
+                                        flow: PaypalFlow::Checkout.into(),
+                                        currency_code: data.request.currency,
+                                        total_price: StringMajorUnitForConnector
+                                            .convert(
+                                                MinorUnit::new(data.request.amount),
+                                                data.request.currency,
+                                            )
+                                            .change_context(
+                                                errors::ConnectorError::AmountConversionFailed,
+                                            )?,
+                                    },
+                                ),
+                            },
+                        ))
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotImplemented(
+                            format!(
+                                "SDK session token generation is not supported for payment method: {:?}",
+                                data.payment_method_type
+                            )
+                        )
+                        .into());
+                    }
+                };
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::SessionResponse { session_token }),
+                    ..data
+                })
+            }
+            BraintreeSessionResponse::ErrorResponse(error_response) => {
+                let err = build_error_response(error_response.errors.as_ref(), item.http_code)
+                    .map_err(|err| *err);
+                Ok(Self {
+                    response: err,
+                    ..data
+                })
+            }
+        }
     }
 }
 
@@ -1631,6 +2126,26 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BraintreePSyncRequest {
                 },
             },
         })
+    }
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for BraintreePaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
+            item.connector_meta_data.clone(),
+        )
+        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        Ok(Self::Session(BraintreeClientTokenRequest {
+            query: CLIENT_TOKEN_MUTATION.to_owned(),
+            variables: VariableClientTokenInput {
+                input: InputClientTokenData {
+                    client_token: ClientTokenInput {
+                        merchant_account_id: metadata.merchant_account_id,
+                    },
+                },
+            },
+        }))
     }
 }
 

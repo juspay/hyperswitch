@@ -4,6 +4,7 @@ pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
+pub mod extend_authorization_flow;
 #[cfg(feature = "v2")]
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
@@ -16,6 +17,7 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
+use common_enums::{self, ExecutionMode};
 use common_types::payments::CustomerAcceptance;
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -50,6 +52,8 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     #[cfg(feature = "v2")]
@@ -215,6 +219,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _unified_connector_service_execution_mode: ExecutionMode,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -233,6 +238,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _unified_connector_service_execution_mode: ExecutionMode,
     ) -> RouterResult<()>
     where
         F: Clone,
