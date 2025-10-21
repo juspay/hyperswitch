@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.15.0-hotfix3
+
+### Features
+
+- **connector:** [PEACHPAYMENTS] Refunds, RSync and Cypress added ([#9932](https://github.com/juspay/hyperswitch/pull/9932)) ([`3831d83`](https://github.com/juspay/hyperswitch/commit/3831d83e26a2aeeba05f513ca33c24be2d5d1207))
+
+**Full Changelog:** [`2025.10.15.0-hotfix2...2025.10.15.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.10.15.0-hotfix2...2025.10.15.0-hotfix3)
+
+- - -
+
 ## 2025.10.15.0-hotfix2
 
 ### Features
