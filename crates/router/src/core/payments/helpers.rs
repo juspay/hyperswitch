@@ -7967,7 +7967,7 @@ where
                 connector_data,
                 ExecutionMode::Primary, // UCS is called in primary mode
                 merchant_order_reference_id,
-        )
+            )
             .await?;
     }
 
