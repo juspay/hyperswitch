@@ -367,7 +367,13 @@ pub async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: ProcessTracker,
     tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
-) -> Result<(InvoiceSyncHandler<'_>, subscription_types::PaymentResponseData), errors::ProcessTrackerError> {
+) -> Result<
+    (
+        InvoiceSyncHandler<'_>,
+        subscription_types::PaymentResponseData,
+    ),
+    errors::ProcessTrackerError,
+> {
     let mut handler = InvoiceSyncHandler::create(state, tracking_data).await?;
 
     let payments_response = InvoiceSyncHandler::perform_payments_sync(
@@ -401,7 +407,7 @@ pub async fn perform_subscription_invoice_sync(
         }
         Ok(invoice) => {
             handler.invoice = invoice.clone();
-        },
+        }
     }
     Ok((handler, payments_response))
 }

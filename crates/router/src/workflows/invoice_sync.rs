@@ -51,9 +51,11 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
                         &handler.profile,
                     )
                     .await
-                    .change_context(errors::ProcessTrackerError::FlowExecutionError {
-                        flow: "Trigger Subscriptions Outgoing Webhook",
-                    });
+                    .change_context(
+                        errors::ProcessTrackerError::FlowExecutionError {
+                            flow: "Trigger Subscriptions Outgoing Webhook",
+                        },
+                    );
                 }
                 Ok(())
             }
