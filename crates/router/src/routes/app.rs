@@ -916,6 +916,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
+                    web::resource("/{payment_id}/eligibility")
+                        .route(web::post().to(payments::payments_submit_eligibility)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )
@@ -946,6 +950,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                )
+                .service(
+                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
@@ -1281,6 +1288,10 @@ impl Customers {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
                 .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
+                .service(
                     web::resource("/total-payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
                 )
@@ -1317,6 +1328,10 @@ impl Customers {
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
         }
 
         #[cfg(feature = "oltp")]

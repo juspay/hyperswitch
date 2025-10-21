@@ -70,6 +70,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
@@ -121,6 +122,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: Option<&common_utils::id_type::PaymentId>,
         payment_method_data: Option<&domain::PaymentMethodData>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
@@ -142,6 +144,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             billing_address,
             acquirer_bin,
             acquirer_merchant_id,
+            payment_method_type,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -289,6 +292,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -298,13 +302,13 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 Some(PaymentDetails {
                     pan: card.card_number.clone(),
                     digital_card_id: None,
-                    payment_data_type: None,
+                    payment_data_type: payment_method_type,
                     encrypted_src_card_details: None,
                     card_expiry_month: card.card_exp_month.clone(),
                     card_expiry_year: card.card_exp_year.clone(),
                     cardholder_name: card.card_holder_name.clone(),
                     card_token_number: None,
-                    account_type: None,
+                    account_type: payment_method_type,
                     card_cvc: Some(card.card_cvc.clone()),
                 })
             } else {
@@ -334,6 +338,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: Option<&common_utils::id_type::PaymentId>,
         payment_method_data: Option<&domain::PaymentMethodData>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
@@ -355,6 +360,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             billing_address,
             acquirer_bin,
             acquirer_merchant_id,
+            payment_method_type,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -1014,6 +1020,7 @@ pub async fn authentication_eligibility_core(
             merchant_id,
             None,
             Some(&payment_method_data),
+            req.payment_method_type,
             &three_ds_connector_account,
             &authentication_connector_name,
             &authentication_id,
