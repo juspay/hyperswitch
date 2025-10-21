@@ -54,12 +54,12 @@ use hyperswitch_domain_models::payouts::{
 };
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
+    master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use router_env::logger;
 use storage_impl::{
@@ -151,6 +151,8 @@ pub trait StorageInterface:
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
+    fn get_subscription_store(&self)
+        -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
@@ -195,26 +197,6 @@ pub trait CommonStorageInterface:
     fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
 
-pub trait MasterKeyInterface {
-    fn get_master_key(&self) -> &[u8];
-}
-
-impl MasterKeyInterface for Store {
-    fn get_master_key(&self) -> &[u8] {
-        self.master_key().peek()
-    }
-}
-
-/// Default dummy key for MockDb
-impl MasterKeyInterface for MockDb {
-    fn get_master_key(&self) -> &[u8] {
-        &[
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]
-    }
-}
-
 #[async_trait::async_trait]
 impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
@@ -225,6 +207,12 @@ impl StorageInterface for Store {
     }
 
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
 }
@@ -248,6 +236,11 @@ impl StorageInterface for MockDb {
     }
 
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
 }

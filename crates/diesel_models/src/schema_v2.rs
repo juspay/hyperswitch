@@ -1279,6 +1279,7 @@ diesel::table! {
         additional_payout_method_data -> Nullable<Jsonb>,
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
+        payout_connector_metadata -> Nullable<Jsonb>,
     }
 }
 

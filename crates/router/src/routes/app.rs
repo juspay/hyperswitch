@@ -952,6 +952,9 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
+                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
+                )
+                .service(
                     web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
                         .route(web::post().to(payments::post_3ds_payments_authorize))
                         .route(web::get().to(payments::post_3ds_payments_authorize))

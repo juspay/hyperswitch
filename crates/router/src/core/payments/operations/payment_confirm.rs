@@ -863,12 +863,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_id = &payment_data.payment_intent.customer_id;
 
         match payment_method_data {
-            Some(api_models::payments::PaymentMethodData::Card(_card)) => {
+            Some(api_models::payments::PaymentMethodData::Card(card)) => {
                 payment_data.card_testing_guard_data =
                     card_testing_guard_utils::validate_card_testing_guard_checks(
                         state,
-                        request,
-                        payment_method_data,
+                        request.browser_info.as_ref(),
+                        card.card_number.clone(),
                         customer_id,
                         business_profile,
                     )
@@ -1293,6 +1293,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &payment_data.payment_attempt.merchant_id,
                             Some(&payment_data.payment_intent.payment_id),
                             payment_data.payment_method_data.as_ref(),
+                            payment_data.payment_attempt.payment_method_type,
                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                             &connector_mca.connector_name,
                             &authentication_id,
@@ -1479,6 +1480,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &payment_data.payment_attempt.merchant_id,
                         Some(&payment_data.payment_intent.payment_id),
                         payment_data.payment_method_data.as_ref(),
+                        payment_data.payment_attempt.payment_method_type,
                         &three_ds_connector_account,
                         &authentication_connector_name,
                         &authentication.authentication_id,
