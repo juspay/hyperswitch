@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 use crate::{
@@ -65,5 +65,19 @@ impl Invoice {
             )
             .await
         }
+    }
+
+    pub async fn get_invoice_by_subscription_id_connector_invoice_id(
+        conn: &PgPooledConn,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::subscription_id
+                .eq(subscription_id.to_owned())
+                .and(dsl::connector_invoice_id.eq(connector_invoice_id.to_owned())),
+        )
+        .await
     }
 }

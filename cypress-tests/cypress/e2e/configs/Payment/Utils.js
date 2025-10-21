@@ -25,6 +25,7 @@ import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
+import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
@@ -92,6 +93,7 @@ const connectorDetails = {
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
+  finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
   globalpay: globalpayConnectorDetails,

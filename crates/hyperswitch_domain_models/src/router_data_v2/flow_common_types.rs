@@ -14,6 +14,7 @@ pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
+    pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
@@ -173,7 +174,9 @@ pub struct GetSubscriptionPlanPricesData {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionEstimateData;
+pub struct GetSubscriptionEstimateData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
 pub struct UasFlowData {

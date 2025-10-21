@@ -29,6 +29,7 @@ serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "f719688943adf7bc17bb93dcb43f27485c17a96e", package = "rust-grpc-client" }
 
 # First party crates
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

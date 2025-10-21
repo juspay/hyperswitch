@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use common_enums::{self, enums};
 use common_types::payments as common_payments_types;
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
@@ -48,6 +49,8 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -61,6 +64,8 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
     }
@@ -150,13 +155,12 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -270,6 +274,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -292,6 +299,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -299,7 +307,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);

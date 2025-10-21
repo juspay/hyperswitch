@@ -2283,4 +2283,47 @@ impl ConnectorSpecifications for Cybersource {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS)
     }
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match current_flow_info {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
+                None
+            }
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                if self.is_3ds_setup_required(request_data, *auth_type) {
+                    Some(api::AlternateFlow::PreAuthenticate)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl Cybersource {
+    pub fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: common_enums::AuthenticationType,
+    ) -> bool {
+        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Cybersource");
+        auth_type.is_three_ds()
+            && request.is_card()
+            && (request.connector_mandate_id().is_none()
+                && request.get_optional_network_transaction_id().is_none())
+            && request.authentication_data.is_none()
+    }
 }

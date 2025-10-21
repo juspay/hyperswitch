@@ -23,7 +23,7 @@ use crate::{
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodVaultingData,
 };
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
@@ -93,7 +93,7 @@ pub struct PaymentsAuthorizeData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ExternalVaultProxyPaymentsData {
     pub payment_method_data: ExternalVaultPaymentMethodData,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
@@ -192,7 +192,7 @@ impl
         })
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPostSessionTokensData {
     // amount here would include amount, surcharge_amount and shipping_cost
     pub amount: MinorUnit,
@@ -209,7 +209,7 @@ pub struct PaymentsPostSessionTokensData {
     pub router_return_url: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdateMetadataData {
     pub metadata: pii::SecretSerdeValue,
     pub connector_transaction_id: String,
@@ -221,7 +221,7 @@ pub struct PaymentsUpdateMetadataData {
     pub payment_method_data: Option<PaymentMethodData>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount
     pub amount: MinorUnit,
@@ -229,7 +229,7 @@ pub struct AuthoriseIntegrityObject {
     pub currency: storage_enums::Currency,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyncIntegrityObject {
     /// Sync amount
     pub amount: Option<MinorUnit>,
@@ -237,7 +237,7 @@ pub struct SyncIntegrityObject {
     pub currency: Option<storage_enums::Currency>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
@@ -257,7 +257,7 @@ pub struct PaymentsCaptureData {
     pub webhook_url: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CaptureIntegrityObject {
     /// capture amount
     pub capture_amount: Option<MinorUnit>,
@@ -265,7 +265,7 @@ pub struct CaptureIntegrityObject {
     pub currency: storage_enums::Currency,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct PaymentsIncrementalAuthorizationData {
     pub total_amount: i64,
     pub additional_amount: i64,
@@ -275,13 +275,13 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub connector_meta: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct MultipleCaptureRequestData {
     pub capture_sequence: i16,
     pub capture_reference: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
@@ -289,7 +289,7 @@ pub struct AuthorizeSessionTokenData {
     pub amount: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<pii::Email>,
@@ -414,7 +414,7 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
@@ -520,7 +520,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CreateOrderRequestData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
@@ -548,7 +548,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreProcessingData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: Option<i64>,
@@ -577,7 +577,7 @@ pub struct PaymentsPreProcessingData {
     pub is_stored_credential: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GiftCardBalanceCheckRequestData {
     pub payment_method_data: PaymentMethodData,
     pub currency: Option<storage_enums::Currency>,
@@ -617,7 +617,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: Option<i64>,
@@ -656,7 +656,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: Option<i64>,
@@ -695,7 +695,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPostAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: Option<i64>,
@@ -767,7 +767,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPostProcessingData {
     pub payment_method_data: PaymentMethodData,
     pub customer_id: Option<id_type::CustomerId>,
@@ -805,7 +805,7 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
         })
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: i64,
@@ -834,13 +834,13 @@ pub struct CompleteAuthorizeData {
     pub is_stored_credential: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<Secret<String>>,
     pub payload: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
@@ -860,14 +860,14 @@ pub struct PaymentsSyncData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub enum SyncRequestType {
     MultipleCaptureSync(Vec<String>),
     #[default]
     SinglePaymentSync,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsCancelData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
@@ -886,7 +886,7 @@ pub struct PaymentsCancelData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsCancelPostCaptureData {
     pub currency: Option<storage_enums::Currency>,
     pub connector_transaction_id: String,
@@ -894,6 +894,14 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsExtendAuthorizationData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -908,7 +916,7 @@ pub struct PaymentsApproveData {
     pub currency: Option<storage_enums::Currency>,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
     pub color_depth: Option<u8>,
     pub java_enabled: Option<bool>,
@@ -994,7 +1002,7 @@ impl ResponseId {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, Serialize)]
 pub struct SurchargeDetails {
     /// original_amount
     pub original_amount: MinorUnit,
@@ -1059,7 +1067,7 @@ impl
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: Secret<String>,
@@ -1140,18 +1148,18 @@ pub struct ChargeRefunds {
     pub options: ChargeRefundsOptions,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, Serialize)]
 pub enum ChargeRefundsOptions {
     Destination(DestinationChargeRefund),
     Direct(DirectChargeRefund),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, Serialize)]
 pub struct DirectChargeRefund {
     pub revert_platform_fee: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, Serialize)]
 pub struct DestinationChargeRefund {
     pub revert_platform_fee: bool,
     pub revert_transfer: bool,
@@ -1321,7 +1329,7 @@ pub struct RetrieveFileRequestData {
 }
 
 #[serde_as]
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
     #[serde(skip)]
@@ -1352,6 +1360,7 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1377,7 +1386,7 @@ pub struct MandateRevokeRequestData {
     pub connector_mandate_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: common_enums::Currency,
@@ -1392,6 +1401,9 @@ pub struct PaymentsSessionData {
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub metadata: Option<Secret<serde_json::Value>>,
+    /// The specific payment method type for which the session token is being generated
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1403,7 +1415,7 @@ pub struct PaymentsTaxCalculationData {
     pub shipping_address: address::Address,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
     // amount here would include amount, surcharge_amount, order_tax_amount and shipping_cost
@@ -1415,7 +1427,7 @@ pub struct SdkPaymentsSessionUpdateData {
     pub shipping_cost: Option<MinorUnit>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: PaymentMethodData,
