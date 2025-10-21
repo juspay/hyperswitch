@@ -121,6 +121,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Loonio => Ok(Self::Loonio),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),

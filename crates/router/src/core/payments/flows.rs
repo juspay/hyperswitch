@@ -4,6 +4,7 @@ pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
+pub mod extend_authorization_flow;
 #[cfg(feature = "v2")]
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
@@ -78,20 +79,6 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         Ok(None)
     }
 }
-
-// pub struct PreDecideFlowOutput {
-//     pub connector_response_reference_id: Option<String>,
-//     pub session_token: Option<api::SessionToken>,
-//     pub connector_request: Option<services::Request>,
-//     pub should_continue_further: bool,
-// }
-
-// pub struct PreDecideFlowInputs<'a> {
-//     pub call_connector_action: &'a payments::CallConnectorAction,
-//     pub tokenization_action: &'a payments::TokenizationAction,
-//     pub is_retry_payment: bool,
-//     pub creds_identifier: Option<&'a str>,
-// }
 
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
@@ -260,6 +247,7 @@ pub trait Feature<F, T> {
         _merchant_context: &domain::MerchantContext,
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -279,6 +267,7 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,

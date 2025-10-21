@@ -7951,6 +7951,12 @@ where
 
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
+        // Extract merchant_order_reference_id from payment data for UCS audit trail
+        let merchant_order_reference_id = payment_data
+            .get_payment_intent()
+            .merchant_order_reference_id
+            .clone();
+
         router_data
             .call_unified_connector_service(
                 state,
@@ -7960,7 +7966,8 @@ where
                 merchant_context,
                 connector_data,
                 ExecutionMode::Primary, // UCS is called in primary mode
-            )
+                merchant_order_reference_id,
+        )
             .await?;
     }
 
@@ -8086,12 +8093,19 @@ where
         payment_data.get_payment_attempt().attempt_id
     );
 
+    // Extract merchant_order_reference_id from payment data for UCS audit trail
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
+
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
     let unified_connector_service_merchant_context = merchant_context.clone();
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
+    let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -8136,6 +8150,7 @@ where
             unified_connector_service_merchant_connector_account,
             &connector,
             unified_connector_service_merchant_context,
+            unified_connector_service_merchant_order_reference_id,
         )
         .await
     });
@@ -8156,6 +8171,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
     merchant_context: domain::MerchantContext,
+    merchant_order_reference_id: Option<String>,
 ) where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
@@ -8173,6 +8189,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             &merchant_context,
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
+            merchant_order_reference_id,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));

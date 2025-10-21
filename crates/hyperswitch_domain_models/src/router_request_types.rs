@@ -903,6 +903,14 @@ pub struct PaymentsCancelPostCaptureData {
     pub minor_amount: Option<MinorUnit>,
 }
 
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsExtendAuthorizationData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
@@ -1358,6 +1366,7 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
