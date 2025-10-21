@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CaptureMethod, ConnectorIntegrationStatus, PaymentMethodType};
 use common_utils::{
@@ -41,6 +42,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -993,21 +995,42 @@ impl webhooks::IncomingWebhook for Finix {
                 .parse_struct("FinixWebhookBody")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        todo!()
+        webhook_body.get_webhook_object_reference_id()
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
+        webhook_body.get_webhook_event_type()
+    }
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        webhook_body.get_dispute_details()
+    }
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body))
     }
 }
 
@@ -1084,7 +1107,11 @@ static FINIX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: ConnectorIntegrationStatus::Alpha,
 };
 
-static FINIX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static FINIX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
 
 impl ConnectorSpecifications for Finix {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

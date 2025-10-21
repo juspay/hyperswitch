@@ -78,6 +78,13 @@ pub struct FinixError {
     pub code: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FinixDisputeState {
+    INQUIRY,
+    PENDING,
+    LOST,
+    WON,
+}
 // webhook
 #[derive(Debug, Serialize, Deserialize)]
 
@@ -85,7 +92,7 @@ pub struct FinixDisputes {
     pub transfer: String,
     pub reason: String,
     pub amount: MinorUnit,
-    pub state: String, //enumize
+    pub state: FinixDisputeState,
     pub id: String,
 }
 
@@ -109,7 +116,9 @@ pub enum FinixEmbedded {
 #[derive(Debug, Serialize, Deserialize)]
 
 pub struct FinixWebhookBody {
+    #[serde(rename = "type")]
     pub webhook_type: String,
-    pub entity: FinixWebhookEvent,
+    pub entity: String,
+    #[serde(rename = "_embedded")]
     pub webhook_embedded: FinixEmbedded,
 }

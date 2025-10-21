@@ -1,6 +1,9 @@
 pub mod request;
 pub mod response;
-use api_models::payments::MandateReferenceId;
+use api_models::{
+    payments::{MandateReferenceId, PaymentIdType},
+    webhooks::{IncomingWebhookEvent, RefundIdType},
+};
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::{errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
@@ -21,7 +24,7 @@ use hyperswitch_domain_models::{
     },
     types::RefundsRouterData,
 };
-use hyperswitch_interfaces::{consts, errors::ConnectorError};
+use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors::ConnectorError};
 use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
@@ -570,52 +573,144 @@ impl TryFrom<RefundsResponseRouterData<RSync, FinixPaymentsResponse>> for Refund
 }
 
 impl FinixWebhookBody {
-    fn get_webhook_object_reference_id(
+    pub fn get_webhook_object_reference_id(
         &self,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
         match &self.webhook_embedded {
             FinixEmbedded::Authorizations { authorizations } => {
                 let authorization = authorizations
                     .first()
-                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(
-                    authorization.id.to_string())
+                    PaymentIdType::ConnectorTransactionId(authorization.id.to_string()),
                 ))
-            },
+            }
             FinixEmbedded::Transfers { transfers } => {
                 let transfer = transfers
                     .first()
-                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
-                if transfer.payment_type == FinixPaymentType::REVERSAL {
-                       Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(
-                    transfer.id.to_string())
-                ))
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
+                match transfer.payment_type {
+                    Some(FinixPaymentType::REVERSAL) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                            RefundIdType::ConnectorRefundId(transfer.id.to_string()),
+                        ))
+                    }
+                    // finix platform fee ignored
+                    Some(FinixPaymentType::FEE) => {
+                        Err(ConnectorError::WebhookEventTypeNotFound.into())
+                    }
+                    _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        PaymentIdType::ConnectorTransactionId(transfer.id.to_string()),
+                    )),
                 }
-                else {
-                       Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(
-                    transfer.id.to_string())
-                ))
-                }
-             
-            },
+            }
+
             FinixEmbedded::Disputes { disputes } => {
                 let dispute = disputes
                     .first()
-                    .ok_or(ConnectorError::WebhookReferenceIdNotFound)?;
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(
-                    dispute.transfer.to_string())
+                    PaymentIdType::ConnectorTransactionId(dispute.transfer.to_string()),
                 ))
-            },
-            FinixEmbedded::Unsupported(secret) => {
-                Err(ConnectorError::WebhookReferenceIdNotFound.into())
-            },
+            }
+            FinixEmbedded::Unsupported(_) => Err(ConnectorError::WebhooksNotImplemented.into()),
         }
     }
-}
+    pub fn get_webhook_event_type(&self) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Authorizations { authorizations } => {
+                let authorizations = authorizations
+                    .first()
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
+                if authorizations.is_void == Some(true) {
+                    match authorizations.state {
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::PaymentIntentCancelFailure)
+                        }
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentCancelled),
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentCancelled),
+                    }
+                } else {
+                    match authorizations.state {
+                        FinixState::PENDING => {
+                            Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
+                        }
+                    }
+                }
+            }
+            FinixEmbedded::Transfers { transfers } => {
+                let transfers = transfers
+                    .first()
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
+
+                if transfers.payment_type == Some(FinixPaymentType::REVERSAL) {
+                    match transfers.state {
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::RefundSuccess),
+                        FinixState::PENDING
+                        | FinixState::FAILED
+                        | FinixState::CANCELED
+                        | FinixState::UNKNOWN => Ok(IncomingWebhookEvent::RefundFailure),
+                    }
+                } else {
+                    match transfers.state {
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                        }
+                    }
+                }
+            }
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes
+                    .first()
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
+
+                match dispute.state {
+                    FinixDisputeState::PENDING => Ok(IncomingWebhookEvent::DisputeOpened),
+                    FinixDisputeState::INQUIRY => Ok(IncomingWebhookEvent::DisputeChallenged),
+                    FinixDisputeState::LOST => Ok(IncomingWebhookEvent::DisputeLost),
+                    FinixDisputeState::WON => Ok(IncomingWebhookEvent::DisputeWon),
+                }
+            }
+            FinixEmbedded::Unsupported(secret) => {
+                Err(ConnectorError::WebhooksNotImplemented.into())
+            }
+        }
+    }
+
+    pub fn get_dispute_details(&self) -> CustomResult<DisputePayload, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes
+                    .first()
+                    .ok_or(ConnectorError::WebhookBodyDecodingFailed)?;
+
+                // Ok(DisputePayload {
+                //     amount: dispute.amount.clone(),
+                //     currency: (),
+                //     dispute_stage: (),
+                //     connector_status: (),
+                //     connector_dispute_id: (),
+                //     connector_reason: (),
+                //     connector_reason_code: (),
+                //     challenge_required_by: (),
+                //     created_at: (),
+                //     updated_at: (),
+                // })
+                todo!()
+            }
+            FinixEmbedded::Authorizations { authorizations: _ }
+            | FinixEmbedded::Transfers { transfers: _ }
+            | FinixEmbedded::Unsupported(_) => {
+                Err(ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+            }
+        }
     }
 }
 
