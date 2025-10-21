@@ -41,11 +41,11 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
+use subscriptions::subscription_handler::SubscriptionHandler;
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
-#[cfg(feature = "v1")]
-use crate::core::subscription::subscription_handler::SubscriptionHandler;
 use crate::{
     consts,
     core::{
@@ -643,7 +643,9 @@ pub async fn get_mca_from_object_reference_id(
             webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
                 #[cfg(feature = "v1")]
                 {
-                    let subscription_handler = SubscriptionHandler::new(state, merchant_context);
+                    let subscription_state = state.clone().into();
+                    let subscription_handler =
+                        SubscriptionHandler::new(&subscription_state, merchant_context);
                     let mut subscription_with_handler = subscription_handler
                         .find_subscription(subscription_id_type)
                         .await?;
