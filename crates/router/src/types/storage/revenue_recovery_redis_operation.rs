@@ -793,6 +793,11 @@ impl RedisTokenManager {
                 if t.is_hard_decline.unwrap_or(false) {
                     // Update the schedule time to None for hard declined tokens
 
+                    logger::info!(
+                        connector_customer_id = connector_customer_id,
+                        "Token is hard declined, setting schedule time to None"
+                    );
+
                     Self::update_payment_processor_token_schedule_time(
                         state,
                         connector_customer_id,
@@ -800,7 +805,9 @@ impl RedisTokenManager {
                         None,
                     )
                     .await?;
+                    
                     None
+                    
                 } else {
                     Some(t)
                 }
