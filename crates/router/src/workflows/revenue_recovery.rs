@@ -769,6 +769,13 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         Some(token) => {
             tracing::debug!("Found payment processor token with least schedule time");
 
+            RedisTokenManager::update_payment_processor_tokens_schedule_time_to_none(
+                state,
+                connector_customer_id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+        
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,
                 connector_customer_id,

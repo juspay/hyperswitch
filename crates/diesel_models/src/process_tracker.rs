@@ -265,6 +265,10 @@ pub mod business_status {
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
         "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
 
+    /// This status indicates that the execute task was completed due to no token found
+    pub const EXECUTE_WORKFLOW_COMPLETE_DUE_TO_NO_TOKEN_FOUND: &str =
+        "COMPLETED_EXECUTE_TASK_DUE_TO_NO_TOKEN_FOUND";
+
     /// This status indicates that the requeue was triggered for execute task
     pub const EXECUTE_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_EXECUTE_WORKFLOW";
 
