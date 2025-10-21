@@ -4891,6 +4891,11 @@ where
             );
             let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
 
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4900,6 +4905,7 @@ where
                     merchant_context,
                     &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
+                    merchant_order_reference_id,
                 )
                 .await?;
 
@@ -4996,6 +5002,12 @@ where
                 business_profile.merchant_id.clone(),
                 business_profile.get_id().clone(),
             );
+
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -5005,6 +5017,7 @@ where
                     merchant_context,
                     &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
+                    merchant_order_reference_id,
                 )
                 .await?;
 
@@ -5106,6 +5119,14 @@ where
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
         );
+
+        // Extract merchant_order_reference_id from payment data for UCS audit trail
+        let merchant_order_reference_id = payment_data
+            .get_payment_intent()
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
@@ -5115,6 +5136,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
                 ExecutionMode::Primary, //UCS is called in primary mode
+                merchant_order_reference_id,
             )
             .await?;
 
