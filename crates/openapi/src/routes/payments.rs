@@ -921,6 +921,26 @@ pub async fn profile_payments_list() {}
 )]
 pub fn payments_incremental_authorization() {}
 
+/// Payments - Extended Authorization
+///
+/// Extended authorization is available for payments currently in the `requires_capture` status
+/// Call this endpoint to increase the authorization validity period
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/extend_authorization",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Extended authorization for the payment"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Extend authorization period for a Payment",
+    security(("api_key" = []))
+)]
+pub fn payments_extend_authorization() {}
+
 /// Payments - External 3DS Authentication
 ///
 /// External 3DS Authentication is performed and returns the AuthenticationResponse

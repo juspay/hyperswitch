@@ -7359,6 +7359,7 @@ dependencies = [
  "sha2",
  "storage_impl",
  "strum 0.26.3",
+ "subscriptions",
  "tera",
  "test_utils",
  "thiserror 1.0.69",
@@ -8879,6 +8880,28 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "subscriptions"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_types",
+ "common_utils",
+ "dyn-clone",
+ "error-stack 0.4.1",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking 0.1.0",
+ "router_env",
+ "scheduler",
+ "serde",
+ "serde_json",
+ "storage_impl",
+ "time",
 ]
 
 [[package]]

@@ -1,5 +1,8 @@
 use common_utils::DbConnectionParams;
-use masking::Secret;
+use hyperswitch_domain_models::master_key::MasterKeyInterface;
+use masking::{PeekInterface, Secret};
+
+use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {
@@ -64,5 +67,24 @@ impl Default for Database {
             min_idle: None,
             max_lifetime: None,
         }
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for kv_router_store::KVRouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for RouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+/// Default dummy key for MockDb
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key()
     }
 }

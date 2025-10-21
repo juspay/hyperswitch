@@ -332,6 +332,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::SepaGuarenteedDebit
             | api_enums::PaymentMethodType::Bacs
             | api_enums::PaymentMethodType::Becs => Self::BankDebit,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
@@ -2015,6 +2016,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: None,
         }
     }
 }
