@@ -497,6 +497,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                 connector: "redsys".to_string(),
             })
         }?;
+        router_env::logger::info!(connector_preprocessing_request=?redsys_preprocessing_request);
 
         Self::try_from((&redsys_preprocessing_request, &auth))
     }
@@ -622,6 +623,7 @@ impl<F>
             RedsysResponse::RedsysResponse(response) => {
                 let response_data: RedsysPaymentsResponse =
                     to_connector_response_data(&response.ds_merchant_parameters.clone().expose())?;
+                router_env::logger::info!(connector_preprocessing_response=?response_data);
                 handle_redsys_preprocessing_response(item, &response_data)
             }
             RedsysResponse::RedsysErrorResponse(response) => {
@@ -961,6 +963,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             ds_merchant_expirydate: card_data.expiry_date,
             ds_merchant_cvv2: card_data.cvv2,
         };
+        router_env::logger::info!(connector_authorize_request=?payment_authorize_request);
         Self::try_from((&payment_authorize_request, &auth))
     }
 }
@@ -1004,6 +1007,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                 let response_data: RedsysPaymentsResponse = to_connector_response_data(
                     &transaction_response.ds_merchant_parameters.clone().expose(),
                 )?;
+                router_env::logger::info!(connector_authorize_response=?response_data);
                 get_payments_response(
                     response_data,
                     item.data.request.capture_method,
@@ -1148,6 +1152,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
             ds_merchant_expirydate: card_data.expiry_date,
             ds_merchant_cvv2: card_data.cvv2,
         };
+        router_env::logger::info!(connector_complete_authorize_request=?complete_authorize_response);
         Self::try_from((&complete_authorize_response, &auth))
     }
 }
@@ -1164,6 +1169,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                 let response_data: RedsysPaymentsResponse = to_connector_response_data(
                     &transaction_response.ds_merchant_parameters.clone().expose(),
                 )?;
+                router_env::logger::info!(connector_complete_authorize_response=?response_data);
 
                 get_payments_response(
                     response_data,
@@ -1247,6 +1253,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsCaptureRouterData>> for RedsysTransactio
             ds_merchant_transactiontype: RedsysTransactionType::Confirmation,
             ds_merchant_amount: item.amount.clone(),
         };
+        router_env::logger::info!(connector_capture_request=?redys_capture_request);
         Self::try_from((&redys_capture_request, &auth))
     }
 }
@@ -1266,6 +1273,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, Payme
                         .clone()
                         .expose(),
                 )?;
+                router_env::logger::info!(connector_capture_response=?response_data);
                 let status = get_redsys_attempt_status(response_data.ds_response.clone(), None)?;
 
                 let response = if connector_utils::is_payment_failure(status) {
@@ -1333,6 +1341,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsCancelRouterData>> for RedsysTransaction
             ds_merchant_transactiontype: RedsysTransactionType::Cancellation,
             ds_merchant_amount: item.amount.clone(),
         };
+        router_env::logger::info!(connector_cancel_request=?redsys_cancel_request);
         Self::try_from((&redsys_cancel_request, &auth))
     }
 }
@@ -1349,6 +1358,7 @@ impl<F> TryFrom<&RedsysRouterData<&RefundsRouterData<F>>> for RedsysTransaction 
             ds_merchant_transactiontype: RedsysTransactionType::Refund,
             ds_merchant_amount: item.amount.clone(),
         };
+        router_env::logger::info!(connector_refund_request=?redsys_refund_request);
         Self::try_from((&redsys_refund_request, &auth))
     }
 }
@@ -1368,6 +1378,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCancelData, Paymen
                         .clone()
                         .expose(),
                 )?;
+                router_env::logger::info!(connector_cancel_response=?response_data);
 
                 let status = get_redsys_attempt_status(response_data.ds_response.clone(), None)?;
 
@@ -1448,6 +1459,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 let response_data: RedsysOperationsResponse = to_connector_response_data(
                     &redsys_transaction.ds_merchant_parameters.clone().expose(),
                 )?;
+                router_env::logger::info!(connector_refund_response=?response_data);
 
                 let refund_status =
                     enums::RefundStatus::try_from(response_data.ds_response.clone())?;
