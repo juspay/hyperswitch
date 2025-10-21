@@ -22520,26 +22520,10 @@
       "PixQRExpirationDuration": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "Immediate"
-            ],
-            "properties": {
-              "Immediate": {
-                "$ref": "#/components/schemas/ImmediateExpirationTime"
-              }
-            }
+            "$ref": "#/components/schemas/ImmediateExpirationTime"
           },
           {
-            "type": "object",
-            "required": [
-              "Scheduled"
-            ],
-            "properties": {
-              "Scheduled": {
-                "$ref": "#/components/schemas/ScheduledExpirationTime"
-              }
-            }
+            "$ref": "#/components/schemas/ScheduledExpirationTime"
           }
         ]
       },
