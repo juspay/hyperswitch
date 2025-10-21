@@ -475,6 +475,8 @@ pub enum Flow {
     DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Extend Authorization flow
+    PaymentsExtendAuthorization,
     /// Get action URL for connector onboarding
     GetActionUrl,
     /// Sync connector onboarding status

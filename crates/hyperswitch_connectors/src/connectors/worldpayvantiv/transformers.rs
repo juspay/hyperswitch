@@ -1011,9 +1011,9 @@ where
             discount_amount: l2_l3_data.discount_amount,
             shipping_amount: l2_l3_data.shipping_cost,
             duty_amount: l2_l3_data.duty_amount,
-            ship_from_postal_code: l2_l3_data.shipping_origin_zip,
-            destination_postal_code: l2_l3_data.shipping_destination_zip,
-            destination_country_code: l2_l3_data.shipping_country,
+            ship_from_postal_code: l2_l3_data.get_shipping_origin_zip(),
+            destination_postal_code: l2_l3_data.get_shipping_zip(),
+            destination_country_code: l2_l3_data.get_shipping_country(),
             detail_tax,
             line_item_data,
         };

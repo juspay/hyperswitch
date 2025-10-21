@@ -85,8 +85,9 @@ use time;
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
-    PaymentCreate, PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
-    PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentCreate, PaymentExtendAuthorization, PaymentIncrementalAuthorization,
+    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus,
+    PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -7866,6 +7867,11 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
+        "PaymentExtendAuthorization" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCapture
+                | storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        ),
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
