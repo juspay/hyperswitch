@@ -184,12 +184,14 @@ where
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    let shadow_rollout_availability =
-        if should_execute_based_on_rollout(state, &shadow_rollout_key).await?.should_execute {
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            ShadowRolloutAvailability::NotAvailable
-        };
+    let shadow_rollout_availability = if should_execute_based_on_rollout(state, &shadow_rollout_key)
+        .await?
+        .should_execute
+    {
+        ShadowRolloutAvailability::IsAvailable
+    } else {
+        ShadowRolloutAvailability::NotAvailable
+    };
 
     // Single decision point using pattern matching
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -219,7 +221,7 @@ where
         ExecutionPath::ShadowUnifiedConnectorService => {
             // For shadow UCS, we need to check if proxy overrides are available
             let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-            
+
             match rollout_result.proxy_override {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
@@ -229,7 +231,9 @@ where
                     create_updated_session_state_with_proxy(state.clone(), &proxy_override)
                 }
                 None => {
-                    router_env::logger::debug!("No proxy override available for Shadow UCS, using original state");
+                    router_env::logger::debug!(
+                        "No proxy override available for Shadow UCS, using original state"
+                    );
                     state.clone()
                 }
             }
@@ -252,7 +256,7 @@ fn create_updated_session_state_with_proxy(
 
     // Create updated configuration with proxy overrides
     let mut updated_conf = (*updated_state.conf).clone();
-    
+
     // Update proxy URLs with overrides, falling back to existing values
     if let Some(ref http_url) = proxy_override.http_url {
         updated_conf.proxy.http_url = Some(http_url.clone());
@@ -260,7 +264,7 @@ fn create_updated_session_state_with_proxy(
     if let Some(ref https_url) = proxy_override.https_url {
         updated_conf.proxy.https_url = Some(https_url.clone());
     }
-    
+
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
     updated_state
