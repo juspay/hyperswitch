@@ -4313,7 +4313,7 @@ where
             // Process through Direct gateway
             (GatewaySystem::Direct, _) | (GatewaySystem::UnifiedConnectorService, true) => {
                 process_through_direct(
-                    &updated_state,
+                    state,
                     req_state,
                     merchant_context,
                     connector,
@@ -5385,8 +5385,15 @@ where
                 );
             }
 
+
+            let session_state = if matches!(execution, GatewaySystem::ShadowUnifiedConnectorService) {
+                &updated_state
+            } else {
+                state
+            };
+
             call_connector_service(
-                &updated_state,
+                session_state,
                 req_state,
                 merchant_context,
                 connector,
