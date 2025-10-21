@@ -414,8 +414,6 @@ impl Action {
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to extract customer ID from payment intent")?;
 
-        
-            
         let response = revenue_recovery_core::api::call_proxy_api(
             state,
             payment_intent,
@@ -440,11 +438,10 @@ impl Action {
                             &payment_data.payment_attempt,
                         );
 
-                    let recovery_payment_tuple =
-                        recovery_incoming_flow::RecoveryPaymentTuple::new(
-                            &recovery_payment_intent,
-                            &recovery_payment_attempt,
-                        );
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
 
                     // publish events to kafka
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
@@ -459,12 +456,10 @@ impl Action {
                         );
                     };
 
-                    let is_hard_decline = revenue_recovery::check_hard_decline(
-                        state,
-                        &payment_data.payment_attempt,
-                    )
-                    .await
-                    .ok();
+                    let is_hard_decline =
+                        revenue_recovery::check_hard_decline(state, &payment_data.payment_attempt)
+                            .await
+                            .ok();
 
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
@@ -496,9 +491,7 @@ impl Action {
                             profile,
                             None,
                         )
-                        .change_context(
-                            errors::RecoveryError::PaymentsResponseGenerationFailed,
-                        )
+                        .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                         .attach_printable("Failed while generating response for payment")?;
 
                     RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
@@ -523,11 +516,10 @@ impl Action {
                             &payment_data.payment_attempt,
                         );
 
-                    let recovery_payment_tuple =
-                        recovery_incoming_flow::RecoveryPaymentTuple::new(
-                            &recovery_payment_intent,
-                            &recovery_payment_attempt,
-                        );
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
 
                     // publish events to kafka
                     if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
@@ -548,12 +540,10 @@ impl Action {
                         .error
                         .map(|error| error.code);
 
-                    let is_hard_decline = revenue_recovery::check_hard_decline(
-                        state,
-                        &payment_data.payment_attempt,
-                    )
-                    .await
-                    .ok();
+                    let is_hard_decline =
+                        revenue_recovery::check_hard_decline(state, &payment_data.payment_attempt)
+                            .await
+                            .ok();
 
                     let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                         state,
@@ -605,7 +595,6 @@ impl Action {
                 Ok(Self::ReviewPayment)
             }
         }
-            
     }
 
     pub async fn execute_payment_task_response_handler(

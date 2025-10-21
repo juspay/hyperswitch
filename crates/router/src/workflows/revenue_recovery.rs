@@ -775,7 +775,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-        
+
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,
                 connector_customer_id,

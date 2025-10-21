@@ -32,7 +32,10 @@ use crate::{
             operations::{GetTrackerResponse, Operation},
             transformers::GenerateResponse,
         },
-        revenue_recovery::types::{reopen_calculate_workflow_on_payment_failure, RevenueRecoveryOutgoingWebhook}, revenue_recovery_data_backfill::unlock_connector_customer_status,
+        revenue_recovery::types::{
+            reopen_calculate_workflow_on_payment_failure, RevenueRecoveryOutgoingWebhook,
+        },
+        revenue_recovery_data_backfill::unlock_connector_customer_status,
     },
     db::StorageInterface,
     logger,
@@ -215,7 +218,7 @@ pub async fn perform_execute_payment(
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to fetch token details from redis".to_string(),
             })?;
-            
+
             let processor_token = match maybe_token {
                 Some(token) => token,
 
@@ -240,13 +243,13 @@ pub async fn perform_execute_payment(
                         &tracking_data.payment_attempt_id,
                     ))
                     .await?;
-                    
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?; 
 
-                    return Ok(()); 
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
+
+                    return Ok(());
                 }
             };
-                
+
             logger::info!("Token fetched from redis success");
 
             let card_info =
@@ -276,7 +279,7 @@ pub async fn perform_execute_payment(
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
                         &record_attempt_response.id,
-                        &processor_token
+                        &processor_token,
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(

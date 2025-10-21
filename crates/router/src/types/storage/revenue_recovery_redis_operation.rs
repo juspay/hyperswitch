@@ -625,7 +625,7 @@ impl RedisTokenManager {
 
         Ok(())
     }
-    
+
     // Update payment processor token schedule time
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_schedule_time(
@@ -788,7 +788,6 @@ impl RedisTokenManager {
             }
         }
 
-
         let token = match token {
             Some(t) => {
                 if t.is_hard_decline.unwrap_or(false) {
@@ -808,7 +807,6 @@ impl RedisTokenManager {
             }
             None => None,
         };
-        
 
         Ok(token)
     }
