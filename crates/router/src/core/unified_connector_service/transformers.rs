@@ -207,7 +207,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: None,
-            connector_customer: router_data.connector_customer.clone(),
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -338,7 +338,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: None,
-            connector_customer: router_data.connector_customer.clone(),
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
