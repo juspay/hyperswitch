@@ -11,6 +11,7 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
+use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -184,6 +185,12 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn get_current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo<'_>> {
+        Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: &self.auth_type,
+            request_data: &self.request,
+        })
+    }
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -221,7 +228,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             );
             auth_router_data.integrity_check = integrity_result;
             metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
-
             match auth_router_data.response.clone() {
                 Err(_) => Ok(auth_router_data),
                 Ok(authorize_response) => {
@@ -256,13 +262,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -534,6 +539,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
@@ -550,17 +556,31 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             ))
             .await
         } else {
-            Box::pin(call_unified_connector_service_authorize(
-                self,
-                state,
-                header_payload,
-                lineage_ids,
-                merchant_connector_account,
-                merchant_context,
-                unified_connector_service_execution_mode,
-                merchant_order_reference_id,
-            ))
-            .await
+            let alternate_flow = connector_data.connector.get_alternate_flow_if_needed(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: &self.auth_type,
+                    request_data: &self.request,
+                },
+            );
+            match alternate_flow {
+                Some(api_interface::AlternateFlow::PreAuthenticate) => {
+                    // Todo: Call UCS PreAuthenticate here
+                    Ok(())
+                }
+                None => {
+                    Box::pin(call_unified_connector_service_authorize(
+                        self,
+                        state,
+                        header_payload,
+                        lineage_ids,
+                        merchant_connector_account,
+                        merchant_context,
+                        unified_connector_service_execution_mode,
+                        merchant_order_reference_id,
+                    ))
+                    .await
+                }
+            }
         }
     }
 }

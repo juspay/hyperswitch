@@ -6855,6 +6855,7 @@ pub fn decide_session_token_flow(
         api_models::enums::PaymentMethodType::Paypal => api::GetToken::PaypalSdkMetadata,
         api_models::enums::PaymentMethodType::SamsungPay => api::GetToken::SamsungPayMetadata,
         api_models::enums::PaymentMethodType::Paze => api::GetToken::PazeMetadata,
+        api_models::enums::PaymentMethodType::AmazonPay => api::GetToken::AmazonPayMetadata,
         _ => api::GetToken::Connector,
     }
 }
@@ -7872,6 +7873,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<enums::FrmSuggestion>,
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
+    connector_data: &api::ConnectorData,
     mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
@@ -7951,6 +7953,7 @@ where
             lineage_ids,
             merchant_connector_account.clone(),
             merchant_context,
+            connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
             merchant_order_reference_id,
         )
@@ -8105,7 +8108,7 @@ where
         state,
         req_state,
         merchant_context,
-        connector,
+        connector.clone(),
         operation,
         payment_data,
         customer,
@@ -8133,6 +8136,7 @@ where
             unified_connector_service_header_payload,
             lineage_ids,
             unified_connector_service_merchant_connector_account,
+            &connector,
             unified_connector_service_merchant_context,
             unified_connector_service_merchant_order_reference_id,
         )
@@ -8153,6 +8157,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     header_payload: domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
+    connector_data: &api::ConnectorData,
     merchant_context: domain::MerchantContext,
     merchant_order_reference_id: Option<String>,
 ) where
@@ -8170,6 +8175,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             lineage_ids,
             merchant_connector_account,
             &merchant_context,
+            connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
         )
