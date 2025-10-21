@@ -421,11 +421,11 @@ pub struct ConfirmSubscriptionResponse {
 }
 
 impl ConfirmSubscriptionResponse {
-    pub fn get_optional_invoice_id(&self) -> Option<common_utils::id_type::InvoiceId> {
+    pub fn get_optional_invoice_id(&self) -> Option<InvoiceId> {
         self.invoice.as_ref().map(|invoice| invoice.id.to_owned())
     }
 
-    pub fn get_optional_payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
+    pub fn get_optional_payment_id(&self) -> Option<PaymentId> {
         self.payment
             .as_ref()
             .map(|payment| payment.payment_id.to_owned())

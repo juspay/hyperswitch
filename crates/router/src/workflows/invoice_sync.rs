@@ -1,12 +1,14 @@
 use async_trait::async_trait;
+use common_enums::connector_enums::InvoiceStatus;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
 };
 
-use crate::{routes::SessionState, types::storage};
+use crate::{routes::SessionState, types::storage, utils};
 
 const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 
@@ -29,12 +31,31 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         let subscription_state = state.clone().into();
         match process.name.as_deref() {
             Some(INVOICE_SYNC_WORKFLOW) => {
-                Box::pin(subscriptions::workflows::perform_subscription_invoice_sync(
-                    &subscription_state,
-                    process,
-                    tracking_data,
-                ))
-                .await
+                let (handler, payments_response) =
+                    Box::pin(subscriptions::workflows::perform_subscription_invoice_sync(
+                        &subscription_state,
+                        process,
+                        tracking_data,
+                    ))
+                    .await?;
+                if handler.invoice.status == InvoiceStatus::PaymentSucceeded
+                    || handler.invoice.status == InvoiceStatus::PaymentFailed
+                {
+                    let _ = utils::trigger_subscriptions_outgoing_webhook(
+                        state,
+                        payments_response,
+                        &handler.invoice,
+                        &handler.subscription,
+                        &handler.merchant_account,
+                        &handler.key_store,
+                        &handler.profile,
+                    )
+                    .await
+                    .change_context(errors::ProcessTrackerError::FlowExecutionError {
+                        flow: "Trigger Subscriptions Outgoing Webhook",
+                    });
+                }
+                Ok(())
             }
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
