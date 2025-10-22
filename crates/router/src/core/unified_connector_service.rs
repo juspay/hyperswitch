@@ -65,7 +65,7 @@ use crate::{
 pub mod transformers;
 
 // Re-export webhook transformer types for easier access
-pub use transformers::WebhookTransformData;
+pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
 
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<

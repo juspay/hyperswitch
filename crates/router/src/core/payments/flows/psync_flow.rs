@@ -264,7 +264,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     },
                     None => {
                         Err(ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("Missing payments response UCS webhook content")
+                            .attach_printable("Missing payments response in UCS webhook content")
                     }
                 }?;
 

@@ -10,7 +10,7 @@ use crate::helpers::ForeignTryFrom;
 /// Unified Connector Service (UCS) related transformers
 pub mod transformers;
 
-pub use transformers::WebhookTransformData;
+pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
 
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<

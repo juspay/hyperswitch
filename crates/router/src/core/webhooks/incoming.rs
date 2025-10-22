@@ -1034,12 +1034,15 @@ async fn payments_incoming_webhook_flow(
 
         match webhook_transform_data.as_ref() {
             Some(transform_data) => {
-                if transform_data.is_transformation_complete {
-                    // Consume response from UCS
-                    payments::CallConnectorAction::UCSConsumeResponse(resource_object)
-                } else {
-                    // Make a second call to UCS
-                    payments::CallConnectorAction::UCSHandleResponse(resource_object)
+                match transform_data.is_transformation_complete {
+                    unified_connector_service::WebhookTransformationStatus::Complete => {
+                        // Consume response from UCS
+                        payments::CallConnectorAction::UCSConsumeResponse(resource_object)
+                    }
+                    unified_connector_service::WebhookTransformationStatus::Incomplete => {
+                        // Make a second call to UCS
+                        payments::CallConnectorAction::UCSHandleResponse(resource_object)
+                    }
                 }
             }
             None => payments::CallConnectorAction::HandleResponse(resource_object),

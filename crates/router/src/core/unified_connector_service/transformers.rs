@@ -21,6 +21,7 @@ pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::{
         transformers::convert_connector_service_status_code, WebhookTransformData,
+        WebhookTransformationStatus,
     },
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -1182,10 +1183,14 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
-    let is_transformation_complete = !matches!(
+    let is_transformation_complete = if matches!(
         response.transformation_status(),
         payments_grpc::WebhookTransformationStatus::Incomplete
-    );
+    ) {
+        WebhookTransformationStatus::Incomplete
+    } else {
+        WebhookTransformationStatus::Complete
+    };
 
     Ok(WebhookTransformData {
         event_type,
