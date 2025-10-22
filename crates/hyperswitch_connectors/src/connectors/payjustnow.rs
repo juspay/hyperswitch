@@ -1,97 +1,88 @@
 pub mod transformers;
 
-use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Mask};
+use std::sync::LazyLock;
 
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, Session,
-            SetupMandate, Void,
-        },
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
     types::{
-        PaymentsAuthorizeRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation, ConnectorSpecifications},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use std::sync::LazyLock;
+use masking::{ExposeInterface, Mask};
+use transformers as payjustnow;
 
-use common_enums::enums;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
-use hyperswitch_domain_models::router_response_types::{ConnectorInfo, SupportedPaymentMethods};
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
-};
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
-
-use transformers as {{project-name | downcase}};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct {{project-name | downcase | pascal_case}} {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync)
+pub struct Payjustnow {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl {{project-name | downcase | pascal_case}} {
+impl Payjustnow {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
-impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
-impl api::MandateSetup for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
-impl api::Refund for {{project-name | downcase | pascal_case}} {}
-impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
-impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentToken for {{project-name | downcase | pascal_case}} {}
+impl api::Payment for Payjustnow {}
+impl api::PaymentSession for Payjustnow {}
+impl api::ConnectorAccessToken for Payjustnow {}
+impl api::MandateSetup for Payjustnow {}
+impl api::PaymentAuthorize for Payjustnow {}
+impl api::PaymentSync for Payjustnow {}
+impl api::PaymentCapture for Payjustnow {}
+impl api::PaymentVoid for Payjustnow {}
+impl api::Refund for Payjustnow {}
+impl api::RefundExecute for Payjustnow {}
+impl api::RefundSync for Payjustnow {}
+impl api::PaymentToken for Payjustnow {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Payjustnow
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for {{project-name | downcase | pascal_case}}
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payjustnow
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,{
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
@@ -107,16 +98,16 @@ where
     }
 }
 
-impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
+impl ConnectorCommon for Payjustnow {
     fn id(&self) -> &'static str {
-        "{{project-name | downcase}}"
+        "payjustnow"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         todo!()
-    //    TODO! Check connector documentation, on which unit they are processing the currency.
-    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-    //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -124,13 +115,19 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.{{project-name}}.base_url.as_ref()
+        connectors.payjustnow.base_url.as_ref()
     }
 
-    fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
-        let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
+    fn get_auth_header(
+        &self,
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = payjustnow::PayjustnowAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -138,9 +135,9 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}ErrorResponse = res
+        let response: payjustnow::PayjustnowErrorResponse = res
             .response
-            .parse_struct("{{project-name | downcase | pascal_case}}ErrorResponse")
+            .parse_struct("PayjustnowErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -161,9 +158,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 }
 
-
-impl ConnectorValidation for {{project-name | downcase | pascal_case}}
-{
+impl ConnectorValidation for Payjustnow {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -189,37 +184,23 @@ impl ConnectorValidation for {{project-name | downcase | pascal_case}}
     }
 }
 
-impl
-    ConnectorIntegration<
-        Session,
-        PaymentsSessionData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payjustnow {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for {{project-name | downcase | pascal_case}}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Payjustnow {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Payjustnow
 {
 }
 
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{
-}
-
-impl
-    ConnectorIntegration<
-        Authorize,
-        PaymentsAuthorizeData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, req: &PaymentsAuthorizeRouterData, connectors: &Connectors,) -> CustomResult<Vec<(String, masking::Maskable<String>)>,errors::ConnectorError> {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Payjustnow {
+    fn get_headers(
+        &self,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -230,23 +211,25 @@ impl
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &PaymentsAuthorizeRouterData, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+    fn get_request_body(
+        &self,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
-                amount,
-                req,
-            ));
-        let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = payjustnow::PayjustnowRouterData::from((amount, req));
+        let connector_req =
+            payjustnow::PayjustnowPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -265,7 +248,9 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -275,8 +260,11 @@ impl
         data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        let response: payjustnow::PayjustnowPaymentsResponse = res
+            .response
+            .parse_struct("Payjustnow PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -286,15 +274,16 @@ impl
         })
     }
 
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for {{project-name | downcase | pascal_case}}
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Payjustnow {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -336,9 +325,9 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
+        let response: payjustnow::PayjustnowPaymentsResponse = res
             .response
-            .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
+            .parse_struct("payjustnow PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -352,19 +341,13 @@ impl
     fn get_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<
-        Capture,
-        PaymentsCaptureData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Payjustnow {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -406,7 +389,9 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(self, req, connectors)?)
+                .set_body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -417,9 +402,9 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
+        let response: payjustnow::PayjustnowPaymentsResponse = res
             .response
-            .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
+            .parse_struct("Payjustnow PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -433,27 +418,20 @@ impl
     fn get_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<
-        Void,
-        PaymentsCancelData,
-        PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
-{}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Payjustnow {}
 
-impl
-    ConnectorIntegration<
-        Execute,
-        RefundsData,
-        RefundsResponseData,
-    > for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payjustnow {
+    fn get_headers(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -464,33 +442,42 @@ impl
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+    fn get_request_body(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let refund_amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::from((
-                refund_amount,
-                req,
-            ));
-        let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = payjustnow::PayjustnowRouterData::from((refund_amount, req));
+        let connector_req = payjustnow::PayjustnowRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
-    fn build_request(&self, req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<Option<Request>,errors::ConnectorError> {
+    fn build_request(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
-            .set_body(types::RefundExecuteType::get_request_body(self, req, connectors)?)
+            .headers(types::RefundExecuteType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -500,8 +487,11 @@ impl
         data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>,errors::ConnectorError> {
-        let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
+        let response: payjustnow::RefundResponse = res
+            .response
+            .parse_struct("payjustnow RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -511,14 +501,21 @@ impl
         })
     }
 
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for {{project-name | downcase | pascal_case}} {
-    fn get_headers(&self, req: &RefundSyncRouterData,connectors: &Connectors,) -> CustomResult<Vec<(String, masking::Maskable<String>)>,errors::ConnectorError> {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payjustnow {
+    fn get_headers(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -528,7 +525,9 @@ impl
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,_connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
@@ -543,7 +542,9 @@ impl
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -553,8 +554,11 @@ impl
         data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundSyncRouterData,errors::ConnectorError,> {
-        let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        let response: payjustnow::RefundResponse = res
+            .response
+            .parse_struct("payjustnow RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -564,13 +568,17 @@ impl
         })
     }
 
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
+impl webhooks::IncomingWebhook for Payjustnow {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -593,28 +601,28 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     }
 }
 
-static {{project-name | upcase}}_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static PAYJUSTNOW_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(SupportedPaymentMethods::new);
 
-static {{project-name | upcase}}_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "{{project-name | downcase | pascal_case}}",
-    description: "{{project-name | downcase | pascal_case}} connector",
+static PAYJUSTNOW_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payjustnow",
+    description: "Payjustnow connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static {{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static PAYJUSTNOW_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
+impl ConnectorSpecifications for Payjustnow {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&{{project-name | upcase}}_CONNECTOR_INFO)
+        Some(&PAYJUSTNOW_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*{{project-name | upcase}}_SUPPORTED_PAYMENT_METHODS)
+        Some(&*PAYJUSTNOW_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&{{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&PAYJUSTNOW_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
