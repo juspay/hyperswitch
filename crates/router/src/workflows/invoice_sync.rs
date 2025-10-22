@@ -38,7 +38,8 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
                         tracking_data,
                     ))
                     .await?;
-                if handler.invoice.status == InvoiceStatus::PaymentSucceeded
+                if handler.invoice.status == InvoiceStatus::InvoicePaid
+                    || handler.invoice.status == InvoiceStatus::PaymentSucceeded
                     || handler.invoice.status == InvoiceStatus::PaymentFailed
                 {
                     let _ = utils::trigger_subscriptions_outgoing_webhook(

@@ -29,16 +29,6 @@ pub trait SubscriptionStorageInterface:
 }
 dyn_clone::clone_trait_object!(SubscriptionStorageInterface);
 
-impl hyperswitch_interfaces::common_state::CommonStorageInterface
-    for Box<dyn SubscriptionStorageInterface>
-{
-    fn get_storage_interface(
-        &self,
-    ) -> Box<dyn hyperswitch_interfaces::common_state::CommonStorageInterface> {
-        Box::new(self.clone())
-    }
-}
-
 #[async_trait::async_trait]
 impl SubscriptionStorageInterface for MockDb {}
 
