@@ -19,6 +19,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     invoice::InvoiceUpdateRequest,
     mandates::CommonMandateReference,
+    merchant_connector_account,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -351,11 +352,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
-                merchant_connector_account
-                    .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: connector_name_or_mca_id.to_string(),
-                    })?
-                    .merchant_connector_id,
             )
             .await;
 
@@ -539,7 +535,6 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -845,7 +840,7 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
-                billing_connector_mca_id,
+                merchant_connector_account,
             ))
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
@@ -2595,8 +2590,9 @@ async fn subscription_incoming_webhook_flow(
     connector_enum: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
+    merchant_connector_account: merchant_connector_account::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let billing_connector_mca_id = merchant_connector_account.merchant_connector_id.clone();
     // Only process invoice_generated events for MIT payments
     if event_type != webhooks::IncomingWebhookEvent::InvoiceGenerated {
         return Ok(WebhookResponseTracker::NoEffect);
