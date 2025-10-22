@@ -1295,7 +1295,7 @@ impl IncomingWebhook for Nuvei {
                 }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                    nuvei::map_dispute_notification_to_event(&notification.chargeback)
+                nuvei::map_dispute_notification_to_event(&notification.chargeback)
             }
         }
     }

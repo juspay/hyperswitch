@@ -4155,7 +4155,6 @@ pub fn map_notification_to_event_for_payout(
     }
 }
 
-
 pub fn get_dispute_stage(
     chargeback_data: &ChargebackData,
 ) -> Result<common_enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
@@ -4169,13 +4168,18 @@ pub fn get_dispute_stage(
             None => None,
         })
         .or_else(|| match chargeback_data.chargeback_status_category {
-            Some(ChargebackStatusCategory::Cancelled) | Some(ChargebackStatusCategory::Duplicate) => {
+            Some(ChargebackStatusCategory::Cancelled)
+            | Some(ChargebackStatusCategory::Duplicate) => {
                 Some(common_enums::DisputeStage::DisputeReversal)
             }
             Some(ChargebackStatusCategory::Regular) => Some(common_enums::DisputeStage::Dispute),
-            Some(ChargebackStatusCategory::RdrRefund) => Some(common_enums::DisputeStage::PreDispute),
-            Some(ChargebackStatusCategory::SoftCb) => Some(common_enums::DisputeStage::PreArbitration),
-            None => None
+            Some(ChargebackStatusCategory::RdrRefund) => {
+                Some(common_enums::DisputeStage::PreDispute)
+            }
+            Some(ChargebackStatusCategory::SoftCb) => {
+                Some(common_enums::DisputeStage::PreArbitration)
+            }
+            None => None,
         });
 
     dispute_stage.ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
@@ -4185,83 +4189,94 @@ pub fn map_dispute_notification_to_event(
     chargeback_data: &ChargebackData,
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
-    let event_code = chargeback_data.dispute_unified_status_code.as_ref().and_then(|code| match code {
-        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
-        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
-        }
-        DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
-        | DisputeUnifiedStatusCode::Rdr
-        | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
-        | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
-        | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
-        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
-        | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
-        | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
-        | DisputeUnifiedStatusCode::McCollaborationExpired
-        | DisputeUnifiedStatusCode::InquiryExpired
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
-        }
-        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
-        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
-        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
-        | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
-            Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
-        }
-
-        DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
-        | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
-        | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
-        | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
-        | DisputeUnifiedStatusCode::InquiryUpdated => {
-           None
-        }});
-
-        event_code.or_else(||  chargeback_data.chargeback_status_category.as_ref().and_then(|code|  match code {
-            ChargebackStatusCategory::Cancelled | ChargebackStatusCategory::Duplicate => {
+    let event_code = chargeback_data
+        .dispute_unified_status_code
+        .as_ref()
+        .and_then(|code| match code {
+            DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+            | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+            }
+            DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+            | DisputeUnifiedStatusCode::Rdr
+            | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+            | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+            | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+            | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+            | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::McCollaborationExpired
+            | DisputeUnifiedStatusCode::InquiryExpired
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
+            }
+            DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+            | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+            | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+            | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
                 Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
-            },
-            ChargebackStatusCategory::RdrRefund => Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted),
-            _ => None
-        })).ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+
+            DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+            | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+            | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+            | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+            | DisputeUnifiedStatusCode::InquiryUpdated => None,
+        });
+
+    event_code
+        .or_else(|| {
+            chargeback_data
+                .chargeback_status_category
+                .as_ref()
+                .and_then(|code| match code {
+                    ChargebackStatusCategory::Cancelled | ChargebackStatusCategory::Duplicate => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+                    }
+                    ChargebackStatusCategory::RdrRefund => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+                    }
+                    _ => None,
+                })
+        })
+        .ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
 }
 
 impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
