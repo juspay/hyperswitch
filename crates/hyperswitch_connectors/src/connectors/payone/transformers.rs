@@ -139,36 +139,34 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                     amount: item.amount,
                     currency_code: item.router_data.request.destination_currency.to_string(),
                 };
-                let card_payout_method_specific_input = match item
-                    .router_data
-                    .get_payout_method_data()?
-                {
-                    PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
-                        card: Card {
-                            card_number: card_data.card_number.clone(),
-                            card_holder_name: card_data
-                                .card_holder_name
-                                .clone()
-                                .get_required_value("card_holder_name")
-                                .change_context(ConnectorError::MissingRequiredField {
-                                    field_name: "payout_method_data.card.holder_name",
-                                })?,
-                            expiry_date: card_data
-                                .get_card_expiry_month_year_2_digit_with_delimiter(
-                                    "".to_string(),
-                                )?,
+                let card_payout_method_specific_input =
+                    match item.router_data.get_payout_method_data()? {
+                        PayoutMethodData::Card(card_data) => CardPayoutMethodSpecificInput {
+                            card: Card {
+                                card_number: card_data.card_number.clone(),
+                                card_holder_name: card_data
+                                    .card_holder_name
+                                    .clone()
+                                    .get_required_value("card_holder_name")
+                                    .change_context(ConnectorError::MissingRequiredField {
+                                        field_name: "payout_method_data.card.holder_name",
+                                    })?,
+                                expiry_date: card_data
+                                    .get_card_expiry_month_year_2_digit_with_delimiter(
+                                        "".to_string(),
+                                    )?,
+                            },
+                            payment_product_id: PaymentProductId::try_from(
+                                card_data.get_card_issuer()?,
+                            )?,
                         },
-                        payment_product_id: PaymentProductId::try_from(
-                            card_data.get_card_issuer()?,
-                        )?,
-                    },
-                    PayoutMethodData::Bank(_)
-                    | PayoutMethodData::Wallet(_)
-                    | PayoutMethodData::BankRedirect(_)
-                    | PayoutMethodData::ConnectorToken(_) => Err(ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Payone"),
-                    ))?,
-                };
+                        PayoutMethodData::Bank(_)
+                        | PayoutMethodData::Wallet(_)
+                        | PayoutMethodData::BankRedirect(_)
+                        | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+                            get_unimplemented_payment_method_error_message("Payone"),
+                        ))?,
+                    };
                 Ok(Self {
                     amount_of_money,
                     card_payout_method_specific_input,

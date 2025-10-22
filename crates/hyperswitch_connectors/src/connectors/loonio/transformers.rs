@@ -466,7 +466,7 @@ impl TryFrom<&LoonioRouterData<&PayoutsRouterData<PoFulfill>>> for LoonioPayoutF
             PayoutMethodData::Card(_)
             | PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
-            | PayoutMethodData::ConnectorToken(_) => Err(errors::ConnectorError::NotSupported {
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
                 connector: "Loonio",
             })?,

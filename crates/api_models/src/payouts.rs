@@ -243,7 +243,7 @@ pub enum PayoutMethodData {
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
-    ConnectorToken(ConnectorToken),
+    Passthrough(Passthrough),
 }
 
 impl Default for PayoutMethodData {
@@ -396,9 +396,12 @@ pub struct Interac {
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ConnectorToken {
+pub struct Passthrough {
     /// PSP token generated for the payout method
-    pub token: Secret<String>,
+    pub psp_token: Secret<String>,
+
+    /// Payout method type of the token
+    pub token_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -646,8 +649,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
-    #[schema(value_type = ConnectorTokenAddtionalData)]
-    ConnectorToken(Box<payout_method_utils::ConnectorTokenAddtionalData>),
+    #[schema(value_type = PassthroughAddtionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
 }
 
 #[derive(
@@ -1058,10 +1061,11 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
     }
 }
 
-impl From<ConnectorToken> for payout_method_utils::ConnectorTokenAddtionalData {
-    fn from(connector_token: ConnectorToken) -> Self {
+impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
+    fn from(passthrough_data: Passthrough) -> Self {
         Self {
-            token: connector_token.token,
+            psp_token: passthrough_data.psp_token,
+            token_type: passthrough_data.token_type,
         }
     }
 }
@@ -1081,8 +1085,8 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::BankRedirect(bank_redirect)
             }
-            payout_method_utils::AdditionalPayoutMethodData::ConnectorToken(connector_token) => {
-                Self::ConnectorToken(connector_token)
+            payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
+                Self::Passthrough(passthrough)
             }
         }
     }

@@ -143,7 +143,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
             | PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
-            | PayoutMethodData::ConnectorToken(_) => Err(ConnectorError::NotSupported {
+            | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
                 connector: "Ebanx",
             })?,

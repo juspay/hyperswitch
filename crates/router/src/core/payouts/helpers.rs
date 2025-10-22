@@ -42,7 +42,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -380,7 +380,7 @@ pub async fn save_payout_data_to_locker(
                     ),
                     payouts::PayoutMethodData::Card(_)
                     | payouts::PayoutMethodData::BankRedirect(_)
-                    | payouts::PayoutMethodData::ConnectorToken(_) => {
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -496,9 +496,7 @@ pub async fn save_payout_data_to_locker(
             let card_isin = card_details.as_ref().map(|c| c.card_number.get_card_isin());
 
             let mut payment_method = api::PaymentMethodCreate {
-                payment_method: Some(api_enums::PaymentMethod::foreign_try_from(
-                    payout_method_data,
-                )?),
+                payment_method: Some(api_enums::PaymentMethod::foreign_from(payout_method_data)),
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
@@ -589,9 +587,9 @@ pub async fn save_payout_data_to_locker(
             (
                 None,
                 api::PaymentMethodCreate {
-                    payment_method: Some(api_enums::PaymentMethod::foreign_try_from(
+                    payment_method: Some(api_enums::PaymentMethod::foreign_from(
                         payout_method_data,
-                    )?),
+                    )),
                     payment_method_type: Some(payment_method_type),
                     payment_method_issuer: None,
                     payment_method_issuer_code: None,
@@ -1543,11 +1541,11 @@ pub async fn get_additional_payout_data(
                 Box::new(bank_redirect_data.to_owned().into()),
             ))
         }
-        api::PayoutMethodData::ConnectorToken(connector_token) => Some(
-            payout_additional::AdditionalPayoutMethodData::ConnectorToken(Box::new(
-                connector_token.to_owned().into(),
-            )),
-        ),
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
+            ))
+        }
     }
 }
 
