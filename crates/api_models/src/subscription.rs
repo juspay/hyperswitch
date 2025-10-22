@@ -1,4 +1,4 @@
-use common_enums::connector_enums::InvoiceStatus;
+use common_enums::{connector_enums::InvoiceStatus, SubscriptionStatus};
 use common_types::payments::CustomerAcceptance;
 use common_utils::{
     events::ApiEventMetric,
@@ -63,7 +63,7 @@ pub struct SubscriptionResponse {
     pub merchant_reference_id: Option<String>,
 
     /// Current status of the subscription.
-    pub status: common_enums::SubscriptionStatus,
+    pub status: SubscriptionStatus,
 
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
@@ -102,7 +102,7 @@ impl SubscriptionResponse {
     pub fn new(
         id: SubscriptionId,
         merchant_reference_id: Option<String>,
-        status: common_enums::SubscriptionStatus,
+        status: SubscriptionStatus,
         plan_id: Option<String>,
         item_price_id: Option<String>,
         profile_id: ProfileId,
@@ -393,7 +393,7 @@ pub struct ConfirmSubscriptionResponse {
     pub merchant_reference_id: Option<String>,
 
     /// Current status of the subscription.
-    pub status: common_enums::SubscriptionStatus,
+    pub status: SubscriptionStatus,
 
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
