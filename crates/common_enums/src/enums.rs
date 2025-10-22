@@ -348,6 +348,12 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 
+impl AuthenticationType {
+    pub fn is_three_ds(&self) -> bool {
+        matches!(self, Self::ThreeDs)
+    }
+}
+
 /// The status of the capture
 #[derive(
     Clone,
@@ -1640,6 +1646,29 @@ pub enum WebhookDeliveryAttempt {
     ManualRetry,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OutgoingWebhookEndpointStatus {
+    /// The webhook endpoint is active and operational.
+    Active,
+    /// The webhook endpoint is temporarily disabled.
+    Inactive,
+    /// The webhook endpoint is deprecated and can no longer be reactivated.
+    Deprecated,
+}
+
 // TODO: This decision about using KV mode or not,
 // should be taken at a top level rather than pushing it down to individual functions via an enum.
 #[derive(
@@ -2049,6 +2078,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    SepaGuarenteedDebit,
     Skrill,
     Sofort,
     Swish,
@@ -2057,6 +2087,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     UpiIntent,
+    UpiQr,
     Vipps,
     VietQr,
     Venmo,
@@ -2174,6 +2205,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2183,6 +2215,7 @@ impl PaymentMethodType {
             Self::Twint => "TWINT",
             Self::UpiCollect => "UPI Collect",
             Self::UpiIntent => "UPI Intent",
+            Self::UpiQr => "UPI QR",
             Self::Vipps => "Vipps",
             Self::VietQr => "VietQR",
             Self::Venmo => "Venmo",
@@ -2274,7 +2307,85 @@ pub enum GatewaySystem {
     #[default]
     Direct,
     UnifiedConnectorService,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Indicates the execution path through which the payment is processed.
+pub enum ExecutionPath {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
     ShadowUnifiedConnectorService,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ShadowRolloutAvailability {
+    IsAvailable,
+    NotAvailable,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UcsAvailability {
+    Enabled,
+    Disabled,
 }
 
 #[derive(
@@ -2301,6 +2412,31 @@ pub enum ExecutionMode {
     #[default]
     Primary,
     Shadow,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorIntegrationType {
+    UcsConnector,
+    DirectConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -8205,6 +8341,10 @@ impl AuthenticationStatus {
     pub fn is_failed(self) -> bool {
         self == Self::Failed
     }
+
+    pub fn is_success(self) -> bool {
+        self == Self::Success
+    }
 }
 
 #[derive(
@@ -8418,12 +8558,6 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsView,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    OrganizationManage,
     AccountView,
     AccountManage,
     ReconReportsView,

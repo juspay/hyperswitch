@@ -230,7 +230,7 @@ zsl.base_url = "https://api.sitoffalb.net/"
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
-wallets = ["klarna", "mifinity", "braintree", "applepay"]
+wallets = ["klarna", "mifinity", "braintree", "applepay","finix"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
@@ -346,8 +346,8 @@ google_pay = { country = "AL, DZ, AS, AO, AG, AR, AU, AT, AZ, BH, BY, BE, BR, CA
 apple_pay = { country = "AM, AT, AZ, BY, BE, BG, HR, CY, DK, EE, FO, FI, FR, GE, DE, GR, GL, GG, HU, IS, IE, IM, IT, KZ, JE, LV, LI, LT, LU, MT, MD, MC, ME, NL, NO, PL, PT, RO, SM, RS, SK, SI, ES, SE, CH, UA, GB, VA, AU , HK, JP , MY , MN, NZ, SG, TW, VN, EG , MA, ZA, AR, BR, CL, CO, CR, DO, EC, SV, GT, HN, MX, PA, PY, PE, UY, BH, IL, JO, KW, OM,QA, SA, AE, CA", currency = "EGP, MAD, ZAR, AUD, CNY, HKD, JPY, MOP, MYR, MNT, NZD, SGD, KRW, TWD, VND, AMD, EUR, BGN, CZK, DKK, GEL, GBP, HUF, ISK, KZT, CHF, MDL, NOK, PLN, RON, RSD, SEK, UAH, BRL, COP, CRC, DOP, GTQ, HNL, MXN, PAB, PYG, PEN, BSD, UYU, BHD, ILS, JOD, KWD, OMR, QAR, SAR, AED, CAD, USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -701,6 +701,7 @@ apple_pay = {country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD
 
 [pm_filters.finix]
 google_pay = { country = "AD, AE, AG, AI, AM, AO, AQ, AR, AS, AT, AU, AW, AX, AZ, BA, BB, BD, BE, BF, BG, BH, BI, BJ, BM, BN, BO, BQ, BR, BS, BT, BV, BW, BZ, CA, CC, CG, CH, CI, CK, CL, CM, CN, CO, CR, CV, CW, CX, CY, CZ, DE, DJ, DK, DM, DO, DZ, EC, EE, EG, EH, ER, ES, FI, FJ, FK, FM, FO, FR, GA, GB, GD, GE, GF, GG, GH, GI, GL, GM, GN, GP, GQ, GR, GS, GT, GU, GW, GY, HK, HM, HN, HR, HT, HU, ID, IE, IL, IM, IN, IO, IS, IT, JE, JM, JO, JP, KE, KG, KH, KI, KM, KN, KR, KW, KY, KZ, LA, LC, LI, LK, LR, LS, LT, LU, LV, MA, MC, MD, ME, MF, MG, MH, MK, MN, MO, MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NA, NC, NE, NF, NG, NL, NO, NP, NR, NU, NZ, OM, PA, PE, PF, PG, PH, PK, PL, PM, PN, PR, PT, PW, PY, QA, RE, RO, RS, RW, SA, SB, SC, SE, SG, SH, SI, SJ, SK, SL, SM, SN, SR, ST, SV, SX, SZ, TC, TD, TF, TG, TH, TJ, TK, TL, TM, TN, TO, TT, TV, TZ, UG, UM, UY, UZ, VA, VC, VG, VI, VN, VU, WF, WS, YT, ZA, ZM, US", currency = "USD, CAD" }
+apple_pay = { currency = "USD, CAD" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

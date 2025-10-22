@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use num_traits::ToPrimitive;
@@ -10,7 +10,6 @@ use rdkafka::{
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
 use serde_json::Value;
-use storage_impl::config::TenantConfig;
 #[cfg(feature = "payouts")]
 pub mod payout;
 use diesel_models::fraud_check::FraudCheck;

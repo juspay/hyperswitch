@@ -459,7 +459,7 @@ pub struct PaymentsUpdateIntentRequest {
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
-    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
@@ -634,7 +634,7 @@ pub struct PaymentsIntentResponse {
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
-    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
@@ -679,19 +679,15 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GiftCardBalanceCheckResponse {
+pub struct PaymentMethodBalanceCheckResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the gift card
+    /// The balance of the payment method
     pub balance: MinorUnit,
-    /// The currency of the Gift Card
+    /// The currency of the payment method
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
-    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
-    pub needs_additional_pm_data: bool,
-    /// Transaction amount left after subtracting gift card balance (Used for split payments)
-    pub remaining_amount: MinorUnit,
 }
 
 #[cfg(feature = "v2")]
@@ -2470,6 +2466,16 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    SepaGuarenteedBankDebit {
+        /// Billing details for bank debit
+        billing_details: Option<BankDebitBilling>,
+        /// International bank account number (iban) for SEPA
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
+    },
     BecsBankDebit {
         /// Billing details for bank debit
         billing_details: Option<BankDebitBilling>,
@@ -2525,6 +2531,11 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 ..
             }
             | Self::SepaBankDebit {
+                billing_details,
+                bank_account_holder_name,
+                ..
+            }
+            | Self::SepaGuarenteedBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3055,6 +3066,9 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::SepaGuarenteedBankDebit { .. } => {
+                api_enums::PaymentMethodType::SepaGuarenteedDebit
+            }
         }
     }
 }
@@ -3112,6 +3126,7 @@ impl GetPaymentMethodType for UpiData {
         match self {
             Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
             Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
+            Self::UpiQr(_) => api_enums::PaymentMethodType::UpiQr,
         }
     }
 }
@@ -3152,6 +3167,13 @@ pub enum GiftCardData {
     PaySafeCard {},
     BhnCardNetwork(BHNGiftCardDetails),
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BalanceCheckPaymentMethodData {
+    GiftCard(GiftCardData),
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct BHNGiftCardDetails {
@@ -3661,6 +3683,7 @@ pub struct CryptoData {
 pub enum UpiData {
     UpiCollect(UpiCollectData),
     UpiIntent(UpiIntentData),
+    UpiQr(UpiQrData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3669,6 +3692,9 @@ pub struct UpiCollectData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct UpiQrData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct UpiIntentData {}
@@ -5069,6 +5095,11 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         qr_code_fetch_url: Url,
     },
+    /// Contains the SDK UPI intent URI for payment processing
+    SdkUpiIntentInformation {
+        #[schema(value_type = String)]
+        sdk_uri: Url,
+    },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
@@ -5202,6 +5233,11 @@ pub struct SdkNextActionData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct FetchQrCodeInformation {
     pub qr_code_fetch_url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SdkUpiIntentInformation {
+    pub sdk_uri: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5951,12 +5987,14 @@ pub struct PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Gift Card balance check
+/// Request for Payment method balance check
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentsGiftCardBalanceCheckRequest {
-    pub gift_card_data: GiftCardData,
+pub struct PaymentMethodBalanceCheckRequest {
+    /// The payment method data to be used for the balance check request. It can
+    /// only be a payment method that supports checking balance e.g. gift card
+    pub payment_method_data: BalanceCheckPaymentMethodData,
 }
 
 #[cfg(feature = "v2")]
@@ -7543,7 +7581,7 @@ pub struct ApplepaySessionRequest {
 }
 
 /// Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
     pub airwallex: Option<AirwallexData>,
@@ -7578,18 +7616,18 @@ impl ConnectorMetadata {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AirwallexData {
     /// payload required by airwallex
     payload: Option<String>,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
     pub order_category: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BraintreeData {
     /// Information about the merchant_account_id that merchant wants to specify at connector level.
     #[schema(value_type = String)]
@@ -7599,19 +7637,19 @@ pub struct BraintreeData {
     pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AdyenConnectorMetadata {
     pub testing: AdyenTestingData,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AdyenTestingData {
     /// Holder name to be sent to Adyen for a card payment(CIT) or a generic payment(MIT). This value overrides the values for card.card_holder_name and applies during both CIT and MIT payment transactions.
     #[schema(value_type = String)]
     pub holder_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ApplepayConnectorMetadataRequest {
     pub session_token_data: Option<SessionTokenInfo>,
 }
@@ -7659,7 +7697,7 @@ pub struct PaymentRequestMetadata {
     pub label: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenInfo {
     #[schema(value_type = String)]
     pub certificate: Secret<String>,
@@ -7675,14 +7713,14 @@ pub struct SessionTokenInfo {
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Display, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepayInitiative {
     Web,
     Ios,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "payment_processing_details_at")]
 pub enum PaymentProcessingDetailsAt {
     Hyperswitch(PaymentProcessingDetails),
@@ -8049,6 +8087,8 @@ pub enum NextActionCall {
     CompleteAuthorize,
     /// The next action is to await for a merchant callback
     AwaitMerchantCallback,
+    /// The next action is to deny the payment with an error message
+    Deny { message: String },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -8432,6 +8472,13 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+/// Request constructed internally for extending authorization
+pub struct PaymentsExtendAuthorizationRequest {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -9317,11 +9364,16 @@ pub struct ClickToPaySessionResponse {
     pub dpa_client_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityRequest {
+    /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
     /// Token used for client side verification
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Secret<String>,
+    pub client_secret: Option<Secret<String>>,
     /// The payment method to be used for the payment
     #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: api_enums::PaymentMethod,
@@ -9330,11 +9382,18 @@ pub struct PaymentsEligibilityRequest {
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data to be used for the payment
     pub payment_method_data: PaymentMethodDataRequest,
+    /// The browser information for the payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {
-    pub sdk_next_action: Option<SdkNextAction>,
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Next action to be performed by the SDK
+    pub sdk_next_action: SdkNextAction,
 }
 
 #[cfg(feature = "v1")]

@@ -13,10 +13,10 @@ use crate::{
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy, GiftCardBalanceCheck,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
-        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
+        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
+        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -37,11 +37,12 @@ use crate::{
         ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -129,6 +130,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsExtendAuthorizationRouterData =
+    RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 

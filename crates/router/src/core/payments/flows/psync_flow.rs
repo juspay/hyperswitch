@@ -6,6 +6,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -16,8 +17,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_get, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -173,13 +173,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -235,7 +234,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         let connector_name = self.connector.clone();
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -280,6 +281,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))

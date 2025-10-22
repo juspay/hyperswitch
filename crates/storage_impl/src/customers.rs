@@ -10,9 +10,8 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "v1")]
-use crate::diesel_error_to_data_error;
 use crate::{
+    diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -287,6 +286,19 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         self.router_store
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        self.router_store
+            .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
             .await
     }
 
@@ -661,9 +673,54 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            customers::Customer::list_customers_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            ),
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer_list_constraints =
+            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+        let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
+            limit: customer_list_constraints.limit,
+            offset: customer_list_constraints.offset,
+            customer_id: customer_list_constraints.customer_id.clone(),
+            time_range: customer_list_constraints.time_range,
+        };
+        let customers = self
+            .find_resources(
+                state,
+                key_store,
+                customers::Customer::list_customers_by_merchant_id_and_constraints(
+                    &conn,
+                    merchant_id,
+                    customers_constraints,
+                ),
+            )
+            .await?;
+        let total_count = customers::Customer::get_customer_count_by_merchant_id_and_constraints(
+            &conn,
+            merchant_id,
+            customer_list_constraints,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })?;
+        Ok((customers, total_count))
     }
 
     #[instrument(skip_all)]
@@ -820,6 +877,41 @@ impl domain::CustomerInterface for MockDb {
         .await?;
 
         Ok(customers)
+    }
+
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let customers = self.customers.lock().await;
+
+        let customers_list = try_join_all(
+            customers
+                .iter()
+                .filter(|customer| customer.merchant_id == *merchant_id)
+                .take(usize::from(constraints.limit))
+                .skip(usize::try_from(constraints.offset.unwrap_or(0)).unwrap_or(0))
+                .map(|customer| async {
+                    customer
+                        .to_owned()
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+        let total_count = customers
+            .iter()
+            .filter(|customer| customer.merchant_id == *merchant_id)
+            .count();
+        Ok((customers_list, total_count))
     }
 
     #[cfg(feature = "v1")]
