@@ -508,6 +508,25 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match self {
+            Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+            Self::New(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match self {
+            Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
+            Self::New(connector) => connector.get_alternate_flow_if_needed(current_flow),
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         match self {
             Self::Old(connector) => connector.get_supported_payment_methods(),
@@ -620,6 +639,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+    }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
+            Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
 }
