@@ -56,31 +56,8 @@ const billingAddress = {
   email: "test@example.com",
 };
 
-// Payment method data objects for responses
-const payment_method_data_no3ds = {
-  card: {
-    authentication_data: { challengePreferenceReason: "12" },
-    last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "08",
-    card_exp_year: "30",
-    card_holder_name: "joseph Doe",
-    payment_checks: {
-      avs_description: null,
-      avs_result_code: "",
-      cvv_2_reply_code: "",
-      cvv_2_description: null,
-      merchant_advice_code: "",
-      merchant_advice_code_description: null,
-    },
-  },
-  billing: null,
-};
+// Note: payment_method_data object removed as Nuvei returns dynamic card metadata
+// Tests validate that payment_method_data exists and is not empty (via commands.js)
 
 export const connectorDetails = {
   card_pm: {
