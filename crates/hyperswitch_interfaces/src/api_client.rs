@@ -19,7 +19,7 @@ use masking::Maskable;
 use reqwest::multipart::Form;
 use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
 use serde_json::json;
-
+use unified_connector_service_masking::ExposeInterface;
 use crate::{
     configs,
     connector_integration_interface::{
@@ -501,7 +501,7 @@ where
     });
     updated_router_data.raw_connector_response = payment_get_response
         .raw_connector_response
-        .map(masking::Secret::new);
+        .map(|raw_connector_response| raw_connector_response.expose().into());
     updated_router_data.connector_http_status_code = Some(status_code);
 
     Ok(updated_router_data)
