@@ -891,23 +891,18 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
-  // Special handling for Nuvei 3DS - Nuvei uses a two-step authentication flow that requires explicit button clicks
-  // Step 1: Click "Success authentication" button (#btn1 or #btn5)
-  // Step 2: Click "Redirect" button to return to merchant site
+  // Nuvei 3DS: 2-step flow (auth button + redirect button)
   if (connectorId === "nuvei") {
     cy.visit(redirectionUrl.href, { failOnStatusCode: false });
 
-    // Wait for initial page load
     cy.document()
       .should("have.property", "readyState")
       .and("equal", "complete");
 
-    // Check current URL and handle if it redirects to a different origin (3dsn.sandbox.safecharge.com)
     cy.url().then((currentUrl) => {
       const currentOrigin = new URL(currentUrl).origin;
       const redirectOrigin = new URL(redirectionUrl.href).origin;
 
-      // If we're on a different origin, handle with cy.origin
       if (currentOrigin !== redirectOrigin) {
         cy.origin(
           currentOrigin,
@@ -920,124 +915,41 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             cy.wait(WAIT_TIME);
 
             cy.get("body").then(($body) => {
-              const bodyText = $body.text();
-
-              if (
-                bodyText.includes("ThreeDS ACS Emulator") ||
-                bodyText.includes("Challenge Page")
-              ) {
-                // Step 1: Click success authentication button
-                if ($body.find("#btn1").length > 0) {
-                  cy.log(
-                    "Nuvei 3DS: Clicking success authentication button #btn1"
-                  );
-                  cy.get("#btn1").click();
-
-                  // Wait for form submission and click Redirect button (Nuvei's 2-step flow)
-                  cy.wait(3000); // Wait for authentication form to process
-                  cy.log("Nuvei 3DS: Looking for Redirect button");
-                  cy.get("body").then(($updatedBody) => {
-                    // Look for redirect button (may be a link or button)
-                    if (
-                      $updatedBody.find("a:contains('Redirect')").length > 0
-                    ) {
-                      cy.log("Nuvei 3DS: Clicking Redirect link");
-                      cy.get("a:contains('Redirect')").first().click();
-                    } else if (
-                      $updatedBody.find("button:contains('Redirect')").length >
-                      0
-                    ) {
-                      cy.log("Nuvei 3DS: Clicking Redirect button");
-                      cy.get("button:contains('Redirect')").first().click();
-                    } else if (
-                      $updatedBody.find("input[value='Redirect']").length > 0
-                    ) {
-                      cy.log("Nuvei 3DS: Clicking Redirect input");
-                      cy.get("input[value='Redirect']").click();
-                    } else {
-                      cy.log(
-                        "Nuvei 3DS: No Redirect button found, checking for auto-redirect"
-                      );
-                    }
-                  });
-                } else if ($body.find("#btn5").length > 0) {
-                  cy.log("Clicking button #btn5");
-                  cy.get("#btn5").click();
-                  cy.wait(3000);
-                  cy.get("a:contains('Redirect'), button:contains('Redirect')")
-                    .first()
-                    .click();
-                } else {
-                  // Try generic success patterns
-                  cy.log("Looking for generic submit buttons");
-                  cy.get(
-                    "button, input[type='button'], input[type='submit']"
-                  ).then(($buttons) => {
-                    if ($buttons.length > 0) {
-                      cy.log(
-                        `Found ${$buttons.length} buttons, clicking first one`
-                      );
-                      cy.wrap($buttons.first()).click();
-                    }
-                  });
-                }
-              } else {
-                cy.log(
-                  "No 3DS challenge detected, waiting for automatic redirect"
-                );
+              if ($body.find("#btn1").length > 0) {
+                cy.get("#btn1").click();
+                cy.wait(3000);
+                cy.get(
+                  "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
+                )
+                  .first()
+                  .click();
               }
             });
           }
         );
       } else {
-        // If we're on the same origin, interact directly
         cy.wait(CONSTANTS.WAIT_TIME);
-
         cy.get("body").then(($body) => {
-          const bodyText = $body.text();
-
-          if (
-            bodyText.includes("ThreeDS ACS Emulator") ||
-            bodyText.includes("Challenge Page")
-          ) {
-            if ($body.find("#btn1").length > 0) {
-              cy.log("Nuvei 3DS (same origin): Clicking #btn1");
-              cy.get("#btn1").click();
-
-              // Wait and click Redirect button
-              cy.wait(3000);
-              cy.log("Nuvei 3DS (same origin): Looking for Redirect button");
-              cy.get(
-                "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
-              )
-                .first()
-                .click();
-            } else if ($body.find("#btn5").length > 0) {
-              cy.log("Nuvei 3DS (same origin): Clicking #btn5");
-              cy.get("#btn5").click();
-              cy.wait(3000);
-              cy.get("a:contains('Redirect'), button:contains('Redirect')")
-                .first()
-                .click();
-            }
+          if ($body.find("#btn1").length > 0) {
+            cy.get("#btn1").click();
+            cy.wait(3000);
+            cy.get(
+              "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
+            )
+              .first()
+              .click();
           }
         });
       }
     });
 
-    // Wait for automatic redirect to complete after clicking Redirect button (preserves query parameters)
-    cy.log("Waiting for automatic redirect to complete...");
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
       "include",
       new URL(expectedUrl.href).origin
     );
-
-    // Wait for the return page to load completely
     cy.document()
       .should("have.property", "readyState")
       .and("equal", "complete");
-
-    // Verify we're on the expected return URL with query parameters intact (payment_id, status, etc.)
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
   }
@@ -1206,100 +1118,16 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "nuvei":
-          cy.wait(constants.WAIT_TIME); // Wait for the page to load
-
-          // Nuvei 3DS fallback handler - handles 2-step flow (authentication + redirect)
+          cy.wait(constants.WAIT_TIME);
           cy.get("body").then(($body) => {
-            const bodyText = $body.text();
-
-            if (
-              bodyText.includes("ThreeDS ACS Emulator") ||
-              bodyText.includes("Challenge Page")
-            ) {
-              // Look for success buttons (based on UI test patterns)
-              cy.get("body").then(() => {
-                // Try to find and click success buttons
-                if ($body.find("#btn1").length > 0) {
-                  cy.log("Nuvei fallback: Clicking #btn1");
-                  cy.get("#btn1").click();
-
-                  // Wait for authentication and click Redirect button (Nuvei's 2-step flow)
-                  cy.wait(3000);
-                  cy.log("Nuvei fallback: Clicking Redirect button");
-                  cy.get(
-                    "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
-                  )
-                    .first()
-                    .click();
-                }
-
-                if ($body.find("#btn5").length > 0) {
-                  cy.log("Nuvei fallback: Clicking #btn5");
-                  cy.get("#btn5").click();
-                  cy.wait(3000);
-                  cy.get("a:contains('Redirect'), button:contains('Redirect')")
-                    .first()
-                    .click();
-                }
-
-                // If no specific buttons found, try generic success patterns
-                if (
-                  $body.find("#btn1").length === 0 &&
-                  $body.find("#btn5").length === 0
-                ) {
-                  // Look for any button with "success", "continue", or "submit" text
-                  cy.get(
-                    "button, input[type='button'], input[type='submit']"
-                  ).then(($buttons) => {
-                    $buttons.each((index, button) => {
-                      const buttonText = Cypress.$(button).text().toLowerCase();
-                      const buttonValue =
-                        Cypress.$(button).val()?.toLowerCase() || "";
-
-                      if (
-                        buttonText.includes("success") ||
-                        buttonText.includes("continue") ||
-                        buttonText.includes("submit") ||
-                        buttonValue.includes("success")
-                      ) {
-                        cy.wrap(button).click();
-                        return false; // Break the loop
-                      }
-                    });
-                  });
-                }
-              });
-            } else if ($body.find("iframe").length > 0) {
-              cy.log("Found iframe, attempting to interact with it");
-              cy.get("iframe")
+            if ($body.find("#btn1").length > 0) {
+              cy.get("#btn1").click();
+              cy.wait(3000);
+              cy.get(
+                "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
+              )
                 .first()
-                .its("0.contentDocument.body")
-                .within(() => {
-                  // Look for 3DS challenge form elements
-                  cy.get("body").then(($iframeBody) => {
-                    const iframeText = $iframeBody.text();
-
-                    if (
-                      iframeText.includes("ThreeDS") ||
-                      iframeText.includes("Challenge")
-                    ) {
-                      // Try to find and interact with 3DS elements
-                      cy.get(
-                        "button, input[type='button'], input[type='submit']"
-                      ).then(($buttons) => {
-                        if ($buttons.length > 0) {
-                          cy.log("Clicking first available button in iframe");
-                          cy.wrap($buttons.first()).click();
-                        }
-                      });
-                    }
-                  });
-                });
-            } else {
-              cy.log(
-                "No specific 3DS elements found, waiting for automatic redirect"
-              );
-              cy.wait(constants.WAIT_TIME);
+                .click();
             }
           });
           break;

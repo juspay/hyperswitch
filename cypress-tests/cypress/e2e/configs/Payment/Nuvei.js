@@ -36,7 +36,7 @@ const multiUseMandateData = {
   },
 };
 
-// Billing address - Nuvei requires billing details for manual capture flows to prevent authorization failures
+// Billing address for manual capture flows
 const billingAddress = {
   address: {
     line1: "1467",
@@ -132,18 +132,17 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
-          // Note: payment_method_data removed from response validation as Nuvei returns dynamic card metadata (issuer, issuing_country, etc.)
         },
       },
     },
-    // No 3DS manual capture - Requires billing address to prevent authorization failures
+    // No 3DS manual capture
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing: billingAddress, // Required for Nuvei manual capture flows
+        billing: billingAddress,
         amount: 11500,
         currency: "USD",
         customer_acceptance: null,
@@ -180,14 +179,14 @@ export const connectorDetails = {
         },
       },
     },
-    // 3DS manual capture - Requires billing address to prevent authorization failures
+    // 3DS manual capture
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
         },
-        billing: billingAddress, // Required for Nuvei manual capture flows
+        billing: billingAddress,
         amount: 11500,
         currency: "USD",
         customer_acceptance: null,
@@ -206,7 +205,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000, // Nuvei needs time between confirm and capture
+          TIMEOUT: 5000,
         },
       },
       Request: {
@@ -227,7 +226,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000, // Nuvei needs time between confirm and capture
+          TIMEOUT: 5000,
         },
       },
       Request: {
@@ -248,7 +247,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 3000, // Nuvei needs time before void operation
+          TIMEOUT: 3000,
         },
       },
       Request: {},
@@ -264,7 +263,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000, // Nuvei needs time between capture/payment and refund
+          TIMEOUT: 5000,
         },
       },
       Request: {
@@ -299,7 +298,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000, // Nuvei needs time between capture and refund
+          TIMEOUT: 5000,
         },
       },
       Request: {
@@ -512,7 +511,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing: billingAddress, // Required for Nuvei manual capture flows
+        billing: billingAddress,
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
@@ -756,7 +755,7 @@ export const connectorDetails = {
     },
     Ideal: {
       Configs: {
-        TRIGGER_SKIP: true, // Nuvei sandbox returns "Default" error for iDEAL - skip to prevent test failures
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "bank_redirect",
@@ -877,7 +876,7 @@ export const connectorDetails = {
     },
     Eps: {
       Configs: {
-        TRIGGER_SKIP: true, // Nuvei sandbox returns "Default" error for EPS - skip to prevent test failures
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "bank_redirect",
