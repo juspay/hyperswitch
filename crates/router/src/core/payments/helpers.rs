@@ -7936,7 +7936,7 @@ where
             merchant_context,
             connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
-            merchant_order_reference_id,
+            merchant_order_reference_id.clone(),
         )
         .await?;
 
