@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.15.0-hotfix4
+
+### Refactors
+
+- **webhooks:** Fix incoming webhooks failure ([#9950](https://github.com/juspay/hyperswitch/pull/9950)) ([`4822e5a`](https://github.com/juspay/hyperswitch/commit/4822e5aba60d5408a47d13e8fe5bd8443e9686a0))
+
+**Full Changelog:** [`2025.10.15.0-hotfix3...2025.10.15.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.10.15.0-hotfix3...2025.10.15.0-hotfix4)
+
+- - -
+
 ## 2025.10.15.0-hotfix3
 
 ### Features
