@@ -1616,7 +1616,8 @@ impl From<PaypalExtendedAuthorizationStatus> for common_enums::AttemptStatus {
             | PaypalExtendedAuthorizationStatus::Captured
             | PaypalExtendedAuthorizationStatus::PartiallyCaptured => Self::Authorized,
             PaypalExtendedAuthorizationStatus::Pending => Self::Pending,
-            PaypalExtendedAuthorizationStatus::Denied | PaypalExtendedAuthorizationStatus::Voided => Self::Failure,
+            PaypalExtendedAuthorizationStatus::Denied
+            | PaypalExtendedAuthorizationStatus::Voided => Self::Failure,
         }
     }
 }
