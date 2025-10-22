@@ -429,42 +429,25 @@ pub struct PreProcessingFlowResponse<'a> {
     pub attempt_status: enums::AttemptStatus,
 }
 
-/// Details related to preprocessing flow
-pub struct PreProcessingFlowDetails {
-    /// Name of the preprocessing flow
-    pub flow_name: PreProcessingFlowName,
-
-    /// Based on the response of the preprocessing flow, decide whether to continue with the current flow or not
-    pub should_continue: Box<dyn Fn(&PreProcessingFlowResponse<'_>) -> bool>,
-}
-
-/// Custom Debug implementation for PreProcessingFlowDetails
-///
-/// Since Closure does not implement Debug trait
-impl Debug for PreProcessingFlowDetails {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            flow_name,
-            should_continue: _,
-        } = self;
-        f.debug_struct("PreProcessingFlowDetails")
-            .field("flow_name", flow_name)
-            .field(
-                "should_continue",
-                &"<closure: fn(&PreProcessingFlowResponse) -> bool>",
-            )
-            .finish()
-    }
-}
-
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
         _current_flow: CurrentFlowInfo<'_>,
-    ) -> Option<PreProcessingFlowDetails> {
+    ) -> Option<PreProcessingFlowName> {
         None
+    }
+    /// Based on the current flow and preprocessing_flow_response, decide if the main flow must be called or not
+    ///
+    /// By default, always continue with the main flow after the preprocessing flow.
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        _current_flow: CurrentFlowInfo<'_>,
+        _pre_processing_flow_name: PreProcessingFlowName,
+        _preprocessing_flow_response: PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        true
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(

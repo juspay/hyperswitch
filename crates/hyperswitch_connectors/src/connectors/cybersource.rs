@@ -2286,7 +2286,7 @@ impl ConnectorSpecifications for Cybersource {
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,
-    ) -> Option<api::PreProcessingFlowDetails> {
+    ) -> Option<api::PreProcessingFlowName> {
         match current_flow_info {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
@@ -2297,42 +2297,40 @@ impl ConnectorSpecifications for Cybersource {
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
                     Some(param) if !param.peek().is_empty() => {
-                        let flow_name = api::PreProcessingFlowName::Authenticate;
-                        let should_continue =
-                            |authn_result: &api::PreProcessingFlowResponse<'_>| -> bool {
-                                (matches!(
-                                    authn_result.response,
-                                    Ok(PaymentsResponseData::TransactionResponse {
-                                        ref redirection_data,
-                                        ..
-                                    }) if redirection_data.is_none()
-                                ) && authn_result.attempt_status
-                                    != common_enums::AttemptStatus::AuthenticationFailed)
-                            };
-                        Some(api::PreProcessingFlowDetails {
-                            flow_name,
-                            should_continue: Box::new(should_continue),
-                        })
+                        Some(api::PreProcessingFlowName::Authenticate)
                     }
-                    Some(_) | None => {
-                        let flow_name = api::PreProcessingFlowName::PostAuthenticate;
-                        let should_continue =
-                            |authn_result: &api::PreProcessingFlowResponse<'_>| -> bool {
-                                (matches!(
-                                    authn_result.response,
-                                    Ok(PaymentsResponseData::TransactionResponse {
-                                        ref redirection_data,
-                                        ..
-                                    }) if redirection_data.is_none()
-                                ) && authn_result.attempt_status
-                                    != common_enums::AttemptStatus::AuthenticationFailed)
-                            };
-                        Some(api::PreProcessingFlowDetails {
-                            flow_name,
-                            should_continue: Box::new(should_continue),
-                        })
-                    }
+                    Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
                 }
+            }
+        }
+    }
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match (current_flow, pre_processing_flow_name) {
+            (api::CurrentFlowInfo::Authorize { .. }, _) => {
+                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
+                true
+            }
+            (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::Authenticate,
+            )
+            | (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::PostAuthenticate,
+            ) => {
+                (matches!(
+                    preprocessing_flow_response.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && preprocessing_flow_response.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed)
             }
         }
     }
