@@ -1295,11 +1295,7 @@ impl IncomingWebhook for Nuvei {
                 }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                if let Some(dispute_event) = notification.chargeback.dispute_unified_status_code {
-                    nuvei::map_dispute_notification_to_event(dispute_event)
-                } else {
-                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-                }
+                    nuvei::map_dispute_notification_to_event(&notification.chargeback)
             }
         }
     }
@@ -1340,18 +1336,18 @@ impl IncomingWebhook for Nuvei {
         let dispute_unified_status_code = webhook
             .chargeback
             .dispute_unified_status_code
+            .clone()
             .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let connector_dispute_id = webhook
             .chargeback
             .dispute_id
+            .clone()
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(disputes::DisputePayload {
             amount,
             currency,
-            dispute_stage: api_models::enums::DisputeStage::from(
-                dispute_unified_status_code.clone(),
-            ),
+            dispute_stage: nuvei::get_dispute_stage(&webhook.chargeback)?,
             connector_dispute_id,
             connector_reason: webhook.chargeback.chargeback_reason,
             connector_reason_code: webhook.chargeback.chargeback_reason_category,
