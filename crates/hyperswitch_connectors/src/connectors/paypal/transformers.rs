@@ -1520,11 +1520,11 @@ pub struct PaypalExtendedAuthResponse {
     status_details: Option<PaypalIncrementalAuthStatusDetails>,
     id: String,
     links: Vec<PaypalLinks>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     expiration_time: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     create_time: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     update_time: Option<PrimitiveDateTime>,
 }
 
