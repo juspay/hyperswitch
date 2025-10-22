@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -39,6 +39,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsAuthorizeType, PaymentsVoidType, RefreshTokenType, Response},
@@ -182,7 +183,7 @@ impl ConnectorCommon for Volt {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
             message: response.message.clone(),
             reason: Some(reason),
             attempt_status: None,
@@ -647,19 +648,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Volt {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Volt {
-    fn build_request(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported {
-            message: "Refunds Retrieve".to_string(),
-            connector: "Volt",
-        }
-        .into())
-    }
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Volt {}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Volt {

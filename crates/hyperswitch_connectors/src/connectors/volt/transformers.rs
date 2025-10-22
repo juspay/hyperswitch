@@ -719,7 +719,7 @@ impl From<VoltWebhookBodyEventType> for api_models::webhooks::IncomingWebhookEve
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct VoltErrorResponse {
-    pub code: String,
+    pub code: Option<String>,
     pub message: String,
     pub errors: Option<Vec<Errors>>,
 }
@@ -736,19 +736,5 @@ pub struct Errors {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
-    pub message: String,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct VoltErrorException {
-    pub code: u64,
-    pub message: String,
-    pub error_list: Option<Vec<VoltErrorList>>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct VoltErrorList {
-    pub property: String,
     pub message: String,
 }
