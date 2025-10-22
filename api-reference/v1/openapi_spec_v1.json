@@ -1144,6 +1144,47 @@
         ]
       }
     },
+    "/payments/{payment_id}/extend_authorization": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Extended Authorization",
+        "description": "Extended authorization is available for payments currently in the `requires_capture` status\nCall this endpoint to increase the authorization validity period",
+        "operationId": "Extend authorization period for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extended authorization for the payment"
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/list": {
       "get": {
         "tags": [
@@ -6825,6 +6866,507 @@
           }
         ]
       }
+    },
+    "/subscriptions": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Create and Confirm",
+        "description": "Creates and confirms a subscription in a single request.",
+        "operationId": "Create and Confirm Subscription",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAndConfirmSubscriptionRequest"
+              },
+              "examples": {
+                "Create and confirm subscription": {
+                  "value": {
+                    "billing_details": {
+                      "email": "john@example.com",
+                      "name": "John Doe"
+                    },
+                    "customer_id": "cust_123456789",
+                    "payment_method_id": "pm_1234567890",
+                    "plan_id": "plan_monthly_basic"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription created and confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid subscription data"
+          },
+          "404": {
+            "description": "Customer or plan not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/create": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Create",
+        "description": "Creates a subscription that requires separate confirmation.",
+        "operationId": "Create Subscription",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubscriptionRequest"
+              },
+              "examples": {
+                "Create subscription": {
+                  "value": {
+                    "customer_id": "cust_123456789",
+                    "metadata": {
+                      "source": "web_app"
+                    },
+                    "plan_id": "plan_monthly_basic",
+                    "trial_days": 7
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid subscription data"
+          },
+          "404": {
+            "description": "Customer or plan not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/confirm": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Confirm",
+        "description": "Confirms a previously created subscription.",
+        "operationId": "Confirm Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmSubscriptionRequest"
+              },
+              "examples": {
+                "Confirm subscription": {
+                  "value": {
+                    "client_secret": "seti_1234567890_secret_abcdef",
+                    "payment_method_id": "pm_1234567890",
+                    "return_url": "https://example.com/return"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid confirmation data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          },
+          "409": {
+            "description": "Subscription already confirmed"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "client_secret": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Retrieve",
+        "description": "Retrieves subscription details by ID.",
+        "operationId": "Retrieve Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/update": {
+      "put": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Update",
+        "description": "Updates an existing subscription.",
+        "operationId": "Update Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionRequest"
+              },
+              "examples": {
+                "Update subscription": {
+                  "value": {
+                    "metadata": {
+                      "updated_reason": "plan_upgrade"
+                    },
+                    "plan_id": "plan_yearly_premium",
+                    "proration_behavior": "create_prorations"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid update data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/plans": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Get Plans",
+        "description": "Retrieves available subscription plans.",
+        "operationId": "Get Subscription Plans",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of plans to retrieve",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of plans to skip",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "query",
+            "description": "Filter by product ID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plans retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GetPlansResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "client_secret": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/estimate": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Get Estimate",
+        "description": "Gets pricing estimate for a subscription.",
+        "operationId": "Get Subscription Estimate",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "plan_id",
+            "in": "query",
+            "description": "Plan ID for estimation",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "description": "Customer ID for personalized pricing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "coupon_id",
+            "in": "query",
+            "description": "Coupon ID to apply discount",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "trial_days",
+            "in": "query",
+            "description": "Number of trial days",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estimate retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid estimation parameters"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -12195,6 +12737,10 @@
           }
         }
       },
+      "ClientSecret": {
+        "type": "string",
+        "description": "For Client based calls, SDK will use the client_secret\\nin order to call /payment_methods\\nClient secret will be generated whenever a new\\npayment method is created"
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -12233,6 +12779,77 @@
           "greater_than",
           "greater_than_equal"
         ]
+      },
+      "ConfirmSubscriptionPaymentDetails": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_data"
+        ],
+        "properties": {
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ConfirmSubscriptionRequest": {
+        "type": "object",
+        "required": [
+          "payment_details"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "payment_details": {
+            "$ref": "#/components/schemas/ConfirmSubscriptionPaymentDetails"
+          }
+        }
       },
       "Connector": {
         "type": "string",
@@ -13450,6 +14067,57 @@
           "ZWE"
         ]
       },
+      "CreateAndConfirmSubscriptionRequest": {
+        "type": "object",
+        "required": [
+          "item_price_id",
+          "customer_id",
+          "payment_details"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated plan_id.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription."
+          },
+          "coupon_code": {
+            "type": "string",
+            "description": "Identifier for the coupon code for the subscription.",
+            "nullable": true
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_details": {
+            "$ref": "#/components/schemas/PaymentDetails"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          }
+        }
+      },
       "CreateApiKeyRequest": {
         "type": "object",
         "description": "The request body for creating an API Key.",
@@ -13527,6 +14195,102 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "CreateSubscriptionPaymentDetails": {
+        "type": "object",
+        "required": [
+          "return_url"
+        ],
+        "properties": {
+          "return_url": {
+            "type": "string",
+            "description": "The url to which user must be redirected to after completion of the purchase"
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "CreateSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for creating a subscription.\n\nThis struct captures details required to create a subscription,\nincluding plan, profile, merchant connector, and optional customer info.",
+        "required": [
+          "item_price_id",
+          "customer_id",
+          "payment_details"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription."
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the subscription plan.",
+            "nullable": true
+          },
+          "coupon_code": {
+            "type": "string",
+            "description": "Optional coupon code applied to the subscription.",
+            "nullable": true
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "payment_details": {
+            "$ref": "#/components/schemas/CreateSubscriptionPaymentDetails"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14037,6 +14801,10 @@
           "desktop",
           "gaming_console"
         ]
+      },
+      "CustomerId": {
+        "type": "string",
+        "description": "A type for customer_id that can be used for customer ids"
       },
       "CustomerPaymentMethod": {
         "type": "object",
@@ -15114,6 +15882,73 @@
           "hard_decline",
           "soft_decline"
         ]
+      },
+      "EstimateSubscriptionQuery": {
+        "type": "object",
+        "required": [
+          "item_price_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated subscription plan.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription."
+          },
+          "coupon_code": {
+            "type": "string",
+            "description": "Identifier for the coupon code for the subscription.",
+            "nullable": true
+          }
+        }
+      },
+      "EstimateSubscriptionResponse": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "line_items"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated plan_id.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription.",
+            "nullable": true
+          },
+          "coupon_code": {
+            "type": "string",
+            "description": "Identifier for the coupon code for the subscription.",
+            "nullable": true
+          },
+          "customer_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerId"
+              }
+            ],
+            "nullable": true
+          },
+          "line_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionLineItem"
+            }
+          }
+        }
       },
       "EventClass": {
         "type": "string",
@@ -16206,6 +17041,54 @@
             "example": "#4285F4",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "GetPlansQuery": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
+      "GetPlansResponse": {
+        "type": "object",
+        "required": [
+          "plan_id",
+          "name",
+          "price_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price_id": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPlanPrices"
+            }
           }
         }
       },
@@ -17338,6 +18221,81 @@
             "nullable": true
           }
         }
+      },
+      "Invoice": {
+        "type": "object",
+        "required": [
+          "id",
+          "subscription_id",
+          "merchant_id",
+          "profile_id",
+          "merchant_connector_id",
+          "customer_id",
+          "amount",
+          "currency",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/InvoiceId"
+          },
+          "subscription_id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_connector_id": {
+            "$ref": "#/components/schemas/MerchantConnectorAccountId"
+          },
+          "payment_intent_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentId"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Identifier for Payment Method",
+            "example": "pm_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          }
+        }
+      },
+      "InvoiceId": {
+        "type": "string",
+        "description": "A type for invoice_id that can be used for invoice ids"
+      },
+      "InvoiceStatus": {
+        "type": "string",
+        "enum": [
+          "invoice_created",
+          "payment_pending",
+          "payment_pending_timeout",
+          "payment_succeeded",
+          "payment_failed",
+          "payment_canceled",
+          "invoice_paid",
+          "manual_review",
+          "voided"
+        ]
       },
       "IssuerData": {
         "type": "object",
@@ -18521,6 +19479,10 @@
           "5661"
         ]
       },
+      "MerchantConnectorAccountId": {
+        "type": "string",
+        "description": "A type for merchant_connector_id that can be used for merchant_connector_account ids"
+      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -19308,6 +20270,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantId": {
+        "type": "string",
+        "description": "A type for merchant_id that can be used for merchant ids"
       },
       "MerchantProductType": {
         "type": "string",
@@ -21079,6 +22045,80 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "PaymentDetails": {
+        "type": "object",
+        "properties": {
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The url to which user must be redirected to after completion of the purchase",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22858,6 +23898,113 @@
         ],
         "discriminator": {
           "propertyName": "payment_processing_details_at"
+        }
+      },
+      "PaymentResponseData": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "status",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "payment_id": {
+            "$ref": "#/components/schemas/PaymentId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "profile_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileId"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Identifier for Payment Method",
+            "example": "pm_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The url to which user must be redirected to after completion of the purchase",
+            "nullable": true
+          },
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_experience": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "PaymentRetrieveBody": {
@@ -24706,6 +25853,14 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28505,6 +29660,15 @@
           }
         }
       },
+      "PeriodUnit": {
+        "type": "string",
+        "enum": [
+          "Day",
+          "Week",
+          "Month",
+          "Year"
+        ]
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -32289,6 +33453,176 @@
         },
         "additionalProperties": false
       },
+      "SubscriptionId": {
+        "type": "string",
+        "description": "A type for subscription_id that can be used for subscription ids"
+      },
+      "SubscriptionLineItem": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "item_type",
+          "description",
+          "amount",
+          "currency",
+          "quantity"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "description": "Unique identifier for the line item."
+          },
+          "item_type": {
+            "type": "string",
+            "description": "Type of the line item."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the line item."
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Quantity of the line item."
+          }
+        }
+      },
+      "SubscriptionPlanPrices": {
+        "type": "object",
+        "required": [
+          "price_id",
+          "amount",
+          "currency",
+          "interval",
+          "interval_count"
+        ],
+        "properties": {
+          "price_id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/PeriodUnit"
+          },
+          "interval_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trial_period": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "trial_period_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeriodUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully creating a subscription.\n\nIncludes details such as subscription ID, status, plan, merchant, and customer info.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated subscription plan.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "coupon_code": {
+            "type": "string",
+            "description": "Optional coupon code applied to this subscription.",
+            "nullable": true
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "payment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          "invoice": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Invoice"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SubscriptionStatus": {
+        "type": "string",
+        "description": "Possible states of a subscription lifecycle.\n\n- `Created`: Subscription was created but not yet activated.\n- `Active`: Subscription is currently active.\n- `InActive`: Subscription is inactive.\n- `Pending`: Subscription is pending activation.\n- `Trial`: Subscription is in a trial period.\n- `Paused`: Subscription is paused.\n- `Unpaid`: Subscription is unpaid.\n- `Onetime`: Subscription is a one-time payment.\n- `Cancelled`: Subscription has been cancelled.\n- `Failed`: Subscription has failed.",
+        "enum": [
+          "active",
+          "created",
+          "in_active",
+          "pending",
+          "trial",
+          "paused",
+          "unpaid",
+          "onetime",
+          "cancelled",
+          "failed"
+        ]
+      },
       "SuccessBasedRoutingConfig": {
         "type": "object",
         "required": [
@@ -33105,6 +34439,23 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "UpdateSubscriptionRequest": {
+        "type": "object",
+        "required": [
+          "plan_id",
+          "item_price_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated plan_id."
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription."
           }
         }
       },
@@ -34493,6 +35844,10 @@
     {
       "name": "Authentication",
       "description": "Create and manage authentication"
+    },
+    {
+      "name": "Subscriptions",
+      "description": "Subscription management and billing endpoints"
     }
   ]
 }

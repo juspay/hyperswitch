@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 
-use super::ConstructFlowSpecificData;
+use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, Feature, PaymentData},
+        payments::{self, access_token, helpers, transformers, PaymentData},
     },
-    routes::SessionState,
+    routes::{metrics, SessionState},
     services,
     types::{self, api, domain},
 };
@@ -14,11 +14,25 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::SdkSessionUpdate,
-        types::SdkPaymentsSessionUpdateData,
+        api::ExtendAuthorization,
+        types::PaymentsExtendAuthorizationData,
         types::PaymentsResponseData,
-    > for PaymentData<api::SdkSessionUpdate>
+    > for PaymentData<api::ExtendAuthorization>
 {
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_context: &domain::MerchantContext,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsExtendAuthorizationRouterData> {
+        todo!()
+    }
+
     #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
@@ -27,47 +41,35 @@ impl
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
-    ) -> RouterResult<types::SdkSessionUpdateRouterData> {
-        Box::pin(
-            transformers::construct_router_data_to_update_calculated_tax::<
-                api::SdkSessionUpdate,
-                types::SdkPaymentsSessionUpdateData,
-            >(
-                state,
-                self.clone(),
-                connector_id,
-                merchant_context,
-                customer,
-                merchant_connector_account,
-            ),
-        )
+    ) -> RouterResult<types::PaymentsExtendAuthorizationRouterData> {
+        Box::pin(transformers::construct_payment_router_data::<
+            api::ExtendAuthorization,
+            types::PaymentsExtendAuthorizationData,
+        >(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_context,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+            None,
+            None,
+        ))
         .await
-    }
-
-    #[cfg(feature = "v2")]
-    async fn construct_router_data<'a>(
-        &self,
-        state: &SessionState,
-        connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::SdkSessionUpdateRouterData> {
-        todo!()
     }
 }
 
 #[async_trait]
-impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
+impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
     for types::RouterData<
-        api::SdkSessionUpdate,
-        types::SdkPaymentsSessionUpdateData,
+        api::ExtendAuthorization,
+        types::PaymentsExtendAuthorizationData,
         types::PaymentsResponseData,
     >
 {
@@ -81,9 +83,14 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
+        metrics::PAYMENT_EXTEND_AUTHORIZATION_COUNT.add(
+            1,
+            router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+        );
+
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::SdkSessionUpdate,
-            types::SdkPaymentsSessionUpdateData,
+            api::ExtendAuthorization,
+            types::PaymentsExtendAuthorizationData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
@@ -97,6 +104,7 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         )
         .await
         .to_payment_failed_response()?;
+
         Ok(resp)
     }
 
@@ -125,8 +133,8 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::SdkSessionUpdate,
-                    types::SdkPaymentsSessionUpdateData,
+                    api::ExtendAuthorization,
+                    types::PaymentsExtendAuthorizationData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

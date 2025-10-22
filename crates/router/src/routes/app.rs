@@ -788,8 +788,14 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/payment-methods")
-                        .route(web::get().to(payments::list_payment_methods)),
+                    web::scope("/payment-methods")
+                        .service(
+                            web::resource("").route(web::get().to(payments::list_payment_methods)),
+                        )
+                        .service(
+                            web::resource("/check-balance")
+                                .route(web::post().to(payments::payment_check_gift_card_balance)),
+                        ),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -797,10 +803,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                )
-                .service(
-                    web::resource("/check-gift-card-balance")
-                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 )
                 .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
@@ -950,6 +952,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                )
+                .service(
+                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")

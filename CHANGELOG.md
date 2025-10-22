@@ -4,6 +4,56 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.22.0
+
+### Features
+
+- **connector:** [Redsys] add loggers ([#9877](https://github.com/juspay/hyperswitch/pull/9877)) ([`819ef0e`](https://github.com/juspay/hyperswitch/commit/819ef0e92de42944732aa54e1b67612751ed13c3))
+- **core:** Introduce new decide flow mechanism for payment authorization ([#9808](https://github.com/juspay/hyperswitch/pull/9808)) ([`9af5a8c`](https://github.com/juspay/hyperswitch/commit/9af5a8c19f61304d02710b585f20bf173523e25f))
+
+### Bug Fixes
+
+- **connector:** Map Redsys Response Codes ([#9934](https://github.com/juspay/hyperswitch/pull/9934)) ([`6f96064`](https://github.com/juspay/hyperswitch/commit/6f96064e07b7e24dde4f475699ba686ac99e2351))
+- **nexinets:** Limit connector_request_reference_id to 30 characters using nanoid ([#9874](https://github.com/juspay/hyperswitch/pull/9874)) ([`99b58d1`](https://github.com/juspay/hyperswitch/commit/99b58d16f84567b199ab6672e553abded8e74bcd))
+- **router:** Add Missing Match Case for Amazon Pay in decide_session_token_flow Function ([#9881](https://github.com/juspay/hyperswitch/pull/9881)) ([`dfbfeef`](https://github.com/juspay/hyperswitch/commit/dfbfeefef7af2caff714c5ca7273c3357fd31aae))
+- Fallback to merchant_order_reference_id when x-reference-id in header is not present for UCS calls ([#9872](https://github.com/juspay/hyperswitch/pull/9872)) ([`9fdeba2`](https://github.com/juspay/hyperswitch/commit/9fdeba247447125e261e9d53bab0418dd55c0c7b))
+
+### Refactors
+
+- **connector:** [payload] expose avs result in response ([#9918](https://github.com/juspay/hyperswitch/pull/9918)) ([`5ea31bf`](https://github.com/juspay/hyperswitch/commit/5ea31bff4880dac2a7799e585958187e4f3ca369))
+- **router:** Make Gift Card Balance Check API Generic (v2) ([#9856](https://github.com/juspay/hyperswitch/pull/9856)) ([`2e38b2c`](https://github.com/juspay/hyperswitch/commit/2e38b2ce5c3c53cdd66c7b3871ac316f16bfd610))
+
+**Full Changelog:** [`2025.10.20.0...2025.10.22.0`](https://github.com/juspay/hyperswitch/compare/2025.10.20.0...2025.10.22.0)
+
+- - -
+
+## 2025.10.20.0
+
+### Features
+
+- **connector:**
+  - Update supported currency for Adyen Payout and Cybersource ([#9909](https://github.com/juspay/hyperswitch/pull/9909)) ([`72fbb84`](https://github.com/juspay/hyperswitch/commit/72fbb848d2df0ed5c0a68bb6ca7fae814667de84))
+  - [Gigadat] payouts for gigadat ([#9889](https://github.com/juspay/hyperswitch/pull/9889)) ([`21aba20`](https://github.com/juspay/hyperswitch/commit/21aba202a5bc0e24137a4f461a2f7610080c51ad))
+  - [checkout] Add additional fields in the request ([#9888](https://github.com/juspay/hyperswitch/pull/9888)) ([`a75c890`](https://github.com/juspay/hyperswitch/commit/a75c89002f57149693b557207ed981841aec58de))
+  - [adyenplatform] extend states for incoming webhook events ([#9900](https://github.com/juspay/hyperswitch/pull/9900)) ([`db7228a`](https://github.com/juspay/hyperswitch/commit/db7228aed28b038de7551ae2a557a578916d424e))
+  - [PEACHPAYMENTS] Refunds, RSync and Cypress added ([#9850](https://github.com/juspay/hyperswitch/pull/9850)) ([`820f183`](https://github.com/juspay/hyperswitch/commit/820f18311f8de1f77c18f6fcf7b21f44a268e304))
+- **router:**
+  - Add card testing check in payments eligibility flow ([#9876](https://github.com/juspay/hyperswitch/pull/9876)) ([`01cb658`](https://github.com/juspay/hyperswitch/commit/01cb658696c199030fd7965766b7e18d6a7016e8))
+  - Add an endpoint for extending authorization ([#9813](https://github.com/juspay/hyperswitch/pull/9813)) ([`7e09699`](https://github.com/juspay/hyperswitch/commit/7e09699a5b6a9283c5463c2a77df3ad9f9729990))
+
+### Bug Fixes
+
+- **routing:** Handle validation for profile_id ([#9809](https://github.com/juspay/hyperswitch/pull/9809)) ([`bfa06b2`](https://github.com/juspay/hyperswitch/commit/bfa06b2108bbf0ed8fc97311a2fdaf2f2a151f8d))
+- **wasm:** [Finix] Add payment processing details at field for apple pay ([#9913](https://github.com/juspay/hyperswitch/pull/9913)) ([`8ef846f`](https://github.com/juspay/hyperswitch/commit/8ef846f9f814c521d928c7b64f153cd197a5fddd))
+
+### Documentation
+
+- **subscription:** Add open api specs ([#9884](https://github.com/juspay/hyperswitch/pull/9884)) ([`b42fbdb`](https://github.com/juspay/hyperswitch/commit/b42fbdb50f72f90e44084eccfe1c193a41a9f5fa))
+
+**Full Changelog:** [`2025.10.17.0...2025.10.20.0`](https://github.com/juspay/hyperswitch/compare/2025.10.17.0...2025.10.20.0)
+
+- - -
+
 ## 2025.10.17.0
 
 ### Features
