@@ -20,13 +20,13 @@ mod tests {
     fn test_metrics_are_defined() {
         // This test ensures that all metrics are properly defined and accessible
         // The actual functionality will be tested through integration tests
-        
+
         // Test that we can access the counters (this will compile-fail if metrics aren't properly defined)
         let _ = &INJECTOR_INVOCATIONS_COUNT;
         let _ = &INJECTOR_OUTGOING_CALLS_COUNT;
         let _ = &INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT;
         let _ = &INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT;
-        
+
         // Test that we can access the histograms
         let _ = &INJECTOR_REQUEST_TIME;
         let _ = &INJECTOR_TOKEN_REPLACEMENT_TIME;
