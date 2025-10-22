@@ -6309,43 +6309,6 @@ impl AdditionalData {
     }
 }
 
-pub fn parse_expiry_date(
-    raw: &str,
-) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError> {
-    let cleaned = raw.replace('\\', "");
-    let parts: Vec<&str> = cleaned.split('/').collect();
-
-    let (month_str_raw, year_str_raw) = match (parts.first(), parts.get(1)) {
-        (Some(m), Some(y)) => (*m, *y),
-        _ => {
-            router_env::logger::warn!(
-                "Failed to parse month and year from input parts: {:?}",
-                parts
-            );
-            return Err(errors::ConnectorError::ParsingFailed);
-        }
-    };
-
-    let month: u32 = month_str_raw
-        .parse()
-        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
-    if !(1..=12).contains(&month) {
-        return Err(errors::ConnectorError::ParsingFailed);
-    }
-    let month_str = Secret::new(format!("{:02}", month));
-
-    let year: u32 = year_str_raw
-        .parse()
-        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
-    let year_str = if year_str_raw.len() == 2 {
-        Secret::new(format!("{:02}", year))
-    } else {
-        Secret::new(format!("{:02}", year % 100))
-    };
-
-    Ok((month_str, year_str))
-}
-
 pub fn from_payment_method_variant(value: Option<String>) -> Option<common_enums::CardNetwork> {
     let val = value?.to_lowercase();
     let cleaned = val.trim().split('_').next().unwrap_or("");
@@ -6437,5 +6400,47 @@ pub fn from_payment_method_variant(value: Option<String>) -> Option<common_enums
         "nyce" => Some(common_enums::CardNetwork::Nyce),
 
         _ => None,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CardExpiry {
+    month: u32,
+    year: u32,
+}
+
+impl CardExpiry {
+    pub fn new(month: u32, year: u32) -> Result<Self, errors::ConnectorError> {
+        if !(1..=12).contains(&month) {
+            return Err(errors::ConnectorError::ParsingFailed);
+        }
+        Ok(Self { month, year })
+    }
+
+    pub fn parse(raw: &str) -> Result<Self, errors::ConnectorError> {
+        let cleaned = raw.replace('\\', "");
+        let parts: Vec<&str> = cleaned.split('/').collect();
+
+        let (month_str, year_str) = match (parts.first(), parts.get(1)) {
+            (Some(m), Some(y)) => (*m, *y),
+            _ => return Err(errors::ConnectorError::ParsingFailed),
+        };
+
+        let month: u32 = month_str
+            .parse()
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+        let year: u32 = year_str
+            .parse()
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+        Self::new(month, year)
+    }
+
+    pub fn month(&self) -> Secret<String> {
+        Secret::new(format!("{:02}", self.month))
+    }
+
+    pub fn year(&self) -> Secret<String> {
+        Secret::new(format!("{:02}", self.year % 100))
     }
 }

@@ -2068,12 +2068,15 @@ impl IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let (month_str, year_str) = notif
+        let expiry = notif
             .additional_data
             .expiry_date
-            .map(|date| transformers::parse_expiry_date(&date.expose()))
+            .map(|date| transformers::CardExpiry::parse(&date.expose()))
             .transpose()?
             .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        let month_str = expiry.month();
+        let year_str = expiry.year();
 
         Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
             card: Some(api_models::payment_methods::CardDetailUpdate {
