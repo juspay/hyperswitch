@@ -1,6 +1,6 @@
 use common_utils::{
     ext_traits::Encode,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -562,6 +562,21 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 ..item.data
             })
         } else {
+            let required_conversion_type = common_utils::types::StringMajorUnitForConnector;
+            let minor_amount_captured = item
+                .response
+                .payment_detail
+                .and_then(|details| {
+                    details.amount.map(|amount| {
+                        common_utils::types::AmountConvertor::convert_back(
+                            &required_conversion_type,
+                            amount,
+                            item.data.request.currency,
+                        )
+                    })
+                })
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -576,6 +591,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
+                minor_amount_captured,
                 ..item.data
             })
         }
@@ -995,9 +1011,9 @@ where
             discount_amount: l2_l3_data.discount_amount,
             shipping_amount: l2_l3_data.shipping_cost,
             duty_amount: l2_l3_data.duty_amount,
-            ship_from_postal_code: l2_l3_data.shipping_origin_zip,
-            destination_postal_code: l2_l3_data.shipping_destination_zip,
-            destination_country_code: l2_l3_data.shipping_country,
+            ship_from_postal_code: l2_l3_data.get_shipping_origin_zip(),
+            destination_postal_code: l2_l3_data.get_shipping_zip(),
+            destination_country_code: l2_l3_data.get_shipping_country(),
             detail_tax,
             line_item_data,
         };
@@ -1208,7 +1224,7 @@ pub struct PaymentDetail {
     pub response_reason_message: Option<String>,
     pub reject_type: Option<String>,
     pub dupe_txn_id: Option<u64>,
-    pub amount: Option<String>,
+    pub amount: Option<StringMajorUnit>,
     pub purchase_currency: Option<String>,
     pub post_day: Option<String>,
     pub reported_timestamp: Option<String>,
@@ -1921,6 +1937,7 @@ impl<F>
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
+                        minor_amount_captured: sale_response.approved_amount,
                         ..item.data
                     })
                 }
@@ -1994,6 +2011,11 @@ impl<F>
                             None
                         },
                         minor_amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount
+                        } else {
+                            None
+                        },
+                        minor_amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
                             auth_response.approved_amount
                         } else {
                             None

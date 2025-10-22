@@ -14,7 +14,7 @@ networks:
 services:
   ### Dependencies
   pg:
-    image: postgres:latest
+    image: docker.io/postgres:latest
     ports:
       - "5432:5432"
     networks:
@@ -33,7 +33,7 @@ services:
       timeout: 5s
 
   redis-standalone:
-    image: redis:7
+    image: docker.io/redis:7
     networks:
       - router_net
     ports:
@@ -46,8 +46,15 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
+    image: docker.io/debian:trixie-slim
+    pull_policy: always
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y curl xz-utils &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
+      curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin &&
+      export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
+      just migrate"
     working_dir: /app
     networks:
       - router_net
@@ -57,6 +64,17 @@ services:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
+  superposition:
+    image: ghcr.io/juspay/superposition-demo:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - router_net
+    environment:
+      - API_HOSTNAME=http://localhost:8081
+    profiles:
+      - superposition
+
   ### Application services
   hyperswitch-server:
     build:
@@ -64,7 +82,7 @@ services:
         FROM rust:latest
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
-        RUN rustup component add rustfmt clippy  
+        RUN rustup component add rustfmt clippy
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
@@ -93,7 +111,7 @@ services:
       timeout: 10s
 
   hyperswitch-producer:
-    image: rust:latest
+    image: docker.io/rust:latest
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -115,7 +133,7 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: rust:latest
+    image: docker.io/rust:latest
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -143,7 +161,7 @@ services:
       timeout: 10s
 
   hyperswitch-drainer:
-    image: rust:latest
+    image: docker.io/rust:latest
     command: cargo run --bin drainer -- -f ./config/docker_compose.toml
     working_dir: /app
     deploy:
@@ -168,7 +186,7 @@ services:
 
   ### Clustered Redis setup
   redis-cluster:
-    image: redis:7
+    image: docker.io/redis:7
     deploy:
       replicas: ${REDIS_CLUSTER_COUNT:-3}
     command: redis-server /usr/local/etc/redis/redis.conf
@@ -183,7 +201,7 @@ services:
       - "16379"
 
   redis-init:
-    image: redis:7
+    image: docker.io/redis:7
     profiles:
       - clustered_redis
     depends_on:
@@ -224,7 +242,7 @@ services:
 
   ### Monitoring
   grafana:
-    image: grafana/grafana:latest
+    image: docker.io/grafana/grafana:latest
     ports:
       - "3000:3000"
     networks:
@@ -241,7 +259,7 @@ services:
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
 
   promtail:
-    image: grafana/promtail:latest
+    image: docker.io/grafana/promtail:latest
     volumes:
       - ./logs:/var/log/router
       - ./config:/etc/promtail
@@ -253,7 +271,7 @@ services:
       - router_net
 
   loki:
-    image: grafana/loki:latest
+    image: docker.io/grafana/loki:latest
     ports:
       - "3100"
     command: -config.file=/etc/loki/loki.yaml
@@ -265,7 +283,7 @@ services:
       - ./config:/etc/loki
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: docker.io/otel/opentelemetry-collector-contrib:latest
     command: --config=/etc/otel-collector.yaml
     networks:
       - router_net
@@ -279,7 +297,7 @@ services:
       - "8889"
 
   prometheus:
-    image: prom/prometheus:latest
+    image: docker.io/prom/prometheus:latest
     networks:
       - router_net
     profiles:
@@ -291,7 +309,7 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: docker.io/grafana/tempo:latest
     command: -config.file=/etc/tempo.yaml
     volumes:
       - ./config/tempo.yaml:/etc/tempo.yaml
@@ -305,7 +323,7 @@ services:
     restart: unless-stopped
 
   redis-insight:
-    image: redislabs/redisinsight:latest
+    image: docker.io/redislabs/redisinsight:latest
     networks:
       - router_net
     profiles:

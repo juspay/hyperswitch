@@ -947,4 +947,11 @@ impl ConnectorSpecifications for Gocardless {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
+    }
 }

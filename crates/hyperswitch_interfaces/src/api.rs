@@ -30,7 +30,9 @@ pub mod vault_v2;
 use std::fmt::Debug;
 
 use common_enums::{
-    enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
+    enums::{
+        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
+    },
     PaymentMethod,
 };
 use common_utils::{
@@ -61,7 +63,7 @@ use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsAuthorizeData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
@@ -378,8 +380,55 @@ pub trait ConnectorCommon {
     }
 }
 
+/// Current flow information passed to the connector specifications trait
+///
+/// In order to make some desicion about the preprocessing or alternate flow
+#[derive(Clone, Debug)]
+pub enum CurrentFlowInfo<'a> {
+    /// Authorize flow information
+    Authorize {
+        /// The authentication type being used
+        auth_type: &'a enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: &'a PaymentsAuthorizeData,
+    },
+}
+
+/// Alternate API flow that must be made instead of the current flow.
+/// For example, PreAuthenticate flow must be made instead of Authorize flow.
+#[derive(Debug, Clone, Copy)]
+pub enum AlternateFlow {
+    /// Pre-authentication flow
+    PreAuthenticate,
+}
+
+/// The Preprocessing flow that must be made before the current flow.
+///
+/// For example, PreProcessing flow must be made before Authorize flow.
+/// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
+#[derive(Default, Debug, Clone, Copy)]
+pub enum PreProcessingFlowName {
+    #[default]
+    /// Pre-processing flow
+    PreProcessing,
+}
+
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Preprocessing flow name if any, that must be made before the current flow.
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        _current_flow: CurrentFlowInfo<'_>,
+    ) -> Option<PreProcessingFlowName> {
+        Some(PreProcessingFlowName::default())
+    }
+    /// If Some is returned, the returned api flow must be made instead of the current flow.
+    fn get_alternate_flow_if_needed(
+        &self,
+        _current_flow: CurrentFlowInfo<'_>,
+    ) -> Option<AlternateFlow> {
+        None
+    }
     /// Details related to payment method supported by the connector
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         None
@@ -399,6 +448,38 @@ pub trait ConnectorSpecifications {
     /// Connectors should override this method if they require an authentication token to create a new access token
     fn authentication_token_for_token_creation(&self) -> bool {
         false
+    }
+
+    /// Check if connector should make another request to create an customer
+    /// Connectors should override this method if they require to create a connector customer
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        false
+    }
+
+    /// Whether SDK session token generation is enabled for this connector
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        false
+    }
+
+    /// Payment method types that support SDK session token generation
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<PaymentMethodType> {
+        vec![]
+    }
+
+    /// Validate if SDK session token generation is allowed for given payment method type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &PaymentMethodType,
+    ) -> bool {
+        self.is_sdk_client_token_generation_enabled()
+            && self
+                .supported_payment_method_types_for_sdk_client_token_generation()
+                .contains(current_core_payment_method_type)
     }
 
     #[cfg(not(feature = "v2"))]
@@ -687,7 +768,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         &self,
         data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
         _is_three_ds: bool,
-        _status: common_enums::enums::AttemptStatus,
+        _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         data.connector_transaction_id

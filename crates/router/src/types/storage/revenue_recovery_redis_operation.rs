@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models;
+use api_models::revenue_recovery_data_backfill::{self, RedisKeyType};
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -755,13 +755,90 @@ impl RedisTokenManager {
         Ok(token)
     }
 
+    /// Get Redis key data for revenue recovery
+    #[instrument(skip_all)]
+    pub async fn get_redis_key_data_raw(
+        state: &SessionState,
+        connector_customer_id: &str,
+        key_type: &RedisKeyType,
+    ) -> CustomResult<(bool, i64, Option<serde_json::Value>), errors::StorageError> {
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+        let redis_key = match key_type {
+            RedisKeyType::Status => Self::get_connector_customer_lock_key(connector_customer_id),
+            RedisKeyType::Tokens => Self::get_connector_customer_tokens_key(connector_customer_id),
+        };
+
+        // Get TTL
+        let ttl = redis_conn
+            .get_ttl(&redis_key.clone().into())
+            .await
+            .map_err(|error| {
+                tracing::error!(operation = "get_ttl", err = ?error);
+                errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into())
+            })?;
+
+        // Get data based on key type and determine existence
+        let (key_exists, data) = match key_type {
+            RedisKeyType::Status => match redis_conn.get_key::<String>(&redis_key.into()).await {
+                Ok(status_value) => (true, serde_json::Value::String(status_value)),
+                Err(error) => {
+                    tracing::error!(operation = "get_status_key", err = ?error);
+                    (
+                        false,
+                        serde_json::Value::String(format!(
+                            "Error retrieving status key: {}",
+                            error
+                        )),
+                    )
+                }
+            },
+            RedisKeyType::Tokens => {
+                match redis_conn
+                    .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
+                    .await
+                {
+                    Ok(hash_fields) => {
+                        let exists = !hash_fields.is_empty();
+                        let data = if exists {
+                            serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
+                        } else {
+                            serde_json::Value::Object(serde_json::Map::new())
+                        };
+                        (exists, data)
+                    }
+                    Err(error) => {
+                        tracing::error!(operation = "get_tokens_hash", err = ?error);
+                        (false, serde_json::Value::Null)
+                    }
+                }
+            }
+        };
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            key_type = ?key_type,
+            exists = key_exists,
+            ttl = ttl,
+            "Retrieved Redis key data"
+        );
+
+        Ok((key_exists, ttl, Some(data)))
+    }
+
     /// Update Redis token with comprehensive card data
     #[instrument(skip_all)]
     pub async fn update_redis_token_with_comprehensive_card_data(
         state: &SessionState,
         customer_id: &str,
         token: &str,
-        card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
+        card_data: &revenue_recovery_data_backfill::ComprehensiveCardData,
         cutoff_datetime: Option<PrimitiveDateTime>,
     ) -> CustomResult<(), errors::StorageError> {
         // Get existing token data

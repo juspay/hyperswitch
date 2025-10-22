@@ -1,11 +1,11 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
-use common_enums::enums;
+use common_enums::{connector_enums, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::{CustomerId, SubscriptionId},
+    id_type::{CustomerId, InvoiceId, SubscriptionId},
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -28,12 +28,16 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse, SubscriptionStatus,
+            self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionInvoiceData,
+            SubscriptionLineItem, SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
@@ -116,6 +120,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionCreateResponse {
     pub subscription: ChargebeeSubscriptionDetails,
+    pub invoice: Option<ChargebeeInvoiceData>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -188,6 +193,7 @@ impl
                 total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),
                 next_billing_at: subscription.next_billing_at,
                 created_at: subscription.created_at,
+                invoice_details: item.response.invoice.map(SubscriptionInvoiceData::from),
             }),
             ..item.data
         })
@@ -455,19 +461,24 @@ pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
     InvoiceDeleted,
+    InvoiceGenerated,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
-    pub id: String,
+    pub id: InvoiceId,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
+    pub status: Option<ChargebeeInvoiceStatus>,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoicePayments {
     pub txn_status: Option<String>,
 }
@@ -535,7 +546,7 @@ pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceBillingAddress {
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
@@ -578,7 +589,35 @@ impl ChargebeeInvoiceBody {
         Ok(webhook_body)
     }
 }
+// Structure to extract MIT payment data from invoice_generated webhook
+#[derive(Debug, Clone)]
+pub struct ChargebeeMitPaymentData {
+    pub invoice_id: InvoiceId,
+    pub amount_due: MinorUnit,
+    pub currency_code: enums::Currency,
+    pub status: Option<ChargebeeInvoiceStatus>,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: bool,
+}
 
+impl TryFrom<ChargebeeInvoiceBody> for ChargebeeMitPaymentData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(webhook_body: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let invoice = webhook_body.content.invoice;
+
+        Ok(Self {
+            invoice_id: invoice.id,
+            amount_due: invoice.total,
+            currency_code: invoice.currency_code,
+            status: invoice.status,
+            customer_id: invoice.customer_id,
+            subscription_id: invoice.subscription_id,
+            first_invoice: invoice.first_invoice.unwrap_or(false),
+        })
+    }
+}
 pub struct ChargebeeMandateDetails {
     pub customer_id: String,
     pub mandate_id: String,
@@ -613,9 +652,10 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
     fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
         let amount = item.content.transaction.amount;
         let currency = item.content.transaction.currency_code.to_owned();
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let connector_transaction_id = item
             .content
             .transaction
@@ -739,6 +779,19 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::PaymentIntentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::PaymentIntentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::EventNotSupported,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
         }
     }
 }
@@ -747,9 +800,10 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
 impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
         #[allow(clippy::as_conversions)]
@@ -778,11 +832,12 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
             metadata: None,
+            // TODO! This field should be handled for billing connnector integrations
+            enable_partial_authorization: None,
         })
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     fn from(item: ChargebeeInvoiceData) -> Self {
         Self {
@@ -795,7 +850,6 @@ impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
     fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
         Self {
@@ -960,6 +1014,51 @@ pub struct ChargebeeItem {
 }
 
 impl<F, T>
+    TryFrom<ResponseRouterData<F, SubscriptionEstimateResponse, T, GetSubscriptionEstimateResponse>>
+    for RouterData<F, T, GetSubscriptionEstimateResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            SubscriptionEstimateResponse,
+            T,
+            GetSubscriptionEstimateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let estimate = item.response.estimate;
+        Ok(Self {
+            response: Ok(GetSubscriptionEstimateResponse {
+                sub_total: estimate.invoice_estimate.sub_total,
+                total: estimate.invoice_estimate.total,
+                amount_paid: Some(estimate.invoice_estimate.amount_paid),
+                amount_due: Some(estimate.invoice_estimate.amount_due),
+                currency: estimate.subscription_estimate.currency_code,
+                next_billing_at: estimate.subscription_estimate.next_billing_at,
+                credits_applied: Some(estimate.invoice_estimate.credits_applied),
+                customer_id: Some(estimate.invoice_estimate.customer_id),
+                line_items: estimate
+                    .invoice_estimate
+                    .line_items
+                    .into_iter()
+                    .map(|line_item| SubscriptionLineItem {
+                        item_id: line_item.entity_id,
+                        item_type: line_item.entity_type,
+                        description: line_item.description,
+                        amount: line_item.amount,
+                        currency: estimate.invoice_estimate.currency_code,
+                        unit_amount: Some(line_item.unit_amount),
+                        quantity: line_item.quantity,
+                        pricing_model: Some(line_item.pricing_model),
+                    })
+                    .collect(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
     TryFrom<ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>>
     for RouterData<F, T, GetSubscriptionPlansResponse>
 {
@@ -991,7 +1090,20 @@ pub struct ChargebeeCustomerCreateRequest {
     #[serde(rename = "first_name")]
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,
-    pub billing_address: Option<api_models::payments::AddressDetails>,
+    #[serde(rename = "billing_address[first_name]")]
+    pub billing_address_first_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[last_name]")]
+    pub billing_address_last_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[line1]")]
+    pub billing_address_line1: Option<Secret<String>>,
+    #[serde(rename = "billing_address[city]")]
+    pub billing_address_city: Option<String>,
+    #[serde(rename = "billing_address[state]")]
+    pub billing_address_state: Option<Secret<String>>,
+    #[serde(rename = "billing_address[zip]")]
+    pub billing_address_zip: Option<Secret<String>>,
+    #[serde(rename = "billing_address[country]")]
+    pub billing_address_country: Option<String>,
 }
 
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
@@ -1014,7 +1126,34 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .clone(),
             name: req.name.clone(),
             email: req.email.clone(),
-            billing_address: req.billing_address.clone(),
+            billing_address_first_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.first_name.clone()),
+            billing_address_last_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.last_name.clone()),
+            billing_address_line1: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.line1.clone()),
+            billing_address_city: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.city.clone()),
+            billing_address_country: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_state: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.state.clone()),
+            billing_address_zip: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.zip.clone()),
         })
     }
 }
@@ -1076,6 +1215,19 @@ impl
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeSubscriptionEstimateRequest {
+    #[serde(rename = "subscription_items[item_price_id][0]")]
+    pub price_id: String,
+}
+
+impl TryFrom<&GetSubscriptionEstimateRouterData> for ChargebeeSubscriptionEstimateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &GetSubscriptionEstimateRouterData) -> Result<Self, Self::Error> {
+        let price_id = item.request.price_id.to_owned();
+        Ok(Self { price_id })
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeGetPlanPricesResponse {
     pub list: Vec<ChargebeeGetPlanPriceList>,
 }
@@ -1098,12 +1250,13 @@ pub struct ChargebeePlanPriceItem {
     pub period: i64,
     pub period_unit: ChargebeePeriodUnit,
     pub trial_period: Option<i64>,
-    pub trial_period_unit: ChargebeeTrialPeriodUnit,
+    pub trial_period_unit: Option<ChargebeeTrialPeriodUnit>,
     pub price: MinorUnit,
     pub pricing_model: ChargebeePricingModel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePricingModel {
     FlatFee,
     PerUnit,
@@ -1113,6 +1266,7 @@ pub enum ChargebeePricingModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePeriodUnit {
     Day,
     Week,
@@ -1121,6 +1275,7 @@ pub enum ChargebeePeriodUnit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeTrialPeriodUnit {
     Day,
     Month,
@@ -1158,8 +1313,9 @@ impl<F, T>
                 interval_count: prices.item_price.period,
                 trial_period: prices.item_price.trial_period,
                 trial_period_unit: match prices.item_price.trial_period_unit {
-                    ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
-                    ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
+                    Some(ChargebeeTrialPeriodUnit::Day) => Some(subscriptions::PeriodUnit::Day),
+                    Some(ChargebeeTrialPeriodUnit::Month) => Some(subscriptions::PeriodUnit::Month),
+                    None => None,
                 },
             })
             .collect();
@@ -1167,5 +1323,108 @@ impl<F, T>
             response: Ok(GetSubscriptionPlanPricesResponse { list: plan_prices }),
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionEstimateResponse {
+    pub estimate: ChargebeeEstimate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeEstimate {
+    pub created_at: i64,
+    /// type of the object will be `estimate`
+    pub object: String,
+    pub subscription_estimate: SubscriptionEstimate,
+    pub invoice_estimate: InvoiceEstimate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionEstimate {
+    pub status: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    /// type of the object will be `subscription_estimate`
+    pub object: String,
+    pub currency_code: enums::Currency,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InvoiceEstimate {
+    pub recurring: bool,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date: Option<PrimitiveDateTime>,
+    pub price_type: String,
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: MinorUnit,
+    pub amount_paid: MinorUnit,
+    pub amount_due: MinorUnit,
+    /// type of the object will be `invoice_estimate`
+    pub object: String,
+    pub customer_id: CustomerId,
+    pub line_items: Vec<LineItem>,
+    pub currency_code: enums::Currency,
+    pub round_off_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineItem {
+    pub id: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_from: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_to: Option<PrimitiveDateTime>,
+    pub unit_amount: MinorUnit,
+    pub quantity: i64,
+    pub amount: MinorUnit,
+    pub pricing_model: String,
+    pub is_taxed: bool,
+    pub tax_amount: MinorUnit,
+    /// type of the object will be `line_item`
+    pub object: String,
+    pub customer_id: String,
+    pub description: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub discount_amount: MinorUnit,
+    pub item_level_discount_amount: MinorUnit,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeInvoiceStatus {
+    Paid,
+    Posted,
+    PaymentDue,
+    NotPaid,
+    Voided,
+    #[serde(other)]
+    Pending,
+}
+
+impl From<ChargebeeInvoiceData> for SubscriptionInvoiceData {
+    fn from(item: ChargebeeInvoiceData) -> Self {
+        Self {
+            billing_address: Some(api_models::payments::Address::from(item.clone())),
+            id: item.id,
+            total: item.total,
+            currency_code: item.currency_code,
+            status: item.status.map(connector_enums::InvoiceStatus::from),
+        }
+    }
+}
+
+impl From<ChargebeeInvoiceStatus> for connector_enums::InvoiceStatus {
+    fn from(status: ChargebeeInvoiceStatus) -> Self {
+        match status {
+            ChargebeeInvoiceStatus::Paid => Self::InvoicePaid,
+            ChargebeeInvoiceStatus::Posted => Self::PaymentPendingTimeout,
+            ChargebeeInvoiceStatus::PaymentDue => Self::PaymentPending,
+            ChargebeeInvoiceStatus::NotPaid => Self::PaymentFailed,
+            ChargebeeInvoiceStatus::Voided => Self::Voided,
+            ChargebeeInvoiceStatus::Pending => Self::InvoiceCreated,
+        }
     }
 }

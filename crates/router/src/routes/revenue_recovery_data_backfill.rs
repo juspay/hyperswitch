@@ -1,6 +1,8 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::revenue_recovery_data_backfill::{BackfillQuery, RevenueRecoveryDataBackfillForm};
+use api_models::revenue_recovery_data_backfill::{
+    BackfillQuery, GetRedisDataQuery, RevenueRecoveryDataBackfillForm, UpdateTokenStatusRequest,
+};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -58,6 +60,30 @@ pub async fn revenue_recovery_data_backfill(
                 state,
                 records.records,
                 cutoff_datetime,
+            )
+        },
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RecoveryDataBackfill))]
+pub async fn update_revenue_recovery_additional_redis_data(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<UpdateTokenStatusRequest>,
+) -> HttpResponse {
+    let flow = Flow::RecoveryDataBackfill;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _: (), request, _| {
+            revenue_recovery_data_backfill::redis_update_additional_details_for_revenue_recovery(
+                state, request,
             )
         },
         &auth::V2AdminApiAuth,

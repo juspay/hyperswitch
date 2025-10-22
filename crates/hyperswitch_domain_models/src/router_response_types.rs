@@ -10,6 +10,7 @@ pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
+use serde::Serialize;
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -24,7 +25,7 @@ pub struct RefundsResponseData {
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ConnectorCustomerResponseData {
     pub connector_customer_id: String,
     pub name: Option<String>,
@@ -51,7 +52,7 @@ impl ConnectorCustomerResponseData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -123,7 +124,7 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -131,7 +132,7 @@ pub struct MandateReference {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CaptureSyncResponse {
     Success {
         resource_id: ResponseId,
@@ -282,13 +283,13 @@ impl PaymentsResponseData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
         endpoint: String,
@@ -583,6 +584,7 @@ pub struct PayoutsResponseData {
     pub should_add_next_step_to_process_tracker: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

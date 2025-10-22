@@ -162,27 +162,38 @@ pub struct GrpcHeadersUcs {
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+
+    request_id: Option<String>,
+
+    shadow_mode: Option<bool>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), (), ())>;
+pub type GrpcHeadersUcsBuilderInitial =
+    GrpcHeadersUcsBuilder<((String,), (), (), (), (Option<String>,), (Option<bool>,))>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
-pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
+pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
-    (),
+    (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
+    (Option<String>,),
+    (Option<bool>,),
 )>;
 
 /// struct to represent set of Lineage ids
 #[derive(Debug, serde::Serialize)]
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
+    profile_id: id_type::ProfileId,
 }
 impl LineageIds {
     /// constructor for LineageIds
-    pub fn new(merchant_id: id_type::MerchantId) -> Self {
-        Self { merchant_id }
+    pub fn new(merchant_id: id_type::MerchantId, profile_id: id_type::ProfileId) -> Self {
+        Self {
+            merchant_id,
+            profile_id,
+        }
     }
     /// get url encoded string representation of LineageIds
     pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {

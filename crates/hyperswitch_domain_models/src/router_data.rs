@@ -4,15 +4,16 @@ use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
-    id_type,
+    id_type::{self},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
-    payments,
+    address::AddressDetails, network_tokenization::NetworkTokenNumber,
+    payment_address::PaymentAddress, payment_method_data, payments,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
     router_flow_types, router_request_types, router_response_types,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: id_type::MerchantId,
@@ -37,6 +38,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub tenant_id: id_type::TenantId,
     pub status: common_enums::enums::AttemptStatus,
     pub payment_method: common_enums::enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::enums::PaymentMethodType>,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub address: PaymentAddress,
@@ -92,6 +94,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub minor_amount_captured: Option<MinorUnit>,
     pub minor_amount_capturable: Option<MinorUnit>,
 
+    // stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
+
     pub integrity_check: Result<(), IntegrityCheckError>,
 
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
@@ -100,7 +105,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
-    pub l2_l3_data: Option<L2L3Data>,
+    pub l2_l3_data: Option<Box<L2L3Data>>,
 
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
@@ -114,7 +119,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub is_payment_id_from_merchant: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
     pub order_date: Option<time::PrimitiveDateTime>,
     pub tax_status: Option<common_enums::TaxStatus>,
@@ -127,16 +132,61 @@ pub struct L2L3Data {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub shipping_origin_zip: Option<Secret<String>>,
-    pub shipping_state: Option<Secret<String>>,
-    pub shipping_country: Option<common_enums::CountryAlpha2>,
-    pub shipping_destination_zip: Option<Secret<String>>,
     pub billing_address_city: Option<String>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub customer_email: Option<common_utils::pii::Email>,
+    pub customer_name: Option<Secret<String>>,
+    pub customer_phone_number: Option<Secret<String>>,
+    pub customer_phone_country_code: Option<String>,
+    pub shipping_details: Option<AddressDetails>,
+}
+
+impl L2L3Data {
+    pub fn get_shipping_country(&self) -> Option<common_enums::enums::CountryAlpha2> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.country)
+    }
+
+    pub fn get_shipping_city(&self) -> Option<String> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.city.clone())
+    }
+
+    pub fn get_shipping_state(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.state.clone())
+    }
+
+    pub fn get_shipping_origin_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.origin_zip.clone())
+    }
+
+    pub fn get_shipping_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.zip.clone())
+    }
+
+    pub fn get_shipping_address_line1(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line1.clone())
+    }
+
+    pub fn get_shipping_address_line2(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line2.clone())
+    }
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -259,19 +309,19 @@ impl ConnectorAuthType {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessTokenAuthenticationResponse {
     pub code: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
@@ -279,7 +329,7 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptDataInternal {
     pub application_primary_account_number: cards::CardNumber,
@@ -291,7 +341,7 @@ pub struct ApplePayPredecryptDataInternal {
     pub payment_data: ApplePayCryptogramDataInternal,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
@@ -361,7 +411,7 @@ impl ApplePayPredecryptDataInternal {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
@@ -371,7 +421,7 @@ pub struct GooglePayPredecryptDataInternal {
     pub payment_method_details: GooglePayPaymentMethodDetails,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPaymentMethodDetails {
     pub auth_method: common_enums::enums::GooglePayAuthMethod,
@@ -383,7 +433,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub card_network: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDecryptedData {
     pub client_id: Secret<String>,
@@ -396,7 +446,7 @@ pub struct PazeDecryptedData {
     pub eci: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
     pub payment_token: NetworkTokenNumber,
@@ -405,7 +455,7 @@ pub struct PazeToken {
     pub payment_account_reference: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
@@ -413,7 +463,7 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
     pub name: Option<Secret<String>>,
@@ -426,7 +476,7 @@ pub struct PazeAddress {
     pub country_code: Option<common_enums::enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeConsumer {
     // This is consumer data not customer data.
@@ -439,14 +489,14 @@ pub struct PazeConsumer {
     pub language_code: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazePhoneNumber {
     pub country_code: Secret<String>,
     pub phone_number: Secret<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
@@ -454,13 +504,13 @@ pub struct RecurringMandatePaymentData {
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodBalance {
     pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
@@ -500,7 +550,7 @@ impl ConnectorResponseData {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
     Card {
         /// Details regarding the authentication details of the connector, if this is a 3ds payment.
@@ -517,19 +567,19 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,
@@ -799,11 +849,23 @@ impl
 
     fn get_attempt_status_for_db_update(
         &self,
-        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
     ) -> common_enums::AttemptStatus {
-        // For this step, consider whatever status was given by the connector module
-        // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
-        self.status
+        match self.status {
+            common_enums::AttemptStatus::Charged => {
+                let amount_captured = self
+                    .get_captured_amount(payment_data)
+                    .unwrap_or(MinorUnit::zero());
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+
+                if amount_captured == total_amount {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
     }
 
     fn get_amount_capturable(
@@ -812,7 +874,7 @@ impl
     ) -> Option<MinorUnit> {
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_capturable_from_intent_status = match intent_status {
             // If the status is already succeeded / failed we cannot capture any more amount
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
@@ -839,7 +901,10 @@ impl
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
+        self.minor_amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 
     fn get_captured_amount(
@@ -848,7 +913,7 @@ impl
     ) -> Option<MinorUnit> {
         // Based on the status of the response, we can determine the amount that was captured
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_captured_from_intent_status = match intent_status {
             // If the status is succeeded then we have captured the whole amount
             // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
             common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
@@ -875,10 +940,12 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
+        self.minor_amount_captured
+            .or(amount_captured_from_intent_status)
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
-
 #[cfg(feature = "v2")]
 impl
     TrackerPostUpdateObjects<
@@ -1274,7 +1341,7 @@ impl
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_capturable_from_intent_status = match intent_status {
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
@@ -1290,14 +1357,16 @@ impl
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
             // Invalid statues for this flow
-            common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+            common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        };
+        self.minor_amount_capturable
+            .or(amount_capturable_from_intent_status)
     }
 
     fn get_captured_amount(
@@ -1308,7 +1377,7 @@ impl
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_captured_from_intent_status = match intent_status {
             // If the status is succeeded then we have captured the whole amount or amount_to_capture
             common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_attempt.amount_details.get_amount_to_capture();
@@ -1338,7 +1407,10 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
+        self.minor_amount_captured
+            .or(amount_captured_from_intent_status)
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 
@@ -1811,6 +1883,123 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        payments::PaymentCancelData<router_flow_types::Void>,
+    >
+    for RouterData<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        let intent_status =
+            common_enums::IntentStatus::from(self.get_attempt_status_for_db_update(payment_data));
+        PaymentIntentUpdate::VoidUpdate {
+            status: intent_status,
+            updated_by: storage_scheme.to_string(),
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        match &self.response {
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status: _,
+                    connector_transaction_id,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
+                    connector_metadata: _,
+                } = error_response.clone();
+
+                // Handle errors exactly
+                let status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::AttemptStatus::Pending,
+                        _ => common_enums::AttemptStatus::VoidFailed,
+                    },
+                };
+
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status,
+                    amount_capturable: Some(MinorUnit::zero()),
+                    error: error_details,
+                    updated_by: storage_scheme.to_string(),
+                    connector_payment_id: connector_transaction_id,
+                }
+            }
+            Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {
+                status: self.status,
+                cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
+                updated_by: storage_scheme.to_string(),
+            },
+        }
+    }
+
+    fn get_amount_capturable(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is capturable
+        Some(MinorUnit::zero())
+    }
+
+    fn get_captured_amount(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is captured
+        Some(MinorUnit::zero())
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> common_enums::AttemptStatus {
+        // For void operations, determine status based on response
+        match &self.response {
+            Err(ref error_response) => match error_response.attempt_status {
+                Some(status) => status,
+                None => match error_response.status_code {
+                    500..=511 => common_enums::AttemptStatus::Pending,
+                    _ => common_enums::AttemptStatus::VoidFailed,
+                },
+            },
+            Ok(ref _response) => self.status,
         }
     }
 }

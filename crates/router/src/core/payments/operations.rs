@@ -30,6 +30,8 @@ pub mod payment_update;
 #[cfg(feature = "v1")]
 pub mod payment_update_metadata;
 #[cfg(feature = "v1")]
+pub mod payments_extend_authorization;
+#[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
@@ -58,6 +60,9 @@ pub mod payment_get;
 #[cfg(feature = "v2")]
 pub mod payment_capture_v2;
 
+#[cfg(feature = "v2")]
+pub mod payment_cancel_v2;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -82,6 +87,7 @@ pub use self::{
     payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
+    payments_extend_authorization::PaymentExtendAuthorization,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
@@ -91,6 +97,8 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
+#[cfg(feature = "v2")]
+use crate::core::payments;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -421,6 +429,16 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+
+    /// Get connector tokenization action
+    #[cfg(feature = "v2")]
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &D,
+    ) -> RouterResult<(payments::TokenizationAction)> {
+        Ok(payments::TokenizationAction::SkipConnectorTokenization)
     }
 
     // #[cfg(feature = "v2")]

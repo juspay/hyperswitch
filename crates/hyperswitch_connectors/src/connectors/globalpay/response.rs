@@ -49,19 +49,6 @@ pub struct Card {
     pub brand_reference: Option<Secret<String>>,
 }
 
-/// A string used to identify the payment method provider being used to execute this
-/// transaction.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ApmProvider {
-    Giropay,
-    Ideal,
-    Paypal,
-    Sofort,
-    Eps,
-    Testpay,
-}
-
 /// Indicates where a transaction is in its lifecycle.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -110,18 +97,6 @@ pub enum GlobalpayWebhookStatus {
     Captured,
     #[serde(other)]
     Unknown,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum GlobalpayPaymentMethodStatus {
-    /// The entity is ACTIVE and can be used.
-    Active,
-    /// The entity is INACTIVE and cannot be used.
-    Inactive,
-    /// The status is DELETED. Once returned in an action response for a resource.
-    /// The resource has been removed from the platform.
-    Delete,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

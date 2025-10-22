@@ -374,7 +374,7 @@ payment_method_type = "Mastercard"
 [[adyenplatform_payout.debit]]
 payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
-payment_method_type = "sepa"
+payment_method_type = "sepa_bank_transfer"
 [adyenplatform_payout.connector_auth.HeaderKey]
 api_key = "Adyen platform's API Key"
 
@@ -1401,6 +1401,12 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[braintree.debit]]
 payment_method_type = "UnionPay"
+[[braintree.wallet]]
+  payment_method_type = "apple_pay"
+[[braintree.wallet]]
+  payment_method_type = "google_pay"
+[[braintree.wallet]]
+  payment_method_type = "paypal"
 [braintree.connector_webhook_details]
 merchant_secret = "Source verification key"
 
@@ -1422,6 +1428,36 @@ placeholder = "Enter Currency"
 required = true
 type = "Select"
 options = []
+
+[[braintree.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[braintree.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=false
+type="Text"
+[[braintree.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=false
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[braintree.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
+[braintree.metadata.paypal_sdk]
+client_id="Client ID"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -2906,7 +2942,18 @@ placeholder = "Enter Allowed Auth Methods"
 required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
-
+[[multisafepay.bank_redirect]]
+payment_method_type = "trustly"
+[[multisafepay.bank_redirect]]
+payment_method_type = "eps"
+[[multisafepay.bank_redirect]]
+payment_method_type = "sofort"
+[[multisafepay.wallet]]
+payment_method_type = "ali_pay"
+[[multisafepay.wallet]]
+payment_method_type = "we_chat_pay"
+[[multisafepay.wallet]]
+payment_method_type = "mb_way"
 
 [nexinets]
 [[nexinets.credit]]
@@ -3439,6 +3486,10 @@ payment_method_type = "google_pay"
 payment_method_type = "paypal"
 [[novalnet.wallet]]
 payment_method_type = "apple_pay"
+[[novalnet.bank_debit]]
+  payment_method_type = "sepa"
+[[novalnet.bank_debit]]
+  payment_method_type = "sepa_guarenteed_debit"
 [novalnet.connector_auth.SignatureKey]
 api_key = "Product Activation Key"
 key1 = "Payment Access Key"
@@ -3754,6 +3805,49 @@ required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[nuvei_payout]
+[[nuvei_payout.credit]]
+  payment_method_type = "Mastercard"
+[[nuvei_payout.credit]]
+  payment_method_type = "Visa"
+[[nuvei_payout.credit]]
+  payment_method_type = "Interac"
+[[nuvei_payout.credit]]
+  payment_method_type = "AmericanExpress"
+[[nuvei_payout.credit]]
+  payment_method_type = "JCB"
+[[nuvei_payout.credit]]
+  payment_method_type = "DinersClub"
+[[nuvei_payout.credit]]
+  payment_method_type = "Discover"
+[[nuvei_payout.credit]]
+  payment_method_type = "CartesBancaires"
+[[nuvei_payout.credit]]
+  payment_method_type = "UnionPay"
+[[nuvei_payout.debit]]
+  payment_method_type = "Mastercard"
+[[nuvei_payout.debit]]
+  payment_method_type = "Visa"
+[[nuvei_payout.debit]]
+  payment_method_type = "Interac"
+[[nuvei_payout.debit]]
+  payment_method_type = "AmericanExpress"
+[[nuvei_payout.debit]]
+  payment_method_type = "JCB"
+[[nuvei_payout.debit]]
+  payment_method_type = "DinersClub"
+[[nuvei_payout.debit]]
+  payment_method_type = "Discover"
+[[nuvei_payout.debit]]
+  payment_method_type = "CartesBancaires"
+[[nuvei_payout.debit]]
+  payment_method_type = "UnionPay"
+[nuvei_payout.connector_auth.SignatureKey]
+api_key="Merchant ID"
+key1="Merchant Site ID"
+api_secret="Merchant Secret"
+[nuvei_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [opennode]
 [[opennode.crypto]]
@@ -3883,6 +3977,8 @@ payment_method_type = "venmo"
 [paypal_payout.connector_auth.BodyKey]
 api_key = "Client Secret"
 key1 = "Client ID"
+[paypal_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [payu]
 [[payu.credit]]
@@ -5077,6 +5173,20 @@ required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[worldpay_payout.wallet]]
+  payment_method_type = "apple_pay"
+[worldpay_payout.connector_auth.SignatureKey]
+key1="Username"
+api_key="Password"
+api_secret="Merchant Identifier"
+[worldpay_payout.connector_webhook_details]
+merchant_secret="Source verification key"
+[worldpay_payout.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant to de displayed during 3DS challenge"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
 
 [zen]
 [[zen.credit]]
@@ -5394,7 +5504,7 @@ payment_method_type = "CartesBancaires"
 [[adyen_payout.debit]]
 payment_method_type = "UnionPay"
 [[adyen_payout.bank_transfer]]
-payment_method_type = "sepa"
+payment_method_type = "sepa_bank_transfer"
 [[adyen_payout.wallet]]
 payment_method_type = "paypal"
 [adyen_payout.connector_auth.SignatureKey]
@@ -5417,7 +5527,7 @@ api_key = "Stripe API Key"
 
 [nomupay_payout]
 [[nomupay_payout.bank_transfer]]
-payment_method_type = "sepa"
+payment_method_type = "sepa_bank_transfer"
 [nomupay_payout.connector_auth.BodyKey]
 api_key = "Nomupay kid"
 key1 = "Nomupay eid"
@@ -5434,10 +5544,12 @@ payment_method_type = "ach"
 [[wise_payout.bank_transfer]]
 payment_method_type = "bacs"
 [[wise_payout.bank_transfer]]
-payment_method_type = "sepa"
+payment_method_type = "sepa_bank_transfer"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+[wise_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -6247,7 +6359,30 @@ placeholder = "Enter ThreeDS request id"
 required = false
 type = "Text"
 [juspaythreedsserver.connector_auth.NoKey]
-
+[juspaythreedsserver.metadata.merchant_category_code]
+name = "merchant_category_code"
+label = "merchant_category_code"
+placeholder = "Enter Merchant Category Code"
+required = true
+type = "Text"
+[juspaythreedsserver.metadata.merchant_country_code]
+name = "merchant_country_code"
+label = "merchant_country_code"
+placeholder = "Enter Merchant Country Code"
+required = true
+type = "Text"
+[juspaythreedsserver.metadata.merchant_name]
+name = "merchant_name"
+label = "merchant_name"
+placeholder = "Enter Merchant Name"
+required = true
+type = "Text"
+[juspaythreedsserver.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
 
 [hipay]
 [[hipay.credit]]
@@ -6624,7 +6759,7 @@ options = []
 [[santander.voucher]]
   payment_method_type = "boleto"
 [[santander.bank_transfer]]
-  payment_method_type = "pix"  
+  payment_method_type = "pix"
 
 [santander.connector_auth.BodyKey]
 api_key = "Client ID"
@@ -6779,18 +6914,18 @@ payment_method_type = "upi_intent"
 api_key="Signing key"
 api_secret="website name"
 key1="merchant_id"
-[bluecode]
-[[bluecode.wallet]]
+[calida]
+[[calida.wallet]]
   payment_method_type = "bluecode"
-[bluecode.connector_auth.HeaderKey]
+[calida.connector_auth.HeaderKey]
 api_key = "E-Order Token"
-[bluecode.metadata.shop_name]
+[calida.metadata.shop_name]
 name="shop_name"
 label="Shop Name"
 placeholder="Enter your Shop Name"
 required=true
 type="Text"
-[bluecode.connector_webhook_details]
+[calida.connector_webhook_details]
 merchant_secret="Source verification key"
 
 [katapult]
@@ -6857,11 +6992,16 @@ payment_method_type = "interac"
 payment_method_type = "skrill"
 [[paysafe.gift_card]]
 payment_method_type = "pay_safe_card"
+[[paysafe.wallet]]
+payment_method_type = "apple_pay"
+
 [paysafe.connector_auth.BodyKey]
 api_key = "Username"
 key1 = "Password"
+
 [paysafe.connector_webhook_details]
 merchant_secret = "Source verification key"
+
 [[paysafe.metadata.account_id.card.USD.three_ds]]
 name="three_ds"
 label="ThreeDS account id"
@@ -6929,7 +7069,70 @@ placeholder="Enter eur Account ID"
 required=true
 type="Text"
 
+[[paysafe.metadata.account_id.apple_pay.USD.encrypt]]
+name="encrypt"
+label="Encrypt"
+placeholder="Enter encrypt value"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.apple_pay.USD.decrypt]]
+name="decrypt"
+label="Decrypt"
+placeholder="Enter decrypt value"
+required=true
+type="Text"
 
+[[paysafe.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[paysafe.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[paysafe.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [peachpayments]
 [[peachpayments.credit]]
@@ -7066,3 +7269,289 @@ label="mastercard Payment Facilitator Id"
 placeholder="Enter mastercard Payment Facilitator Id"
 required=false
 type="Text"
+
+[tokenex]
+[tokenex.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[gigadat]
+[gigadat.connector_auth.SignatureKey]
+api_key = "Access Token"
+api_secret = "Security Token"
+key1 = "Campaign ID"
+[[gigadat.bank_redirect]]
+payment_method_type = "interac"
+[gigadat.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"
+[gigadat_payout]
+[gigadat_payout.connector_auth.SignatureKey]
+api_key = "Access Token"
+api_secret = "Security Token"
+key1 = "Campaign ID"
+[[gigadat_payout.bank_redirect]]
+payment_method_type = "interac"
+[gigadat_payout.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"
+
+[finix]
+[finix.connector_auth.MultiAuthKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
+[[finix.credit]]
+payment_method_type = "Mastercard"
+[[finix.credit]]
+payment_method_type = "Visa"
+[[finix.credit]]
+payment_method_type = "AmericanExpress"
+[[finix.credit]]
+payment_method_type = "Discover"
+[[finix.credit]]
+payment_method_type = "JCB"
+[[finix.credit]]
+payment_method_type = "DinersClub"
+[[finix.credit]]
+payment_method_type = "UnionPay"
+[[finix.credit]]
+payment_method_type = "Interac"
+[[finix.credit]]
+payment_method_type = "Maestro"
+[[finix.wallet]]
+  payment_method_type = "google_pay"
+[[finix.wallet]]
+  payment_method_type = "apple_pay"
+[[finix.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[finix.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[finix.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
+[[finix.metadata.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[finix.metadata.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[finix.metadata.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[finix.metadata.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[finix.connector_wallets_details.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "public_key"
+  label = "Google Pay Public Key"
+  placeholder = "Enter Google Pay Public Key"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "private_key"
+  label = "Google Pay Private Key"
+  placeholder = "Enter Google Pay Private Key"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "recipient_id"
+  label = "Recipient Id"
+  placeholder = "Enter Recipient Id"
+  required = true
+  type = "Text"
+[[finix.connector_wallets_details.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[loonio]
+[loonio.connector_auth.BodyKey]
+api_key = "Merchant ID"
+key1 = "Merchant Token"
+[[loonio.bank_redirect]]
+payment_method_type = "interac"
+
+[loonio_payout]
+[loonio_payout.connector_auth.BodyKey]
+api_key = "Merchant ID"
+key1 = "Merchant Token"
+[[loonio_payout.bank_redirect]]
+payment_method_type = "interac"
+
+[tesouro]
+[[tesouro.credit]]
+payment_method_type = "Mastercard"
+[[tesouro.credit]]
+payment_method_type = "Visa"
+[[tesouro.credit]]
+payment_method_type = "AmericanExpress"
+[[tesouro.credit]]
+payment_method_type = "Discover"
+[[tesouro.credit]]
+payment_method_type = "DinersClub"
+[[tesouro.credit]]
+payment_method_type = "JCB"
+[[tesouro.credit]]
+payment_method_type = "Maestro"
+[[tesouro.credit]]
+payment_method_type = "UnionPay"
+[[tesouro.debit]]
+payment_method_type = "Mastercard"
+[[tesouro.debit]]
+payment_method_type = "Visa"
+[[tesouro.debit]]
+payment_method_type = "AmericanExpress"
+[[tesouro.debit]]
+payment_method_type = "Discover"
+[[tesouro.debit]]
+payment_method_type = "DinersClub"
+[[tesouro.debit]]
+payment_method_type = "JCB"
+[[tesouro.debit]]
+payment_method_type = "Maestro"
+[[tesouro.wallet]]
+  payment_method_type = "apple_pay"
+[[tesouro.wallet]]
+  payment_method_type = "google_pay" 
+
+[tesouro.connector_auth.SignatureKey]
+api_key = "Client ID"
+api_secret = "Client Secret"
+key1 = "Acceptor ID"
+
+[[tesouro.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[tesouro.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[tesouro.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[tesouro.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[tesouro.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[tesouro.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[tesouro.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[tesouro.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Hyperswitch"]

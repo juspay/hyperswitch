@@ -1880,8 +1880,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         req: &UploadFileRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::FormData(connector_req))
+        transformers::construct_file_upload_request(req.clone())
     }
 
     fn build_request(
@@ -3300,5 +3299,12 @@ impl ConnectorSpecifications for Stripe {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&STRIPE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
     }
 }

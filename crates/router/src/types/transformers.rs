@@ -326,12 +326,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
-            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent => {
-                Self::Upi
-            }
+            api_enums::PaymentMethodType::UpiCollect
+            | api_enums::PaymentMethodType::UpiIntent
+            | api_enums::PaymentMethodType::UpiQr => Self::Upi,
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::SepaGuarenteedDebit
             | api_enums::PaymentMethodType::Bacs
             | api_enums::PaymentMethodType::Becs => Self::BankDebit,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
@@ -1195,6 +1196,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
+            api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
+                Self::foreign_from(bank_redirect)
+            }
         }
     }
 }
@@ -1217,6 +1221,16 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
+            api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
+        match value {
+            api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
         }
     }
 }
@@ -1228,6 +1242,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1239,6 +1254,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::
             api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1250,6 +1266,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
+            api_models::enums::PayoutType::BankRedirect => Self::BankRedirect,
         }
     }
 }
@@ -1999,6 +2016,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: None,
         }
     }
 }

@@ -1446,6 +1446,8 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::MandateActive
             | webhooks::IncomingWebhookEvent::MandateRevoked
             | webhooks::IncomingWebhookEvent::EndpointVerification
+            | webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             | webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             | webhooks::IncomingWebhookEvent::FrmApproved
             | webhooks::IncomingWebhookEvent::FrmRejected
@@ -1455,7 +1457,9 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PayoutCancelled
             | webhooks::IncomingWebhookEvent::PayoutCreated
             | webhooks::IncomingWebhookEvent::PayoutExpired
-            | webhooks::IncomingWebhookEvent::PayoutReversed => {
+            | webhooks::IncomingWebhookEvent::PayoutReversed
+            | webhooks::IncomingWebhookEvent::InvoiceGenerated
+            | webhooks::IncomingWebhookEvent::SetupWebhook => {
                 common_types::payments::RecoveryAction::InvalidAction
             }
             webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {

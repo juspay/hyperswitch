@@ -70,6 +70,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
@@ -121,6 +122,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: Option<&common_utils::id_type::PaymentId>,
         payment_method_data: Option<&domain::PaymentMethodData>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
@@ -142,6 +144,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             billing_address,
             acquirer_bin,
             acquirer_merchant_id,
+            payment_method_type,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -289,6 +292,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         billing_address: Option<&hyperswitch_domain_models::address::Address>,
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -298,13 +302,13 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 Some(PaymentDetails {
                     pan: card.card_number.clone(),
                     digital_card_id: None,
-                    payment_data_type: None,
+                    payment_data_type: payment_method_type,
                     encrypted_src_card_details: None,
                     card_expiry_month: card.card_exp_month.clone(),
                     card_expiry_year: card.card_exp_year.clone(),
                     cardholder_name: card.card_holder_name.clone(),
                     card_token_number: None,
-                    account_type: None,
+                    account_type: payment_method_type,
                     card_cvc: Some(card.card_cvc.clone()),
                 })
             } else {
@@ -334,6 +338,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: Option<&common_utils::id_type::PaymentId>,
         payment_method_data: Option<&domain::PaymentMethodData>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
@@ -355,6 +360,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             billing_address,
             acquirer_bin,
             acquirer_merchant_id,
+            payment_method_type,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -914,7 +920,7 @@ pub async fn authentication_eligibility_core(
         None,
         None,
         &merchant_context,
-        None,
+        req.profile_id.as_ref(),
         db,
         true,
     )
@@ -943,7 +949,7 @@ pub async fn authentication_eligibility_core(
     let notification_url = match authentication_connector {
         common_enums::AuthenticationConnectors::Juspaythreedsserver => {
             Some(url::Url::parse(&format!(
-                "{base_url}/authentication/{merchant_id}/{authentication_id}/sync",
+                "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
                 base_url = state.base_url,
                 merchant_id = merchant_id.get_string_repr(),
                 authentication_id = authentication_id.get_string_repr()
@@ -995,7 +1001,7 @@ pub async fn authentication_eligibility_core(
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
         merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
-        endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+        endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
@@ -1014,6 +1020,7 @@ pub async fn authentication_eligibility_core(
             merchant_id,
             None,
             Some(&payment_method_data),
+            req.payment_method_type,
             &three_ds_connector_account,
             &authentication_connector_name,
             &authentication_id,
