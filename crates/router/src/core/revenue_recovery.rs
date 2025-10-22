@@ -549,8 +549,8 @@ pub async fn perform_calculate_workflow(
                 revenue_recovery_workflow::PaymentProcessorTokenResponse {
                     schedule_time: None,
                     wait_time: None,
-                    all_hard_decline: None,
-                    reschedule_time: None,
+                    hard_decline_status: None,
+                    next_available_time: None,
                 }
             }
         };
@@ -608,7 +608,7 @@ pub async fn perform_calculate_workflow(
         }
 
         None => {
-            match payment_processor_token_response.reschedule_time {
+            match payment_processor_token_response.next_available_time {
                 Some(scheduled_token_time) => {
                     // Update scheduled time to scheduled time + 15 minutes
                     // here scheduled_time is the wait time 15 minutes is a buffer time that we are adding
@@ -636,7 +636,7 @@ pub async fn perform_calculate_workflow(
                 }
                 None => {
                     match payment_processor_token_response
-                        .all_hard_decline
+                        .hard_decline_status
                         .unwrap_or(false)
                     {
                         false => {

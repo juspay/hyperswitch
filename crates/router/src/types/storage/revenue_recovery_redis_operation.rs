@@ -627,7 +627,10 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: schedule_time,
                     is_hard_decline: status.is_hard_decline,
-                    modified_at: status.modified_at,
+                    modified_at: Some(PrimitiveDateTime::new(
+                        OffsetDateTime::now_utc().date(),
+                        OffsetDateTime::now_utc().time(),
+                    )),
                 });
 
         match updated_token {
@@ -926,6 +929,11 @@ impl RedisTokenManager {
                     })
                     .unwrap_or(Some(existing_scheduled_at)) // No cutoff provided, keep existing value
             });
+        
+        existing_token.modified_at = Some(PrimitiveDateTime::new(
+            OffsetDateTime::now_utc().date(),
+            OffsetDateTime::now_utc().time(),
+        ));
 
         // Save the updated token map back to Redis
         Self::update_or_add_connector_customer_payment_processor_tokens(
