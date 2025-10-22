@@ -4261,7 +4261,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4292,6 +4292,22 @@ where
         call_connector_action,
         CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::HandleResponse(_)
     );
+
+    // Check for cached access token in Redis (no generation for UCS flows)
+    let cached_access_token = access_token::get_cached_access_token_for_ucs(
+        state,
+        &connector,
+        merchant_context,
+        router_data.payment_method,
+        &router_data.payment_id,
+        payment_data.get_creds_identifier(),
+    )
+    .await?;
+
+    // Set cached access token in router_data if available
+    if let Some(access_token) = cached_access_token {
+        router_data.access_token = Some(access_token);
+    }
 
     record_time_taken_with(|| async {
         match (execution_path, is_handle_response_action) {
@@ -5007,6 +5023,22 @@ where
             let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
+
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                &router_data.payment_id,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
+
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
 
             router_data
                 .call_unified_connector_service(
