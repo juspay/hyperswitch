@@ -19,6 +19,7 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
+#[cfg(feature = "v1")]
 use subscriptions::workflows::invoice_sync;
 
 #[cfg(feature = "payouts")]
@@ -588,7 +589,12 @@ async fn get_outgoing_webhook_content_and_event_type(
                     &merchant_account,
                 ),
             )
-            .await?;
+            .await
+            .inspect_err(|e| {
+                logger::error!(
+                    "Failed to generate response for subscription outgoing webhook: {e:?}"
+                );
+            })?;
 
             Ok((
                 OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),

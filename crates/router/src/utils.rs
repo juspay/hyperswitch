@@ -1404,6 +1404,7 @@ pub async fn trigger_payouts_webhook(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 pub async fn trigger_subscriptions_outgoing_webhook(
     state: &SessionState,
     payment_response: subscription_types::PaymentResponseData,
@@ -1417,9 +1418,8 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         logger::info!("Invoice not paid, skipping outgoing webhook trigger");
         return Ok(());
     }
-    let response =
-        InvoiceSyncHandler::generate_response(&subscription, &invoice, &payment_response)
-            .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
+    let response = InvoiceSyncHandler::generate_response(subscription, invoice, &payment_response)
+        .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
 
     let merchant_context = domain::merchant_context::MerchantContext::NormalMerchant(Box::new(
         domain::merchant_context::Context(merchant_account.clone(), key_store.clone()),

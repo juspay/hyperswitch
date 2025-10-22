@@ -3347,17 +3347,6 @@ impl StorageInterface for KafkaStore {
     ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
-
-    fn from_subscription_interface(
-        db: Box<dyn subscriptions::state::SubscriptionStorageInterface>,
-    ) -> CustomResult<Box<dyn StorageInterface>, errors::StorageError> {
-        let any = db as Box<dyn std::any::Any>;
-        Ok(Box::new(
-            any.downcast_ref::<KafkaStore>()
-                .ok_or(errors::StorageError::InitializationError)?
-                .clone(),
-        ))
-    }
 }
 
 impl GlobalStorageInterface for KafkaStore {

@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use common_enums::connector_enums::InvoiceStatus;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
@@ -38,6 +37,7 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
                         tracking_data,
                     ))
                     .await?;
+
                 if handler.invoice.status == InvoiceStatus::InvoicePaid
                     || handler.invoice.status == InvoiceStatus::PaymentSucceeded
                     || handler.invoice.status == InvoiceStatus::PaymentFailed
@@ -52,12 +52,14 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
                         &handler.profile,
                     )
                     .await
-                    .change_context(
+                    .map_err(|e| {
+                        logger::error!("Failed to trigger subscriptions outgoing webhook: {e:?}");
                         errors::ProcessTrackerError::FlowExecutionError {
                             flow: "Trigger Subscriptions Outgoing Webhook",
-                        },
-                    );
+                        }
+                    })?;
                 }
+
                 Ok(())
             }
             _ => Err(errors::ProcessTrackerError::JobNotFound),

@@ -65,7 +65,6 @@ use router_env::logger;
 use storage_impl::{
     errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
 };
-use subscriptions::state::SubscriptionStorageInterface;
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
@@ -92,8 +91,7 @@ pub enum StorageImpl {
 
 #[async_trait::async_trait]
 pub trait StorageInterface:
-    SubscriptionStorageInterface
-    + Send
+    Send
     + Sync
     + dyn_clone::DynClone
     + address::AddressInterface
@@ -156,11 +154,6 @@ pub trait StorageInterface:
     fn get_subscription_store(&self)
         -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
-    fn from_subscription_interface(
-        db: Box<dyn subscriptions::state::SubscriptionStorageInterface>,
-    ) -> CustomResult<Box<dyn StorageInterface>, StorageError>
-    where
-        Self: Sized;
 }
 
 #[async_trait::async_trait]
@@ -222,17 +215,6 @@ impl StorageInterface for Store {
     ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
-
-    fn from_subscription_interface(
-        db: Box<dyn subscriptions::state::SubscriptionStorageInterface>,
-    ) -> CustomResult<Box<dyn StorageInterface>, StorageError> {
-        let any = db as Box<dyn std::any::Any>;
-        Ok(Box::new(
-            any.downcast_ref::<Store>()
-                .ok_or(StorageError::InitializationError)?
-                .clone(),
-        ))
-    }
 }
 
 #[async_trait::async_trait]
@@ -260,17 +242,6 @@ impl StorageInterface for MockDb {
         &self,
     ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
-    }
-
-    fn from_subscription_interface(
-        db: Box<dyn subscriptions::state::SubscriptionStorageInterface>,
-    ) -> CustomResult<Box<dyn StorageInterface>, StorageError> {
-        let any = db as Box<dyn std::any::Any>;
-        Ok(Box::new(
-            any.downcast_ref::<MockDb>()
-                .ok_or(StorageError::InitializationError)?
-                .clone(),
-        ))
     }
 }
 
@@ -346,13 +317,6 @@ where
 dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
 dyn_clone::clone_trait_object!(AccountsStorageInterface);
-
-// impl From<Box<dyn SubscriptionStorageInterface>> for Box<dyn StorageInterface> {
-//     fn from(sub: Box<dyn SubscriptionStorageInterface>) -> Self {
-//         let store = *sub;
-//         Box::new(store).into()
-//     }
-// }
 
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
