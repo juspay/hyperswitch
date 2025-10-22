@@ -4444,12 +4444,31 @@ where
             should_continue_further,
         )
         .await?;
-    let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
-        payment_method_token_response,
-        &mut router_data,
-        is_retry_payment,
+    let mut should_continue_further =
+        tokenization::update_router_data_with_payment_method_token_result(
+            payment_method_token_response,
+            &mut router_data,
+            is_retry_payment,
+            should_continue_further,
+        );
+
+    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+        state,
+        &connector,
+        payment_data,
+        router_data,
+        operation,
         should_continue_further,
-    );
+    )
+    .await?;
+    if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+        session_token: Some(session_token),
+        ..
+    }) = router_data.response.to_owned()
+    {
+        payment_data.push_sessions_token(session_token);
+    };
+
     let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?
