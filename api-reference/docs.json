@@ -45,6 +45,7 @@
                       "v1/payments/payments--cancel-post-capture",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
+                      "v1/payments/payments--extend-authorization",
                       "v1/payments/payments--session-token",
                       "v1/payments/payments-link--retrieve",
                       "v1/payments/payments--list",
@@ -282,6 +283,12 @@
                       "v2/payment-methods/payment-method--delete",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods",
                       "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                    ]
+                  },
+                  {
+                    "group": "Network Tokenization",
+                    "pages": [
+                      "v2/payment-methods/check-network-token-status"
                     ]
                   },
                   {

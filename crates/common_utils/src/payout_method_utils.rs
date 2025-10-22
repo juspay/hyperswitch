@@ -211,6 +211,8 @@ pub enum WalletAdditionalData {
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
+    /// Additional data for Apple pay decrypt wallet payout method
+    ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
 }
 
 /// Masked payout method details for paypal wallet payout method
@@ -241,6 +243,25 @@ pub struct VenmoAdditionalData {
     /// mobile number linked to venmo account
     #[schema(value_type = Option<String>, example = "******* 3349")]
     pub telephone_number: Option<MaskedPhoneNumber>,
+}
+
+/// Masked payout method details for Apple pay decrypt wallet payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ApplePayDecryptAdditionalData {
+    /// Card expiry month
+    #[schema(value_type = String, example = "01")]
+    pub card_exp_month: Secret<String>,
+
+    /// Card expiry year
+    #[schema(value_type = String, example = "2026")]
+    pub card_exp_year: Secret<String>,
+
+    /// Card holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for wallet payout method
