@@ -202,7 +202,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            account_metadata: router_data
+            merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
                 .and_then(|meta| meta.peek().as_object())
@@ -342,7 +342,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            account_metadata: router_data
+            merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
                 .and_then(|meta| meta.peek().as_object())
@@ -459,7 +459,7 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
-            account_metadata: router_data
+            merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
                 .and_then(|meta| meta.peek().as_object())
@@ -540,7 +540,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            account_metadata: router_data
+            merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
                 .and_then(|meta| meta.peek().as_object())
