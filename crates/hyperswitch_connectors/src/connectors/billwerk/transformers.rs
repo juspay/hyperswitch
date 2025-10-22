@@ -1,4 +1,4 @@
-use common_enums::enums;
+use common_enums::{enums, Currency};
 use common_utils::{
     id_type,
     pii::{Email, SecretSerdeValue},
@@ -176,12 +176,12 @@ pub struct BillwerkCustomerObject {
     last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BillwerkPaymentsRequest {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     handle: String,
-    amount: MinorUnit,
     source: Secret<String>,
-    currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
     metadata: Option<SecretSerdeValue>,
     settle: bool,
@@ -361,8 +361,10 @@ impl From<RefundState> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     id: String,
     state: RefundState,
 }
