@@ -4816,7 +4816,7 @@ where
         .await?;
 
     // do order creation
-    let (should_call_unified_connector_service, updated_state) =
+    let (execution_path, updated_state) =
         should_call_unified_connector_service(
             state,
             merchant_context,
@@ -5009,7 +5009,7 @@ where
 
             Ok(router_data)
         } else {
-            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
+            if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
@@ -5024,7 +5024,7 @@ where
             }
 
 
-            let session_state = if matches!(execution, GatewaySystem::ShadowUnifiedConnectorService) {
+            let session_state = if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
                 &updated_state
             } else {
                 state

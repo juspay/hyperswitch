@@ -194,7 +194,7 @@ where
     };
 
     // Single decision point using pattern matching
-    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (_gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         router_env::logger::debug!("UCS is disabled, using Direct gateway");
         (GatewaySystem::Direct, ExecutionPath::Direct)
     } else {
@@ -207,8 +207,7 @@ where
     };
 
     router_env::logger::info!(
-        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
-        gateway_system,
+        "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
         execution_path,
         merchant_id,
         connector_name,
