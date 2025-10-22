@@ -293,7 +293,9 @@ pub struct InteracAdditionalData {
 #[diesel(sql_type = Jsonb)]
 pub struct PassthroughAddtionalData {
     /// Psp_token of the passthrough flow
+    #[schema(value_type = String, example = "token_12345")]
     pub psp_token: Secret<String>,
     /// token_type of the passthrough flow
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
 }

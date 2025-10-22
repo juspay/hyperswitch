@@ -398,9 +398,11 @@ pub struct Interac {
 #[serde(rename_all = "snake_case")]
 pub struct Passthrough {
     /// PSP token generated for the payout method
+    #[schema(value_type = String, example = "token_12345")]
     pub psp_token: Secret<String>,
 
     /// Payout method type of the token
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: api_enums::PaymentMethodType,
 }
 
