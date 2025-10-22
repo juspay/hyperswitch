@@ -721,6 +721,40 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    pub fn merge(&mut self, other: Self) {
+        if other.webhook_version.is_some() {
+            self.webhook_version = other.webhook_version;
+        }
+        if other.webhook_username.is_some() {
+            self.webhook_username = other.webhook_username;
+        }
+        if other.webhook_password.is_some() {
+            self.webhook_password = other.webhook_password;
+        }
+        if other.webhook_url.is_some() {
+            self.webhook_url = other.webhook_url;
+        }
+        if other.payment_created_enabled.is_some() {
+            self.payment_created_enabled = other.payment_created_enabled;
+        }
+        if other.payment_succeeded_enabled.is_some() {
+            self.payment_succeeded_enabled = other.payment_succeeded_enabled;
+        }
+        if other.payment_failed_enabled.is_some() {
+            self.payment_failed_enabled = other.payment_failed_enabled;
+        }
+        if other.payment_statuses_enabled.is_some() {
+            self.payment_statuses_enabled = other.payment_statuses_enabled;
+        }
+        if other.refund_statuses_enabled.is_some() {
+            self.refund_statuses_enabled = other.refund_statuses_enabled;
+        }
+        #[cfg(feature = "payouts")]
+        if other.payout_statuses_enabled.is_some() {
+            self.payout_statuses_enabled = other.payout_statuses_enabled;
+        }
+    }
+
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,

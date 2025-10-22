@@ -3841,7 +3841,29 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
-        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+        let webhook_details = self
+            .webhook_details
+            .map_or(
+                Ok::<
+                    Option<api_models::admin::WebhookDetails>,
+                    error_stack::Report<errors::ApiErrorResponse>,
+                >(None),
+                |webhook_details| {
+                    let mut existing_webhook_details = business_profile
+                        .webhook_details
+                        .clone()
+                        .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
+
+                    if let Some(existing_details) = existing_webhook_details.as_mut() {
+                        existing_details.merge(webhook_details);
+                    } else {
+                        existing_webhook_details = Some(webhook_details);
+                    }
+
+                    Ok(existing_webhook_details)
+                },
+            )?
+            .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
             let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
