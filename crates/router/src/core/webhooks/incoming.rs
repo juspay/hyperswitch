@@ -1074,26 +1074,6 @@ async fn payments_incoming_webhook_flow(
                 .await?
             };
 
-            if should_update_additional_payment_method_data(
-                state.clone(),
-                merchant_context.clone(),
-                webhook_details.object_reference_id.clone(),
-            )
-            .await
-            {
-                if let Err(e) = update_additional_payment_method_data(
-                    &state,
-                    &merchant_context,
-                    webhook_details.object_reference_id.clone(),
-                    connector,
-                    request_details,
-                )
-                .await
-                {
-                    logger::warn!(?e, "Failed to update additional payment method data");
-                }
-            }
-
             lock_action
                 .free_lock_action(
                     &state,
@@ -1134,6 +1114,7 @@ async fn payments_incoming_webhook_flow(
     match payments_response {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response.payment_id.clone();
+            let payment_method_id_opt = payments_response.payment_method_id.clone();
 
             let status = payments_response.status;
 
@@ -1143,8 +1124,8 @@ async fn payments_incoming_webhook_flow(
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                    state,
-                    merchant_context,
+                    state.clone(),
+                    merchant_context.clone(),
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -1157,6 +1138,39 @@ async fn payments_incoming_webhook_flow(
             };
 
             let response = WebhookResponseTracker::Payment { payment_id, status };
+
+            match payment_method_id_opt {
+                Some(payment_method_id) => {
+                    let db = state.store.as_ref();
+                    let pm = db
+                        .find_payment_method(
+                            &(&state).into(),
+                            merchant_context.get_merchant_key_store(),
+                            payment_method_id.as_str(),
+                            merchant_context.get_merchant_account().storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+                        .attach_printable("Failed to fetch the payment method")?;
+
+                    if should_update_additional_payment_method_data(pm).await {
+                        if let Err(e) = update_additional_payment_method_data(
+                            &state,
+                            &merchant_context,
+                            connector,
+                            request_details,
+                            payment_method_id,
+                        )
+                        .await
+                        {
+                            logger::warn!(?e, "Failed to update additional payment method data");
+                        }
+                    }
+                }
+                None => {
+                    logger::warn!("Failed to find payment_method_id in payments response");
+                }
+            }
 
             Ok(response)
         }
@@ -2398,69 +2412,25 @@ fn should_update_connector_mandate_details(
 }
 
 async fn should_update_additional_payment_method_data(
-    state: SessionState,
-    merchant_context: domain::MerchantContext,
-    object_ref_id: api::ObjectReferenceId,
+    pm: hyperswitch_domain_models::payment_methods::PaymentMethod,
 ) -> bool {
-    let db = state.store.as_ref();
-
-    let payment_attempt = match get_payment_attempt_from_object_reference_id(
-        &state,
-        object_ref_id,
-        &merchant_context,
-    )
-    .await
-    {
-        Ok(pa) => pa,
-        Err(_) => return false,
-    };
-
-    let payment_method_id = match payment_attempt.payment_method_id.clone() {
-        Some(id) => id,
-        None => return false,
-    };
-
-    let pm = match db
-        .find_payment_method(
-            &((&state).into()),
-            merchant_context.get_merchant_key_store(),
-            &payment_method_id,
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await
-    {
-        Ok(pm) => pm,
-        Err(_) => return false,
-    };
-
     if pm.locker_id.is_some() {
         return false;
     }
-
     true
 }
 
 async fn update_additional_payment_method_data(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
-    object_ref_id: api::ObjectReferenceId,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
+    payment_method_id: String,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payment_method_update = connector
         .get_additional_payment_method_data(request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-    let payment_attempt =
-        get_payment_attempt_from_object_reference_id(state, object_ref_id, merchant_context)
-            .await?;
-
-    let payment_method_id = payment_attempt
-        .payment_method_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-        .attach_printable("No payment method id found in payment attempt")?;
 
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
