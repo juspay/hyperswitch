@@ -12,12 +12,69 @@ use utoipa;
         examples((
             "Create and confirm subscription" = (
                 value = json!({
+                    "item_price_id": "standard-plan-USD-Monthly",
                     "customer_id": "cust_123456789",
-                    "plan_id": "plan_monthly_basic",
-                    "payment_method_id": "pm_1234567890",
-                    "billing_details": {
-                        "name": "John Doe",
-                        "email": "john@example.com"
+                    "description": "Hello this is description",
+                    "merchant_reference_id": "mer_ref_123456789",
+                    "shipping": {
+                        "address": {
+                            "state": "zsaasdas",
+                            "city": "Banglore",
+                            "country": "US",
+                            "line1": "sdsdfsdf",
+                            "line2": "hsgdbhd",
+                            "line3": "alsksoe",
+                            "zip": "571201",
+                            "first_name": "joseph",
+                            "last_name": "doe"
+                        },
+                        "phone": {
+                            "number": "123456789",
+                            "country_code": "+1"
+                        }
+                    },
+                    "billing": {
+                        "address": {
+                            "line1": "1467",
+                            "line2": "Harrison Street",
+                            "line3": "Harrison Street",
+                            "city": "San Fransico",
+                            "state": "California",
+                            "zip": "94122",
+                            "country": "US",
+                            "first_name": "joseph",
+                            "last_name": "Doe"
+                        },
+                        "phone": {
+                            "number": "123456789",
+                            "country_code": "+1"
+                        }
+                    },
+                    "payment_details": {
+                        "payment_type": "setup_mandate",
+                        "payment_method": "card",
+                        "payment_method_type": "credit",
+                        "payment_method_data": {
+                            "card": {
+                                "card_number": "4000000000000002",
+                                "card_exp_month": "03",
+                                "card_exp_year": "2030",
+                                "card_holder_name": "CLBRW dffdg",
+                                "card_cvc": "737"
+                            }
+                        },
+                        "authentication_type": "no_three_ds",
+                        "setup_future_usage": "off_session",
+                        "capture_method": "automatic",
+                        "return_url": "https://google.com",
+                        "customer_acceptance": {
+                            "acceptance_type": "online",
+                            "accepted_at": "1963-05-03T04:07:52.723Z",
+                            "online": {
+                                "ip_address": "127.0.0.1",
+                                "user_agent": "amet irure esse"
+                            }
+                        }
                     }
                 })
             )
@@ -49,10 +106,14 @@ pub async fn create_and_confirm_subscription() {}
             "Create subscription" = (
                 value = json!({
                     "customer_id": "cust_123456789",
-                    "plan_id": "plan_monthly_basic",
-                    "trial_days": 7,
-                    "metadata": {
-                        "source": "web_app"
+                    "item_price_id": "standard-plan-USD-Monthly",
+                    "amount": 1200,
+                    "currency": "USD",
+                    "payment_details": {
+                        "authentication_type": "no_three_ds",
+                        "setup_future_usage": "off_session",
+                        "capture_method": "automatic",
+                        "return_url": "https://google.com"
                     }
                 })
             )
@@ -87,9 +148,61 @@ pub async fn create_subscription() {}
         examples((
             "Confirm subscription" = (
                 value = json!({
-                    "payment_method_id": "pm_1234567890",
-                    "client_secret": "seti_1234567890_secret_abcdef",
-                    "return_url": "https://example.com/return"
+                    "payment_details": {
+                        "shipping": {
+                            "address": {
+                                "state": "zsaasdas",
+                                "city": "Banglore",
+                                "country": "US",
+                                "line1": "sdsdfsdf",
+                                "line2": "hsgdbhd",
+                                "line3": "alsksoe",
+                                "zip": "571201",
+                                "first_name": "joseph",
+                                "last_name": "doe"
+                            },
+                            "phone": {
+                                "number": "123456789",
+                                "country_code": "+1"
+                            }
+                        },
+                        "billing": {
+                            "address": {
+                                "line1": "1467",
+                                "line2": "Harrison Street",
+                                "line3": "Harrison Street",
+                                "city": "San Fransico",
+                                "state": "California",
+                                "zip": "94122",
+                                "country": "US",
+                                "first_name": "joseph",
+                                "last_name": "Doe"
+                            },
+                            "phone": {
+                                "number": "123456789",
+                                "country_code": "+1"
+                            }
+                        },
+                        "payment_method": "card",
+                        "payment_method_type": "credit",
+                        "payment_method_data": {
+                            "card": {
+                                "card_number": "4111111111111111",
+                                "card_exp_month": "03",
+                                "card_exp_year": "2030",
+                                "card_holder_name": "CLBRW dffdg",
+                                "card_cvc": "737"
+                            }
+                        },
+                        "customer_acceptance": {
+                            "acceptance_type": "online",
+                            "accepted_at": "1963-05-03T04:07:52.723Z",
+                            "online": {
+                                "ip_address": "127.0.0.1",
+                                "user_agent": "amet irure esse"
+                            }
+                        }
+                    }
                 })
             )
         ))
@@ -141,11 +254,8 @@ pub async fn get_subscription() {}
         examples((
             "Update subscription" = (
                 value = json!({
-                    "plan_id": "plan_yearly_premium",
-                    "proration_behavior": "create_prorations",
-                    "metadata": {
-                        "updated_reason": "plan_upgrade"
-                    }
+                    "plan_id":"cbdemo_enterprise-suite",
+                    "item_price_id":"cbdemo_enterprise-suite-monthly"
                 })
             )
         ))
@@ -174,7 +284,7 @@ pub async fn update_subscription() {}
         ("product_id" = Option<String>, Query, description = "Filter by product ID")
     ),
     responses(
-        (status = 200, description = "Plans retrieved successfully", body = Vec<GetPlansResponse>),
+        (status = 200, description = "List of available subscription plans", body = Vec<GetPlansResponse>),
         (status = 400, description = "Invalid query parameters")
     ),
     tag = "Subscriptions",
