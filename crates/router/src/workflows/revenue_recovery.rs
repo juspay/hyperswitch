@@ -815,13 +815,10 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
     // Check for successful token
-    let mut token_with_none_error_code = processor_tokens
-        .values()
-        .find(|token| {
-            token.token_status.error_code.is_none()
-                && !token.token_status.is_hard_decline.unwrap_or(false)
-        });
-
+    let mut token_with_none_error_code = processor_tokens.values().find(|token| {
+        token.token_status.error_code.is_none()
+            && !token.token_status.is_hard_decline.unwrap_or(false)
+    });
 
     match token_with_none_error_code {
         Some(token_with_retry_info) => {
