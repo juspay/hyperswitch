@@ -64,7 +64,7 @@ use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        PaymentsAuthorizeData, VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
