@@ -107,8 +107,6 @@ pub async fn create_and_confirm_subscription() {}
                 value = json!({
                     "customer_id": "cust_123456789",
                     "item_price_id": "standard-plan-USD-Monthly",
-                    "amount": 1200,
-                    "currency": "USD",
                     "payment_details": {
                         "authentication_type": "no_three_ds",
                         "setup_future_usage": "off_session",

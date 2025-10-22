@@ -7019,8 +7019,6 @@
               "examples": {
                 "Create subscription": {
                   "value": {
-                    "amount": 1200,
-                    "currency": "USD",
                     "customer_id": "cust_123456789",
                     "item_price_id": "standard-plan-USD-Monthly",
                     "payment_details": {
