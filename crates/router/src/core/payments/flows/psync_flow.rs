@@ -173,13 +173,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -235,7 +234,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
         call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         match call_connector_action {
@@ -339,6 +340,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 let merchant_reference_id = header_payload
                     .x_reference_id
                     .clone()
+                    .or(merchant_order_reference_id)
                     .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
                     .transpose()
                     .inspect_err(

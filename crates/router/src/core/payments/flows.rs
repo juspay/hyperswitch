@@ -27,6 +27,7 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     payments as domain_payments, router_request_types::PaymentsCaptureData,
 };
+use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{
@@ -210,6 +211,31 @@ pub trait Feature<F, T> {
     ) {
     }
 
+    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
+        None
+    }
+
+    async fn call_preprocessing_through_unified_connector_service<'a>(
+        self,
+        _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: &grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: ExecutionMode,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // Default behaviour is to do nothing and continue further
+        Ok((self, true))
+    }
+
     async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,
@@ -219,7 +245,9 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
         _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()>
     where
@@ -240,6 +268,7 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
