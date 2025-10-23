@@ -262,8 +262,7 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
         self.request_id.clone()
     }
     fn get_request_id_str(&self) -> Option<String> {
-        self.request_id.as_ref()
-            .map(|req_id| req_id.to_string())
+        self.request_id.as_ref().map(|req_id| req_id.to_string())
     }
     fn get_tenant(&self) -> Tenant {
         self.tenant.clone()
