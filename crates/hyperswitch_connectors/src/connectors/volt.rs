@@ -648,7 +648,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Volt {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Volt {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Volt {
+    //Volt does not support Refund Sync
+}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Volt {
