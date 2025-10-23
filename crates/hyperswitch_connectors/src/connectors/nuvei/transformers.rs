@@ -4162,12 +4162,12 @@ pub fn get_dispute_stage(
         .dispute_unified_status_code
         .clone()
         .map(common_enums::DisputeStage::from)
-        .or_else(|| match chargeback_data.webhook_type {
+        .or(match chargeback_data.webhook_type {
             Some(ChargebackType::Chargeback) => Some(common_enums::DisputeStage::Dispute),
             Some(ChargebackType::Retrieval) => Some(common_enums::DisputeStage::PreDispute),
             None => None,
         })
-        .or_else(|| match chargeback_data.chargeback_status_category {
+        .or(match chargeback_data.chargeback_status_category {
             Some(ChargebackStatusCategory::Cancelled)
             | Some(ChargebackStatusCategory::Duplicate) => {
                 Some(common_enums::DisputeStage::DisputeReversal)
