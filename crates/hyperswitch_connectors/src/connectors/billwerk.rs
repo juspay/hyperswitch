@@ -57,9 +57,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, RefundsRequestData,
-        get_authorise_integrity_object, get_capture_integrity_object,
-        get_refund_integrity_object, get_sync_integrity_object,
+        convert_amount, get_authorise_integrity_object, get_capture_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object, RefundsRequestData,
     },
 };
 
