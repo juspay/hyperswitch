@@ -98,8 +98,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            amount: router_data.request.amount.get_amount_as_i64(),
-            currency: currency.into(),
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
@@ -215,7 +213,6 @@ impl
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata
@@ -347,7 +344,6 @@ impl
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            connector_customer: None,
             metadata: router_data
                 .request
                 .metadata

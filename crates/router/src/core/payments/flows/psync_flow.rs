@@ -287,7 +287,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 self.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()
-                    .map(Secret::new);
+                    .map(|raw_connector_response| raw_connector_response.expose().into());
                 self.connector_http_status_code = Some(status_code);
             }
             common_enums::CallConnectorAction::UCSHandleResponse(_)
