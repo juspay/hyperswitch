@@ -3843,29 +3843,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
         let webhook_details = self
             .webhook_details
-<<<<<<< Updated upstream
-            .map_or(
-                Ok::<
-                    Option<api_models::admin::WebhookDetails>,
-                    error_stack::Report<errors::ApiErrorResponse>,
-                >(None),
-                |webhook_details| {
-                    let mut existing_webhook_details = business_profile
-                        .webhook_details
-                        .clone()
-                        .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
-
-                    if let Some(existing_details) = existing_webhook_details.as_mut() {
-                        existing_details.merge(webhook_details);
-                    } else {
-                        existing_webhook_details = Some(webhook_details);
-                    }
-
-                    Ok(existing_webhook_details)
-                },
-            )?
-=======
-            .map_or(None, |webhook_details| {
+            .and_then(|webhook_details| {
                 let mut existing_webhook_details = business_profile
                     .webhook_details
                     .clone()
@@ -3879,7 +3857,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
                 existing_webhook_details
             })
->>>>>>> Stashed changes
             .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
