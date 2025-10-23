@@ -75,47 +75,47 @@ where
     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
 }
 
-/// Direct gateway implementation
-///
-/// Executes payment operations through traditional HTTP connector integration.
-/// This is the default execution path and maintains backward compatibility.
-#[derive(Debug, Clone, Copy)]
-pub struct DirectGateway;
+// /// Direct gateway implementation
+// ///
+// /// Executes payment operations through traditional HTTP connector integration.
+// /// This is the default execution path and maintains backward compatibility.
+// #[derive(Debug, Clone, Copy)]
+// pub struct DirectGateway;
 
-#[async_trait]
-impl<State, ConnectorData, F, Req, Resp, Context>
-    PaymentGateway<State, ConnectorData, F, Req, Resp, Context> for DirectGateway
-where
-    State: Clone + Send + Sync + 'static + ApiClientWrapper,
-    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
-    F: Clone + std::fmt::Debug + Send + Sync + 'static,
-    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Context: GatewayContext + 'static,
-{
-    async fn execute(
-        self: Box<Self>,
-        state: &State,
-        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
-        router_data: &RouterData<F, Req, Resp>,
-        call_connector_action: CallConnectorAction,
-        connector_request: Option<Request>,
-        return_raw_connector_response: Option<bool>,
-        _context: Context,
-    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
-        // Direct gateway delegates to the existing execute_connector_processing_step
-        // This maintains backward compatibility with the traditional HTTP-based flow
-        api_client::execute_connector_processing_step(
-            state,
-            connector_integration,
-            router_data,
-            call_connector_action,
-            connector_request,
-            return_raw_connector_response,
-        )
-        .await
-    }
-}
+// #[async_trait]
+// impl<State, ConnectorData, F, Req, Resp, Context>
+//     PaymentGateway<State, ConnectorData, F, Req, Resp, Context> for DirectGateway
+// where
+//     State: Clone + Send + Sync + 'static + ApiClientWrapper,
+//     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+//     F: Clone + std::fmt::Debug + Send + Sync + 'static,
+//     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+//     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+//     Context: GatewayContext + 'static,
+// {
+//     async fn execute(
+//         self: Box<Self>,
+//         state: &State,
+//         connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+//         router_data: &RouterData<F, Req, Resp>,
+//         call_connector_action: CallConnectorAction,
+//         connector_request: Option<Request>,
+//         return_raw_connector_response: Option<bool>,
+//         _context: Context,
+//     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+//         // Direct gateway delegates to the existing execute_connector_processing_step
+//         // This maintains backward compatibility with the traditional HTTP-based flow
+//         api_client::execute_connector_processing_step(
+//             state,
+//             connector_integration,
+//             router_data,
+//             call_connector_action,
+//             connector_request,
+//             return_raw_connector_response,
+//         )
+//         .await
+//     }
+// }
 
 pub trait FlowGateway<State, ConnectorData, Req, Resp, Context>:
     Clone + std::fmt::Debug + Send + Sync + 'static
@@ -175,25 +175,25 @@ impl GatewayContext for EmptyContext {
     }
 }
 
-impl<State, ConnectorData, Req, Resp> FlowGateway<State, ConnectorData, Req, Resp, EmptyContext>
-    for DirectGateway
-where
-    State: Clone + Send + Sync + 'static + ApiClientWrapper,
-    ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
-    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-{
-    fn get_gateway(
-        execution_path: ExecutionPath,
-    ) -> Box<
-        dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, EmptyContext>,
-    > {
-        match execution_path {
-            ExecutionPath::Direct => Box::new(DirectGateway),
-            _ => Box::new(DirectGateway), // DirectGateway is the only implementation here
-        }
-    }
-}
+// impl<State, ConnectorData, Req, Resp> FlowGateway<State, ConnectorData, Req, Resp, EmptyContext>
+//     for DirectGateway
+// where
+//     State: Clone + Send + Sync + 'static + ApiClientWrapper,
+//     ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
+//     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+//     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+// {
+//     fn get_gateway(
+//         execution_path: ExecutionPath,
+//     ) -> Box<
+//         dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, EmptyContext>,
+//     > {
+//         match execution_path {
+//             ExecutionPath::Direct => Box::new(DirectGateway),
+//             _ => Box::new(DirectGateway), // DirectGateway is the only implementation here
+//         }
+//     }
+// }
 
 /// Execute payment gateway operation (backward compatible version)
 ///
@@ -241,6 +241,7 @@ where
                 return_raw_connector_response,
             )
             .await
+            .to_payment_failed_response()
         }
     }
 }

@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
-
+use crate::core::unified_connector_service::build_unified_connector_service_auth_metadata;
 use super::{
     context::RouterGatewayContext,
     helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client},
@@ -90,6 +90,7 @@ where
                 context.header_payload,
                 context.lineage_ids,
                 context.merchant_connector_account,
+                context.execution_mode,
                 context.execution_path,
             )
             .await?
@@ -102,6 +103,7 @@ where
                 context.header_payload,
                 context.lineage_ids,
                 context.merchant_connector_account,
+                context.execution_mode,
                 context.execution_path,
             )
             .await?
@@ -168,82 +170,78 @@ async fn execute_payment_authorize(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")]
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    execution_mode: ExecutionMode,
     execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ConnectorError,
 > {
-    todo!();
     // Get GRPC client
-    // let client = get_grpc_client(state)?;
+    let client = get_grpc_client(state)?;
 
-    // // Build GRPC request
-    // let payment_authorize_request =
-    //     payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
-    //         .change_context(ConnectorError::RequestEncodingFailed)?;
+    // Build GRPC request
+    let payment_authorize_request =
+        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
+            .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    // // Build auth metadata
-    // let connector_auth_metadata = build_grpc_auth_metadata_from_payment_data(
-    //     payment_data,
-    //     merchant_context,
-    // )?;
+    // Build auth metadata
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        merchant_context,
+    )?;
 
-    // // Build GRPC headers
-    // let merchant_order_reference_id = build_merchant_reference_id(header_payload);
+    // Build GRPC headers
+    let merchant_order_reference_id = build_merchant_reference_id(header_payload);
 
-    // let headers_builder = state
-    //     .get_grpc_headers_ucs(execution_mode)
-    //     .external_vault_proxy_metadata(None)
-    //     .merchant_reference_id(merchant_order_reference_id)
-    //     .lineage_ids(lineage_ids);
+    let headers_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_order_reference_id)
+        .lineage_ids(lineage_ids);
 
-    // // Execute GRPC call with logging wrapper
-    // let updated_router_data = Box::pin(ucs_logging_wrapper(
-    //     router_data.clone(),
-    //     state,
-    //     payment_authorize_request,
-    //     headers_builder,
-    //     |mut router_data, payment_authorize_request, grpc_headers| async move {
-    //         let response = client
-    //             .payment_authorize(
-    //                 payment_authorize_request,
-    //                 connector_auth_metadata,
-    //                 grpc_headers,
-    //             )
-    //             .await
-    //             .change_context(ConnectorError::ProcessingStepFailed(Some(
-    //                 "Failed to authorize payment".to_string().into(),
-    //             )))?;
+    // Execute GRPC call with logging wrapper
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_authorize_request,
+        headers_builder,
+        |mut router_data, payment_authorize_request, grpc_headers| async move {
+            let response = client
+                .payment_authorize(
+                    payment_authorize_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                )
+                .await
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    //         let payment_authorize_response = response.into_inner();
+            let payment_authorize_response = response.into_inner();
 
-    //         let (router_data_response, status_code) =
-    //             handle_unified_connector_service_response_for_payment_authorize(
-    //                 payment_authorize_response.clone(),
-    //             )
-    //             .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_authorize(
+                    payment_authorize_response.clone(),
+                )
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    //         let router_data_response = router_data_response.map(|(response, status)| {
-    //             router_data.status = status;
-    //             response
-    //         });
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
 
-    //         router_data.response = router_data_response;
-    //         router_data.raw_connector_response = payment_authorize_response
-    //             .raw_connector_response
-    //             .clone()
-    //             .map(Secret::new);
-    //         router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+            router_data.raw_connector_response = payment_authorize_response
+                .raw_connector_response
+                .clone()
+                .map(Secret::new);
+            router_data.connector_http_status_code = Some(status_code);
 
-    //         Ok((router_data, payment_authorize_response))
-    //     },
-    // ))
-    // .await
-    // .change_context(ConnectorError::ProcessingStepFailed(Some(
-    //     "UCS logging wrapper failed".to_string().into(),
-    // )))?;
+            Ok((router_data, payment_authorize_response))
+        },
+    ))
+    .await
+    .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    // Ok(updated_router_data)
+    Ok(updated_router_data)
 }
 
 /// Execute payment_repeat GRPC call
@@ -261,78 +259,74 @@ async fn execute_payment_repeat(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")]
     merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    execution_mode: ExecutionMode,
     execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ConnectorError,
 > {
-    todo!();
-    // // Get GRPC client
-    // let client = get_grpc_client(state)?;
+    // Get GRPC client
+    let client = get_grpc_client(state)?;
 
-    // // Build GRPC request
-    // let payment_repeat_request =
-    //     payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
-    //         .change_context(ConnectorError::RequestEncodingFailed)?;
+    // Build GRPC request
+    let payment_repeat_request =
+        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
+            .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    // // Build auth metadata
-    // let connector_auth_metadata = build_grpc_auth_metadata_from_payment_data(
-    //     payment_data,
-    //     merchant_context,
-    // )?;
+    // Build auth metadata
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        merchant_context,
+    )?;
 
-    // // Build GRPC headers
-    // let merchant_order_reference_id = build_merchant_reference_id(header_payload);
+    // Build GRPC headers
+    let merchant_order_reference_id = build_merchant_reference_id(header_payload);
 
-    // let headers_builder = state
-    //     .get_grpc_headers_ucs(execution_mode)
-    //     .external_vault_proxy_metadata(None)
-    //     .merchant_reference_id(merchant_order_reference_id)
-    //     .lineage_ids(lineage_ids);
+    let headers_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_order_reference_id)
+        .lineage_ids(lineage_ids);
 
-    // // Execute GRPC call with logging wrapper
-    // let updated_router_data = Box::pin(ucs_logging_wrapper(
-    //     router_data.clone(),
-    //     state,
-    //     payment_repeat_request,
-    //     headers_builder,
-    //     |mut router_data, payment_repeat_request, grpc_headers| async move {
-    //         let response = client
-    //             .payment_repeat(payment_repeat_request, connector_auth_metadata, grpc_headers)
-    //             .await
-    //             .change_context(ConnectorError::ProcessingStepFailed(Some(
-    //                 "Failed to repeat payment".to_string().into(),
-    //             )))?;
+    // Execute GRPC call with logging wrapper
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_repeat_request,
+        headers_builder,
+        |mut router_data, payment_repeat_request, grpc_headers| async move {
+            let response = client
+                .payment_repeat(payment_repeat_request, connector_auth_metadata, grpc_headers)
+                .await
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    //         let payment_repeat_response = response.into_inner();
+            let payment_repeat_response = response.into_inner();
 
-    //         let (router_data_response, status_code) =
-    //             handle_unified_connector_service_response_for_payment_repeat(
-    //                 payment_repeat_response.clone(),
-    //             )
-    //             .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_repeat(
+                    payment_repeat_response.clone(),
+                )
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    //         let router_data_response = router_data_response.map(|(response, status)| {
-    //             router_data.status = status;
-    //             response
-    //         });
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
 
-    //         router_data.response = router_data_response;
-    //         router_data.raw_connector_response = payment_repeat_response
-    //             .raw_connector_response
-    //             .clone()
-    //             .map(Secret::new);
-    //         router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+            router_data.raw_connector_response = payment_repeat_response
+                .raw_connector_response
+                .clone()
+                .map(Secret::new);
+            router_data.connector_http_status_code = Some(status_code);
 
-    //         Ok((router_data, payment_repeat_response))
-    //     },
-    // ))
-    // .await
-    // .change_context(ConnectorError::ProcessingStepFailed(Some(
-    //     "UCS logging wrapper failed".to_string().into(),
-    // )))?;
+            Ok((router_data, payment_repeat_response))
+        },
+    ))
+    .await
+    .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    // Ok(updated_router_data)
+    Ok(updated_router_data)
 }
 
 
