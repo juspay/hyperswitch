@@ -4981,7 +4981,7 @@ pub async fn get_additional_payment_data(
                     logger::debug!("Co-badged card data found");
 
                     (
-                        card_data.card_network.clone(),
+                        card_data.card_network,
                         co_badged_data
                             .co_badged_card_networks_info
                             .get_signature_network(),
@@ -4991,7 +4991,7 @@ pub async fn get_additional_payment_data(
                 .or_else(|| {
                     is_cobadged_based_on_regex.then(|| {
                         logger::debug!("Card network is cobadged (regex-based detection)");
-                        (card_data.card_network.clone(), None, None)
+                        (card_data.card_network, None, None)
                     })
                 })
                 .unwrap_or_else(|| {
@@ -5023,7 +5023,7 @@ pub async fn get_additional_payment_data(
                         payment_checks: None,
                         authentication_data: None,
                         is_regulated,
-                        signature_network: signature_network.clone(),
+                        signature_network,
                     }),
                 )))
             } else {
@@ -5041,7 +5041,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
+                                card_network: card_network.or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -5055,7 +5055,7 @@ pub async fn get_additional_payment_data(
                                 payment_checks: None,
                                 authentication_data: None,
                                 is_regulated,
-                                signature_network: signature_network.clone(),
+                                signature_network,
                             },
                         ))
                     });
@@ -5077,7 +5077,7 @@ pub async fn get_additional_payment_data(
                             payment_checks: None,
                             authentication_data: None,
                             is_regulated,
-                            signature_network: signature_network.clone(),
+                            signature_network,
                         },
                     ))
                 })))
@@ -5296,7 +5296,7 @@ pub async fn get_additional_payment_data(
                 .attach_printable(
                     "Card cobadge check failed due to an invalid card network regex",
                 )? {
-                true => card_data.card_network.clone(),
+                true => card_data.card_network,
                 false => None,
             };
 
@@ -5342,7 +5342,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
+                                card_network: card_network.or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -6541,7 +6541,7 @@ pub fn get_key_params_for_surcharge_details(
             Some((
                 common_enums::PaymentMethod::Card,
                 common_enums::PaymentMethodType::Credit,
-                card.card_network.clone(),
+                card.card_network,
             ))
         }
         domain::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
@@ -7436,7 +7436,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         let payments_map = payment_mandate_reference.0.clone();
         for (migrating_merchant_connector_id, migrating_connector_mandate_details) in payments_map {
             match (
-                card_network.clone(),
+                card_network,
                 merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id),
             ) {
                 (Some(enums::CardNetwork::Discover), Some(merchant_connector_account_details)) => {

@@ -663,7 +663,6 @@ where
                                 // scheme should be updated in case of co-badged cards
                                 let card_scheme = card
                                     .card_network
-                                    .clone()
                                     .map(|card_network| card_network.to_string())
                                     .or(existing_pm_data.scheme.clone());
 
@@ -1037,7 +1036,7 @@ async fn skip_saving_card_in_locker(
                 nick_name: None,
                 card_isin: card_isin.clone(),
                 card_issuer: card.card_issuer.clone(),
-                card_network: card.card_network.clone(),
+                card_network: card.card_network,
                 card_type: card.card_type.clone(),
                 saved_to_locker: false,
             };
@@ -1331,7 +1330,7 @@ pub async fn save_network_token_in_locker(
                             card_holder_name: None,
                             nick_name: None,
                             card_issuing_country: None,
-                            card_network: Some(token_response.card_brand.clone()),
+                            card_network: Some(token_response.card_brand),
                             card_issuer: None,
                             card_type: None,
                         };

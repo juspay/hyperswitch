@@ -69,7 +69,7 @@ impl RevenueRecoveryPaymentData {
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
-    pub monitoring_threshold_in_seconds: i64,
+    pub monitoring_threshold_in_seconds: u32,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,

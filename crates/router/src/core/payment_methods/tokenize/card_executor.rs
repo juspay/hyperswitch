@@ -117,9 +117,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 }),
             card_network: optional_card_info
                 .as_ref()
-                .map_or(card_req.card_network.clone(), |card_info| {
-                    card_info.card_network.clone()
-                }),
+                .map_or(card_req.card_network, |card_info| card_info.card_network),
             card_type: optional_card_info.as_ref().map_or(
                 card_req
                     .card_type
@@ -255,7 +253,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             card_holder_name: card.card_holder_name.clone(),
             card_fingerprint: None,
             nick_name: card.nick_name.clone(),
-            card_network: card.card_network.clone(),
+            card_network: card.card_network,
             card_isin: Some(card.card_number.clone().get_card_isin()),
             card_issuer: card.card_issuer.clone(),
             card_type: card.card_type.clone(),
@@ -554,7 +552,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
                 card_issuing_country: card_details.card_issuing_country.clone(),
-                card_network: card_details.card_network.clone(),
+                card_network: card_details.card_network,
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
             }),

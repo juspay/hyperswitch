@@ -718,7 +718,7 @@ pub(crate) fn get_payment_method_create_request(
                     .transpose()
                     .ok()
                     .flatten(),
-                card_network: card.card_network.clone(),
+                card_network: card.card_network,
                 card_issuer: card.card_issuer.clone(),
                 card_type: card
                     .card_type
@@ -765,7 +765,7 @@ pub(crate) async fn get_payment_method_create_request(
             Some(payment_method) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {
                     let card_network = get_card_network_with_us_local_debit_network_override(
-                        card.card_network.clone(),
+                        card.card_network,
                         card.co_badged_card_data.as_ref(),
                     );
 
@@ -776,7 +776,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
-                        card_network: card_network.clone(),
+                        card_network,
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
                     };
@@ -1313,7 +1313,7 @@ pub async fn populate_bin_details_for_payment_method(
                             .ok()
                             .flatten()
                     }),
-                    card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
+                    card_network: card_info.as_ref().and_then(|val| val.card_network),
                     card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
                     card_type: card_info.as_ref().and_then(|val| {
                         val.card_type
@@ -1381,7 +1381,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                                 .ok()
                                 .flatten()
                         }),
-                        card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
+                        card_network: card_info.as_ref().and_then(|val| val.card_network),
                         card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
                         card_type: card_info.as_ref().and_then(|val| {
                             val.card_type

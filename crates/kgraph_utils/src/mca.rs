@@ -855,10 +855,10 @@ fn compile_config_graph(
                     ));
                 }
                 (kgraph_types::PaymentMethodFilterKey::CardNetwork(cn), filter) => {
-                    let dir_val_cn = cn.clone().into_dir_value()?;
+                    let dir_val_cn = cn.into_dir_value()?;
                     pmt_enabled.push(dir_val_cn);
                     let cn_node = builder.make_value_node(
-                        cn.clone().into_dir_value().map(Into::into)?,
+                        cn.into_dir_value().map(Into::into)?,
                         Some("CardNetwork"),
                         None::<()>,
                     );

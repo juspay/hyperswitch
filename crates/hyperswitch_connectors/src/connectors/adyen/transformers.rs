@@ -2221,7 +2221,7 @@ impl TryFrom<(&Card, Option<Secret<String>>)> for AdyenPaymentMethod<'_> {
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             holder_name: card_holder_name,
-            brand: card.card_network.clone().and_then(get_adyen_card_network),
+            brand: card.card_network.and_then(get_adyen_card_network),
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
@@ -2385,7 +2385,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                             .billing_address
                             .name
                             .or(item.get_optional_billing_full_name()),
-                        brand: Some(paze_decrypted_data.payment_card_network.clone())
+                        brand: Some(paze_decrypted_data.payment_card_network)
                             .and_then(get_adyen_card_network),
                         network_payment_reference: None,
                     };
@@ -2885,7 +2885,6 @@ impl
                     ) => {
                         let brand = match card_details_for_network_transaction_id
                             .card_network
-                            .clone()
                             .and_then(get_adyen_card_network)
                         {
                             Some(card_network) => card_network,

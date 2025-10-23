@@ -410,7 +410,7 @@ impl PaymentMethodCreate {
                     card_holder_name: payment_method_migrate_card.card_holder_name.clone(),
                     nick_name: payment_method_migrate_card.nick_name.clone(),
                     card_issuing_country: payment_method_migrate_card.card_issuing_country.clone(),
-                    card_network: payment_method_migrate_card.card_network.clone(),
+                    card_network: payment_method_migrate_card.card_network,
                     card_issuer: payment_method_migrate_card.card_issuer.clone(),
                     card_type: payment_method_migrate_card.card_type.clone(),
                 });
