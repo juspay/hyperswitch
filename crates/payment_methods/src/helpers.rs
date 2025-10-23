@@ -178,6 +178,7 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
                 | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::SepaGuarenteedDebit
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Becs
         ),
@@ -198,7 +199,9 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
+            api_enums::PaymentMethodType::UpiCollect
+                | api_enums::PaymentMethodType::UpiIntent
+                | api_enums::PaymentMethodType::UpiQr
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,

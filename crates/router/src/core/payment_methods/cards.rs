@@ -77,6 +77,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
+        configs,
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
@@ -1707,7 +1708,6 @@ pub async fn update_customer_payment_method(
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting card from locker")?;
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
@@ -1936,8 +1936,16 @@ pub async fn get_card_from_locker(
                 api_enums::LockerChoice::HyperswitchCardVault,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card from hyperswitch card vault")
+            .map_err(|err| match err.current_context() {
+                errors::VaultError::FetchCardFailed => {
+                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Card not found in vault".to_string(),
+                    })
+                }
+                _ => err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error getting card from card vault"),
+            })
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     1,
@@ -4133,19 +4141,27 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
-
-    let requires_cvv = is_requires_cvv.config != "false";
+    let requires_cvv = configs::get_config_bool(
+        state,
+        router_consts::superposition::REQUIRES_CVV, // superposition key
+        &merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_requires_cvv_key(), // database key
+        Some(
+            external_services::superposition::ConfigContext::new().with(
+                "merchant_id",
+                merchant_context
+                    .get_merchant_account()
+                    .get_id()
+                    .get_string_repr(),
+            ),
+        ), // context
+        true,                                       // default value
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch requires_cvv config")?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
@@ -4607,7 +4623,6 @@ pub async fn get_card_details_from_locker(
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error getting card from card vault")?;
 
     payment_methods::get_card_detail(pm, card)
@@ -4803,6 +4818,12 @@ pub async fn get_bank_from_hs_locker(
             message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
+        api::PayoutMethodData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Expected bank details, found bank redirect details instead".to_string(),
+            }
+            .into())
+        }
     }
 }
 

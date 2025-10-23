@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
+use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
+use hyperswitch_interfaces::events as events_interfaces;
 use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
-use storage_impl::{
-    config::TenantConfig,
-    errors::{ApplicationError, StorageError, StorageResult},
-};
+use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -63,6 +62,12 @@ pub enum EventsHandler {
 impl Default for EventsHandler {
     fn default() -> Self {
         Self::Logs(event_logger::EventLogger {})
+    }
+}
+
+impl events_interfaces::EventHandlerInterface for EventsHandler {
+    fn log_connector_event(&self, event: &events_interfaces::connector_api_logs::ConnectorEvent) {
+        self.log_event(event);
     }
 }
 

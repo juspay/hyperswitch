@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "payouts")]
+use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
 use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
@@ -11,10 +13,17 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::PoFulfill, router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
+};
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "payouts")]
+use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData, RouterData as _},
@@ -415,5 +424,150 @@ impl From<&LoonioWebhookEventCode> for enums::AttemptStatus {
 
             _ => Self::Pending,
         }
+    }
+}
+
+// Payout Structures
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct LoonioPayoutFulfillRequest {
+    pub currency_code: Currency,
+    pub customer_profile: LoonioCustomerProfile,
+    pub amount: FloatMajorUnit,
+    pub customer_id: id_type::CustomerId,
+    pub transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook_url: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<&LoonioRouterData<&PayoutsRouterData<PoFulfill>>> for LoonioPayoutFulfillRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &LoonioRouterData<&PayoutsRouterData<PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.get_payout_method_data()? {
+            PayoutMethodData::BankRedirect(BankRedirect::Interac(interac_data)) => {
+                let customer_profile = LoonioCustomerProfile {
+                    first_name: item.router_data.get_billing_first_name()?,
+                    last_name: item.router_data.get_billing_last_name()?,
+                    email: interac_data.email,
+                };
+
+                Ok(Self {
+                    currency_code: item.router_data.request.destination_currency,
+                    customer_profile,
+                    amount: item.amount,
+                    customer_id: item.router_data.get_customer_id()?,
+                    transaction_id: item.router_data.connector_request_reference_id.clone(),
+                    webhook_url: item.router_data.request.webhook_url.clone(),
+                })
+            }
+            PayoutMethodData::Card(_) | PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payment Method Not Supported".to_string(),
+                    connector: "Loonio",
+                })?
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoonioPayoutFulfillResponse {
+    pub id: i64,
+    pub api_transaction_id: String,
+    #[serde(rename = "type")]
+    pub transaction_type: String,
+    pub state: LoonioPayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LoonioPayoutStatus {
+    Created,
+    Prepared,
+    Pending,
+    Settled,
+    Available,
+    Rejected,
+    Abandoned,
+    ConnectedAbandoned,
+    ConnectedInsufficientFunds,
+    Failed,
+    Nsf,
+    Returned,
+    Rollback,
+}
+
+#[cfg(feature = "payouts")]
+impl From<LoonioPayoutStatus> for enums::PayoutStatus {
+    fn from(item: LoonioPayoutStatus) -> Self {
+        match item {
+            LoonioPayoutStatus::Created | LoonioPayoutStatus::Prepared => Self::Initiated,
+            LoonioPayoutStatus::Pending => Self::Pending,
+            LoonioPayoutStatus::Settled | LoonioPayoutStatus::Available => Self::Success,
+            LoonioPayoutStatus::Rejected
+            | LoonioPayoutStatus::Abandoned
+            | LoonioPayoutStatus::ConnectedAbandoned
+            | LoonioPayoutStatus::ConnectedInsufficientFunds
+            | LoonioPayoutStatus::Failed
+            | LoonioPayoutStatus::Nsf
+            | LoonioPayoutStatus::Returned
+            | LoonioPayoutStatus::Rollback => Self::Failed,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>>
+    for PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(enums::PayoutStatus::from(item.response.state)),
+                connector_payout_id: Some(item.response.api_transaction_id),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoonioPayoutSyncResponse {
+    pub transaction_id: String,
+    pub state: LoonioPayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>> for PayoutsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(enums::PayoutStatus::from(item.response.state)),
+                connector_payout_id: Some(item.response.transaction_id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+            }),
+            ..item.data
+        })
     }
 }
