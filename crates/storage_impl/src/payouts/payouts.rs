@@ -106,6 +106,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     payout_link_id: new.payout_link_id.clone(),
                     client_secret: new.client_secret.clone(),
                     priority: new.priority,
+                    organization_id: new.organization_id.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -923,6 +924,7 @@ impl DataModelExt for Payouts {
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
             priority: self.priority,
+            organization_id: self.organization_id,
         }
     }
 
@@ -952,6 +954,7 @@ impl DataModelExt for Payouts {
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
+            organization_id: storage_model.organization_id,
         }
     }
 }
@@ -984,6 +987,7 @@ impl DataModelExt for PayoutsNew {
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
             priority: self.priority,
+            organization_id: self.organization_id,
         }
     }
 
@@ -1013,6 +1017,7 @@ impl DataModelExt for PayoutsNew {
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
+            organization_id: storage_model.organization_id,
         }
     }
 }
