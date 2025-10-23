@@ -186,7 +186,7 @@ where
 
     // Check rollout keys with priority: rollout_key takes precedence over shadow_rollout_key
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    
+
     let shadow_rollout_availability = if rollout_result.should_execute {
         // rollout_key is present and enabled, use it (ignore shadow_rollout_key)
         router_env::logger::debug!(
@@ -195,11 +195,10 @@ where
         ShadowRolloutAvailability::IsAvailable
     } else {
         // rollout_key is not enabled, check shadow_rollout_key
-        let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+        let shadow_rollout_result =
+            should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
         if shadow_rollout_result.should_execute {
-            router_env::logger::debug!(
-                "rollout_key not enabled, using shadow_rollout_key"
-            );
+            router_env::logger::debug!("rollout_key not enabled, using shadow_rollout_key");
             ShadowRolloutAvailability::IsAvailable
         } else {
             ShadowRolloutAvailability::NotAvailable
