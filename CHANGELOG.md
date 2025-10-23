@@ -4,6 +4,44 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.23.0
+
+### Features
+
+- **connector:** Finix mandates implementation cards + Googlepay + Applepay ([#9847](https://github.com/juspay/hyperswitch/pull/9847)) ([`622a81e`](https://github.com/juspay/hyperswitch/commit/622a81e19dc3e8de050de2e64d14e86a884cc770))
+- **core:** Bumped UCS Client dependency to bring latest changes ([#9873](https://github.com/juspay/hyperswitch/pull/9873)) ([`63c2fee`](https://github.com/juspay/hyperswitch/commit/63c2fee330a3ec0c3a46789ef32f169ddcc99f98))
+
+### Refactors
+
+- **connector:** [Gigadat] fix cargo hack check in main ([#9939](https://github.com/juspay/hyperswitch/pull/9939)) ([`8721bee`](https://github.com/juspay/hyperswitch/commit/8721beeda4012f3b364d4dc72225d2bac79cc945))
+
+**Full Changelog:** [`2025.10.22.0...2025.10.23.0`](https://github.com/juspay/hyperswitch/compare/2025.10.22.0...2025.10.23.0)
+
+- - -
+
+## 2025.10.22.0
+
+### Features
+
+- **connector:** [Redsys] add loggers ([#9877](https://github.com/juspay/hyperswitch/pull/9877)) ([`819ef0e`](https://github.com/juspay/hyperswitch/commit/819ef0e92de42944732aa54e1b67612751ed13c3))
+- **core:** Introduce new decide flow mechanism for payment authorization ([#9808](https://github.com/juspay/hyperswitch/pull/9808)) ([`9af5a8c`](https://github.com/juspay/hyperswitch/commit/9af5a8c19f61304d02710b585f20bf173523e25f))
+
+### Bug Fixes
+
+- **connector:** Map Redsys Response Codes ([#9934](https://github.com/juspay/hyperswitch/pull/9934)) ([`6f96064`](https://github.com/juspay/hyperswitch/commit/6f96064e07b7e24dde4f475699ba686ac99e2351))
+- **nexinets:** Limit connector_request_reference_id to 30 characters using nanoid ([#9874](https://github.com/juspay/hyperswitch/pull/9874)) ([`99b58d1`](https://github.com/juspay/hyperswitch/commit/99b58d16f84567b199ab6672e553abded8e74bcd))
+- **router:** Add Missing Match Case for Amazon Pay in decide_session_token_flow Function ([#9881](https://github.com/juspay/hyperswitch/pull/9881)) ([`dfbfeef`](https://github.com/juspay/hyperswitch/commit/dfbfeefef7af2caff714c5ca7273c3357fd31aae))
+- Fallback to merchant_order_reference_id when x-reference-id in header is not present for UCS calls ([#9872](https://github.com/juspay/hyperswitch/pull/9872)) ([`9fdeba2`](https://github.com/juspay/hyperswitch/commit/9fdeba247447125e261e9d53bab0418dd55c0c7b))
+
+### Refactors
+
+- **connector:** [payload] expose avs result in response ([#9918](https://github.com/juspay/hyperswitch/pull/9918)) ([`5ea31bf`](https://github.com/juspay/hyperswitch/commit/5ea31bff4880dac2a7799e585958187e4f3ca369))
+- **router:** Make Gift Card Balance Check API Generic (v2) ([#9856](https://github.com/juspay/hyperswitch/pull/9856)) ([`2e38b2c`](https://github.com/juspay/hyperswitch/commit/2e38b2ce5c3c53cdd66c7b3871ac316f16bfd610))
+
+**Full Changelog:** [`2025.10.20.0...2025.10.22.0`](https://github.com/juspay/hyperswitch/compare/2025.10.20.0...2025.10.22.0)
+
+- - -
+
 ## 2025.10.20.0
 
 ### Features

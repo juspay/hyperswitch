@@ -7350,6 +7350,24 @@ payment_method_type = "UnionPay"
 payment_method_type = "Interac"
 [[finix.credit]]
 payment_method_type = "Maestro"
+[[finix.debit]]
+payment_method_type = "Mastercard"
+[[finix.debit]]
+payment_method_type = "Visa"
+[[finix.debit]]
+payment_method_type = "AmericanExpress"
+[[finix.debit]]
+payment_method_type = "Discover"
+[[finix.debit]]
+payment_method_type = "JCB"
+[[finix.debit]]
+payment_method_type = "DinersClub"
+[[finix.debit]]
+payment_method_type = "UnionPay"
+[[finix.debit]]
+payment_method_type = "Interac"
+[[finix.debit]]
+payment_method_type = "Maestro"
 [[finix.wallet]]
   payment_method_type = "google_pay"
 [[finix.wallet]]
