@@ -392,6 +392,15 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+#[cfg(feature = "payouts")]
+pub(crate) fn to_payout_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let json = connector_meta.ok_or_else(missing_field_err("payout_connector_meta_data"))?;
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
 pub(crate) fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: MinorUnit,
@@ -546,7 +555,7 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
-    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
+    fn get_optional_l2_l3_data(&self) -> Option<Box<L2L3Data>>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -1077,7 +1086,7 @@ impl<Flow, Request, Response> RouterData
             .ok_or_else(missing_field_err("quote_id"))
     }
 
-    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
+    fn get_optional_l2_l3_data(&self) -> Option<Box<L2L3Data>> {
         self.l2_l3_data.clone()
     }
 

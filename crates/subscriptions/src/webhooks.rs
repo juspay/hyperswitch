@@ -5,7 +5,8 @@ use common_enums::{connector_enums::Connector, InvoiceStatus};
 use common_utils::{consts, errors::CustomResult, generate_id};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    business_profile, errors::api_error_response as errors, invoice, merchant_context,
+    business_profile, errors::api_error_response as errors, invoice, merchant_connector_account,
+    merchant_context,
 };
 use hyperswitch_interfaces::{
     api::ConnectorCommon, connector_integration_interface, errors::ConnectorError,
@@ -29,8 +30,9 @@ pub async fn incoming_webhook_flow(
     connector_enum: &connector_integration_interface::ConnectorEnum,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
+    merchant_connector_account: merchant_connector_account::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let billing_connector_mca_id = merchant_connector_account.merchant_connector_id.clone();
     // Only process invoice_generated events for MIT payments
     if event_type != api_models::webhooks::IncomingWebhookEvent::InvoiceGenerated {
         return Ok(WebhookResponseTracker::NoEffect);
