@@ -4018,10 +4018,15 @@ fn build_connector_response(
         _ => None,
     };
 
+    let extended_authorization_last_applied_at = extended_authentication_applied
+    .as_ref()
+    .filter(|val| val.dref())
+    .map(|_| adyen_webhook_response.event_date);
+
     let extend_authorization_response = ExtendedAuthorizationResponseData {
         extended_authentication_applied,
         capture_before: None,
-        extended_authorization_last_applied_at: adyen_webhook_response.event_date,
+        extended_authorization_last_applied_at,
     };
 
     Some(ConnectorResponseData::new(
