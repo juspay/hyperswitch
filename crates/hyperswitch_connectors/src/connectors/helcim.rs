@@ -371,7 +371,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_convertor,
-            *approved_amount,
+            approved_amount,
             currency.to_string().clone(),
         )?;
 
@@ -470,7 +470,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
 
         let response_integrity_object = utils::get_sync_integrity_object(
             self.amount_convertor,
-            *approved_amount,
+            approved_amount,
             currency.to_string().clone(),
         )?;
 
@@ -744,7 +744,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_convertor,
-            *approved_amount,
+            approved_amount,
             currency.to_string().clone(),
         )?;
 
@@ -843,7 +843,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_convertor,
-            *approved_amount,
+            approved_amount,
             currency.to_string().clone(),
         )?;
 

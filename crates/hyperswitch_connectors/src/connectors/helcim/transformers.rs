@@ -352,7 +352,7 @@ pub struct HelcimPaymentsResponse {
     invoice_number: Option<String>,
     #[serde(rename = "type")]
     transaction_type: HelcimTransactionType,
-    pub(crate) amount: f64,
+    pub(crate) amount: FloatMajorUnit,
     pub(crate) currency: String,
 }
 
@@ -679,7 +679,7 @@ pub struct RefundResponse {
     transaction_id: u64,
     #[serde(rename = "type")]
     transaction_type: HelcimRefundTransactionType,
-    pub(crate) amount: f64,
+    pub(crate) amount: FloatMajorUnit,
     pub(crate) currency: String,
 }
 
