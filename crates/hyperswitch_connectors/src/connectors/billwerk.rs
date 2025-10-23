@@ -347,7 +347,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let response_integrity_object = get_authorise_integrity_object(
             self.amount_converter,
-            Some(response.amount),
+            response.amount,
             response.currency.to_string().clone(),
         )?;
 
@@ -365,7 +365,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed);
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -438,7 +438,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bil
 
         let response_integrity_object = get_sync_integrity_object(
             self.amount_converter,
-            Some(response.amount),
+            response.amount,
             response.currency.to_string().clone(),
         )?;
 
@@ -456,7 +456,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bil
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed);
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -568,7 +568,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed);
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -733,7 +733,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Billwer
 
         let response_integrity_object = get_refund_integrity_object(
             self.amount_converter,
-            Some(response.amount),
+            response.amount,
             response.currency.to_string().clone(),
         )?;
 
@@ -827,7 +827,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Billwerk 
 
         let response_integrity_object = get_refund_integrity_object(
             self.amount_converter,
-            Some(response.amount),
+            response.amount,
             response.currency.to_string().clone(),
         )?;
 

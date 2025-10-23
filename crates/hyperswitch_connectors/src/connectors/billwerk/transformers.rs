@@ -164,7 +164,7 @@ impl<T>
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BillwerkCustomerObject {
     handle: Option<id_type::CustomerId>,
     email: Option<Email>,
@@ -250,6 +250,8 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillwerkPaymentsResponse {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     state: BillwerkPaymentState,
     handle: String,
     error: Option<String>,
@@ -343,7 +345,7 @@ impl<F> TryFrom<&BillwerkRouterData<&types::RefundsRouterData<F>>> for BillwerkR
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
