@@ -4816,14 +4816,13 @@ where
         .await?;
 
     // do order creation
-    let (execution_path, updated_state) =
-        should_call_unified_connector_service(
-            state,
-            merchant_context,
-            &router_data,
-            Some(payment_data),
-        )
-        .await?;
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        merchant_context,
+        &router_data,
+        Some(payment_data),
+    )
+    .await?;
 
     let (connector_request, should_continue_further) =
         if matches!(execution_path, ExecutionPath::Direct) {
