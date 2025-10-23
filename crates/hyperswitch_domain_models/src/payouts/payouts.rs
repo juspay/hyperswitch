@@ -117,6 +117,7 @@ pub struct Payouts {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<id_type::OrganizationId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -145,6 +146,7 @@ pub struct PayoutsNew {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<id_type::OrganizationId>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
