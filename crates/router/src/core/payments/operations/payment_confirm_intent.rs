@@ -276,6 +276,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method: None,
             merchant_connector_details,
             external_vault_pmd: None,
+            webhook_url: request
+                .webhook_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_string()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -674,6 +678,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                             .attach_printable("Merchant connector id is none when constructing response")
                     })?,
                     authentication_type,
+                    connector_request_reference_id,
                     payment_method_id : payment_method.get_id().clone()
                 }
             }

@@ -477,6 +477,9 @@ pub trait ConnectorActions: Connector {
                 vendor_details: None,
                 priority: None,
                 connector_transfer_method_id: None,
+                webhook_url: None,
+                browser_info: None,
+                payout_connector_metadata: None,
             },
             payment_info,
         )
@@ -508,6 +511,7 @@ pub trait ConnectorActions: Connector {
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
             payment_method: enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             payment_method_status: None,
@@ -560,6 +564,7 @@ pub trait ConnectorActions: Connector {
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         }
     }
 
@@ -1006,6 +1011,8 @@ impl Default for PaymentAuthorizeType {
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
         };
         Self(data)
     }

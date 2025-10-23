@@ -6,13 +6,13 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct BluecodeTest;
-impl ConnectorActions for BluecodeTest {}
-impl utils::Connector for BluecodeTest {
+struct CalidaTest;
+impl ConnectorActions for CalidaTest {}
+impl utils::Connector for CalidaTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Bluecode;
+        use router::connector::Calida;
         utils::construct_connector_data_old(
-            Box::new(Bluecode::new()),
+            Box::new(Calida::new()),
             types::Connector::Plaid,
             api::GetToken::Connector,
             None,
@@ -22,18 +22,18 @@ impl utils::Connector for BluecodeTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .bluecode
+                .calida
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "bluecode".to_string()
+        "calida".to_string()
     }
 }
 
-static CONNECTOR: BluecodeTest = BluecodeTest {};
+static CONNECTOR: CalidaTest = CalidaTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

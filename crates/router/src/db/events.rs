@@ -856,16 +856,15 @@ mod tests {
         events::EventMetadata,
     };
     use futures::future::join_all;
-    use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
+    use hyperswitch_domain_models::{
+        master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
+    };
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};
 
     use crate::{
         core::webhooks as webhooks_core,
-        db::{
-            events::EventInterface, merchant_key_store::MerchantKeyStoreInterface,
-            MasterKeyInterface, MockDb,
-        },
+        db::{events::EventInterface, merchant_key_store::MerchantKeyStoreInterface, MockDb},
         routes::{
             self,
             app::{settings::Settings, StorageImpl},
@@ -1182,6 +1181,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             sub_merchants_enabled: None,
             parent_merchant_id: None,
@@ -1249,6 +1249,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             metadata: None,
             routing_algorithm: None,
@@ -1293,6 +1294,7 @@ mod tests {
             always_enable_overcapture: None,
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
+            is_l2_l3_enabled: false,
         });
 
         let business_profile = state
@@ -1399,6 +1401,7 @@ mod tests {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            mit_category: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,
@@ -1411,6 +1414,7 @@ mod tests {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
             request_extended_authorization: None,
         };
         let content =

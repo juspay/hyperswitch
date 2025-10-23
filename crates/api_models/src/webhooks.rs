@@ -20,6 +20,8 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCancelFailure,
     PaymentIntentAuthorizationSuccess,
     PaymentIntentAuthorizationFailure,
+    PaymentIntentExtendAuthorizationSuccess,
+    PaymentIntentExtendAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
@@ -67,6 +69,7 @@ pub enum IncomingWebhookEvent {
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
     SetupWebhook,
+    InvoiceGenerated,
 }
 
 impl IncomingWebhookEvent {
@@ -264,7 +267,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
             | IncomingWebhookEvent::PaymentIntentCaptureFailure
-            | IncomingWebhookEvent::PaymentIntentExpired => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentExpired
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
@@ -300,6 +305,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
             IncomingWebhookEvent::SetupWebhook => Self::Setup,
+            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
         }
     }
 }
@@ -341,6 +347,7 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    SubscriptionId(common_utils::id_type::SubscriptionId),
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -388,7 +395,12 @@ impl ObjectReferenceId {
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "PaymentId is required but received InvoiceId",
                 },
-            )
+            ),
+            Self::SubscriptionId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received SubscriptionId",
+                },
+            ),
         }
     }
 }

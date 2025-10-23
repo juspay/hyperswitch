@@ -47,17 +47,17 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask, Secret};
 use ring::hmac;
 use serde_json::Value;
-use transformers as bluecode;
+use transformers as calida;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
-const BLUECODE_API_VERSION: &str = "v1";
+const CALIDA_API_VERSION: &str = "v1";
 #[derive(Clone)]
-pub struct Bluecode {
+pub struct Calida {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Bluecode {
+impl Calida {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
@@ -65,26 +65,26 @@ impl Bluecode {
     }
 }
 
-impl api::Payment for Bluecode {}
-impl api::PaymentSession for Bluecode {}
-impl api::ConnectorAccessToken for Bluecode {}
-impl api::MandateSetup for Bluecode {}
-impl api::PaymentAuthorize for Bluecode {}
-impl api::PaymentSync for Bluecode {}
-impl api::PaymentCapture for Bluecode {}
-impl api::PaymentVoid for Bluecode {}
-impl api::Refund for Bluecode {}
-impl api::RefundExecute for Bluecode {}
-impl api::RefundSync for Bluecode {}
-impl api::PaymentToken for Bluecode {}
+impl api::Payment for Calida {}
+impl api::PaymentSession for Calida {}
+impl api::ConnectorAccessToken for Calida {}
+impl api::MandateSetup for Calida {}
+impl api::PaymentAuthorize for Calida {}
+impl api::PaymentSync for Calida {}
+impl api::PaymentCapture for Calida {}
+impl api::PaymentVoid for Calida {}
+impl api::Refund for Calida {}
+impl api::RefundExecute for Calida {}
+impl api::RefundSync for Calida {}
+impl api::PaymentToken for Calida {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Bluecode
+    for Calida
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluecode
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Calida
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -103,9 +103,9 @@ where
     }
 }
 
-impl ConnectorCommon for Bluecode {
+impl ConnectorCommon for Calida {
     fn id(&self) -> &'static str {
-        "bluecode"
+        "calida"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -117,14 +117,14 @@ impl ConnectorCommon for Bluecode {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.bluecode.base_url.as_ref()
+        connectors.calida.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = bluecode::BluecodeAuthType::try_from(auth_type)
+        let auth = calida::CalidaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -137,9 +137,9 @@ impl ConnectorCommon for Bluecode {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluecode::BluecodeErrorResponse = res
+        let response: calida::CalidaErrorResponse = res
             .response
-            .parse_struct("BluecodeErrorResponse")
+            .parse_struct("CalidaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -160,7 +160,7 @@ impl ConnectorCommon for Bluecode {
     }
 }
 
-impl ConnectorValidation for Bluecode {
+impl ConnectorValidation for Calida {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -186,16 +186,13 @@ impl ConnectorValidation for Bluecode {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Bluecode {}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Calida {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Bluecode {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Calida {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Bluecode
-{
-}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Calida {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Calida {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -216,7 +213,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         Ok(format!(
             "{}api/{}/order/payin/start",
             self.base_url(connectors),
-            BLUECODE_API_VERSION
+            CALIDA_API_VERSION
         ))
     }
 
@@ -231,8 +228,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = bluecode::BluecodeRouterData::from((amount, req));
-        let connector_req = bluecode::BluecodePaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = calida::CalidaRouterData::from((amount, req));
+        let connector_req = calida::CalidaPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -264,9 +261,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodePaymentsResponse = res
+        let response: calida::CalidaPaymentsResponse = res
             .response
-            .parse_struct("Bluecode PaymentsAuthorizeResponse")
+            .parse_struct("Calida PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
 
@@ -301,7 +298,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Calida {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -328,7 +325,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
         Ok(format!(
             "{}api/{}/order/{}/status",
             self.base_url(connectors),
-            BLUECODE_API_VERSION,
+            CALIDA_API_VERSION,
             connector_transaction_id
         ))
     }
@@ -354,9 +351,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodeSyncResponse = res
+        let response: calida::CalidaSyncResponse = res
             .response
-            .parse_struct("bluecode PaymentsSyncResponse")
+            .parse_struct("calida PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -391,7 +388,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Calida {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -411,7 +408,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -423,7 +420,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -454,9 +451,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodePaymentsResponse = res
+        let response: calida::CalidaPaymentsResponse = res
             .response
-            .parse_struct("Bluecode PaymentsCaptureResponse")
+            .parse_struct("Calida PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -476,9 +473,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Bluecode {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Calida {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecode {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Calida {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -498,7 +495,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -510,7 +507,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -540,10 +537,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: bluecode::RefundResponse = res
-            .response
-            .parse_struct("bluecode RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: calida::RefundResponse =
+            res.response
+                .parse_struct("calida RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -562,7 +559,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Calida {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -582,7 +579,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RSync".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -594,7 +591,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RSync".to_string(),
-            connector: "Bluecode".to_string(),
+            connector: "Calida".to_string(),
         }
         .into())
     }
@@ -605,9 +602,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: bluecode::RefundResponse = res
+        let response: calida::RefundResponse = res
             .response
-            .parse_struct("bluecode RefundSyncResponse")
+            .parse_struct("calida RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -628,7 +625,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Bluecode {
+impl webhooks::IncomingWebhook for Calida {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -680,7 +677,7 @@ impl webhooks::IncomingWebhook for Bluecode {
         let parsed: Value = serde_json::from_slice(request.body)
             .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let sorted_payload = bluecode::sort_and_minify_json(&parsed)?;
+        let sorted_payload = calida::sort_and_minify_json(&parsed)?;
 
         let key = hmac::Key::new(hmac::HMAC_SHA512, secret_bytes);
 
@@ -710,9 +707,7 @@ impl webhooks::IncomingWebhook for Bluecode {
         let webhook_body = transformers::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(transformers::get_bluecode_webhook_event(
-            webhook_body.status,
-        ))
+        Ok(transformers::get_calida_webhook_event(webhook_body.status))
     }
 
     fn get_webhook_resource_object(
@@ -726,45 +721,44 @@ impl webhooks::IncomingWebhook for Bluecode {
     }
 }
 
-static BLUECODE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static CALIDA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut santander_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut santander_supported_payment_methods = SupportedPaymentMethods::new();
 
-        santander_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::Bluecode,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods,
-                specific_features: None,
-            },
-        );
+    santander_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Bluecode,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
 
-        santander_supported_payment_methods
-    });
+    santander_supported_payment_methods
+});
 
-static BLUECODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Bluecode",
-    description: "Bluecode is building a global payment network that combines Alipay+, Discover and EMPSA and enables seamless payments in 75 countries. With over 160 million acceptance points, payments are processed according to the highest European security and data protection standards to make Europe less dependent on international players.",
+static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Calida",
+    description: "Calida Financial is a licensed e-money institution based in Malta and they provide customized financial infrastructure and payment solutions across the EU and EEA. As part of The Payments Group, it focuses on embedded finance, prepaid services, and next-generation digital payment products.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
-static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
-impl ConnectorSpecifications for Bluecode {
+impl ConnectorSpecifications for Calida {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&BLUECODE_CONNECTOR_INFO)
+        Some(&CALIDA_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*BLUECODE_SUPPORTED_PAYMENT_METHODS)
+        Some(&*CALIDA_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&BLUECODE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&CALIDA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

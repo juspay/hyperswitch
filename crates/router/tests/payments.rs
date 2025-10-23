@@ -446,6 +446,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        mit_category: None,
         browser_info: None,
         payment_method_id: None,
         payment_method_status: None,
@@ -471,6 +472,7 @@ async fn payments_create_core() {
         is_overcapture_enabled: None,
         enable_overcapture: None,
         network_details: None,
+        is_stored_credential: None,
         request_extended_authorization: None,
     };
     let expected_response =
@@ -732,6 +734,7 @@ async fn payments_create_core_adyen_no_redirect() {
             expires_on: None,
             fingerprint: None,
             browser_info: None,
+            mit_category: None,
             payment_method_id: None,
             payment_method_status: None,
             updated: None,
@@ -756,6 +759,7 @@ async fn payments_create_core_adyen_no_redirect() {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
             request_extended_authorization: None,
         },
         vec![],

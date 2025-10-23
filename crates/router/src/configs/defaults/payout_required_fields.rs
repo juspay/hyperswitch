@@ -38,7 +38,7 @@ impl Default for PayoutRequiredFields {
                     // Adyen
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Adyenplatform,
-                        PaymentMethodType::Sepa,
+                        PaymentMethodType::SepaBankTransfer,
                     ),
                     // Ebanx
                     get_connector_payment_method_type_fields(
@@ -117,7 +117,7 @@ fn get_billing_details_for_payment_method(
             ]);
 
             // Add first_name for bank payouts only
-            if payment_method_type == PaymentMethodType::Sepa {
+            if payment_method_type == PaymentMethodType::SepaBankTransfer {
                 fields.insert(
                     "billing.address.first_name".to_string(),
                     RequiredFieldInfo {
@@ -209,7 +209,7 @@ fn get_connector_payment_method_type_fields(
                 },
             )
         }
-        PaymentMethodType::Sepa => {
+        PaymentMethodType::SepaBankTransfer => {
             common_fields.extend(get_sepa_fields());
             (
                 payment_method_type,
@@ -229,6 +229,24 @@ fn get_connector_payment_method_type_fields(
         // Wallets
         PaymentMethodType::Paypal => {
             common_fields.extend(get_paypal_fields());
+            (
+                payment_method_type,
+                ConnectorFields {
+                    fields: HashMap::from([(
+                        connector.into(),
+                        RequiredFieldFinal {
+                            mandate: HashMap::new(),
+                            non_mandate: HashMap::new(),
+                            common: common_fields,
+                        },
+                    )]),
+                },
+            )
+        }
+
+        // Bank Redirect
+        PaymentMethodType::Interac => {
+            common_fields.extend(get_interac_fields(connector));
             (
                 payment_method_type,
                 ConnectorFields {
@@ -373,6 +391,88 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
             value: None,
         },
     )])
+}
+
+fn get_interac_fields(connector: PayoutConnectors) -> HashMap<String, RequiredFieldInfo> {
+    match connector {
+        PayoutConnectors::Loonio => HashMap::from([
+            (
+                "payout_method_data.bank_redirect.interac.email".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
+                    display_name: "email".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+        ]),
+        PayoutConnectors::Gigadat => HashMap::from([
+            (
+                "payout_method_data.bank_redirect.interac.email".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
+                    display_name: "email".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.number".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                    display_name: "phone".to_string(),
+                    field_type: FieldType::UserPhoneNumber,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.country_code".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                    display_name: "dialing_code".to_string(),
+                    field_type: FieldType::UserPhoneNumberCountryCode,
+                    value: None,
+                },
+            ),
+        ]),
+        _ => HashMap::from([]),
+    }
 }
 
 fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2> {
