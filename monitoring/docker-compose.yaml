@@ -57,8 +57,15 @@ services:
       - "9090:9090"
     restart: unless-stopped
 
+    read_only: true
+    tmpfs:
+      - /tmp
   tempo:
+    read_only: true
     image: grafana/tempo:latest
+    read_only: true
+    tmpfs:
+      - /tmp
     command: -config.file=/etc/tempo.yaml
     volumes:
       - ../config/tempo.yaml:/etc/tempo.yaml
@@ -70,6 +77,9 @@ services:
       - "4317" # otlp grpc
       - "4318" # otlp http
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
 
   grafana:
     image: grafana/grafana:latest
