@@ -135,7 +135,6 @@ impl TryFrom<&AirwallexRouterData<&types::CreateOrderRouterData>> for AirwallexI
 pub struct AirwallexOrderResponse {
     pub status: AirwallexPaymentStatus,
     pub id: String,
-    pub amount: Option<f32>,
     pub payment_consent_id: Option<Secret<String>>,
     pub next_action: Option<AirwallexPaymentsNextAction>,
 }
