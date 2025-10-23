@@ -202,9 +202,7 @@ impl L2L3Data {
     }
 
     pub fn get_order_date(&self) -> Option<time::PrimitiveDateTime> {
-        self.order_info
-            .as_ref()
-            .and_then(|order| order.order_date)
+        self.order_info.as_ref().and_then(|order| order.order_date)
     }
 
     pub fn get_order_details(&self) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
@@ -232,15 +230,11 @@ impl L2L3Data {
     }
 
     pub fn get_duty_amount(&self) -> Option<MinorUnit> {
-        self.order_info
-            .as_ref()
-            .and_then(|order| order.duty_amount)
+        self.order_info.as_ref().and_then(|order| order.duty_amount)
     }
 
     pub fn get_tax_status(&self) -> Option<common_enums::TaxStatus> {
-        self.tax_info
-            .as_ref()
-            .and_then(|tax| tax.tax_status)
+        self.tax_info.as_ref().and_then(|tax| tax.tax_status)
     }
 
     pub fn get_customer_tax_registration_id(&self) -> Option<Secret<String>> {
@@ -262,9 +256,7 @@ impl L2L3Data {
     }
 
     pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
-        self.tax_info
-            .as_ref()
-            .and_then(|tax| tax.order_tax_amount)
+        self.tax_info.as_ref().and_then(|tax| tax.order_tax_amount)
     }
 
     pub fn get_customer_id(&self) -> Option<id_type::CustomerId> {

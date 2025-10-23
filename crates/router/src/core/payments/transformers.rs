@@ -1788,7 +1788,8 @@ where
                 tax_info: Some(types::TaxInfo {
                     tax_status: payment_data.payment_intent.tax_status,
                     customer_tax_registration_id: customer.as_ref().and_then(|customer| {
-                        customer.tax_registration_id
+                        customer
+                            .tax_registration_id
                             .as_ref()
                             .map(|tax_registration_id| tax_registration_id.clone().into_inner())
                     }),
@@ -1802,21 +1803,22 @@ where
                 customer_info: Some(types::CustomerInfo {
                     customer_id: payment_data.payment_intent.customer_id.clone(),
                     customer_email: payment_data.email,
-                    customer_name: customer
-                        .as_ref()
-                        .and_then(|customer_data| customer_data.name.as_ref().map(|name| name.clone().into_inner())),
-                    customer_phone_number: customer
-                        .as_ref()
-                        .and_then(|customer_data| {
-                            customer_data
-                                .phone
-                                .as_ref()
-                                .map(|phone| phone.clone().into_inner())
-                        }),
+                    customer_name: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .name
+                            .as_ref()
+                            .map(|name| name.clone().into_inner())
+                    }),
+                    customer_phone_number: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .phone
+                            .as_ref()
+                            .map(|phone| phone.clone().into_inner())
+                    }),
                     customer_phone_country_code: customer
                         .as_ref()
                         .and_then(|customer_data| customer_data.phone_country_code.clone()),
-                }),                
+                }),
                 billing_details: billing_address
                     .as_ref()
                     .and_then(|addr| addr.address.as_ref())
