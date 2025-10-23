@@ -342,7 +342,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
-                reference_id: resp.reference_id,
             }))
         } else {
             // If the connector does not require order creation, return None
@@ -357,7 +356,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         match create_order_result.create_order_result {
             Ok(order_id) => {
                 self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.reference_id = create_order_result.reference_id;
                 self.response =
                     Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }

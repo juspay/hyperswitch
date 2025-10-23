@@ -61,7 +61,10 @@ use crate::{
     connectors::airwallex::transformers::AirwallexAuthorizeResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{convert_amount, AccessTokenRequestInfo, ForeignTryFrom, RefundsRequestData},
+    utils::{
+        convert_amount, AccessTokenRequestInfo, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        RefundsRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -377,9 +380,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             "{}{}{}{}",
             self.base_url(connectors),
             "api/v1/pa/payment_intents/",
-            req.reference_id
-                .clone()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+            req.request.get_order_id()?,
             "/confirm"
         ))
     }

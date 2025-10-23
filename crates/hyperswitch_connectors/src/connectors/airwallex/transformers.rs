@@ -147,7 +147,6 @@ impl TryFrom<CreateOrderResponseRouterData<AirwallexOrderResponse>>
         item: CreateOrderResponseRouterData<AirwallexOrderResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
                 order_id: item.response.id.clone(),
             }),
