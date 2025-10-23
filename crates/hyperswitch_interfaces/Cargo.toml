@@ -29,7 +29,8 @@ serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "0f2ecbca214ff3961a5803cd114ae44275db803b", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "36731a85e6b7877139ca3b6ee5d6b919702df8b4", package = "rust-grpc-client" }
+unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.09.24.0", package = "masking" }
 
 # First party crates
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

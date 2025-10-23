@@ -50,8 +50,6 @@ impl
             common_enums::CallConnectorAction,
         ),
     ) -> Result<Self, Self::Error> {
-        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -86,6 +84,8 @@ impl
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
         let handle_response = match call_connector_action {
             common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
             _ => None,
@@ -105,6 +105,8 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             access_token: None,
+            amount: router_data.request.amount.get_amount_as_i64(),
+            currency: currency.into(),
         })
     }
 }
@@ -226,6 +228,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -357,6 +360,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: None,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
