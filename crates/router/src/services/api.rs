@@ -48,7 +48,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface, Secret};
+use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
 use tera::{Context, Error as TeraError, Tera};

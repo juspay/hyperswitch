@@ -10,6 +10,7 @@ pub use hyperswitch_interfaces::{
 };
 use masking::PeekInterface;
 use reqwest::multipart::Form;
+use router_env::RequestId;
 
 use super::{request::Maskable, Request};
 use crate::core::errors::{ApiClientError, CustomResult};
@@ -150,11 +151,11 @@ impl ApiClient for ProxyClient {
     }
 
     fn get_request_id(&self) -> Option<RequestId> {
-        self.request_id
+        self.request_id.clone()
     }
 
     fn get_request_id_str(&self) -> Option<String> {
-        self.request_id.map(|id| id.as_hyphenated().to_string())
+        self.request_id.as_ref().map(|id| id.to_string())
     }
 
     fn add_flow_name(&mut self, _flow_name: String) {}

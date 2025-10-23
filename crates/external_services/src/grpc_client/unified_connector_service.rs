@@ -372,10 +372,10 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     };
 
-    if let Some(request_id) = grpc_headers.request_id {
+    if let Some(ref request_id) = grpc_headers.request_id {
         metadata.append(
             common_utils_consts::X_REQUEST_ID,
-            parse(common_utils_consts::X_REQUEST_ID, &request_id)?,
+            parse(common_utils_consts::X_REQUEST_ID, request_id.as_str())?,
         );
     };
 

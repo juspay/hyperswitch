@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use masking::Maskable;
 use reqwest::multipart::Form;
-use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, logger, tracing, RequestId};
 use serde_json::json;
 use unified_connector_service_masking::ExposeInterface;
 
