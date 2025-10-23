@@ -89,7 +89,8 @@ async fn save_in_locker(
             )
             .await?;
 
-            let lock_action = if dc == Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
+            let lock_action = if dc
+                == Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
                 || dc == None
             {
                 let customer_id = payment_method_request
@@ -122,7 +123,7 @@ async fn save_in_locker(
                     )
                     .await?;
                 Some(lock_action)
-            }else{
+            } else {
                 None
             };
 
@@ -626,7 +627,8 @@ where
                                                     .get_merchant_account()
                                                     .get_id()
                                                     .to_owned(),
-                                            ).await?;
+                                            )
+                                            .await?;
                                         }
 
                                         Ok(pm)
@@ -885,11 +887,9 @@ where
                             if let Some(la) = lock_action {
                                 la.free_lock_action(
                                     state,
-                                    merchant_context
-                                        .get_merchant_account()
-                                        .get_id()
-                                        .to_owned(),
-                                ).await?;
+                                    merchant_context.get_merchant_account().get_id().to_owned(),
+                                )
+                                .await?;
                             }
 
                             match network_token_requestor_ref_id {
@@ -1905,7 +1905,8 @@ pub async fn save_card_and_network_token_in_locker(
 
                 Ok((
                     (res, dc, network_token_requestor_reference_id),
-                    network_token_resp, None
+                    network_token_resp,
+                    None,
                 ))
             } else {
                 if let (Some(nt_ref_id), Some(tokenization_service)) = (
@@ -1971,7 +1972,8 @@ pub async fn save_card_and_network_token_in_locker(
 
                         Ok((
                             (res, dc, network_token_requestor_ref_id),
-                            network_token_resp, None
+                            network_token_resp,
+                            None,
                         ))
                     }
                     _ => Ok(((res, dc, None), None, lock_action)), //network_token_resp is None in case of other payment methods

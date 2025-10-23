@@ -2300,7 +2300,14 @@ impl PaymentMethodInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id_customer_id_merchant_id(state, key_store, locker_id, customer_id, merchant_id, storage_scheme)
+            .find_payment_method_by_locker_id_customer_id_merchant_id(
+                state,
+                key_store,
+                locker_id,
+                customer_id,
+                merchant_id,
+                storage_scheme,
+            )
             .await
     }
 
