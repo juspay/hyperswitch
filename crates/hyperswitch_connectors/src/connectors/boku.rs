@@ -53,7 +53,10 @@ use crate::{
     constants::{headers, UNSUPPORTED_ERROR_MESSAGE},
     metrics,
     types::ResponseRouterData,
-    utils::convert_amount,
+    utils::{
+        convert_amount, get_authorise_integrity_object, get_capture_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object,
+    },
 };
 
 #[derive(Clone)]
@@ -281,6 +284,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Integrity check
+        get_authorise_integrity_object(
+            &response
+                .amount()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?, // Amount from connector response
+            &data.request.amount,   // Amount from original request
+            &data.request.currency, // Currency from original request
+            &self.amount_converter, // Amount converter
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -364,6 +378,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bok
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Integrity check - for optional handling to check the api
+        let response_amount = response
+            .amount()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        get_sync_integrity_object(
+            &response_amount,
+            &data.request.amount,
+            &data.request.currency,
+            &self.amount_converter,
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -443,6 +470,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let response_amount = response
+            .amount()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        get_capture_integrity_object(
+            &response_amount,                // Amount from connector response
+            &data.request.amount_to_capture, // Amount to capture from original request
+            &data.request.currency,          // Currency from original request
+            &self.amount_converter,          // Amount converter
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -536,6 +575,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Boku {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        if let Some(refund_amount) = &response.refunds.refund.refund_amount {
+            // Bug: need to check the field path (-- could be only &response.refund_amount)
+            get_refund_integrity_object(
+                refund_amount,               // Refund amount from connector response
+                &data.request.refund_amount, // Refund amount from original request
+                &data.request.currency,      // Currency from original request
+                &self.amount_converter,      // Amount converter
+            )?;
+        }
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -617,6 +666,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Boku {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        if let Some(refund_amount) = &response.refunds.refund.refund_amount {
+            get_refund_integrity_object(
+                refund_amount,               // Refund amount from connector response
+                &data.request.refund_amount, // Refund amount from original request
+                &data.request.currency,      // Currency from original request
+                &self.amount_converter,      // Amount converter
+            )?;
+        }
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -794,3 +852,26 @@ impl ConnectorSpecifications for Boku {
         Some(&BOKU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use quick_xml::de::from_str;
+
+//     #[test]
+//     fn test_boku_refund_response_deserialization() {
+//         let xml = r#"
+//         <refund-charge-response>
+//             <charge-id>ch_123</charge-id>
+//             <refund-status>Success</refund-status>
+//             <refund-amount>1000</refund-amount>
+//         </refund-charge-response>
+//         "#;
+
+//         let parsed: RefundResponse = from_str(xml).expect("Failed to parse refund XML");
+
+//         assert_eq!(parsed.charge_id, "ch_123");
+//         assert_eq!(parsed.refund_status, "Success");
+//         assert_eq!(parsed.refund_amount, Some(1000));
+//     }
+// }

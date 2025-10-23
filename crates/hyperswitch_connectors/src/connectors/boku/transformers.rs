@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
+    utils as connector_utils,
     utils::{self, AddressDetailsData, RouterData as _},
 };
 
@@ -272,6 +273,7 @@ pub struct BokuPaymentsResponse {
     charge_status: String, // xml parse only string to fields
     charge_id: String,
     hosted: Option<HostedUrlResponse>,
+    total_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -298,6 +300,18 @@ pub struct ChargeResponseData {
 pub struct SingleChargeResponseData {
     charge_status: String,
     charge_id: String,
+    total_amount: Option<MinorUnit>,
+}
+
+impl BokuResponse {
+    // Helper method to extract amount from the response
+    // Used for integrity checks in authorize and psync flows
+    pub fn amount(&self) -> Option<MinorUnit> {
+        match self {
+            BokuResponse::BeginSingleChargeResponse(response) => response.total_amount,
+            BokuResponse::QueryChargeResponse(response) => response.charges.charge.total_amount,
+        }
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
@@ -412,6 +426,7 @@ impl<F> TryFrom<&BokuRouterData<&RefundsRouterData<F>>> for BokuRefundRequest {
 pub struct RefundResponse {
     charge_id: String,
     refund_status: String,
+    refund_amount: Option<MinorUnit>,
 }
 
 fn get_refund_status(status: String) -> enums::RefundStatus {
@@ -431,6 +446,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.charge_id,
                 refund_status: get_refund_status(item.response.refund_status),
+                refund_amount: item.response.refund_amount,
             }),
             ..item.data
         })
@@ -479,6 +495,7 @@ pub struct RefundResponseData {
 pub struct SingleRefundResponseData {
     refund_status: String, // quick-xml only parse string as a field
     refund_id: String,
+    refund_amount: Option<MinorUnit>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, BokuRsyncResponse>> for RefundsRouterData<RSync> {
@@ -490,6 +507,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, BokuRsyncResponse>> for RefundsRou
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refunds.refund.refund_id,
                 refund_status: get_refund_status(item.response.refunds.refund.refund_status),
+                refund_amount: item.response.refund_amount,
             }),
             ..item.data
         })
