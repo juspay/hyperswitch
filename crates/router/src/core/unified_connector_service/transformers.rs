@@ -1183,7 +1183,7 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
-    let is_transformation_complete = if matches!(
+    let webhook_transformation_status = if matches!(
         response.transformation_status(),
         payments_grpc::WebhookTransformationStatus::Incomplete
     ) {
@@ -1203,7 +1203,7 @@ pub fn transform_ucs_webhook_response(
                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
             })
         }),
-        is_transformation_complete,
+        webhook_transformation_status,
     })
 }
 

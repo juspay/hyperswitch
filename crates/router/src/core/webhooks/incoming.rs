@@ -1034,7 +1034,7 @@ async fn payments_incoming_webhook_flow(
 
         match webhook_transform_data.as_ref() {
             Some(transform_data) => {
-                match transform_data.is_transformation_complete {
+                match transform_data.webhook_transformation_status {
                     unified_connector_service::WebhookTransformationStatus::Complete => {
                         // Consume response from UCS
                         payments::CallConnectorAction::UCSConsumeResponse(resource_object)
