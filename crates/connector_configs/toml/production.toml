@@ -6086,6 +6086,24 @@ payment_method_type = "UnionPay"
 payment_method_type = "Interac"
 [[finix.credit]]
 payment_method_type = "Maestro"
+[[finix.debit]]
+payment_method_type = "Mastercard"
+[[finix.debit]]
+payment_method_type = "Visa"
+[[finix.debit]]
+payment_method_type = "AmericanExpress"
+[[finix.debit]]
+payment_method_type = "Discover"
+[[finix.debit]]
+payment_method_type = "JCB"
+[[finix.debit]]
+payment_method_type = "DinersClub"
+[[finix.debit]]
+payment_method_type = "UnionPay"
+[[finix.debit]]
+payment_method_type = "Interac"
+[[finix.debit]]
+payment_method_type = "Maestro"
 [[finix.wallet]]
   payment_method_type = "google_pay"
 [[finix.wallet]]
@@ -6133,6 +6151,13 @@ payment_method_type = "Maestro"
   required = true
   type = "Select"
   options = []
+[[finix.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
 [[finix.metadata.google_pay]]
   name = "merchant_name"
   label = "Google Pay Merchant Name"
@@ -6309,3 +6334,7 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Hyperswitch"]
+
+[payjustnow]
+[payjustnow.connector_auth.HeaderKey]
+api_key = "API Key"

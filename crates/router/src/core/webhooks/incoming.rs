@@ -1216,6 +1216,7 @@ async fn payouts_incoming_webhook_flow(
             is_eligible: payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
         };
 
         let action_req =
