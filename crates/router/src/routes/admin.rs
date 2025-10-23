@@ -464,15 +464,15 @@ pub async fn delete_merchant_account(
     mid: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountDelete;
-    let mid = mid.into_inner();
+    let merchant_id = mid.into_inner();
 
-    let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
+    let payload = admin::MerchantId { merchant_id };
     api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _, req, _| merchant_account_delete(state, req.merchant_id),
+        |state, _, req, _| merchant_account_delete_v2(state, req.merchant_id),
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
