@@ -16,6 +16,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to encode unified connector service request")]
     RequestEncodingFailed,
 
+    /// Failed to process webhook from unified connector service.
+    #[error("Failed to process webhook from unified connector service")]
+    WebhookProcessingFailure,
+
     /// Request encoding failed due to a specific reason.
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),

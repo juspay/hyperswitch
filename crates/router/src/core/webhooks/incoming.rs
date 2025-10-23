@@ -520,12 +520,12 @@ fn get_ucs_webhook_resource_object(
 
 /// Extract webhook event object based on transform data availability
 fn extract_webhook_event_object(
-    transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
+    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    match transform_data {
-        Some(transform_data) => transform_data
+    match webhook_transform_data {
+        Some(webhook_transform_data) => webhook_transform_data
             .webhook_content
             .as_ref()
             .map(|webhook_response_content| {
@@ -659,32 +659,31 @@ async fn process_webhook_business_logic(
 
     logger::info!(source_verified=?source_verified);
 
-    let event_object: Box<dyn masking::ErasedMaskSerialize> =
-        if let Some(transform_data) = webhook_transform_data {
-            // Use UCS transform data if available
-            if let Some(resource_object) = transform_data
+    let event_object: Box<dyn masking::ErasedMaskSerialize> = match webhook_transform_data {
+        Some(webhook_transform_data) => {
+            // Extract resource_object from UCS webhook content
+            webhook_transform_data
                 .webhook_content
                 .as_ref()
                 .map(|webhook_response_content| {
                     get_ucs_webhook_resource_object(webhook_response_content)
                 })
-                .transpose()?
-            {
-                resource_object
-            } else {
-                // Fall back to connector extraction
-                connector
-                    .get_webhook_resource_object(request_details)
-                    .switch()
-                    .attach_printable("Could not find resource object in incoming webhook body")?
-            }
-        } else {
+                .unwrap_or_else(|| {
+                    // Fall back to connector extraction
+                    connector
+                        .get_webhook_resource_object(request_details)
+                        .switch()
+                        .attach_printable("Could not find resource object in incoming webhook body")
+                })?
+        }
+        None => {
             // Use traditional connector extraction
             connector
                 .get_webhook_resource_object(request_details)
                 .switch()
                 .attach_printable("Could not find resource object in incoming webhook body")?
-        };
+        }
+    };
 
     let webhook_details = api::IncomingWebhookDetails {
         object_reference_id: object_ref_id.clone(),

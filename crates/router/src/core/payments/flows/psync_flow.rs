@@ -6,7 +6,10 @@ use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
+use hyperswitch_interfaces::unified_connector_service::{
+    get_payments_response_from_ucs_webhook_content,
+    handle_unified_connector_service_response_for_payment_get,
+};
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface;
 
@@ -246,27 +249,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         .change_context(ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to deserialize UCS webhook transform data")?;
 
-                let payment_get_response = match webhook_content.content {
-                    Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
-                        Ok(payments_response)
-                    },
-                    Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
-                        Err(ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("UCS webhook contains refund response but payment response was expected")
-                    },
-                    Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
-                        Err(ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("UCS webhook contains dispute response but payments response was expected")
-                    },
-                    Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
-                        Err(ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("UCS webhook contains incomplete transformation but payments response was expected")
-                    },
-                    None => {
-                        Err(ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("Missing payments response in UCS webhook content")
-                    }
-                }?;
+                let payment_get_response =
+                    get_payments_response_from_ucs_webhook_content(webhook_content)
+                        .change_context(ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable(
+                            "Failed to construct payments response from UCS webhook content",
+                        )?;
 
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(

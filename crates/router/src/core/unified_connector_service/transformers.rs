@@ -88,7 +88,16 @@ impl
 
         let handle_response = match call_connector_action {
             common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
-            _ => None,
+            common_enums::CallConnectorAction::Trigger => None,
+            common_enums::CallConnectorAction::HandleResponse(_)
+            | common_enums::CallConnectorAction::UCSConsumeResponse(_)
+            | common_enums::CallConnectorAction::Avoid
+            | common_enums::CallConnectorAction::StatusUpdate { .. } => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Invalid CallConnectorAction for payment sync call via UCS Gateway system"
+                        .to_string(),
+                ),
+            )?,
         };
 
         let capture_method = router_data

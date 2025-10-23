@@ -4280,31 +4280,14 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path_decision = should_call_unified_connector_service(
+    let execution_path = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
-
-    let is_handle_response_action = matches!(
-        call_connector_action,
-        CallConnectorAction::HandleResponse(_)
-    );
-
-    let is_ucs_webhook_action = matches!(
-        call_connector_action,
-        CallConnectorAction::UCSConsumeResponse(_) | CallConnectorAction::UCSHandleResponse(_)
-    );
-
-    let execution_path = if is_ucs_webhook_action {
-        ExecutionPath::UnifiedConnectorService
-    } else if is_handle_response_action {
-        ExecutionPath::Direct
-    } else {
-        execution_path_decision
-    };
 
     record_time_taken_with(|| async {
         match execution_path {
