@@ -86,6 +86,154 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
         })
     }
 }
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            uas_flows::Authenticate,
+            router_request_types::PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            uas_flows::Authenticate,
+            router_request_types::PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateRequest
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    common_enums::PaymentMethodType::Credit, // Default to Credit for now
+                )
+            })
+            .transpose()?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.amount.unwrap_or(0),
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .minor_amount
+                .map(|amount| amount.get_amount_as_i64())
+                .unwrap_or(0),
+            payment_method,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_name: None, // PaymentsAuthenticateData doesn't have customer_name
+            address: Some(address),
+            authentication_data: None, // PaymentsAuthenticateData doesn't have enrolled_for_3ds
+            metadata: HashMap::new(),  // PaymentsAuthenticateData doesn't have metadata
+            return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            access_token: None,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            uas_flows::PostAuthenticate,
+            router_request_types::PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServicePostAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            uas_flows::PostAuthenticate,
+            router_request_types::PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateRequest
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        let payment_method = router_data
+            .request
+            .payment_method_type
+            .and_then(|payment_method_type| {
+                router_data
+                    .request
+                    .payment_method_data
+                    .clone()
+                    .map(|payment_method_data| {
+                        unified_connector_service::build_unified_connector_service_payment_method(
+                            payment_method_data,
+                            payment_method_type,
+                        )
+                    })
+            })
+            .transpose()?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.amount.unwrap_or(0),
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .minor_amount
+                .map(|amount| amount.get_amount_as_i64())
+                .unwrap_or(0),
+            payment_method,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_name: None, // PaymentsPostAuthenticateData doesn't have customer_name
+            address: Some(address),
+            authentication_data: None, // PaymentsPostAuthenticateData doesn't have authentication_data field
+            metadata: HashMap::new(),  // PaymentsPostAuthenticateData doesn't have metadata
+            return_url: router_data.request.router_return_url.clone(),
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            access_token: None,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
 
 impl
     transformers::ForeignTryFrom<
@@ -602,6 +750,56 @@ impl
             payment_method_type: None,
             access_token: None,
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        _response: payments_grpc::PaymentServicePostAuthenticateResponse,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateResponse
+        // For now, return a default success response
+        Ok(Ok((
+            PaymentsResponseData::TransactionResponse {
+                resource_id: router_request_types::ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            },
+            AttemptStatus::Pending,
+        )))
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        _response: payments_grpc::PaymentServiceAuthenticateResponse,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateResponse
+        // For now, return a default success response
+        Ok(Ok((
+            PaymentsResponseData::TransactionResponse {
+                resource_id: router_request_types::ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            },
+            AttemptStatus::Pending,
+        )))
     }
 }
 
