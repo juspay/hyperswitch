@@ -289,6 +289,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_preprocessing_through_unified_connector_service(
     router_data: types::RouterData<
         api::CompleteAuthorize,
