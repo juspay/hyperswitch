@@ -176,8 +176,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &connector_customer_id,
                     &None,
-                    // Since this is succeeded payment attempt, 'is_hard_decine' will be false.
-                    &Some(false),
+                    &None,
                     used_token.as_deref(),
                 )
                 .await;
@@ -498,8 +497,7 @@ impl Action {
                                 state,
                                 &connector_customer_id,
                                 &None,
-                                // Since this is succeeded payment attempt, 'is_hard_decine' will be false.
-                                &Some(false),
+                                &None,
                                 Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
                             )
                             .await;
@@ -848,8 +846,7 @@ impl Action {
                     state,
                     &connector_customer_id,
                     &None,
-                    // Since this is succeeded, 'hard_decine' will be false.
-                    &Some(false),
+                    &None,
                     used_token.as_deref(),
                 )
                 .await;
