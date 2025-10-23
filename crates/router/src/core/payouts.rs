@@ -2846,6 +2846,12 @@ pub async fn payout_create_db_entries(
             .map(|link_data| link_data.link_id.clone()),
         client_secret: Some(client_secret),
         priority: req.priority,
+        organization_id: Some(
+            merchant_context
+                .get_merchant_account()
+                .get_org_id()
+                .to_owned(),
+        ),
         status,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
