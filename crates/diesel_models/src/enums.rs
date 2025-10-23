@@ -26,8 +26,10 @@ pub mod diesel_exports {
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
         DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
-        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
+    // Re-export UserStatus from common_enums for schema files
+    pub use common_enums::diesel_exports::UserStatus;
 }
 
 pub use common_enums::*;
@@ -197,27 +199,6 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum UserStatus {
-    Active,
-    #[default]
-    InvitationSent,
 }
 
 #[derive(
