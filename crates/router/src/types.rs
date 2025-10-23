@@ -715,6 +715,7 @@ pub struct PaymentMethodTokenResult {
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
+    pub reference_id: Option<String>,
 }
 
 pub struct PspTokenResult {
