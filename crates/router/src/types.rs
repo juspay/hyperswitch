@@ -50,7 +50,7 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
-        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
+        GooglePayPredecryptDataInternal, L2L3Data,OrderInfo,BillingDetails,TaxInfo,CustomerInfo, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
