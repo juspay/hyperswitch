@@ -184,13 +184,26 @@ where
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    let shadow_rollout_availability = if should_execute_based_on_rollout(state, &shadow_rollout_key)
-        .await?
-        .should_execute
-    {
+    // Check rollout keys with priority: rollout_key takes precedence over shadow_rollout_key
+    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    
+    let shadow_rollout_availability = if rollout_result.should_execute {
+        // rollout_key is present and enabled, use it (ignore shadow_rollout_key)
+        router_env::logger::debug!(
+            "rollout_key is present and enabled, prioritizing it over shadow_rollout_key"
+        );
         ShadowRolloutAvailability::IsAvailable
     } else {
-        ShadowRolloutAvailability::NotAvailable
+        // rollout_key is not enabled, check shadow_rollout_key
+        let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+        if shadow_rollout_result.should_execute {
+            router_env::logger::debug!(
+                "rollout_key not enabled, using shadow_rollout_key"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else {
+            ShadowRolloutAvailability::NotAvailable
+        }
     };
 
     // Single decision point using pattern matching
@@ -218,16 +231,14 @@ where
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
-            // For shadow UCS, we need to check if proxy overrides are available
-            let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-
-            match rollout_result.proxy_override {
+            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
+            match &rollout_result.proxy_override {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
                         proxy_override = ?proxy_override,
                         "Creating updated session state with proxy configuration for Shadow UCS"
                     );
-                    create_updated_session_state_with_proxy(state.clone(), &proxy_override)
+                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
                     router_env::logger::debug!(
