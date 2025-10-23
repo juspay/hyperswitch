@@ -77,9 +77,25 @@ pub struct Authentication {
 
 impl Authentication {
     pub fn is_separate_authn_required(&self) -> bool {
-        self.maximum_supported_version
+        // Check if external authentication was initiated and requires customer action
+        // This happens when:
+        // 1. An authentication connector (MPI) was used
+        // 2. Authentication is not in a terminal successful state
+        // 3. Either 3DS 2.x is supported OR we have challenge/method URLs indicating auth flow is needed
+        let has_authentication_connector = self.authentication_connector.is_some();
+        let is_not_completed =
+            self.authentication_status != common_enums::AuthenticationStatus::Success;
+        let has_3ds_v2 = self
+            .maximum_supported_version
             .as_ref()
-            .is_some_and(|version| version.get_major() == 2)
+            .is_some_and(|version| version.get_major() == 2);
+        let has_authentication_flow = self.acs_url.is_some()
+            || self.three_ds_method_url.is_some()
+            || self.challenge_request.is_some();
+
+        // External authentication is required if we have an authentication connector
+        // and either we're using 3DS v2 or we have URLs indicating an authentication flow
+        has_authentication_connector && is_not_completed && (has_3ds_v2 || has_authentication_flow)
     }
 
     // get authentication_connector from authentication record and check if it is jwt flow
