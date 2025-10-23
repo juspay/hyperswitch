@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::new_type::{
-    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
-    MaskedSortCode,
+    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
+    MaskedRoutingNumber, MaskedSortCode,
 };
 
 /// Masked payout method details for storing in db
@@ -294,7 +294,7 @@ pub struct InteracAdditionalData {
 pub struct PassthroughAddtionalData {
     /// Psp_token of the passthrough flow
     #[schema(value_type = String, example = "token_12345")]
-    pub psp_token: Secret<String>,
+    pub psp_token: MaskedPspToken,
     /// token_type of the passthrough flow
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,

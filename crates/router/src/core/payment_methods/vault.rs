@@ -1027,7 +1027,6 @@ impl Vaultable for api::PassthroughPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = TokenizedPassthroughSensitiveValues {
             psp_token: self.psp_token.clone(),
-            token_type: self.token_type,
         };
 
         value1
@@ -1042,7 +1041,10 @@ impl Vaultable for api::PassthroughPayout {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = TokenizedPassthroughInsensitiveValues { customer_id };
+        let value2 = TokenizedPassthroughInsensitiveValues {
+            customer_id,
+            token_type: self.token_type,
+        };
 
         value2
             .encode_to_string_of_json()
@@ -1064,9 +1066,9 @@ impl Vaultable for api::PassthroughPayout {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into connector token data value2")?;
 
-        let connector_token = Self {
+        let passthrough = Self {
             psp_token: value1.psp_token,
-            token_type: value1.token_type,
+            token_type: value2.token_type,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -1074,7 +1076,7 @@ impl Vaultable for api::PassthroughPayout {
             payment_method_id: None,
         };
 
-        Ok((connector_token, supp_data))
+        Ok((passthrough, supp_data))
     }
 }
 
@@ -1092,12 +1094,12 @@ pub struct TokenizedBankRedirectInsensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedPassthroughSensitiveValues {
     pub psp_token: masking::Secret<String>,
-    pub token_type: PaymentMethodType,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedPassthroughInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
+    pub token_type: PaymentMethodType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

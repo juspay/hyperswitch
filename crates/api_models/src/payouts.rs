@@ -1066,7 +1066,7 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
 impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
     fn from(passthrough_data: Passthrough) -> Self {
         Self {
-            psp_token: passthrough_data.psp_token,
+            psp_token: passthrough_data.psp_token.into(),
             token_type: passthrough_data.token_type,
         }
     }
