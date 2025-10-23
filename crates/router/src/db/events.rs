@@ -1397,6 +1397,7 @@ mod tests {
             merchant_order_reference_id: None,
             capture_before: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,

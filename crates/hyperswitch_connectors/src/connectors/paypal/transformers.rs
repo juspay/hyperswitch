@@ -1668,6 +1668,7 @@ impl<F>
                 item.response.status.clone(),
             ),
             capture_before: item.response.expiration_time,
+            extended_authorization_last_applied_at: item.response.create_time,
         };
 
         let connector_response = Some(ConnectorResponseData::new(

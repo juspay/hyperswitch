@@ -134,6 +134,8 @@ pub struct PaymentAttempt {
     pub network_error_message: Option<String>,
     /// A string indicating the group of the payment attempt. Used in split payments flow
     pub attempts_group_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -232,6 +234,8 @@ pub struct PaymentAttempt {
     pub is_stored_credential: Option<bool>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -376,6 +380,7 @@ pub struct PaymentAttemptNew {
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub authorized_amount: Option<MinorUnit>,
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -462,6 +467,8 @@ pub struct PaymentAttemptNew {
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
     pub authorized_amount: Option<MinorUnit>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -590,6 +597,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         capture_before: Option<PrimitiveDateTime>,
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+        extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -1003,6 +1011,7 @@ impl PaymentAttemptUpdateInternal {
             order_tax_amount: source.order_tax_amount,
             request_extended_authorization: source.request_extended_authorization,
             extended_authorization_applied: source.extended_authorization_applied,
+            extended_authorization_last_applied_at: source.extended_authorization_last_applied_at,
             capture_before: source.capture_before,
             card_discovery: source.card_discovery,
             charges: source.charges,
@@ -1087,6 +1096,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
@@ -1288,6 +1298,7 @@ impl PaymentAttemptUpdate {
             connector_mandate_detail,
             capture_before,
             extended_authorization_applied,
+            extended_authorization_last_applied_at,
             card_discovery,
             charges,
             issuer_error_code,
@@ -1361,6 +1372,8 @@ impl PaymentAttemptUpdate {
             capture_before: capture_before.or(source.capture_before),
             extended_authorization_applied: extended_authorization_applied
                 .or(source.extended_authorization_applied),
+            extended_authorization_last_applied_at: extended_authorization_last_applied_at
+                .or(source.extended_authorization_last_applied_at),
             card_discovery: card_discovery.or(source.card_discovery),
             charges: charges.or(source.charges),
             issuer_error_code: issuer_error_code.or(source.issuer_error_code),
@@ -2704,6 +2717,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
@@ -2775,6 +2789,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -2881,6 +2896,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery,
@@ -2952,6 +2968,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -3024,6 +3041,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -3096,6 +3114,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -3166,6 +3185,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery: None,
@@ -3236,6 +3256,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -3273,6 +3294,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 capture_before,
                 extended_authorization_applied,
+                extended_authorization_last_applied_at,
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
@@ -3338,6 +3360,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_network: None,
                     capture_before,
                     extended_authorization_applied,
+                    extended_authorization_last_applied_at,
                     shipping_cost: None,
                     order_tax_amount: None,
                     card_discovery: None,
@@ -3428,6 +3451,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_network: None,
                     capture_before: None,
                     extended_authorization_applied: None,
+                    extended_authorization_last_applied_at: None,
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
@@ -3494,6 +3518,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
@@ -3572,6 +3597,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
@@ -3656,6 +3682,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     capture_before: None,
                     extended_authorization_applied: None,
+                    extended_authorization_last_applied_at: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
@@ -3737,6 +3764,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_network: None,
                     capture_before: None,
                     extended_authorization_applied: None,
+                    extended_authorization_last_applied_at: None,
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
@@ -3810,6 +3838,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -3880,6 +3909,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
@@ -3962,6 +3992,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     capture_before: None,
                     extended_authorization_applied: None,
+                    extended_authorization_last_applied_at: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
@@ -4032,6 +4063,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -4105,6 +4137,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
@@ -4187,6 +4220,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     capture_before: None,
                     extended_authorization_applied: None,
+                    extended_authorization_last_applied_at: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
@@ -4258,6 +4292,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
