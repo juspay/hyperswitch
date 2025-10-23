@@ -53,6 +53,7 @@ use transformers as helcim;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils, utils,
     utils::{convert_amount, to_connector_meta, PaymentsAuthorizeRequestData},
 };
 
@@ -365,14 +366,28 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Helcim PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let approved_amount = response.amount;
+        let currency = response.currency.clone();
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_convertor,
+            *approved_amount,
+            currency.to_string().clone(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -450,13 +465,28 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
             .parse_struct("helcim PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let approved_amount = response.amount;
+        let currency = response.currency.clone();
+
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_convertor,
+            *approved_amount,
+            currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -709,13 +739,28 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
                 .parse_struct("helcim RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let approved_amount = response.amount;
+        let currency = response.currency.clone();
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_convertor,
+            *approved_amount,
+            currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -793,13 +838,28 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
             .parse_struct("helcim RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let approved_amount = response.amount;
+        let currency = response.currency.clone();
+
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_convertor,
+            *approved_amount,
+            currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
