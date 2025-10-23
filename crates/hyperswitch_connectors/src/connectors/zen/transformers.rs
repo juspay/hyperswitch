@@ -19,7 +19,6 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{
-    api,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
@@ -42,14 +41,13 @@ pub struct ZenRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZenRouterData<T> {
+impl<T> TryFrom<(common_utils::types::StringMajorUnit, T)> for ZenRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (amount, item): (common_utils::types::StringMajorUnit, T),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
-            amount,
+            amount: amount.get_amount_as_string(),
             router_data: item,
         })
     }
