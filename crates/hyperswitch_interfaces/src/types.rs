@@ -428,6 +428,15 @@ impl Default for Proxy {
     }
 }
 
+/// Proxy override configuration for rollout-based proxy switching
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProxyOverride {
+    /// Override HTTP proxy URL
+    pub http_url: Option<String>,
+    /// Override HTTPS proxy URL  
+    pub https_url: Option<String>,
+}
+
 /// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, PaymentsResponseData>`
 pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
     CreateConnectorCustomer,
