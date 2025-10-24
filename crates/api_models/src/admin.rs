@@ -721,45 +721,29 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
-    pub fn merge(&mut self, other: Self) {
-        let Self {
-            webhook_version,
-            webhook_username,
-            webhook_password,
-            webhook_url,
-            payment_created_enabled,
-            payment_succeeded_enabled,
-            payment_failed_enabled,
-            payment_statuses_enabled,
-            refund_statuses_enabled,
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            webhook_url: other.webhook_url.or(self.webhook_url),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
             #[cfg(feature = "payouts")]
-            payout_statuses_enabled,
-        } = self;
-
-        *webhook_version = other.webhook_version.or(webhook_version.take());
-        *webhook_username = other.webhook_username.or(webhook_username.take());
-        *webhook_password = other.webhook_password.or(webhook_password.take());
-        *webhook_url = other.webhook_url.or(webhook_url.take());
-        *payment_created_enabled = other
-            .payment_created_enabled
-            .or(payment_created_enabled.take());
-        *payment_succeeded_enabled = other
-            .payment_succeeded_enabled
-            .or(payment_succeeded_enabled.take());
-        *payment_failed_enabled = other
-            .payment_failed_enabled
-            .or(payment_failed_enabled.take());
-        *payment_statuses_enabled = other
-            .payment_statuses_enabled
-            .or(payment_statuses_enabled.take());
-        *refund_statuses_enabled = other
-            .refund_statuses_enabled
-            .or(refund_statuses_enabled.take());
-        #[cfg(feature = "payouts")]
-        {
-            *payout_statuses_enabled = other
+            payout_statuses_enabled: other
                 .payout_statuses_enabled
-                .or(payout_statuses_enabled.take());
+                .or(self.payout_statuses_enabled),
         }
     }
 

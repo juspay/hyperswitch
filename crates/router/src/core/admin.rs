@@ -3843,19 +3843,16 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
         let webhook_details = self
             .webhook_details
-            .and_then(|webhook_details| {
-                let mut existing_webhook_details = business_profile
+            .map(|webhook_details| {
+                let existing_webhook_details = business_profile
                     .webhook_details
                     .clone()
                     .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
 
-                if let Some(existing_details) = existing_webhook_details.as_mut() {
-                    existing_details.merge(webhook_details);
-                } else {
-                    existing_webhook_details = Some(webhook_details);
+                match existing_webhook_details {
+                    Some(existing_details) => existing_details.merge(webhook_details),
+                    None => webhook_details,
                 }
-
-                existing_webhook_details
             })
             .map(ForeignInto::foreign_into);
 
