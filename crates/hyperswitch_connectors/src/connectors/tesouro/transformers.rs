@@ -351,7 +351,7 @@ pub struct TesouroCardWithPanDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroNetworkTokenPassThroughDetails {
-    pub cryptogram: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub token_value: cards::CardNumber,
@@ -495,7 +495,7 @@ impl TryFrom<(&ApplePayWalletData, Option<&PaymentMethodToken>)> for TesouroPaym
 
         let network_token_details = TesouroNetworkTokenPassThroughDetails {
             expiration_year: apple_pay_data.get_four_digit_expiry_year(),
-            cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
+            cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
             token_value: apple_pay_data.application_primary_account_number,
             expiration_month: apple_pay_data.application_expiration_month,
             ecommerce_indicator: apple_pay_data.payment_data.eci_indicator,
@@ -519,11 +519,7 @@ impl TryFrom<(&GooglePayWalletData, Option<&PaymentMethodToken>)> for TesouroPay
                 .change_context(errors::ConnectorError::InvalidWalletToken {
                     wallet_name: "Google Pay".to_string(),
                 })?,
-            cryptogram: google_pay_data.cryptogram.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "google pay data cryptogram",
-                },
-            )?,
+            cryptogram: google_pay_data.cryptogram,
             token_value: google_pay_data.application_primary_account_number,
             expiration_month: google_pay_data.card_exp_month,
             ecommerce_indicator: google_pay_data.eci_indicator,
