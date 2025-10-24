@@ -17,6 +17,7 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
+use common_utils::errors::ErrorSwitch;
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 use crate::core::unified_connector_service::build_unified_connector_service_auth_metadata;
@@ -182,13 +183,14 @@ async fn execute_payment_authorize(
     // Build GRPC request
     let payment_authorize_request =
         payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
-            .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+            .change_context(ConnectorError::RequestEncodingFailed)?;
 
     // Build auth metadata
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         merchant_context,
-    )?;
+    )
+    .change_context(ConnectorError::FailedToObtainAuthType)?;
 
     // Build GRPC headers
     let merchant_order_reference_id = build_merchant_reference_id(header_payload);
@@ -239,7 +241,7 @@ async fn execute_payment_authorize(
         },
     ))
     .await
-    .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+    .map_err(|err| err.change_context(ConnectorError::ProcessingStepFailed(None)))?;
 
     Ok(updated_router_data)
 }
@@ -271,13 +273,14 @@ async fn execute_payment_repeat(
     // Build GRPC request
     let payment_repeat_request =
         payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
-            .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+            .change_context(ConnectorError::RequestEncodingFailed)?;
 
     // Build auth metadata
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         merchant_context,
-    )?;
+    )
+    .change_context(ConnectorError::FailedToObtainAuthType)?;
 
     // Build GRPC headers
     let merchant_order_reference_id = build_merchant_reference_id(header_payload);
@@ -324,7 +327,7 @@ async fn execute_payment_repeat(
         },
     ))
     .await
-    .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+    .map_err(|err| err.change_context(ConnectorError::ProcessingStepFailed(None)))?;
 
     Ok(updated_router_data)
 }

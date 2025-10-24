@@ -22,9 +22,6 @@ use hyperswitch_domain_models::{
     router_data::RouterData,
 };
 
-#[cfg(feature = "v2")]
-use external_services::grpc_client::LineageIds;
-
 /// Minimal trait that gateway context must implement
 ///
 /// This allows the framework to extract execution metadata without knowing
@@ -75,47 +72,47 @@ where
     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
 }
 
-// /// Direct gateway implementation
-// ///
-// /// Executes payment operations through traditional HTTP connector integration.
-// /// This is the default execution path and maintains backward compatibility.
-// #[derive(Debug, Clone, Copy)]
-// pub struct DirectGateway;
+/// Direct gateway implementation
+///
+/// Executes payment operations through traditional HTTP connector integration.
+/// This is the default execution path and maintains backward compatibility.
+#[derive(Debug, Clone, Copy)]
+pub struct DirectGateway;
 
-// #[async_trait]
-// impl<State, ConnectorData, F, Req, Resp, Context>
-//     PaymentGateway<State, ConnectorData, F, Req, Resp, Context> for DirectGateway
-// where
-//     State: Clone + Send + Sync + 'static + ApiClientWrapper,
-//     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
-//     F: Clone + std::fmt::Debug + Send + Sync + 'static,
-//     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-//     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-//     Context: GatewayContext + 'static,
-// {
-//     async fn execute(
-//         self: Box<Self>,
-//         state: &State,
-//         connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
-//         router_data: &RouterData<F, Req, Resp>,
-//         call_connector_action: CallConnectorAction,
-//         connector_request: Option<Request>,
-//         return_raw_connector_response: Option<bool>,
-//         _context: Context,
-//     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
-//         // Direct gateway delegates to the existing execute_connector_processing_step
-//         // This maintains backward compatibility with the traditional HTTP-based flow
-//         api_client::execute_connector_processing_step(
-//             state,
-//             connector_integration,
-//             router_data,
-//             call_connector_action,
-//             connector_request,
-//             return_raw_connector_response,
-//         )
-//         .await
-//     }
-// }
+#[async_trait]
+impl<State, ConnectorData, F, Req, Resp, Context>
+    PaymentGateway<State, ConnectorData, F, Req, Resp, Context> for DirectGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext + 'static,
+{
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+        _context: Context,
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+        // Direct gateway delegates to the existing execute_connector_processing_step
+        // This maintains backward compatibility with the traditional HTTP-based flow
+        api_client::execute_connector_processing_step(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+    }
+}
 
 pub trait FlowGateway<State, ConnectorData, Req, Resp, Context>:
     Clone + std::fmt::Debug + Send + Sync + 'static
@@ -135,65 +132,6 @@ where
         execution_path: ExecutionPath,
     ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context>>;
 }
-
-/// Factory for creating appropriate gateway instances
-///
-/// Note: This factory now uses the FlowGateway trait to delegate gateway creation
-/// to the flow type itself. Each flow (api::Authorize, api::PSync, etc.) implements
-/// FlowGateway to provide its specific gateway based on execution path.
-#[derive(Debug, Clone, Copy)]
-pub struct GatewayFactory;
-
-impl GatewayFactory {
-    pub fn create<State, ConnectorData, F, Req, Resp, Context>(
-        execution_path: ExecutionPath,
-    ) -> Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>>
-    where
-        State: Clone + Send + Sync + 'static + ApiClientWrapper,
-        ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
-        F: Clone + std::fmt::Debug + Send + Sync + 'static + FlowGateway<State, ConnectorData, Req, Resp, Context>,
-        Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-        Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-        Context: GatewayContext,
-    {
-        // Delegate to the flow's FlowGateway implementation
-        F::get_gateway(execution_path)
-    }
-}
-
-/// Empty context for DirectGateway (backward compatibility)
-#[derive(Debug, Clone, Copy)]
-pub struct EmptyContext;
-
-impl GatewayContext for EmptyContext {
-    fn execution_path(&self) -> ExecutionPath {
-        ExecutionPath::Direct
-    }
-    
-    fn execution_mode(&self) -> ExecutionMode {
-        ExecutionMode::Primary
-    }
-}
-
-// impl<State, ConnectorData, Req, Resp> FlowGateway<State, ConnectorData, Req, Resp, EmptyContext>
-//     for DirectGateway
-// where
-//     State: Clone + Send + Sync + 'static + ApiClientWrapper,
-//     ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
-//     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-//     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-// {
-//     fn get_gateway(
-//         execution_path: ExecutionPath,
-//     ) -> Box<
-//         dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, EmptyContext>,
-//     > {
-//         match execution_path {
-//             ExecutionPath::Direct => Box::new(DirectGateway),
-//             _ => Box::new(DirectGateway), // DirectGateway is the only implementation here
-//         }
-//     }
-// }
 
 /// Execute payment gateway operation (backward compatible version)
 ///
@@ -216,21 +154,11 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     Context: GatewayContext,
 {
-    match context {
-        Some(ctx) => {
-            // Use provided context
-            execute_payment_gateway_with_context::<State, ConnectorData, F, Req, Resp, Context>(
-                state,
-                connector_integration,
-                router_data,
-                call_connector_action,
-                connector_request,
-                return_raw_connector_response,
-                ctx,
-            )
-            .await
-        }
-        None => {
+    let context = context.expect("Context must be provided for UCS execution");
+    let execution_path = context.execution_path();
+
+    match execution_path {
+        ExecutionPath::Direct => {             
             // Use direct execution for backward compatibility
             api_client::execute_connector_processing_step(
                 state,
@@ -241,65 +169,27 @@ where
                 return_raw_connector_response,
             )
             .await
-            .to_payment_failed_response()
         }
+        ExecutionPath::UnifiedConnectorService => {     
+            let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>> =
+            F::get_gateway(execution_path);
+            
+
+            // Execute through selected gateway
+            gateway
+                .execute(
+                    state,
+                    connector_integration,
+                    router_data,
+                    call_connector_action,
+                    connector_request,
+                    return_raw_connector_response,
+                    context,
+                )
+                .await
+                .attach_printable("Gateway execution failed")
+        } 
+        ExecutionPath::ShadowUnifiedConnectorService => { todo!("Implement shadow execution path") }
+        
     }
-}
-
-/// Execute payment gateway operation with context
-///
-/// This is the main entry point for gateway-based execution with full UCS support.
-/// The context determines which gateway implementation to use.
-///
-/// # Arguments
-///
-/// * `state` - Application state with API client and configuration
-/// * `connector_integration` - Connector-specific integration implementation
-/// * `router_data` - Payment operation data and context
-/// * `call_connector_action` - Action to perform (Trigger, HandleResponse, etc.)
-/// * `connector_request` - Pre-built connector request (optional)
-/// * `return_raw_connector_response` - Whether to include raw response in result
-/// * `context` - Gateway execution context (implementation-defined type)
-///
-/// # Returns
-///
-/// Updated RouterData with response from the gateway execution
-pub async fn execute_payment_gateway_with_context<State, ConnectorData, F, Req, Resp, Context>(
-    state: &State,
-    connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
-    router_data: &RouterData<F, Req, Resp>,
-    call_connector_action: CallConnectorAction,
-    connector_request: Option<Request>,
-    return_raw_connector_response: Option<bool>,
-    context: Context,
-) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>
-where
-    State: Clone + Send + Sync + 'static + ApiClientWrapper,
-    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
-    F: Clone + std::fmt::Debug + Send + Sync + 'static + FlowGateway<State, ConnectorData, Req, Resp, Context>,
-    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Context: GatewayContext,
-{
-    // Extract execution path from context
-    let execution_path = context.execution_path();
-
-    // Create appropriate gateway based on execution path
-    // The flow type F implements FlowGateway, which provides the correct gateway
-    let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>> =
-        F::get_gateway(execution_path);
-
-    // Execute through selected gateway
-    gateway
-        .execute(
-            state,
-            connector_integration,
-            router_data,
-            call_connector_action,
-            connector_request,
-            return_raw_connector_response,
-            context,
-        )
-        .await
-        .attach_printable("Gateway execution failed")
 }

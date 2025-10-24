@@ -3,6 +3,7 @@
 use common_enums::ApiClientError;
 use common_utils::errors::ErrorSwitch;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+use crate::unified_connector_service::transformers::UnifiedConnectorServiceError;
 
 /// Connector Errors
 #[allow(missing_docs, missing_debug_implementations)]
@@ -163,6 +164,60 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
                 ApiErrorResponse::WebhookInvalidMerchantSecret
             }
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for ApiErrorResponse {
+    fn switch(&self) -> ConnectorError {
+        match self {
+            Self::WebhookAuthenticationFailed => ConnectorError::WebhookSourceVerificationFailed,
+            Self::WebhookBadRequest => ConnectorError::WebhookBodyDecodingFailed,
+            Self::WebhookUnprocessableEntity => ConnectorError::WebhookEventTypeNotFound,
+            Self::WebhookInvalidMerchantSecret => ConnectorError::WebhookVerificationSecretInvalid,
+            Self::PaymentAuthorizationFailed { .. }
+            | Self::PaymentAuthenticationFailed { .. }
+            | Self::PaymentCaptureFailed { .. }
+            | Self::RefundFailed { .. }
+            | Self::VerificationFailed { .. }
+            | Self::DisputeFailed { .. } => ConnectorError::ProcessingStepFailed(None),
+            _ => ConnectorError::ProcessingStepFailed(None),
+        }
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ConnectorError {
+        match self {
+            Self::ConnectionError(_) => ConnectorError::ProcessingStepFailed(None),
+            Self::RequestEncodingFailed | Self::RequestEncodingFailedWithReason(_) => {
+                ConnectorError::RequestEncodingFailed
+            }
+            Self::ResponseDeserializationFailed => ConnectorError::ResponseDeserializationFailed,
+            Self::InvalidConnectorName => ConnectorError::InvalidConnectorName,
+            Self::MissingConnectorName => ConnectorError::FailedToObtainIntegrationUrl,
+            Self::MissingRequiredField { field_name } => {
+                ConnectorError::MissingRequiredField {
+                    field_name: *field_name,
+                }
+            }
+            Self::MissingRequiredFields { field_names } => {
+                ConnectorError::MissingRequiredFields {
+                    field_names: field_names.clone(),
+                }
+            }
+            Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            Self::ParsingFailed => ConnectorError::ParsingFailed,
+            Self::InvalidDataFormat { field_name } => ConnectorError::InvalidDataFormat {
+                field_name: *field_name,
+            },
+            Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
+            Self::HeaderInjectionFailed(_) => ConnectorError::ProcessingStepFailed(None),
+            Self::PaymentAuthorizeFailure
+            | Self::PaymentGetFailure
+            | Self::PaymentRegisterFailure
+            | Self::PaymentRepeatEverythingFailure
+            | Self::WebhookTransformFailure => ConnectorError::ProcessingStepFailed(None),
         }
     }
 }
