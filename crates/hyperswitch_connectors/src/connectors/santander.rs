@@ -59,8 +59,9 @@ use crate::{
         },
         responses::{
             QrDataUrlSantander, SanatanderAccessTokenResponse, SantanderErrorResponse,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixVoidResponse,
-            SantanderRefundResponse, SantanderWebhookBody,
+            SantanderGenericErrorResponse, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderPixVoidResponse, SantanderRefundResponse,
+            SantanderWebhookBody,
         },
     },
     constants::headers,
@@ -340,25 +341,6 @@ impl ConnectorCommon for Santander {
                     connector_metadata: None,
                 })
             }
-            SantanderErrorResponse::Generic(response) => {
-                let message = response
-                    .detail
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
-
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: response.status.as_str().unwrap_or("UNKNOWN").to_string(),
-                    message,
-                    reason: response.detail.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                })
-            }
             SantanderErrorResponse::Boleto(response) => Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.to_string(),
@@ -378,6 +360,60 @@ impl ConnectorCommon for Santander {
                 network_error_message: None,
                 connector_metadata: None,
             }),
+            SantanderErrorResponse::Generic(error_response) => match error_response {
+                SantanderGenericErrorResponse::Pattern1(response) => {
+                    let message = response
+                        .detail
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: response.status.as_str().unwrap_or("UNKNOWN").to_string(),
+                        message,
+                        reason: response.detail.clone(),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+                SantanderGenericErrorResponse::Pattern2(response) => {
+                    let message = response.details;
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                        message: message.clone(),
+                        reason: Some(message),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+                SantanderGenericErrorResponse::Pattern3(response) => {
+                    let message = response.fault.fault_string;
+                    let detail = response.fault.detail.error_code;
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                        message: message.clone(),
+                        reason: Some(detail),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+            },
         }
     }
 }

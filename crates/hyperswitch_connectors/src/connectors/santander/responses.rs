@@ -352,6 +352,32 @@ pub enum SantanderErrorResponse {
     Generic(SantanderGenericErrorResponse),
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderGenericErrorResponse {
+    Pattern1(SantanderPattern1ErrorResponse),
+    Pattern2(SantanderPattern2ErrorResponse),
+    Pattern3(SantanderPattern3ErrorResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPattern3ErrorResponse {
+    pub fault: FaultError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FaultError {
+    #[serde(rename = "faultstring")]
+    pub fault_string: String,
+    pub detail: DetailError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetailError {
+    #[serde(rename = "errorcode")]
+    pub error_code: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderBoletoErrorResponse {
     #[serde(rename = "_errorCode")]
@@ -369,14 +395,22 @@ pub struct SantanderBoletoErrorResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderGenericErrorResponse {
+pub struct SantanderPattern1ErrorResponse {
     #[serde(rename = "type")]
     pub card_type: String,
     pub title: String,
     pub status: serde_json::Value,
     pub detail: Option<String>,
     #[serde(rename = "correlationId")]
-    pub correlation_id: String,
+    pub correlation_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPattern2ErrorResponse {
+    pub timestamp: String,
+    pub http_status: String,
+    pub details: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
