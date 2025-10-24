@@ -138,6 +138,19 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -170,9 +183,9 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            setup_future_usage: None,
-            off_session: None,
-            customer_acceptance: None,
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            off_session: router_data.request.off_session,
+            customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
             authentication_data,
@@ -208,6 +221,7 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -263,6 +277,19 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -295,9 +322,9 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            setup_future_usage: None,
-            off_session: None,
-            customer_acceptance: None,
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            off_session: router_data.request.off_session,
+            customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
             authentication_data,
@@ -339,6 +366,7 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -403,7 +431,8 @@ impl
                 .customer_name
                 .clone()
                 .map(|customer_name| customer_name.peek().to_owned()),
-            connector_customer_id: router_data
+            connector_customer_id: router_data.connector_customer.clone(),
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -445,6 +474,7 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -528,6 +558,7 @@ impl
             test_mode: None,
             payment_method_type: None,
             access_token: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -560,7 +591,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
         };
 
-        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+        let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
@@ -585,6 +616,20 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             },
             None => (None, None),
         };
+
+        // Extract connector_metadata from response if present and not already set by UPI intent handling
+        if connector_metadata.is_none() && !response.connector_metadata.is_empty() {
+            connector_metadata = serde_json::to_value(&response.connector_metadata)
+                .map_err(|e| {
+                    tracing::warn!(
+                        serialization_error=?e,
+                        metadata=?response.connector_metadata,
+                        "Failed to serialize connector_metadata from UCS response"
+                    );
+                    e
+                })
+                .ok();
+        }
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -613,7 +658,14 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: grpc_mandate.payment_method_id,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
                     connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
@@ -748,6 +800,25 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
+        // Extract connector_metadata from response if present
+        let connector_metadata = if !response.connector_metadata.is_empty() {
+            serde_json::to_value(&response.connector_metadata)
+                .map_err(|e| {
+                    tracing::warn!(
+                        serialization_error=?e,
+                        metadata=?response.connector_metadata,
+                        "Failed to serialize connector_metadata from UCS repeat payment response"
+                    );
+                    e
+                })
+                .ok()
+        } else {
+            None
+        };
+
+        // For ErrorResponse, wrap in Secret
+        let connector_metadata_secret = connector_metadata.clone().map(masking::Secret::new);
+
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
@@ -763,7 +834,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
-                connector_metadata: None,
+                connector_metadata: connector_metadata_secret,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -775,7 +846,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 },
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: response.network_txn_id.clone(),
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,

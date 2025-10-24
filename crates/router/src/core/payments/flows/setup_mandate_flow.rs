@@ -21,7 +21,8 @@ use crate::{
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_register, ucs_logging_wrapper,
+            handle_unified_connector_service_response_for_payment_register,
+            populate_connector_customer_id_from_ucs_state, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -354,6 +355,12 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 });
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
+
+                // Extract connector_customer_id from UCS state
+                populate_connector_customer_id_from_ucs_state(
+                    &mut router_data,
+                    payment_register_response.state.as_ref(),
+                );
 
                 Ok((router_data, payment_register_response))
             },

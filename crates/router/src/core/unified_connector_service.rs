@@ -758,6 +758,33 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     Ok((router_data_response, status_code))
 }
 
+/// Extracts and populates connector_customer_id from UCS state into router_data
+pub fn populate_connector_customer_id_from_ucs_state<F, Req, Resp>(
+    router_data: &mut RouterData<F, Req, Resp>,
+    ucs_state: Option<&payments_grpc::ConnectorState>,
+) {
+    if let Some(state) = ucs_state {
+        if let Some(connector_customer_id) = &state.connector_customer_id {
+            router_data.connector_customer = Some(connector_customer_id.to_string());
+        }
+    }
+}
+
+/// Extracts and populates connector_response from UCS response into router_data
+pub fn populate_connector_response_from_ucs<F, Req, Resp>(
+    router_data: &mut RouterData<F, Req, Resp>,
+    connector_response: Option<&payments_grpc::ConnectorResponseData>,
+) -> RouterResult<()> {
+    router_data.connector_response = connector_response
+        .map(|data| {
+            <hyperswitch_domain_models::router_data::ConnectorResponseData as hyperswitch_interfaces::helpers::ForeignTryFrom<payments_grpc::ConnectorResponseData>>::foreign_try_from(data.clone())
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize connector_response from UCS")?;
+    Ok(())
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
