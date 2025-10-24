@@ -24,6 +24,7 @@ use crate::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
+    utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
@@ -168,6 +169,32 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     }
 }
 
+#[derive(Default, Deserialize, Clone, Debug)]
+pub struct StripeCommonIntentFields {
+    pub confirm: Option<bool>,
+    pub customer: Option<id_type::CustomerId>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
+    pub description: Option<String>,
+    pub currency: Option<String>,
+    pub payment_method_data: Option<StripePaymentMethodData>,
+    pub receipt_email: Option<Email>,
+    pub return_url: Option<url::Url>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub shipping: Option<Shipping>,
+    pub billing_details: Option<StripeBillingDetails>,
+    pub statement_descriptor: Option<String>,
+    pub statement_descriptor_suffix: Option<String>,
+    pub metadata: Option<SecretSerdeValue>,
+    pub client_secret: Option<masking::Secret<String>>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub payment_method: Option<String>,
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    pub receipt_ipaddress: Option<String>,
+    pub user_agent: Option<String>,
+    pub mandate_data: Option<MandateData>,
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
+}
+
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
@@ -247,46 +274,27 @@ pub struct OnlineMandate {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
+    #[serde(flatten)]
+    pub common_fields: StripeCommonIntentFields,
     pub id: Option<id_type::PaymentId>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
-    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
-    pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
-    pub confirm: Option<bool>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub customer: Option<id_type::CustomerId>,
-    pub description: Option<String>,
-    pub payment_method_data: Option<StripePaymentMethodData>,
-    pub receipt_email: Option<Email>,
-    pub return_url: Option<url::Url>,
-    pub setup_future_usage: Option<api_enums::FutureUsage>,
-    pub shipping: Option<Shipping>,
-    pub statement_descriptor: Option<String>,
-    pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<serde_json::Value>,
-    pub client_secret: Option<masking::Secret<String>>,
-    pub payment_method_options: Option<StripePaymentMethodOptions>,
-    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate: Option<String>,
     pub off_session: Option<bool>,
     pub payment_method_types: Option<api_enums::PaymentMethodType>,
-    pub receipt_ipaddress: Option<String>,
-    pub user_agent: Option<String>,
-    pub mandate_data: Option<MandateData>,
     pub automatic_payment_methods: Option<SecretSerdeValue>, // not used
-    pub payment_method: Option<String>,                      // not used
     pub confirmation_method: Option<String>,                 // not used
     pub error_on_requires_action: Option<String>,            // not used
     pub radar_options: Option<SecretSerdeValue>,             // not used
-    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.common_fields.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector
             .map(|connector| {
@@ -306,6 +314,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .transpose()?;
 
         let ip_address = item
+            .common_fields
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
             .transpose()
@@ -316,7 +325,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
         let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
 
-        let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
+        let payment_method_data = item.common_fields.payment_method_data.as_ref().map(|pmd| {
             let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
@@ -332,10 +341,20 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             }
         });
 
+        let metadata_object = item
+            .common_fields
+            .metadata
+            .clone()
+            .parse_value("metadata")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            })?;
+
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount,
             currency: item
+                .common_fields
                 .currency
                 .as_ref()
                 .map(|c| c.to_uppercase().parse_enum("currency"))
@@ -345,29 +364,32 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 })?,
             capture_method: item.capture_method,
             amount_to_capture: item.amount_capturable.map(MinorUnit::new),
-            confirm: item.confirm,
-            customer_id: item.customer,
-            email: item.receipt_email,
-            phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
-            description: item.description,
-            return_url: item.return_url,
+            confirm: item.common_fields.confirm,
+            customer_id: item.common_fields.customer,
+            email: item.common_fields.receipt_email,
+            phone: item.common_fields.shipping.as_ref().and_then(|s| s.phone.clone()),
+            description: item.common_fields.description,
+            return_url: item.common_fields.return_url,
             payment_method_data,
             payment_method: item
+                .common_fields
                 .payment_method_data
                 .as_ref()
                 .map(|pmd| api_enums::PaymentMethod::from(pmd.stype.to_owned())),
             shipping: item
+                .common_fields
                 .shipping
                 .as_ref()
                 .map(|s| payments::Address::from(s.to_owned())),
             billing: item
+                .common_fields
                 .payment_method_data
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
-            statement_descriptor_name: item.statement_descriptor,
-            statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata,
-            client_secret: item.client_secret.map(|s| s.peek().clone()),
-            authentication_type: match item.payment_method_options {
+            statement_descriptor_name: item.common_fields.statement_descriptor,
+            statement_descriptor_suffix: item.common_fields.statement_descriptor_suffix,
+            metadata: metadata_object,
+            client_secret: item.common_fields.client_secret.map(|s| s.peek().clone()),
+            authentication_type: match item.common_fields.payment_method_options {
                 Some(pmo) => {
                     let StripePaymentMethodOptions::Card {
                         request_three_d_secure,
@@ -379,11 +401,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 None => None,
             },
             mandate_data: ForeignTryFrom::foreign_try_from((
-                item.mandate_data,
-                item.currency.to_owned(),
+                item.common_fields.mandate_data,
+                item.common_fields.currency.to_owned(),
             ))?,
-            merchant_connector_details: item.merchant_connector_details,
-            setup_future_usage: item.setup_future_usage,
+            merchant_connector_details: item.common_fields.merchant_connector_details,
+            setup_future_usage: item.common_fields.setup_future_usage,
             mandate_id: item.mandate,
             off_session: item.off_session,
             payment_method_type: item.payment_method_types,
@@ -391,13 +413,13 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
                     ip_address,
-                    user_agent: item.user_agent,
+                    user_agent: item.common_fields.user_agent,
                     ..Default::default()
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-            connector_metadata: item.connector_metadata,
+            connector_metadata: item.common_fields.connector_metadata,
             ..Self::default()
         });
         request
