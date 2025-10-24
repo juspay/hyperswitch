@@ -7929,7 +7929,7 @@ pub struct GooglePaySessionResponse {
     pub email_required: bool,
     /// Shipping address parameters
     pub shipping_address_parameters: GpayShippingAddressParameters,
-    /// List of the allowed payment meythods
+    /// List of the allowed payment methods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
     pub transaction_info: GpayTransactionInfo,
@@ -7960,6 +7960,7 @@ pub struct SamsungPaySessionTokenResponse {
     /// Payment protocol type
     pub protocol: SamsungPayProtocolType,
     /// List of supported card brands
+    #[schema(value_type = Vec<String>)]
     pub allowed_brands: Vec<String>,
     /// Is billing address required to be collected from wallet
     pub billing_address_required: bool,

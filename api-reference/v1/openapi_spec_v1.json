@@ -6895,13 +6895,70 @@
               "examples": {
                 "Create and confirm subscription": {
                   "value": {
-                    "billing_details": {
-                      "email": "john@example.com",
-                      "name": "John Doe"
+                    "billing": {
+                      "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "phone": {
+                        "country_code": "+1",
+                        "number": "123456789"
+                      }
                     },
                     "customer_id": "cust_123456789",
-                    "payment_method_id": "pm_1234567890",
-                    "plan_id": "plan_monthly_basic"
+                    "description": "Hello this is description",
+                    "item_price_id": "standard-plan-USD-Monthly",
+                    "merchant_reference_id": "mer_ref_123456789",
+                    "payment_details": {
+                      "authentication_type": "no_three_ds",
+                      "capture_method": "automatic",
+                      "customer_acceptance": {
+                        "acceptance_type": "online",
+                        "accepted_at": "1963-05-03T04:07:52.723Z",
+                        "online": {
+                          "ip_address": "127.0.0.1",
+                          "user_agent": "amet irure esse"
+                        }
+                      },
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_cvc": "737",
+                          "card_exp_month": "03",
+                          "card_exp_year": "2030",
+                          "card_holder_name": "CLBRW dffdg",
+                          "card_number": "4000000000000002"
+                        }
+                      },
+                      "payment_method_type": "credit",
+                      "payment_type": "setup_mandate",
+                      "return_url": "https://google.com",
+                      "setup_future_usage": "off_session"
+                    },
+                    "shipping": {
+                      "address": {
+                        "city": "Banglore",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "doe",
+                        "line1": "sdsdfsdf",
+                        "line2": "hsgdbhd",
+                        "line3": "alsksoe",
+                        "state": "zsaasdas",
+                        "zip": "571201"
+                      },
+                      "phone": {
+                        "country_code": "+1",
+                        "number": "123456789"
+                      }
+                    }
                   }
                 }
               }
@@ -6963,11 +7020,13 @@
                 "Create subscription": {
                   "value": {
                     "customer_id": "cust_123456789",
-                    "metadata": {
-                      "source": "web_app"
-                    },
-                    "plan_id": "plan_monthly_basic",
-                    "trial_days": 7
+                    "item_price_id": "standard-plan-USD-Monthly",
+                    "payment_details": {
+                      "authentication_type": "no_three_ds",
+                      "capture_method": "automatic",
+                      "return_url": "https://google.com",
+                      "setup_future_usage": "off_session"
+                    }
                   }
                 }
               }
@@ -7037,9 +7096,61 @@
               "examples": {
                 "Confirm subscription": {
                   "value": {
-                    "client_secret": "seti_1234567890_secret_abcdef",
-                    "payment_method_id": "pm_1234567890",
-                    "return_url": "https://example.com/return"
+                    "payment_details": {
+                      "billing": {
+                        "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "line3": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
+                        },
+                        "phone": {
+                          "country_code": "+1",
+                          "number": "123456789"
+                        }
+                      },
+                      "customer_acceptance": {
+                        "acceptance_type": "online",
+                        "accepted_at": "1963-05-03T04:07:52.723Z",
+                        "online": {
+                          "ip_address": "127.0.0.1",
+                          "user_agent": "amet irure esse"
+                        }
+                      },
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_cvc": "737",
+                          "card_exp_month": "03",
+                          "card_exp_year": "2030",
+                          "card_holder_name": "CLBRW dffdg",
+                          "card_number": "4111111111111111"
+                        }
+                      },
+                      "payment_method_type": "credit",
+                      "shipping": {
+                        "address": {
+                          "city": "Banglore",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "doe",
+                          "line1": "sdsdfsdf",
+                          "line2": "hsgdbhd",
+                          "line3": "alsksoe",
+                          "state": "zsaasdas",
+                          "zip": "571201"
+                        },
+                        "phone": {
+                          "country_code": "+1",
+                          "number": "123456789"
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -7165,11 +7276,8 @@
               "examples": {
                 "Update subscription": {
                   "value": {
-                    "metadata": {
-                      "updated_reason": "plan_upgrade"
-                    },
-                    "plan_id": "plan_yearly_premium",
-                    "proration_behavior": "create_prorations"
+                    "item_price_id": "cbdemo_enterprise-suite-monthly",
+                    "plan_id": "cbdemo_enterprise-suite"
                   }
                 }
               }
@@ -7257,7 +7365,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Plans retrieved successfully",
+            "description": "List of available subscription plans",
             "content": {
               "application/json": {
                 "schema": {
@@ -17353,7 +17461,7 @@
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
             },
-            "description": "List of the allowed payment meythods"
+            "description": "List of the allowed payment methods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"

@@ -12640,7 +12640,7 @@
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
             },
-            "description": "List of the allowed payment meythods"
+            "description": "List of the allowed payment methods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
