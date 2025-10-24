@@ -324,14 +324,6 @@ pub async fn confirm_subscription(
     };
 
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
-    let customer = SubscriptionHandler::find_customer(
-        &state,
-        &merchant_context,
-        &subscription_entry.subscription.customer_id,
-    )
-    .await
-    .attach_printable("subscriptions: failed to find customer")?;
-
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
         .get_latest_invoice(&state)
@@ -356,6 +348,13 @@ pub async fn confirm_subscription(
         profile.clone(),
     )
     .await?;
+    let customer = SubscriptionHandler::find_customer(
+        &state,
+        &merchant_context,
+        &subscription_entry.subscription.customer_id,
+    )
+    .await
+    .attach_printable("subscriptions: failed to find customer")?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 
