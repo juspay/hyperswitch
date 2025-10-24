@@ -1301,7 +1301,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::RevolutPay
                     | enums::PaymentMethodType::Breadpay
                     | enums::PaymentMethodType::UpiQr
-                    | enums::PaymentMethodType::Payjustnow => {
+                    | enums::PaymentMethodType::Payjustnow
+                    | enums::PaymentMethodType::NetworkToken => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
