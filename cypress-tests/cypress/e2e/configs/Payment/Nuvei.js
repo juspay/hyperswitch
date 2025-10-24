@@ -2,11 +2,11 @@ import { customerAcceptance } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "08",
-  card_exp_year: "30",
+  card_number: "4444333322221111",
+  card_exp_month: "12",
+  card_exp_year: "25",
   card_holder_name: "joseph Doe",
-  card_cvc: "999",
+  card_cvc: "123",
 };
 // Test card details based on Nuvei test cards (from Rust tests)
 const successfulThreeDSCardDetails = {
@@ -137,6 +137,12 @@ export const connectorDetails = {
     },
     // No 3DS manual capture
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -181,6 +187,12 @@ export const connectorDetails = {
     },
     // 3DS manual capture
     "3DSManualCapture": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -506,6 +518,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
