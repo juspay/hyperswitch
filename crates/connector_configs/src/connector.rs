@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
+    enums::{AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors},
     payments,
 };
 use serde::{Deserialize, Serialize};
@@ -415,6 +415,20 @@ impl ConnectorConfig {
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
+        }
+    }
+
+    pub fn get_billing_connector_config(
+        connector: BillingConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            BillingConnectors::Chargebee => Ok(connector_data.chargebee),
+            BillingConnectors::Stripebilling => Ok(connector_data.stripebilling),
+            BillingConnectors::Recurly => Ok(connector_data.recurly),
+            BillingConnectors::Custombilling => Ok(connector_data.custombilling),
+            #[cfg(feature = "dummy_connector")]
+            BillingConnectors::DummyBillingConnector => Ok(connector_data.dummy_connector),
         }
     }
 
