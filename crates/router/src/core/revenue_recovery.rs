@@ -602,34 +602,34 @@ pub async fn perform_calculate_workflow(
             );
         }
 
-        PaymentProcessorTokenResponse::NextAvailableTime { next_available_time } => {
-            
-                // Update scheduled time to next_available_time + Buffer
-                // here next_available_time is the wait time  
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "No token but time available, rescheduling for scheduled time "
-                );
+        PaymentProcessorTokenResponse::NextAvailableTime {
+            next_available_time,
+        } => {
+            // Update scheduled time to next_available_time + Buffer
+            // here next_available_time is the wait time
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "No token but time available, rescheduling for scheduled time "
+            );
 
-                update_calculate_job_schedule_time(
-                    db,
-                    process,
-                    time::Duration::seconds(
-                        state
-                            .conf
-                            .revenue_recovery
-                            .recovery_timestamp
-                            .job_schedule_buffer_time_in_seconds,
-                    ),
-                    Some(next_available_time),
-                    &connector_customer_id,
-                    retry_algorithm_type,
-                )
-                .await?;
+            update_calculate_job_schedule_time(
+                db,
+                process,
+                time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .job_schedule_buffer_time_in_seconds,
+                ),
+                Some(next_available_time),
+                &connector_customer_id,
+                retry_algorithm_type,
+            )
+            .await?;
         }
         PaymentProcessorTokenResponse::None => {
-                    
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
@@ -645,7 +645,7 @@ pub async fn perform_calculate_workflow(
                         .revenue_recovery
                         .recovery_timestamp
                         .job_schedule_buffer_time_in_seconds,
-                ) ,
+                ),
                 Some(common_utils::date_time::now()),
                 &connector_customer_id,
                 retry_algorithm_type,
@@ -684,7 +684,6 @@ pub async fn perform_calculate_workflow(
             );
         }
     }
-            
 
     let _outgoing_webhook = event_type.and_then(|event_kind| {
         payments_response.map(|resp| Some((event_kind, resp)))
