@@ -2788,6 +2788,7 @@ impl From<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseData
                 },
             ),
             capture_before: item.capture_before,
+            extended_authorization_last_applied_at: None,
         }
     }
 }
