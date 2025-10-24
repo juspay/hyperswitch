@@ -65,7 +65,7 @@ use router_env::{instrument, tracing};
 use serde_json::json;
 use transformers as nomupay;
 
-use crate::{constants::headers, utils};
+use crate::{constants::headers, utils, utils as connector_utils};
 #[cfg(feature = "payouts")]
 use crate::{types::ResponseRouterData, utils::RouterData as RouterDataTrait};
 
@@ -458,13 +458,24 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
             .parse_struct("NomupayPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency_code.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -724,13 +735,24 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
             .parse_struct("NomupayPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency_code.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
