@@ -4020,7 +4020,7 @@ fn build_connector_response(
 
     let extended_authorization_last_applied_at = extended_authentication_applied
         .filter(|val| *val.deref())
-        .and_then(|_| adyen_webhook_response.event_date);
+        .and(adyen_webhook_response.event_date);
 
     let extend_authorization_response = ExtendedAuthorizationResponseData {
         extended_authentication_applied,
