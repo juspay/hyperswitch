@@ -271,7 +271,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
             merchant_account_metadata: HashMap::new(),
         })
@@ -753,11 +753,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: grpc_mandate.payment_method_id,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id,
-                    incremental_authorization_allowed: None,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
                     charges: None,
                 },
                 status,
@@ -838,7 +845,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: None,
+                            payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
                         }

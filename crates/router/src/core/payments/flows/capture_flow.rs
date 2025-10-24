@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_utils::{id_type, ucs_types};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::{
@@ -250,6 +250,10 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                     response
                 });
                 router_data.response = router_data_response;
+                router_data.amount_captured = payment_capture_response.captured_amount;
+                router_data.minor_amount_captured = payment_capture_response
+                    .minor_captured_amount
+                    .map(MinorUnit::new);
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, payment_capture_response))
