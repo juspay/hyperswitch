@@ -198,7 +198,7 @@ where
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("UCS is disabled but received UCS webhook action")?
+                    .attach_printable("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received but UCS is disabled. These actions are only valid in UCS gateway")?
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger
@@ -212,14 +212,14 @@ where
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
-                router_env::logger::info!("UCS webhook action received, using UCS gateway");
+                router_env::logger::info!("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received, using UCS gateway");
                 (
                     GatewaySystem::UnifiedConnectorService,
                     ExecutionPath::UnifiedConnectorService,
                 )
             }
             CallConnectorAction::HandleResponse(_) => {
-                router_env::logger::info!("HandleResponse action received, using Direct gateway");
+                router_env::logger::info!("CallConnectorAction HandleResponse received, using Direct gateway");
                 (GatewaySystem::Direct, ExecutionPath::Direct)
             }
             CallConnectorAction::Trigger
