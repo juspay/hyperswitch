@@ -551,7 +551,9 @@ pub async fn perform_calculate_workflow(
         };
 
     match payment_processor_token_response {
-        revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime { scheduled_time } => {
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
+            scheduled_time,
+        } => {
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
@@ -602,16 +604,16 @@ pub async fn perform_calculate_workflow(
             );
         }
 
-
-        revenue_recovery_workflow::PaymentProcessorTokenResponse::NextAvailableTime { next_available_time } => {
-            
-                // Update scheduled time to next_available_time + Buffer
-                // here next_available_time is the wait time  
-                logger::info!(
-                    process_id = %process.id,
-                    connector_customer_id = %connector_customer_id,
-                    "No token but time available, rescheduling for scheduled time "
-                );
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::NextAvailableTime {
+            next_available_time,
+        } => {
+            // Update scheduled time to next_available_time + Buffer
+            // here next_available_time is the wait time
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "No token but time available, rescheduling for scheduled time "
+            );
 
             update_calculate_job_schedule_time(
                 db,
