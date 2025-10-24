@@ -327,15 +327,6 @@ fn decide_execution_path(
             GatewaySystem::Direct,
             ExecutionPath::ShadowUnifiedConnectorService,
         )),
-        // Revoke commit
-        // Case 5: DirectConnector with no previous gateway, shadow rollout enabled
-        // Use Direct as primary, but also execute UCS in shadow mode for comparison
-        (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
-            Ok((
-                GatewaySystem::Direct,
-                ExecutionPath::ShadowUnifiedConnectorService,
-            ))
-        }
 
         // Case 6: DirectConnector previously used Direct, shadow rollout enabled
         // Continue with Direct as primary, execute UCS in shadow mode for testing
