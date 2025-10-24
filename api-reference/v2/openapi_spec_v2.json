@@ -27482,24 +27482,6 @@
             "example": "www.ekart.com/webhooks",
             "nullable": true
           },
-          "payment_created_enabled": {
-            "type": "boolean",
-            "description": "If this property is true, a webhook message is posted whenever a new payment is created",
-            "example": true,
-            "nullable": true
-          },
-          "payment_succeeded_enabled": {
-            "type": "boolean",
-            "description": "If this property is true, a webhook message is posted whenever a payment is successful",
-            "example": true,
-            "nullable": true
-          },
-          "payment_failed_enabled": {
-            "type": "boolean",
-            "description": "If this property is true, a webhook message is posted whenever a payment fails",
-            "example": true,
-            "nullable": true
-          },
           "payment_statuses_enabled": {
             "type": "array",
             "items": {
