@@ -7964,6 +7964,7 @@ where
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 /// Helper function to save a new connector_customer_id from UCS to database
 /// This only saves if the ID doesn't already exist in the database
 async fn save_new_connector_customer_id_from_ucs(
