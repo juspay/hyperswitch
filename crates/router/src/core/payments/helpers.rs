@@ -8059,7 +8059,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
     MerchantConnectorAccountType,
@@ -8103,6 +8103,28 @@ where
         GatewaySystem::UnifiedConnectorService,
     )?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    // Extract merchant_order_reference_id from payment data for UCS audit trail
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
+    let (mut router_data, should_continue) = router_data
+        .call_preprocessing_through_unified_connector_service(
+            state,
+            &header_payload,
+            &lineage_ids,
+            merchant_connector_account.clone(),
+            merchant_context,
+            connector_data,
+            ExecutionMode::Primary, // UCS is called in primary mode
+            merchant_order_reference_id.clone(),
+        )
+        .await?;
+
     // Update trackers
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -8135,30 +8157,62 @@ where
     )
     .await?;
 
-    // Call UCS
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
+    // Based on the preprocessing response, decide whether to continue with UCS call
+    if should_continue {
+        router_data
+            .call_unified_connector_service(
+                state,
+                &header_payload,
+                lineage_ids,
+                merchant_connector_account.clone(),
+                merchant_context,
+                connector_data,
+                ExecutionMode::Primary, // UCS is called in primary mode
+                merchant_order_reference_id,
+            )
+            .await?;
+    }
 
-    // Extract merchant_order_reference_id from payment data for UCS audit trail
-    let merchant_order_reference_id = payment_data
-        .get_payment_intent()
-        .merchant_order_reference_id
-        .clone();
-
-    router_data
-        .call_unified_connector_service(
-            state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account.clone(),
-            merchant_context,
-            connector_data,
-            ExecutionMode::Primary, // UCS is called in primary mode
-            merchant_order_reference_id,
-        )
-        .await?;
+    // Save new connector_customer_id from UCS to database if it doesn't already exist
+    // Skip if ID was already populated from DB before UCS call
+    if was_populated_from_db {
+        router_env::logger::debug!(
+            "Skipping save - connector_customer_id was already in DB before UCS call - payment_id={}",
+            payment_data.get_payment_intent().payment_id.get_string_repr()
+        );
+    } else if let (
+        Some(connector_customer_id),
+        Some(ref connector_label_str),
+        Some(connector_name),
+    ) = (
+        &router_data.connector_customer,
+        &connector_label,
+        payment_data.get_payment_attempt().connector.as_ref(),
+    ) {
+        if let Ok(connector) = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+            merchant_connector_account.get_mca_id(),
+        ) {
+            save_new_connector_customer_id_from_ucs(
+                state,
+                connector_customer_id,
+                connector_label_str,
+                customer,
+                payment_data.get_payment_attempt(),
+                &connector,
+                merchant_context,
+                payment_data
+                    .get_payment_intent()
+                    .payment_id
+                    .get_string_repr()
+                    .to_string(),
+            )
+            .await
+            .ok();
+        }
+    }
 
     // Save new connector_customer_id from UCS to database if it doesn't already exist
     // Skip if ID was already populated from DB before UCS call
