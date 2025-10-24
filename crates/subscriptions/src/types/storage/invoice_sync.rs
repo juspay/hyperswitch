@@ -7,7 +7,8 @@ pub struct InvoiceSyncTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
-    pub connector_invoice_id: String,
+    // connector_invoice_id is optional because in some cases (Trial/Future), the invoice might not have been created in the connector yet.
+    pub connector_invoice_id: Option<id_type::InvoiceId>,
     pub connector_name: api_enums::Connector, // The connector to which the invoice belongs
 }
 
@@ -18,7 +19,7 @@ pub struct InvoiceSyncRequest {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
-    pub connector_invoice_id: String,
+    pub connector_invoice_id: Option<id_type::InvoiceId>,
     pub connector_name: api_enums::Connector,
 }
 
@@ -44,7 +45,7 @@ impl InvoiceSyncRequest {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
         customer_id: id_type::CustomerId,
-        connector_invoice_id: String,
+        connector_invoice_id: Option<id_type::InvoiceId>,
         connector_name: api_enums::Connector,
     ) -> Self {
         Self {
@@ -67,7 +68,7 @@ impl InvoiceSyncTrackingData {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
         customer_id: id_type::CustomerId,
-        connector_invoice_id: String,
+        connector_invoice_id: Option<id_type::InvoiceId>,
         connector_name: api_enums::Connector,
     ) -> Self {
         Self {

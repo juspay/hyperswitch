@@ -1550,6 +1550,19 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Paysafe,
+            fields(
+                vec![
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    RequiredField::BillingEmail,
+                    RequiredField::BillingAddressZip,
+                    RequiredField::BillingAddressState,
+                ],
+                vec![],
+                vec![],
+            ),
+        ),
+        (
             Connector::Payload,
             fields(
                 vec![],
@@ -3404,6 +3417,26 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
 
                         common: HashMap::from([
                             RequiredField::BillingAddressCountries(vec!["DK,FI,NO,SE"]).to_tuple(),
+                            RequiredField::SepaBankDebitIban.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
+                    Connector::Novalnet,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName(
+                                "owner_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
                             RequiredField::SepaBankDebitIban.to_tuple(),
                         ]),
                     },

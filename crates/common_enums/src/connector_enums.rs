@@ -74,6 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -96,6 +97,7 @@ pub enum RoutableConnectors {
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -249,6 +251,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -274,6 +277,7 @@ pub enum Connector {
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -375,6 +379,7 @@ impl Connector {
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Worldpay, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
@@ -387,7 +392,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
-        matches!(self, Self::Wise)
+        matches!(self, Self::Wise | Self::Gigadat)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
@@ -477,6 +482,7 @@ impl Connector {
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
+            | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -665,6 +671,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
+            RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -805,6 +812,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
+            Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
@@ -895,7 +903,19 @@ impl TryFrom<Connector> for RoutableConnectors {
 }
 
 // Enum representing different status an invoice can have.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,

@@ -7,8 +7,18 @@ use api_models::payments::{
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
+    fp_utils, pii,
+    types::{
+        self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
+};
+#[cfg(feature = "v2")]
+use common_utils::{
+    ext_traits::Encode,
     fp_utils, pii,
     types::{
         self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
@@ -377,6 +387,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
 
+    let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
+
+    let order_category = connector_metadata.as_ref().and_then(|cm| {
+        cm.noon
+            .as_ref()
+            .and_then(|noon| noon.order_category.clone())
+    });
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -403,7 +421,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         customer_name: None,
         payment_experience: None,
         order_details: None,
-        order_category: None,
+        order_category,
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
@@ -1747,57 +1765,56 @@ where
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
-    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
-        let shipping_address = unified_address.get_shipping();
-        let billing_address = unified_address.get_payment_billing();
-        let merchant_tax_registration_id = merchant_context
-            .get_merchant_account()
-            .get_merchant_tax_registration_id();
+    let l2_l3_data =
+        (state.conf.l2_l3_data_config.enabled && payment_data.is_l2_l3_enabled).then(|| {
+            let shipping_address = unified_address.get_shipping();
+            let billing_address = unified_address.get_payment_billing();
+            let merchant_tax_registration_id = merchant_context
+                .get_merchant_account()
+                .get_merchant_tax_registration_id();
 
-        types::L2L3Data {
-            order_date: payment_data.payment_intent.order_date,
-            tax_status: payment_data.payment_intent.tax_status,
-            customer_tax_registration_id: customer.as_ref().and_then(|c| {
-                c.tax_registration_id
+            Box::new(types::L2L3Data {
+                order_date: payment_data.payment_intent.order_date,
+                tax_status: payment_data.payment_intent.tax_status,
+                customer_tax_registration_id: customer.as_ref().and_then(|c| {
+                    c.tax_registration_id
+                        .as_ref()
+                        .map(|e| e.clone().into_inner())
+                }),
+                order_details: order_details.clone(),
+                discount_amount: payment_data.payment_intent.discount_amount,
+                shipping_cost: payment_data.payment_intent.shipping_cost,
+                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                duty_amount: payment_data.payment_intent.duty_amount,
+                order_tax_amount: payment_data
+                    .payment_attempt
+                    .net_amount
+                    .get_order_tax_amount(),
+                merchant_order_reference_id: payment_data
+                    .payment_intent
+                    .merchant_order_reference_id
+                    .clone(),
+                customer_id: payment_data.payment_intent.customer_id.clone(),
+                billing_address_city: billing_address
                     .as_ref()
-                    .map(|e| e.clone().into_inner())
-            }),
-            order_details: order_details.clone(),
-            discount_amount: payment_data.payment_intent.discount_amount,
-            shipping_cost: payment_data.payment_intent.shipping_cost,
-            shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-            duty_amount: payment_data.payment_intent.duty_amount,
-            order_tax_amount: payment_data
-                .payment_attempt
-                .net_amount
-                .get_order_tax_amount(),
-            merchant_order_reference_id: payment_data
-                .payment_intent
-                .merchant_order_reference_id
-                .clone(),
-            customer_id: payment_data.payment_intent.customer_id.clone(),
-            shipping_origin_zip: shipping_address
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.origin_zip.clone()),
-            shipping_state: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.state.clone()),
-            shipping_country: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.country),
-            shipping_destination_zip: shipping_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.zip.clone()),
-            billing_address_city: billing_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|details| details.city.clone()),
-            merchant_tax_registration_id,
-        }
-    });
+                    .and_then(|addr| addr.address.as_ref())
+                    .and_then(|details| details.city.clone()),
+                merchant_tax_registration_id,
+                customer_name: customer
+                    .as_ref()
+                    .and_then(|c| c.name.as_ref().map(|e| e.clone().into_inner())),
+                customer_email: payment_data.email,
+                customer_phone_number: customer
+                    .as_ref()
+                    .and_then(|c| c.phone.as_ref().map(|e| e.clone().into_inner())),
+                customer_phone_country_code: customer
+                    .as_ref()
+                    .and_then(|c| c.phone_country_code.clone()),
+                shipping_details: shipping_address
+                    .and_then(|address| address.address.as_ref())
+                    .cloned(),
+            })
+        });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
     let router_data = types::RouterData {
@@ -2611,16 +2628,24 @@ where
                 .clone(),
         )?;
 
-        let next_action_containing_wait_screen =
-            wait_screen_next_steps_check(payment_attempt.clone())?;
-
         let next_action = if payment_intent.status.is_in_terminal_state() {
             None
         } else {
+            let next_action_containing_wait_screen =
+                wait_screen_next_steps_check(payment_attempt.clone())?;
+
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                    api_models::payments::NextActionData::SdkUpiIntentInformation {
+                        sdk_uri: sdk_uri_data.sdk_uri,
+                    }
+                }))
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3361,6 +3386,9 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
@@ -3369,6 +3397,7 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
+                || next_action_containing_sdk_upi_intent.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3400,6 +3429,11 @@ where
                             .or(papal_sdk_next_action.map(|paypal_next_action_data| {
                                 api_models::payments::NextActionData::InvokeSdkClient{
                                     next_action_data: paypal_next_action_data
+                                }
+                            }))
+                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                                api_models::payments::NextActionData::SdkUpiIntentInformation {
+                                    sdk_uri: sdk_uri_data.sdk_uri,
                                 }
                             }))
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {
@@ -3820,6 +3854,18 @@ pub fn fetch_qr_code_url_next_steps_check(
 
     let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_fetch_url)
+}
+
+pub fn extract_sdk_uri_information(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
+    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
+
+    let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
+    Ok(sdk_uri_information)
 }
 
 pub fn wait_screen_next_steps_check(
@@ -4579,6 +4625,41 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsExtendAuthorizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsExtendAuthorizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        let amount = payment_data.payment_attempt.get_total_amount();
+
+        Ok(Self {
+            minor_amount: amount,
+            currency: payment_data.currency,
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(&payment_data.payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
