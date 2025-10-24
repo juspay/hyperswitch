@@ -495,7 +495,7 @@ pub struct PaymentIntent {
     /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
     /// The ID of the active attempt group for the payment intent
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.

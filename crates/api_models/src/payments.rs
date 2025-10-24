@@ -3578,6 +3578,16 @@ pub enum BalanceCheckPaymentMethodData {
     GiftCard(GiftCardData),
 }
 
+// impl From<BalanceCheckPaymentMethodData> for PaymentMethodData {
+//     fn from(value: BalanceCheckPaymentMethodData) -> Self {
+//         match value {
+//             BalanceCheckPaymentMethodData::GiftCard(gift_card_data) => {
+//                 PaymentMethodData::GiftCard(Box::new(gift_card_data))
+//             }
+//         }
+//     }
+// }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataRequest {
     pub payment_methods: Vec<BalanceCheckPaymentMethodData>,
@@ -7256,7 +7266,7 @@ pub struct PaymentsListResponseItem {
 //
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation

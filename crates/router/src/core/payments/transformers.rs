@@ -2731,6 +2731,177 @@ where
 }
 
 #[cfg(feature = "v2")]
+impl GenerateResponse<api_models::payments::PaymentsResponse>
+    for crate::core::split_payments::SplitPaymentResponseData
+{
+    fn generate_response(
+        self,
+        state: &SessionState,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
+    ) -> RouterResponse<api_models::payments::PaymentsResponse> {
+        let payment_intent = self.primary_payment_response_data.payment_intent.clone();
+        let payment_attempt = self.primary_payment_response_data.payment_attempt.clone();
+
+        let intent_amount_details = &payment_intent.amount_details;
+        let attempt_amount_details = &payment_attempt.amount_details;
+
+        let secondary_net_amount = self
+            .secondary_payment_response_data
+            .iter()
+            .fold(MinorUnit::zero(), |acc, data| {
+                acc + data.payment_attempt.amount_details.get_net_amount()
+            });
+
+        let net_amount = self
+            .primary_payment_response_data
+            .payment_attempt
+            .amount_details
+            .get_net_amount()
+            + secondary_net_amount;
+
+        let amount = api_models::payments::PaymentAmountDetailsResponse {
+            order_amount: intent_amount_details.order_amount,
+            currency: intent_amount_details.currency,
+            shipping_cost: attempt_amount_details.get_shipping_cost(),
+            order_tax_amount: attempt_amount_details.get_order_tax_amount(),
+            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
+            surcharge_amount: attempt_amount_details.get_surcharge_amount(),
+            tax_on_surcharge: attempt_amount_details.get_tax_on_surcharge(),
+            net_amount,
+            amount_to_capture: attempt_amount_details.get_amount_to_capture(),
+            amount_capturable: attempt_amount_details.get_amount_capturable(),
+            amount_captured: Some(net_amount),
+        };
+
+        let connector = payment_attempt
+            .connector
+            .clone()
+            .get_required_value("connector")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Connector is none when constructing response")?;
+
+        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
+
+        let error = payment_attempt
+            .error
+            .as_ref()
+            .map(api_models::payments::ErrorDetails::foreign_from);
+
+        let payment_address = self.primary_payment_response_data.payment_address;
+
+        let raw_connector_response =
+            connector_response_data.and_then(|data| data.raw_connector_response);
+
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
+        // TODO: Add support for other next actions, currently only supporting redirect to url
+        let redirect_to_url = payment_intent.create_start_redirection_url(
+            &state.base_url,
+            merchant_context
+                .get_merchant_account()
+                .publishable_key
+                .clone(),
+        )?;
+
+        let next_action = if payment_intent.status.is_in_terminal_state() {
+            None
+        } else {
+            let next_action_containing_wait_screen =
+                wait_screen_next_steps_check(payment_attempt.clone())?;
+
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
+            payment_attempt
+                .redirection_data
+                .as_ref()
+                .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                    api_models::payments::NextActionData::SdkUpiIntentInformation {
+                        sdk_uri: sdk_uri_data.sdk_uri,
+                    }
+                }))
+                .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                    api_models::payments::NextActionData::WaitScreenInformation {
+                        display_from_timestamp: wait_screen_data.display_from_timestamp,
+                        display_to_timestamp: wait_screen_data.display_to_timestamp,
+                        poll_config: wait_screen_data.poll_config,
+                    }
+                }))
+        };
+
+        let connector_token_details = payment_attempt
+            .connector_token_details
+            .and_then(Option::<api_models::payments::ConnectorTokenDetails>::foreign_from);
+
+        let return_url = payment_intent
+            .return_url
+            .clone()
+            .or(profile.return_url.clone());
+
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
+        let response = api_models::payments::PaymentsResponse {
+            id: payment_intent.id.clone(),
+            status: payment_intent.status,
+            amount,
+            customer_id: payment_intent.customer_id.clone(),
+            connector: Some(connector),
+            created: payment_intent.created_at,
+            modified_at: payment_intent.modified_at,
+            payment_method_data,
+            payment_method_type: Some(payment_attempt.payment_method_type),
+            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            next_action,
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
+            connector_reference_id: payment_attempt.connector_response_reference_id.clone(),
+            connector_token_details,
+            merchant_connector_id,
+            browser_info: None,
+            error,
+            return_url,
+            authentication_type: payment_intent.authentication_type,
+            authentication_type_applied: Some(payment_attempt.authentication_type),
+            payment_method_id: payment_attempt.payment_method_id,
+            attempts: None,
+            billing: None,  //TODO: add this
+            shipping: None, //TODO: add this
+            is_iframe_redirection_enabled: None,
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            raw_connector_response,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            metadata: payment_intent.metadata,
+        };
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response, headers,
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<F> GenerateResponse<api_models::payments::PaymentsResponse>
     for hyperswitch_domain_models::payments::PaymentStatusData<F>
 where
