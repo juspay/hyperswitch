@@ -91,6 +91,7 @@ pub trait UnifiedAuthenticationService {
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
+        _encrypted_device_data: Option<String>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -119,6 +120,7 @@ pub trait UnifiedAuthenticationService {
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_id: Option<common_utils::id_type::PaymentId>,
+        _encrypted_device_data: Option<String>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("authentication".to_string()),

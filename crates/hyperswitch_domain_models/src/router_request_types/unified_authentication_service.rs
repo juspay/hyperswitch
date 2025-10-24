@@ -51,6 +51,7 @@ pub struct UasAuthenticationRequestData {
     pub email: Option<common_utils::pii::Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub webhook_url: String,
+    pub encrypted_device_data: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

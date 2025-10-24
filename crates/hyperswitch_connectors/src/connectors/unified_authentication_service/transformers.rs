@@ -209,6 +209,8 @@ pub struct Address {
     pub line3: Option<Secret<String>>,
     pub post_code: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -590,28 +592,15 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             .billing_address
             .clone()
             .map(|address_wrap| Address {
-                city: address_wrap
-                    .address
-                    .clone()
-                    .and_then(|address| address.city),
-                country: address_wrap
-                    .address
-                    .clone()
-                    .and_then(|address| address.country),
-                line1: address_wrap
-                    .address
-                    .clone()
-                    .and_then(|address| address.line1),
-                line2: address_wrap
-                    .address
-                    .clone()
-                    .and_then(|address| address.line2),
-                line3: address_wrap
-                    .address
-                    .clone()
-                    .and_then(|address| address.line3),
-                post_code: address_wrap.address.clone().and_then(|address| address.zip),
-                state: address_wrap.address.and_then(|address| address.state),
+                city: address_wrap.address.as_ref().and_then(|address| address.city.clone()),
+                country: address_wrap.address.as_ref().and_then(|address| address.country.clone()),
+                line1: address_wrap.address.as_ref().and_then(|address| address.line1.clone()),
+                line2: address_wrap.address.as_ref().and_then(|address| address.line2.clone()),
+                line3: address_wrap.address.as_ref().and_then(|address| address.line3.clone()),
+                post_code: address_wrap.address.as_ref().and_then(|address| address.zip.clone()),
+                state: address_wrap.address.as_ref().and_then(|address| address.state.clone()),
+                first_name: address_wrap.address.as_ref().and_then(|address| address.first_name.clone()),
+                last_name: address_wrap.address.as_ref().and_then(|address| address.last_name.clone()),
             });
 
         Ok(Self {
@@ -858,6 +847,7 @@ pub struct DeviceDetails {
     pub device_channel: api_models::payments::DeviceChannel,
     pub browser_info: Option<BrowserInfo>,
     pub sdk_info: Option<api_models::payments::SdkInformation>,
+    pub encrypted_device_data: Option<String>,
 }
 
 impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData>>
@@ -917,6 +907,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 })?,
             browser_info: Some(browser_info),
             sdk_info: item.router_data.request.sdk_information.clone(),
+            encrypted_device_data: item.router_data.request.encrypted_device_data.clone(),
         };
 
         let message_category = item.router_data.request.transaction_details.message_category.clone().map(|category| match category {

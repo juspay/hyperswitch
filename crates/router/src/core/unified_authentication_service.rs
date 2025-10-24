@@ -396,6 +396,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
+        encrypted_device_data: Option<String>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
             browser_details,
@@ -426,6 +427,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             email,
             threeds_method_comp_ind,
             webhook_url,
+            encrypted_device_data,
         })
     }
 
@@ -448,6 +450,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
+        encrypted_device_data: Option<String>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -462,6 +465,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
+                encrypted_device_data,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -1277,6 +1281,7 @@ pub async fn authentication_authenticate_core(
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
+        None
     )
     .await?;
 

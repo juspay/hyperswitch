@@ -8475,6 +8475,8 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub device_channel: DeviceChannel,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
+
+    pub encrypted_device_data: Option<String>,
 }
 
 /// Indicates if 3DS method data was successfully completed or not

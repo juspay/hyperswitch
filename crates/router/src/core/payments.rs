@@ -10696,6 +10696,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),
+                req.encrypted_device_data
             )
             .await?;
         let authentication = external_authentication_update_trackers(
