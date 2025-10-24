@@ -4,7 +4,7 @@ use common_enums::enums;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
 };
-use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorCommon};
+use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorSpecifications};
 use router_env::{instrument, tracing, Flow};
 use strum::IntoEnumIterator;
 
