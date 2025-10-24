@@ -12891,8 +12891,7 @@
       "ConfirmSubscriptionPaymentDetails": {
         "type": "object",
         "required": [
-          "payment_method",
-          "payment_method_data"
+          "payment_method"
         ],
         "properties": {
           "shipping": {
@@ -12923,7 +12922,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -12939,6 +12943,10 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -22232,6 +22240,10 @@
               }
             ],
             "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -24116,6 +24128,10 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
             "nullable": true
           }
         }
