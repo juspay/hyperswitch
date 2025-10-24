@@ -23,6 +23,7 @@ use hyperswitch_interfaces::{
 use masking::Secret;
 use unified_connector_service_client::payments as payments_grpc;
 use crate::core::payments::gateway::RouterGatewayContext;
+use crate::core::unified_connector_service::build_unified_connector_service_auth_metadata;
 
 use super::helpers::{build_grpc_auth_metadata, build_merchant_reference_id, get_grpc_client};
 use crate::{
@@ -81,30 +82,10 @@ where
         ConnectorError,
     > {
         // Extract required context
-        let merchant_context = todo!();
-        //  context
-        //     .merchant_context
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "merchant_context",
-        //     })?;
-
-        let header_payload = todo!();
-        //  context
-        //     .header_payload
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "header_payload",
-        //     })?;
-
-        let lineage_ids = todo!();
-        // context
-        //     .lineage_ids
-        //     .ok_or(ConnectorError::MissingRequiredField {
-        //         field_name: "lineage_ids",
-        //     })?;
-
-
-        let payment_data = context
-            .payment_data;
+        let merchant_context = context.merchant_context;
+        let header_payload = context.header_payload;
+        let lineage_ids = context.lineage_ids;
+        let payment_data = context.payment_data;
 
         // Execute payment_setup_mandate GRPC call
         let updated_router_data = execute_payment_setup_mandate(
@@ -114,6 +95,8 @@ where
             merchant_context,
             header_payload,
             lineage_ids,
+            context.merchant_connector_account,
+            context.execution_mode,
             context.execution_path,
         )
         .await?;
@@ -164,6 +147,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 async fn execute_payment_setup_mandate<PaymentData>(
     state: &SessionState,
     router_data: &RouterData<
@@ -171,10 +155,12 @@ async fn execute_payment_setup_mandate<PaymentData>(
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
     >,
-    payment_data: &PaymentData,
+    _payment_data: &PaymentData,
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    execution_mode: ExecutionMode,
     execution_path: ExecutionPath,
 ) -> CustomResult<
     RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
@@ -183,122 +169,154 @@ async fn execute_payment_setup_mandate<PaymentData>(
 where
     PaymentData: Clone + Send + Sync + 'static,
 {
-    todo!()
+    // Get GRPC client
+    let client = get_grpc_client(state)?;
+
+    // Build GRPC request
+    let payment_register_request =
+        payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
+            .change_context(ConnectorError::RequestEncodingFailed)?;
+
+    // Build auth metadata
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        merchant_context,
+    )
+    .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+    // Build GRPC headers
+    let merchant_order_reference_id = build_merchant_reference_id(header_payload);
+
+    let headers_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_order_reference_id)
+        .lineage_ids(lineage_ids);
+
+    // Execute GRPC call with logging wrapper
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_register_request,
+        headers_builder,
+        |mut router_data, payment_register_request, grpc_headers| async move {
+            let response = client
+                .payment_setup_mandate(
+                    payment_register_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                )
+                .await
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+
+            let payment_register_response = response.into_inner();
+
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_register(
+                    payment_register_response.clone(),
+                )
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
+
+            router_data.response = router_data_response;
+            router_data.connector_http_status_code = Some(status_code);
+
+            Ok((router_data, payment_register_response))
+        },
+    ))
+    .await
+    .map_err(|err| err.change_context(ConnectorError::ProcessingStepFailed(None)))?;
+
+    Ok(updated_router_data)
 }
 
-/// Execute payment_setup_mandate GRPC call
-// async fn execute_payment_setup_mandate<PaymentData>(
-//     state: &SessionState,
-//     router_data: &RouterData<
-//         domain::SetupMandate,
-//         types::SetupMandateRequestData,
-//         types::PaymentsResponseData,
-//     >,
-//     payment_data: &PaymentData,
-//     merchant_context: &MerchantContext,
-//     header_payload: &HeaderPayload,
-//     lineage_ids: LineageIds,
-//     execution_mode: ExecutionMode,
-// ) -> CustomResult<
-//     RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
-//     ConnectorError,
-// >
-// where
-//     PaymentData: Clone + Send + Sync + 'static,
-// {
-//     // Get GRPC client
-//     let client = get_grpc_client(state)?;
-
-//     // Build GRPC request
-//     let payment_register_request =
-//         payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
-//             .change_context(ConnectorError::RequestEncodingFailed)?;
-
-//     // Build auth metadata
-//     let connector_auth_metadata = build_grpc_auth_metadata_from_payment_data(
-//         payment_data,
-//         merchant_context,
-//     )?;
-
-//     // Build GRPC headers
-//     let merchant_reference_id = build_merchant_reference_id(header_payload);
-
-//     let headers_builder = state
-//         .get_grpc_headers_ucs(execution_mode)
-//         .external_vault_proxy_metadata(None)
-//         .merchant_reference_id(merchant_reference_id)
-//         .lineage_ids(lineage_ids);
-
-//     // Execute GRPC call with logging wrapper
-//     let updated_router_data = Box::pin(ucs_logging_wrapper(
-//         router_data.clone(),
-//         state,
-//         payment_register_request,
-//         headers_builder,
-//         |mut router_data, payment_register_request, grpc_headers| async move {
-//             let response = client
-//                 .payment_setup_mandate(
-//                     payment_register_request,
-//                     connector_auth_metadata,
-//                     grpc_headers,
-//                 )
-//                 .await
-//                 .change_context(ConnectorError::ProcessingStepFailed(Some(
-//                     "Failed to setup mandate".to_string().into(),
-//                 )))?;
-
-//             let payment_register_response = response.into_inner();
-
-//             let (router_data_response, status_code) =
-//                 handle_unified_connector_service_response_for_payment_register(
-//                     payment_register_response.clone(),
-//                 )
-//                 .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-//             let router_data_response = router_data_response.map(|(response, status)| {
-//                 router_data.status = status;
-//                 response
-//             });
-
-//             router_data.response = router_data_response;
-//             router_data.raw_connector_response = payment_register_response
-//                 .raw_connector_response
-//                 .clone()
-//                 .map(Secret::new);
-//             router_data.connector_http_status_code = Some(status_code);
-
-//             Ok((router_data, payment_register_response))
-//         },
-//     ))
-//     .await
-//     .change_context(ConnectorError::ProcessingStepFailed(Some(
-//         "UCS logging wrapper failed".to_string().into(),
-//     )))?;
-
-//     Ok(updated_router_data)
-// }
-
-/// Helper to build GRPC auth metadata from payment data
-/// This is a temporary implementation that needs to be updated based on actual PaymentData structure
-fn build_grpc_auth_metadata_from_payment_data<PaymentData>(
+#[cfg(feature = "v2")]
+async fn execute_payment_setup_mandate<PaymentData>(
+    state: &SessionState,
+    router_data: &RouterData<
+        domain::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    >,
     _payment_data: &PaymentData,
-    _merchant_context: &MerchantContext,
-) -> CustomResult<ConnectorAuthMetadata, ConnectorError>
+    merchant_context: &MerchantContext,
+    header_payload: &HeaderPayload,
+    lineage_ids: LineageIds,
+    merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    execution_mode: ExecutionMode,
+    execution_path: ExecutionPath,
+) -> CustomResult<
+    RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
+    ConnectorError,
+>
 where
     PaymentData: Clone + Send + Sync + 'static,
 {
-    // TODO: Extract merchant_connector_account from payment_data
-    // This requires knowing the structure of PaymentData
-    // For now, we'll return an error indicating this needs to be implemented
+    // Get GRPC client
+    let client = get_grpc_client(state)?;
 
-    // Placeholder implementation - needs to be replaced with actual extraction logic
-    // The actual implementation should:
-    // 1. Extract merchant_connector_account from payment_data
-    // 2. Call build_grpc_auth_metadata with the extracted account
+    // Build GRPC request
+    let payment_register_request =
+        payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
+            .change_context(ConnectorError::RequestEncodingFailed)?;
 
-    Err(ConnectorError::NotImplemented(
-        "build_grpc_auth_metadata_from_payment_data needs PaymentData structure implementation"
-            .to_string(),
+    // Build auth metadata
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        merchant_context,
     )
-    .into())
+    .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+    // Build GRPC headers
+    let merchant_order_reference_id = build_merchant_reference_id(header_payload);
+
+    let headers_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_order_reference_id)
+        .lineage_ids(lineage_ids);
+
+    // Execute GRPC call with logging wrapper
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_register_request,
+        headers_builder,
+        |mut router_data, payment_register_request, grpc_headers| async move {
+            let response = client
+                .payment_setup_mandate(
+                    payment_register_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                )
+                .await
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+
+            let payment_register_response = response.into_inner();
+
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_register(
+                    payment_register_response.clone(),
+                )
+                .change_context(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError)?;
+
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
+
+            router_data.response = router_data_response;
+            router_data.connector_http_status_code = Some(status_code);
+
+            Ok((router_data, payment_register_response))
+        },
+    ))
+    .await
+    .map_err(|err| err.change_context(ConnectorError::ProcessingStepFailed(None)))?;
+
+    Ok(updated_router_data)
 }
