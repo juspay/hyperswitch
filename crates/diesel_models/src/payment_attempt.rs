@@ -110,6 +110,8 @@ pub struct PaymentAttempt {
     pub is_stored_credential: Option<bool>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -134,8 +136,6 @@ pub struct PaymentAttempt {
     pub network_error_message: Option<String>,
     /// A string indicating the group of the payment attempt. Used in split payments flow
     pub attempts_group_id: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -380,6 +380,7 @@ pub struct PaymentAttemptNew {
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub authorized_amount: Option<MinorUnit>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 }
 
