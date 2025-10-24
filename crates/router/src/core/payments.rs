@@ -4816,6 +4816,7 @@ where
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
 
@@ -4958,6 +4959,7 @@ where
             merchant_context,
             &router_data,
             Some(payment_data),
+            call_connector_action.clone(),
         )
         .await?;
         if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
