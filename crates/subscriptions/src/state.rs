@@ -12,6 +12,7 @@ use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb
 pub trait SubscriptionStorageInterface:
     Send
     + Sync
+    + std::any::Any
     + dyn_clone::DynClone
     + master_key::MasterKeyInterface
     + scheduler::SchedulerInterface

@@ -11297,7 +11297,8 @@
           "refunds",
           "disputes",
           "mandates",
-          "payouts"
+          "payouts",
+          "subscriptions"
         ]
       },
       "EventListItemResponse": {
@@ -11424,7 +11425,8 @@
           "payout_processing",
           "payout_cancelled",
           "payout_expired",
-          "payout_reversed"
+          "payout_reversed",
+          "invoice_paid"
         ]
       },
       "ExtendedCardInfo": {

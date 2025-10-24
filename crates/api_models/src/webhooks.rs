@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{disputes, enums as api_enums, mandates, payments, refunds};
+use crate::{disputes, enums as api_enums, mandates, payments, refunds, subscription};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -446,6 +446,8 @@ pub enum OutgoingWebhookContent {
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
+    #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
+    SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
