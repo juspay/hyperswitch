@@ -511,6 +511,11 @@ pub trait ConnectorSpecifications {
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
     }
+
+    /// Check if connector needs tokenization call before setup mandate flow
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        true
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type

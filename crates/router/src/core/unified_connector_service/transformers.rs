@@ -77,12 +77,74 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             access_token: None,
             capture_method: None,
             handle_response: None,
+            amount: router_data.request.amount.get_amount_as_i64(),
+            currency: currency.into(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceCaptureRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            transaction_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    connector_transaction_id,
+                )),
+            }),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            access_token: None,
+            amount_to_capture: router_data
+                .request
+                .minor_amount_to_capture
+                .get_amount_as_i64(),
+            currency: currency.into(),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+            browser_info,
+            multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
+                |multiple_capture_request_data| payments_grpc::MultipleCaptureRequestData {
+                    capture_sequence: multiple_capture_request_data.capture_sequence.into(),
+                    capture_reference: multiple_capture_request_data.capture_reference.clone(),
+                },
+            ),
         })
     }
 }
@@ -244,7 +306,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -260,7 +322,8 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: router_data.test_mode,
+            test_mode: None,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -374,7 +437,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -391,6 +454,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: None,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -530,6 +594,7 @@ impl
                     connector_mandate_id,
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
+                    payment_method_id: connector_mandate_id.get_payment_method_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
