@@ -63,6 +63,7 @@ impl Default for PayoutRequiredFields {
                 ])),
             ),
             (
+                // TODO: Refactor to support multiple connectors, each having its own set of required fields.
                 BankRedirect,
                 PaymentMethodTypeInfo(HashMap::from([{
                     let (pmt, mut gidadat_fields) = get_connector_payment_method_type_fields(
