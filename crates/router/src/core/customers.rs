@@ -588,6 +588,7 @@ pub async fn list_customers(
     request: customers::CustomerListRequest,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
         limit: request
@@ -600,7 +601,7 @@ pub async fn list_customers(
 
     let domain_customers = db
         .list_customers_by_merchant_id(
-            &(&state).into(),
+            key_manager_state,
             &merchant_id,
             &key_store,
             customer_list_constraints,
@@ -609,10 +610,24 @@ pub async fn list_customers(
         .switch()?;
 
     #[cfg(feature = "v1")]
-    let customers = domain_customers
-        .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+    let customers = {
+        let mut customers = Vec::with_capacity(domain_customers.len());
+        for domain_customer in domain_customers {
+            let address = match &domain_customer.address_id {
+                Some(address_id) => Some(api_models::payments::AddressDetails::from(
+                    db.find_address_by_address_id(key_manager_state, address_id, &key_store)
+                        .await
+                        .switch()?,
+                )),
+                None => None,
+            };
+            customers.push(customers::CustomerResponse::foreign_from((
+                domain_customer,
+                address,
+            )));
+        }
+        customers
+    };
 
     #[cfg(feature = "v2")]
     let customers = domain_customers
@@ -632,6 +647,8 @@ pub async fn list_customers_with_count(
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
     let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
         .change_context(errors::CustomersErrorResponse::InvalidRequestData {
             message: format!(
@@ -646,9 +663,9 @@ pub async fn list_customers_with_count(
         time_range: request.time_range,
     };
 
-    let domain_customers = db
+    let (domain_customers, total_count) = db
         .list_customers_by_merchant_id_with_count(
-            &(&state).into(),
+            key_manager_state,
             &merchant_id,
             &key_store,
             customer_list_constraints,
@@ -657,15 +674,27 @@ pub async fn list_customers_with_count(
         .switch()?;
 
     #[cfg(feature = "v1")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers
-        .0
-        .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+    let customers = {
+        let mut customers = Vec::with_capacity(domain_customers.len());
+        for domain_customer in domain_customers {
+            let address = match &domain_customer.address_id {
+                Some(address_id) => Some(api_models::payments::AddressDetails::from(
+                    db.find_address_by_address_id(key_manager_state, address_id, &key_store)
+                        .await
+                        .switch()?,
+                )),
+                None => None,
+            };
+            customers.push(customers::CustomerResponse::foreign_from((
+                domain_customer,
+                address,
+            )));
+        }
+        customers
+    };
 
     #[cfg(feature = "v2")]
     let customers: Vec<customers::CustomerResponse> = domain_customers
-        .0
         .into_iter()
         .map(customers::CustomerResponse::foreign_from)
         .collect();
@@ -673,7 +702,7 @@ pub async fn list_customers_with_count(
     Ok(services::ApplicationResponse::Json(
         customers::CustomerListResponse {
             data: customers.into_iter().map(|c| c.0).collect(),
-            total_count: domain_customers.1,
+            total_count,
         },
     ))
 }
