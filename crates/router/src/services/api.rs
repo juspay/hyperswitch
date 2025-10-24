@@ -810,7 +810,7 @@ where
         .into_iter()
         .flatten()
         .collect();
-    
+
     let infra = extract_mapped_fields(
         &values,
         state.enhancement.as_ref(),
@@ -2363,7 +2363,7 @@ pub fn extract_mapped_fields(
 
     for (dot_path, output_key) in mapping {
         let mut extracted_value = None;
-        
+
         // Try to extract from values in order of priority
         for value in values {
             if let Some(found_value) = extract_field_by_dot_path(value, dot_path) {
