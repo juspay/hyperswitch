@@ -16103,6 +16103,11 @@
             "description": "Filter all events associated with the specified object identifier (Payment Intent ID,\nRefund ID, etc.)",
             "nullable": true
           },
+          "event_id": {
+            "type": "string",
+            "description": "Filter all events associated with the specified Event_id",
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "Filter all events associated with the specified business profile ID.",
