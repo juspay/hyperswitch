@@ -31,7 +31,7 @@ services:
     networks:
       - router_net
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
