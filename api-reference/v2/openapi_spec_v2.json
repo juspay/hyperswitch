@@ -2593,14 +2593,14 @@
         ]
       }
     },
-    "/v2/payments/{id}/check-gift-card-balance": {
-      "get": {
+    "/v2/payments/{id}/payment-methods/check-balance": {
+      "post": {
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Gift Card Balance Check",
-        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
-        "operationId": "Retrieve Gift Card Balance",
+        "summary": "Payments - Payment Method Balance Check",
+        "description": "Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency",
+        "operationId": "Retrieve Payment Method Balance",
         "parameters": [
           {
             "name": "id",
@@ -2626,7 +2626,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+                "$ref": "#/components/schemas/PaymentMethodBalanceCheckRequest"
               }
             }
           },
@@ -2634,11 +2634,11 @@
         },
         "responses": {
           "200": {
-            "description": "Get the Gift Card Balance",
+            "description": "Get the Payment Method Balance",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                  "$ref": "#/components/schemas/PaymentMethodBalanceCheckResponse"
                 }
               }
             }
@@ -5532,6 +5532,21 @@
           }
         }
       },
+      "BalanceCheckPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          }
+        ]
+      },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
         "properties": {
@@ -5660,6 +5675,17 @@
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_debit": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -5758,6 +5784,41 @@
             ],
             "properties": {
               "sepa_bank_debit": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "bank_account_holder_name"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "iban": {
+                    "type": "string",
+                    "description": "International bank account number (iban) for SEPA",
+                    "example": "DE89370400440532013000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_guarenteed_bank_debit"
+            ],
+            "properties": {
+              "sepa_guarenteed_bank_debit": {
                 "type": "object",
                 "required": [
                   "iban",
@@ -12355,35 +12416,6 @@
           }
         ]
       },
-      "GiftCardBalanceCheckResponse": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "balance",
-          "currency",
-          "needs_additional_pm_data",
-          "remaining_amount"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
-          "balance": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "needs_additional_pm_data": {
-            "type": "boolean",
-            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
-          },
-          "remaining_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          }
-        }
-      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -12587,7 +12619,7 @@
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
             },
-            "description": "List of the allowed payment meythods"
+            "description": "List of the allowed payment methods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
@@ -15602,13 +15634,62 @@
         }
       },
       "NextActionCall": {
-        "type": "string",
-        "enum": [
-          "post_session_tokens",
-          "confirm",
-          "sync",
-          "complete_authorize",
-          "await_merchant_callback"
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "The next action call is Post Session Tokens",
+            "enum": [
+              "post_session_tokens"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is confirm",
+            "enum": [
+              "confirm"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is sync",
+            "enum": [
+              "sync"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action call is Complete Authorize",
+            "enum": [
+              "complete_authorize"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "The next action is to await for a merchant callback",
+            "enum": [
+              "await_merchant_callback"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "deny"
+            ],
+            "properties": {
+              "deny": {
+                "type": "object",
+                "description": "The next action is to deny the payment with an error message",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         ]
       },
       "NextActionData": {
@@ -17695,6 +17776,39 @@
           "mobile_payment"
         ]
       },
+      "PaymentMethodBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Payment method balance check",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentMethodBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {
@@ -19016,6 +19130,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "sepa_guarenteed_debit",
           "skrill",
           "sofort",
           "swish",
@@ -19783,19 +19898,6 @@
             "nullable": true
           }
         }
-      },
-      "PaymentsGiftCardBalanceCheckRequest": {
-        "type": "object",
-        "description": "Request for Gift Card balance check",
-        "required": [
-          "gift_card_data"
-        ],
-        "properties": {
-          "gift_card_data": {
-            "$ref": "#/components/schemas/GiftCardData"
-          }
-        },
-        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
@@ -22727,6 +22829,11 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23033,6 +23140,11 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "is_l2_l3_enabled": {
+            "type": "boolean",
+            "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
           }
         }

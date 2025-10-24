@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, user::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -42,7 +42,7 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
+use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
 use super::{
@@ -318,6 +318,7 @@ impl CardsInfoInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ConfigInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -506,6 +507,18 @@ impl CustomerInterface for KafkaStore {
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
         self.diesel_store
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
+            .await
+    }
+
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        constraints: super::customers::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), errors::StorageError> {
+        self.diesel_store
+            .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
             .await
     }
 
@@ -769,18 +782,20 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_merchant_id_primary_object_id(
+            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 state,
                 merchant_id,
                 primary_object_id,
+                initial_attempt_id,
                 merchant_key_store,
             )
             .await
@@ -830,18 +845,20 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_profile_id_primary_object_id(
+            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
                 state,
                 profile_id,
                 primary_object_id,
+                initial_attempt_id,
                 merchant_key_store,
             )
             .await
@@ -1060,6 +1077,7 @@ impl PaymentLinkInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant(
         &self,
         state: &KeyManagerState,
@@ -1237,6 +1255,7 @@ impl FileMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn update_multiple_merchant_connector_accounts(
         &self,
         merchant_connector_accounts: Vec<(
@@ -2948,6 +2967,7 @@ impl RefundInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant_key_store(
         &self,
         state: &KeyManagerState,
@@ -3005,6 +3025,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
@@ -3324,6 +3345,12 @@ impl StorageInterface for KafkaStore {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
+        Box::new(self.clone())
+    }
 }
 
 impl GlobalStorageInterface for KafkaStore {
@@ -3334,6 +3361,8 @@ impl GlobalStorageInterface for KafkaStore {
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
+
+impl subscriptions::state::SubscriptionStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {

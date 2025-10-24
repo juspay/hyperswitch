@@ -3421,6 +3421,26 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                         ]),
                     },
                 ),
+                (
+                    Connector::Novalnet,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName(
+                                "owner_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::SepaBankDebitIban.to_tuple(),
+                        ]),
+                    },
+                ),
             ]),
         ),
         (

@@ -17,7 +17,8 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret, SwitchStrategy};
+use masking::{ExposeOptionInterface, PeekInterface, Secret, SwitchStrategy};
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
@@ -557,6 +558,7 @@ pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
@@ -565,6 +567,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
             customer_id: value.customer_id,
+            time_range: value.time_range,
         }
     }
 }
@@ -656,6 +659,14 @@ where
         constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<Customer>, Self::Error>;
 
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: CustomerListConstraints,
+    ) -> CustomResult<(Vec<Customer>, usize), Self::Error>;
+
     async fn insert_customer(
         &self,
         customer_data: Customer,
@@ -684,4 +695,58 @@ where
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
+}
+
+#[cfg(feature = "v1")]
+#[instrument]
+pub async fn update_connector_customer_in_customers(
+    connector_label: &str,
+    customer: Option<&Customer>,
+    connector_customer_id: Option<String>,
+) -> Option<CustomerUpdate> {
+    let mut connector_customer_map = customer
+        .and_then(|customer| customer.connector_customer.clone().expose_option())
+        .and_then(|connector_customer| connector_customer.as_object().cloned())
+        .unwrap_or_default();
+
+    let updated_connector_customer_map = connector_customer_id.map(|connector_customer_id| {
+        let connector_customer_value = serde_json::Value::String(connector_customer_id);
+        connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
+        connector_customer_map
+    });
+
+    updated_connector_customer_map
+        .map(serde_json::Value::Object)
+        .map(
+            |connector_customer_value| CustomerUpdate::ConnectorCustomer {
+                connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
+            },
+        )
+}
+
+#[cfg(feature = "v2")]
+#[instrument]
+pub async fn update_connector_customer_in_customers(
+    merchant_connector_account: &MerchantConnectorAccountTypeDetails,
+    customer: Option<&Customer>,
+    connector_customer_id: Option<String>,
+) -> Option<CustomerUpdate> {
+    match merchant_connector_account {
+        MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
+            connector_customer_id.map(|new_conn_cust_id| {
+                let connector_account_id = account.get_id().clone();
+                let mut connector_customer_map = customer
+                    .and_then(|customer| customer.connector_customer.clone())
+                    .unwrap_or_default();
+                connector_customer_map.insert(connector_account_id, new_conn_cust_id);
+                CustomerUpdate::ConnectorCustomer {
+                    connector_customer: Some(connector_customer_map),
+                }
+            })
+        }
+        // TODO: Construct connector_customer for MerchantConnectorDetails if required by connector.
+        MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            todo!("Handle connector_customer construction for MerchantConnectorDetails");
+        }
+    }
 }
