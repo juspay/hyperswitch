@@ -163,6 +163,76 @@ pub async fn upsert_calculate_pcr_task(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn record_internal_attempt_and_execute_payment(
+    state: &SessionState,
+    execute_task_process: &storage::ProcessTracker,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
+    tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    payment_intent: &PaymentIntent,
+    payment_processor_token: &storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
+    revenue_recovery_metadata: &mut api_models::payments::PaymentRevenueRecoveryMetadata,
+)-> Result<(), sch_errors::ProcessTrackerError>{
+    let db = &*state.store;
+
+    let card_info =
+        api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
+
+    // record attempt call
+    let record_attempt = api::record_internal_attempt_api(
+        state,
+        payment_intent,
+        revenue_recovery_payment_data,
+        revenue_recovery_metadata,
+        card_info,
+        &payment_processor_token
+            .payment_processor_token_details
+            .payment_processor_token,
+    )
+    .await;
+
+    match record_attempt {
+        Ok(record_attempt_response) => {
+            let action = Box::pin(types::Action::execute_payment(
+                state,
+                revenue_recovery_payment_data.merchant_account.get_id(),
+                payment_intent,
+                execute_task_process,
+                profile,
+                merchant_context,
+                revenue_recovery_payment_data,
+                revenue_recovery_metadata,
+                &record_attempt_response.id,
+                payment_processor_token,
+            ))
+            .await?;
+            Box::pin(action.execute_payment_task_response_handler(
+                state,
+                payment_intent,
+                execute_task_process,
+                revenue_recovery_payment_data,
+                revenue_recovery_metadata,
+            ))
+            .await?;
+        }
+        Err(err) => {
+            logger::error!("Error while recording attempt: {:?}", err);
+            let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                status: enums::ProcessTrackerStatus::Pending,
+                business_status: Some(String::from(
+                    business_status::EXECUTE_WORKFLOW_REQUEUE,
+                )),
+            };
+            db.as_scheduler()
+                .update_process(execute_task_process.clone(), pt_update)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
@@ -219,8 +289,7 @@ pub async fn perform_execute_payment(
                 message: "Failed to fetch token details from redis".to_string(),
             })?;
 
-            let payment_processor_token = match processor_token {
-                Some(token) => token,
+            match processor_token {
 
                 None => {
                     logger::info!("No Token fetched from redis");
@@ -246,64 +315,25 @@ pub async fn perform_execute_payment(
 
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
 
-                    return Ok(());
                 }
-            };
 
-            logger::info!("Token fetched from redis success");
+                Some(payment_processor_token) => {
+                    logger::info!("Token fetched from redis success");
 
-            let card_info =
-                api_models::payments::AdditionalCardInfo::foreign_from(&payment_processor_token);
-            // record attempt call
-            let record_attempt = api::record_internal_attempt_api(
-                state,
-                payment_intent,
-                revenue_recovery_payment_data,
-                &revenue_recovery_metadata,
-                card_info,
-                &payment_processor_token
-                    .payment_processor_token_details
-                    .payment_processor_token,
-            )
-            .await;
-
-            match record_attempt {
-                Ok(record_attempt_response) => {
-                    let action = Box::pin(types::Action::execute_payment(
+                    record_internal_attempt_and_execute_payment(
                         state,
-                        revenue_recovery_payment_data.merchant_account.get_id(),
-                        payment_intent,
                         execute_task_process,
                         profile,
                         merchant_context,
+                        tracking_data,
                         revenue_recovery_payment_data,
-                        &revenue_recovery_metadata,
-                        &record_attempt_response.id,
-                        &payment_processor_token,
-                    ))
-                    .await?;
-                    Box::pin(action.execute_payment_task_response_handler(
-                        state,
                         payment_intent,
-                        execute_task_process,
-                        revenue_recovery_payment_data,
+                        &payment_processor_token,
                         &mut revenue_recovery_metadata,
-                    ))
-                    .await?;
-                }
-                Err(err) => {
-                    logger::error!("Error while recording attempt: {:?}", err);
-                    let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: enums::ProcessTrackerStatus::Pending,
-                        business_status: Some(String::from(
-                            business_status::EXECUTE_WORKFLOW_REQUEUE,
-                        )),
-                    };
-                    db.as_scheduler()
-                        .update_process(execute_task_process.clone(), pt_update)
-                        .await?;
-                }
-            }
+                    ).await?;
+
+                }            
+            };  
         }
 
         types::Decision::Psync(attempt_status, attempt_id) => {
