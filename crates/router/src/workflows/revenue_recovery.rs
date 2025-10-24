@@ -525,7 +525,7 @@ pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) 
 pub async fn update_token_expiry_based_on_schedule_time(
     state: &SessionState,
     connector_customer_id: &str,
-    delayed_schedule_time: Option<time::PrimitiveDateTime>,
+    delayed_schedule_time: time::PrimitiveDateTime,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let expiry_buffer = state
         .conf
@@ -533,36 +533,41 @@ pub async fn update_token_expiry_based_on_schedule_time(
         .recovery_timestamp
         .redis_ttl_buffer_in_seconds;
 
-    delayed_schedule_time
-        .async_map(|t| async move {
-            let expiry_time = calculate_difference_in_seconds(t) + expiry_buffer;
-            RedisTokenManager::update_connector_customer_lock_ttl(
-                state,
-                connector_customer_id,
-                expiry_time,
-            )
-            .await
-            .change_context(errors::ProcessTrackerError::ERedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))
-        })
-        .await
-        .transpose()?;
+    let expiry_time = calculate_difference_in_seconds(delayed_schedule_time) + expiry_buffer;
+    RedisTokenManager::update_connector_customer_lock_ttl(
+        state,
+        connector_customer_id,
+        expiry_time,
+    )
+    .await
+    .change_context(errors::ProcessTrackerError::ERedisError(
+        errors::RedisError::RedisConnectionError.into(),
+    ));
+
 
     Ok(())
 }
 
 #[cfg(feature = "v2")]
-pub struct PaymentProcessorTokenResponse {
-    // Time in hours to wait before next retry
-    pub wait_time: Option<i64>,
-    // Check whether the token is hard declined for cascading and all tokens are hard declined for smart
-    pub hard_decline_status: Option<bool>,
-    // Time to schedule the next retry
-    pub schedule_time: Option<time::PrimitiveDateTime>,
-    // If locked, then reschedule time
-    pub next_available_time: Option<time::PrimitiveDateTime>,
+#[derive(Debug)]
+pub enum PaymentProcessorTokenResponse {
+    /// Token HardDecline
+    HardDecline,
+
+    /// Token can be retried at this specific time
+    ScheduledTime {
+        scheduled_time: time::PrimitiveDateTime,
+    },
+
+    /// Token locked or unavailable, next attempt possible 
+    NextAvailableTime {
+        next_available_time: time::PrimitiveDateTime,
+    },
+
+    /// No retry info available / nothing to do yet
+    None,
 }
+
 
 #[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -572,13 +577,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
-    let mut payment_processor_token_response = PaymentProcessorTokenResponse {
-        wait_time: None,
-        hard_decline_status: None,
-        schedule_time: None,
-        next_available_time: None,
-    };
 
+    let mut payment_processor_token_response= PaymentProcessorTokenResponse::None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
             logger::error!("Monitoring type found for Revenue Recovery retry payment");
@@ -619,30 +619,39 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 .as_ref()
                 .and_then(|t| payment_processor_tokens_details.get(t));
 
-            // Time for next retry
-            payment_processor_token_response.schedule_time = Some(time);
+            // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
+            match payment_processor_tokens_details_with_retry_info {
+                None => {
+                    payment_processor_token_response = PaymentProcessorTokenResponse::None;
+                    logger::debug!("No payment processor token found for cascading retry");
+                }
+                Some(payment_token) => {
 
-            // Check for hard decline
-            payment_processor_token_response.hard_decline_status =
-                payment_processor_tokens_details_with_retry_info
-                    .as_ref()
-                    .and_then(|t| t.token_status.is_hard_decline);
+                    
+                    if payment_token.token_status.is_hard_decline.unwrap_or(false) {
+                        payment_processor_token_response= PaymentProcessorTokenResponse::HardDecline;
+                    }
+                    else if payment_token.retry_wait_time_hours > 0 {
+                        let utc_schedule_time: time::OffsetDateTime = time::OffsetDateTime::now_utc()
+                            + time::Duration::hours(payment_token.retry_wait_time_hours);
+                        let next_available_time = time::PrimitiveDateTime::new(
+                            utc_schedule_time.date(),
+                            utc_schedule_time.time(),
+                        );
 
-            // Wait time, if retry limit exceeded
-            payment_processor_tokens_details_with_retry_info
-                .as_ref()
-                .map(|t| t.retry_wait_time_hours);
+                        payment_processor_token_response= PaymentProcessorTokenResponse::NextAvailableTime { next_available_time };
+                    }
+                    else {
+                        payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
+                            scheduled_time: time,
+                        };
+    
+                    }
+                    
 
-            // If hard decline or wait time > 0, then no schedule time
-            payment_processor_token_response.schedule_time = if payment_processor_token_response
-                .hard_decline_status
-                .unwrap_or(false)
-                || payment_processor_token_response.wait_time > Some(0)
-            {
-                None
-            } else {
-                payment_processor_token_response.schedule_time
-            };
+                }
+            }
+
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
@@ -655,16 +664,39 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    payment_processor_token_response.schedule_time = payment_processor_token_response
-        .schedule_time
-        .map(|time| add_random_delay_to_schedule_time(state, time));
 
-    let _ = update_token_expiry_based_on_schedule_time(
-        state,
-        connector_customer_id,
-        payment_processor_token_response.schedule_time,
-    )
-    .await;
+    
+    match &mut payment_processor_token_response {
+        PaymentProcessorTokenResponse::HardDecline => {
+            logger::debug!("Token is hard declined");
+        }
+    
+        PaymentProcessorTokenResponse::ScheduledTime { scheduled_time } => {
+            // Add random delay to schedule time
+            *scheduled_time = add_random_delay_to_schedule_time(state, *scheduled_time);
+    
+            // Log the scheduled retry time at debug level
+            logger::info!("Retry scheduled at {:?}", scheduled_time);
+    
+            // Update token expiry based on schedule time
+            update_token_expiry_based_on_schedule_time(
+                state,
+                connector_customer_id,
+                *scheduled_time,
+            )
+            .await;
+        }
+    
+        PaymentProcessorTokenResponse::NextAvailableTime { next_available_time } => {
+            logger::info!("Next available retry at {:?}", next_available_time);
+        }
+    
+        PaymentProcessorTokenResponse::None => {
+            logger::debug!("No retry info available");
+        }
+    }
+    
+    
 
     Ok(payment_processor_token_response)
 }
@@ -704,18 +736,27 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                 .find(|info| info.token_status.scheduled_at.is_some());
 
             // Check for hard decline if info is none
-            let hard_decline_statuss = token_details
+            let hard_decline_status = token_details
                 .values()
                 .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
 
-            let payment_processor_token_response = PaymentProcessorTokenResponse {
-                next_available_time: token_info_with_schedule_time
+            let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
+
+            if hard_decline_status {
+                payment_processor_token_response= PaymentProcessorTokenResponse::HardDecline;
+            }
+            else {
+                
+                payment_processor_token_response = match token_info_with_schedule_time
                     .as_ref()
-                    .and_then(|t| t.token_status.scheduled_at),
-                hard_decline_status: Some(hard_decline_statuss),
-                schedule_time: None,
-                wait_time: None,
-            };
+                    .and_then(|t| t.token_status.scheduled_at)
+                {
+                    Some(scheduled_time) => PaymentProcessorTokenResponse::NextAvailableTime {
+                        next_available_time: scheduled_time,
+                    },
+                    None => PaymentProcessorTokenResponse::None,
+                };
+            }
 
             Ok(payment_processor_token_response)
         }
@@ -859,19 +900,26 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
     let mut payment_processor_token_response;
     match best_token {
         None => {
-            let hard_decline_statuss = processor_tokens
+
+            // No tokens available for scheduling, unlock the connector customer status
+
+            // Check if all tokens are hard declined
+            let hard_decline_status = processor_tokens
                 .values()
                 .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+
             RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
                 .await
                 .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
             tracing::debug!("No payment processor tokens available for scheduling");
-            payment_processor_token_response = PaymentProcessorTokenResponse {
-                wait_time: None,
-                hard_decline_status: Some(hard_decline_statuss),
-                schedule_time: None,
-                next_available_time: None,
-            };
+
+            if hard_decline_status {
+                payment_processor_token_response = PaymentProcessorTokenResponse::HardDecline;
+            } else {
+                payment_processor_token_response = PaymentProcessorTokenResponse::None;
+                
+            }
         }
 
         Some(token) => {
@@ -886,11 +934,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            payment_processor_token_response = PaymentProcessorTokenResponse {
-                wait_time: None,
-                hard_decline_status: Some(false),
-                schedule_time: Some(token.schedule_time),
-                next_available_time: None,
+            payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
+                scheduled_time: token.schedule_time,
             };
         }
     }
