@@ -110,62 +110,10 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(payments_grpc::BrowserInformation::foreign_try_from)
             .transpose()?;
 
-        Ok(Self {
-            transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    connector_transaction_id,
-                )),
-            }),
-            request_ref_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
-            access_token: None,
-            amount_to_capture: router_data
-                .request
-                .minor_amount_to_capture
-                .get_amount_as_i64(),
-            currency: currency.into(),
-            metadata: router_data
-                .request
-                .metadata
-                .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
-                .unwrap_or_default(),
-            browser_info,
-            multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
-                |multiple_capture_request_data| payments_grpc::MultipleCaptureRequestData {
-                    capture_sequence: multiple_capture_request_data.capture_sequence.into(),
-                    capture_reference: multiple_capture_request_data.capture_reference.clone(),
-                },
-            ),
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceCaptureRequest
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
-
-        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-
-        let browser_info = router_data
+        let capture_method = router_data
             .request
-            .browser_info
-            .clone()
-            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
@@ -185,7 +133,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .minor_amount_to_capture
                 .get_amount_as_i64(),
             currency: currency.into(),
-            metadata: router_data
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            connector_metadata: router_data
                 .request
                 .metadata
                 .as_ref()
@@ -324,6 +273,7 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -453,8 +403,9 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -519,7 +470,7 @@ impl
                 .customer_name
                 .clone()
                 .map(|customer_name| customer_name.peek().to_owned()),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -561,6 +512,8 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -641,9 +594,10 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            test_mode: None,
+            test_mode: router_data.test_mode,
             payment_method_type: None,
             access_token: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
