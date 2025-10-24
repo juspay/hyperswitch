@@ -234,6 +234,18 @@
                   {
                     "group": "Schemas",
                     "pages": ["v1/schemas/outgoing--webhook"]
+                  },
+                  {
+                    "group": "Subscriptions",
+                    "pages": [
+                      "v1/subscriptions/create",
+                      "v1/subscriptions/confirm",
+                      "v1/subscriptions/create-and-confirm",
+                      "v1/subscriptions/update",
+                      "v1/subscriptions/get",
+                      "v1/subscriptions/get-plans",
+                      "v1/subscriptions/estimate"
+                    ]
                   }
                 ]
               }
