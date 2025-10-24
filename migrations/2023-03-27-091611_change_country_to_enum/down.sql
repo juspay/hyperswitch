@@ -1,4 +1,0 @@
-ALTER TABLE address
-ALTER COLUMN country TYPE VARCHAR(255);
-
-DROP TYPE IF EXISTS "CountryCode";
