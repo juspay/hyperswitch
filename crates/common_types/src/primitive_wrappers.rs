@@ -442,7 +442,7 @@ mod u16_wrappers {
     use serde::{de::Error, Deserialize, Serialize};
 
     use crate::consts::{
-        CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT, CUSTOMER_LIST_DEFAULT_LIMIT,
+        CUSTOMER_LIST_DEFAULT_LIMIT, CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT,
     };
 
     /// Customer list limit wrapper with automatic validation
@@ -488,9 +488,7 @@ mod u16_wrappers {
         }
     }
 
-    impl diesel::serialize::ToSql<diesel::sql_types::SmallInt, diesel::pg::Pg>
-        for CustomerListLimit
-    {
+    impl diesel::serialize::ToSql<diesel::sql_types::SmallInt, diesel::pg::Pg> for CustomerListLimit {
         fn to_sql<'b>(
             &'b self,
             out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,

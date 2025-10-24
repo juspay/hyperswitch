@@ -1,3 +1,4 @@
+use common_types::consts::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT};
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
@@ -8,7 +9,6 @@ use common_utils::{
         Description,
     },
 };
-use common_types::consts::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_methods as payment_methods_domain;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
