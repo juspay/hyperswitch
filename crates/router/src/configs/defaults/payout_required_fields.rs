@@ -64,18 +64,21 @@ impl Default for PayoutRequiredFields {
             ),
             (
                 BankRedirect,
-                PaymentMethodTypeInfo(HashMap::from([
-                    // Gigadat
-                    get_connector_payment_method_type_fields(
+                PaymentMethodTypeInfo(HashMap::from([{
+                    let (pmt, mut gidadat_fields) = get_connector_payment_method_type_fields(
                         PayoutConnectors::Gigadat,
                         PaymentMethodType::Interac,
-                    ),
-                    // Loonio
-                    get_connector_payment_method_type_fields(
+                    );
+
+                    let (_, loonio_fields) = get_connector_payment_method_type_fields(
                         PayoutConnectors::Loonio,
                         PaymentMethodType::Interac,
-                    ),
-                ])),
+                    );
+
+                    gidadat_fields.fields.extend(loonio_fields.fields);
+
+                    (pmt, gidadat_fields)
+                }])),
             ),
         ]))
     }
@@ -261,7 +264,7 @@ fn get_connector_payment_method_type_fields(
 
         // Bank Redirect
         PaymentMethodType::Interac => {
-            common_fields.extend(get_interac_fields(connector));
+            common_fields.extend(get_interac_fields());
             (
                 payment_method_type,
                 ConnectorFields {
@@ -408,86 +411,16 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
     )])
 }
 
-fn get_interac_fields(connector: PayoutConnectors) -> HashMap<String, RequiredFieldInfo> {
-    match connector {
-        PayoutConnectors::Loonio => HashMap::from([
-            (
-                "payout_method_data.bank_redirect.interac.email".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
-                    display_name: "email".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
-                "billing.address.first_name".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.first_name".to_string(),
-                    display_name: "billing_address_first_name".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
-                "billing.address.last_name".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.last_name".to_string(),
-                    display_name: "billing_address_last_name".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-        ]),
-        PayoutConnectors::Gigadat => HashMap::from([
-            (
-                "payout_method_data.bank_redirect.interac.email".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
-                    display_name: "email".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
-                "billing.address.first_name".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.first_name".to_string(),
-                    display_name: "billing_address_first_name".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
-                "billing.address.last_name".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.last_name".to_string(),
-                    display_name: "billing_address_last_name".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
-                "billing.phone.number".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payment_method_data.billing.phone.number".to_string(),
-                    display_name: "phone".to_string(),
-                    field_type: FieldType::UserPhoneNumber,
-                    value: None,
-                },
-            ),
-            (
-                "billing.phone.country_code".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
-                    display_name: "dialing_code".to_string(),
-                    field_type: FieldType::UserPhoneNumberCountryCode,
-                    value: None,
-                },
-            ),
-        ]),
-        _ => HashMap::from([]),
-    }
+fn get_interac_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([(
+        "payout_method_data.bank_redirect.interac.email".to_string(),
+        RequiredFieldInfo {
+            required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
+            display_name: "email".to_string(),
+            field_type: FieldType::Text,
+            value: None,
+        },
+    )])
 }
 
 fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2> {
@@ -650,6 +583,64 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
                     required_field: "billing.address.first_name".to_string(),
                     display_name: "billing_address_first_name".to_string(),
                     field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+        ]),
+        PayoutConnectors::Loonio => HashMap::from([
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+        ]),
+        PayoutConnectors::Gigadat => HashMap::from([
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.number".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                    display_name: "phone".to_string(),
+                    field_type: FieldType::UserPhoneNumber,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.country_code".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                    display_name: "dialing_code".to_string(),
+                    field_type: FieldType::UserPhoneNumberCountryCode,
                     value: None,
                 },
             ),
