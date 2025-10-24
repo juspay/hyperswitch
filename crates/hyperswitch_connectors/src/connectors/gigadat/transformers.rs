@@ -474,6 +474,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutQuoteResponse>> for Pa
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatPayoutResponse {
     pub id: String,
