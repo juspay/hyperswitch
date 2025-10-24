@@ -88,6 +88,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
     WebhookTransformFailure,
+
+    /// Failed to perform Payment Cancel from gRPC Server
+    #[error("Failed to perform Cancel from gRPC Server")]
+    PaymentCancelFailure,
 }
 
 #[allow(missing_docs)]

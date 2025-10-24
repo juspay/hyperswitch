@@ -208,6 +208,7 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -339,6 +340,7 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -445,6 +447,12 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            customer_id: router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string()),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -528,6 +536,7 @@ impl
             test_mode: None,
             payment_method_type: None,
             access_token: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -698,7 +707,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: None,
+                            payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
                         }
@@ -1209,7 +1218,7 @@ pub fn build_webhook_transform_request(
     })
 }
 
-impl ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>>
+impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceVoidRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
@@ -1222,6 +1231,12 @@ impl ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseD
             .browser_info
             .clone()
             .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        let currency = router_data
+            .request
+            .currency
+            .map(payments_grpc::Currency::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
@@ -1243,11 +1258,24 @@ impl ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseD
             all_keys_required: None,
             browser_info,
             access_token: None,
+            amount: router_data.request.amount,
+            currency: currency.map(|c| c.into()),
+            connector_metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
         })
     }
 }
 
-impl ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
@@ -1309,11 +1337,20 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                             })
                     }).unwrap_or(hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: Box::new(
+                        response.mandate_reference.map(|grpc_mandate| {
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: grpc_mandate.mandate_id,
+                                payment_method_id: grpc_mandate.payment_method_id,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            }
+                        })
+                    ),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id,
-                    incremental_authorization_allowed: None,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
                     charges: None,
                 },
                 status,

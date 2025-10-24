@@ -174,6 +174,9 @@ impl Feature<api::Void, types::PaymentsCancelData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -205,7 +208,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             .map(ucs_types::UcsReferenceId::Payment);
 
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
