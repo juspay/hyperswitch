@@ -174,11 +174,10 @@ pub async fn record_internal_attempt_and_execute_payment(
     payment_intent: &PaymentIntent,
     payment_processor_token: &storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
     revenue_recovery_metadata: &mut api_models::payments::PaymentRevenueRecoveryMetadata,
-)-> Result<(), sch_errors::ProcessTrackerError>{
+) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
-    let card_info =
-        api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
+    let card_info = api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
 
     // record attempt call
     let record_attempt = api::record_internal_attempt_api(
@@ -221,9 +220,7 @@ pub async fn record_internal_attempt_and_execute_payment(
             logger::error!("Error while recording attempt: {:?}", err);
             let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                 status: enums::ProcessTrackerStatus::Pending,
-                business_status: Some(String::from(
-                    business_status::EXECUTE_WORKFLOW_REQUEUE,
-                )),
+                business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_REQUEUE)),
             };
             db.as_scheduler()
                 .update_process(execute_task_process.clone(), pt_update)
@@ -290,7 +287,6 @@ pub async fn perform_execute_payment(
             })?;
 
             match processor_token {
-
                 None => {
                     logger::info!("No Token fetched from redis");
 
@@ -314,7 +310,6 @@ pub async fn perform_execute_payment(
                     .await?;
 
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
-
                 }
 
                 Some(payment_processor_token) => {
@@ -330,10 +325,10 @@ pub async fn perform_execute_payment(
                         payment_intent,
                         &payment_processor_token,
                         &mut revenue_recovery_metadata,
-                    ).await?;
-
-                }            
-            };  
+                    )
+                    .await?;
+                }
+            };
         }
 
         types::Decision::Psync(attempt_status, attempt_id) => {
