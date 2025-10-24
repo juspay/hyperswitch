@@ -152,7 +152,8 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
-            | PaymentMethod::GiftCard => {
+            | PaymentMethod::GiftCard
+            | PaymentMethod::NetworkToken => {
                 Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
