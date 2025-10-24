@@ -278,6 +278,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         let merchant_id = merchant_context.get_merchant_account().get_id();
         if let Ok(Some(cached_access_token)) = state
@@ -305,7 +306,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 .attach_printable("Failed to construct Payment Setup Mandate Request")?;
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
+            merchant_connector_account.clone(),
             merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
@@ -360,29 +361,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                         merchant_context,
                         &connector_name,
                         access_token,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from setup mandate response"
-                        );
-                    } else {
-                        logger::debug!(
-                            "Successfully stored access token from UCS setup mandate response"
-                        );
-                    }
-                }
-
-                // Extract and store access token if present
-                if let Some(access_token) =
-                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
-                {
-                    if let Err(error) = set_access_token_for_ucs(
-                        state,
-                        merchant_context,
-                        &connector_name,
-                        access_token,
+                        merchant_connector_account.get_mca_id().as_ref(),
+                        creds_identifier,
                     )
                     .await
                     {

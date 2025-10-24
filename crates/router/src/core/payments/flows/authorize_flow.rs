@@ -542,6 +542,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
@@ -553,6 +554,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_context,
                 unified_connector_service_execution_mode,
                 merchant_order_reference_id,
+                creds_identifier,
             ))
             .await
         } else {
@@ -577,6 +579,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         merchant_context,
                         unified_connector_service_execution_mode,
                         merchant_order_reference_id,
+                        creds_identifier,
                     ))
                     .await
                 }
@@ -884,6 +887,7 @@ async fn call_unified_connector_service_authorize(
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
+    creds_identifier: Option<String>,
 ) -> RouterResult<()> {
     let merchant_id = merchant_context.get_merchant_account().get_id();
     if let Ok(Some(cached_access_token)) = state
@@ -911,9 +915,11 @@ async fn call_unified_connector_service_authorize(
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+        build_unified_connector_service_auth_metadata(merchant_connector_account.clone(), merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
+
+    let merchant_connector_id = merchant_connector_account.get_mca_id();
 
     let merchant_reference_id = header_payload
         .x_reference_id
@@ -964,6 +970,8 @@ async fn call_unified_connector_service_authorize(
                     merchant_context,
                     &router_data.connector,
                     access_token,
+                    merchant_connector_id.as_ref(),
+                    creds_identifier,
                 )
                 .await
                 {
@@ -1012,6 +1020,7 @@ async fn call_unified_connector_service_repeat_payment(
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
+    creds_identifier: Option<String>,
 ) -> RouterResult<()> {
     let merchant_id = merchant_context.get_merchant_account().get_id();
     if let Ok(Some(cached_access_token)) = state
@@ -1039,7 +1048,7 @@ async fn call_unified_connector_service_repeat_payment(
             .attach_printable("Failed to construct Payment Repeat Request")?;
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+        build_unified_connector_service_auth_metadata(merchant_connector_account.clone(), merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
@@ -1091,6 +1100,8 @@ async fn call_unified_connector_service_repeat_payment(
                     merchant_context,
                     &router_data.connector,
                     access_token,
+                    merchant_connector_account.get_mca_id().as_ref(),
+                    creds_identifier,
                 )
                 .await
                 {

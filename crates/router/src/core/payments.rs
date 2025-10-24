@@ -4911,6 +4911,7 @@ where
             let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
             router_data
                 .call_unified_connector_service(
@@ -4922,6 +4923,7 @@ where
                     &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
                     merchant_order_reference_id,
+                    creds_identifier,
                 )
                 .await?;
 
@@ -5023,6 +5025,7 @@ where
             let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
             // Check for cached access token in Redis (no generation for UCS flows)
             let cached_access_token = access_token::get_cached_access_token_for_ucs(
@@ -5050,6 +5053,7 @@ where
                     &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
                     merchant_order_reference_id,
+                    creds_identifier
                 )
                 .await?;
 
@@ -5158,6 +5162,7 @@ where
             .merchant_reference_id
             .clone()
             .map(|id| id.get_string_repr().to_string());
+        let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
@@ -5169,6 +5174,7 @@ where
                 merchant_context,
                 ExecutionMode::Primary, //UCS is called in primary mode
                 merchant_order_reference_id,
+                creds_identifier,
             )
             .await?;
 

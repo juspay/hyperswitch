@@ -237,6 +237,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         let merchant_id = merchant_context.get_merchant_account().get_id();
         if let Ok(Some(cached_access_token)) = state
@@ -284,7 +285,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
+            merchant_connector_account.clone(),
             merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
@@ -338,6 +339,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             merchant_context,
                             &connector_name,
                             access_token,
+                            merchant_connector_account.get_mca_id().as_ref(),
+                            creds_identifier,
                         )
                         .await
                     {

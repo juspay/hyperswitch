@@ -77,19 +77,27 @@ pub async fn set_access_token_for_ucs(
     merchant_context: &MerchantContext,
     connector_name: &str,
     access_token: AccessToken,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
+    creds_identifier: Option<String>,
 ) -> Result<(), errors::StorageError> {
     let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let merchant_connector_id_or_connector_name = merchant_connector_id
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(creds_identifier.map(|id| id.to_string()))
+        .unwrap_or(connector_name.to_string());
 
     // Check if the same access token is already cached
     if let Ok(Some(cached_token)) = state
         .store
-        .get_access_token(merchant_id, connector_name)
+        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
         .await
     {
         if cached_token.token.peek() == access_token.token.peek() {
             logger::debug!(
                 merchant_id = ?merchant_id,
                 connector_name = connector_name,
+                merchant_connector_id_or_connector_name = merchant_connector_id_or_connector_name,
                 "Access token already cached, skipping re-cache"
             );
             return Ok(());
@@ -106,12 +114,13 @@ pub async fn set_access_token_for_ucs(
     logger::debug!(
         access_token_expiry_after_modification = modified_access_token.expires,
         merchant_id = ?merchant_id,
-        connector_name = connector_name
+        connector_name = connector_name,
+        merchant_connector_id_or_connector_name = merchant_connector_id_or_connector_name
     );
 
     if let Err(access_token_set_error) = state
         .store
-        .set_access_token(merchant_id, connector_name, modified_access_token)
+        .set_access_token(merchant_id, &merchant_connector_id_or_connector_name, modified_access_token)
         .await
     {
         // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
