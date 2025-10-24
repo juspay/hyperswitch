@@ -405,7 +405,7 @@ impl
                 .customer_name
                 .clone()
                 .map(|customer_name| customer_name.peek().to_owned()),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -447,11 +447,7 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
-            customer_id: router_data
-            .request
-            .customer_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string()),
+            connector_customer_id: router_data.connector_customer.clone(),
             merchant_account_metadata: HashMap::new(),
         })
     }
