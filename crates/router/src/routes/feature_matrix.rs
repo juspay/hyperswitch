@@ -4,7 +4,7 @@ use common_enums::enums;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
 };
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorCommon};
 use router_env::{instrument, tracing, Flow};
 use strum::IntoEnumIterator;
 
@@ -102,6 +102,7 @@ fn build_connector_feature_details(
             name: connector_name.to_uppercase(),
             display_name: connector_about.display_name.to_string(),
             description: connector_about.description.to_string(),
+            base_url: Some(connector.base_url(&state.conf.connectors).to_string()),
             integration_status: connector_about.integration_status,
             category: connector_about.connector_type,
             supported_webhook_flows,
