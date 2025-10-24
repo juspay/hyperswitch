@@ -189,6 +189,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             currency: item.router_data.request.currency,
             source,
             merchant: item.merchant_id.clone(),
+            idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
             three_d_secure: None,
         })
