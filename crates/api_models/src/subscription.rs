@@ -232,9 +232,10 @@ pub struct ConfirmSubscriptionPaymentDetails {
     pub billing: Option<Address>,
     pub payment_method: PaymentMethod,
     pub payment_method_type: Option<PaymentMethodType>,
-    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -261,6 +262,7 @@ pub struct PaymentDetails {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_type: Option<PaymentType>,
+    pub payment_token: Option<String>,
 }
 
 // Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
@@ -288,9 +290,10 @@ pub struct ConfirmPaymentsRequestData {
     pub profile_id: Option<ProfileId>,
     pub payment_method: PaymentMethod,
     pub payment_method_type: Option<PaymentMethodType>,
-    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -313,6 +316,7 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -340,6 +344,7 @@ pub struct PaymentResponseData {
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
     pub payment_type: Option<PaymentType>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -367,10 +372,9 @@ impl ConfirmSubscriptionRequest {
     pub fn get_billing_address(&self) -> Option<Address> {
         self.payment_details
             .payment_method_data
-            .billing
             .as_ref()
-            .or(self.payment_details.billing.as_ref())
-            .cloned()
+            .and_then(|data| data.billing.clone())
+            .or(self.payment_details.billing.clone())
     }
 }
 

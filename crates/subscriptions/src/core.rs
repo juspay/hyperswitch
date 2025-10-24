@@ -368,8 +368,8 @@ pub async fn confirm_subscription(
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data
-                .clone(),
+                .as_ref()
+                .and_then(|data| data.payment_method_data.clone()),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(

@@ -182,6 +182,7 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            payment_token: payment_details.payment_token.clone(),
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
@@ -208,6 +209,7 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            payment_token: payment_details.payment_token.clone(),
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
