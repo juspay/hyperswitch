@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, ops::Deref};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
@@ -4019,9 +4019,8 @@ fn build_connector_response(
     };
 
     let extended_authorization_last_applied_at = extended_authentication_applied
-        .as_ref()
-        .filter(|val| val.dref())
-        .map(|_| adyen_webhook_response.event_date);
+    .filter(|val| *val.deref())
+    .and_then(|_| adyen_webhook_response.event_date);
 
     let extend_authorization_response = ExtendedAuthorizationResponseData {
         extended_authentication_applied,
