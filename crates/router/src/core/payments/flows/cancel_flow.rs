@@ -200,6 +200,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
