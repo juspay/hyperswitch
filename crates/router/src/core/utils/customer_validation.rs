@@ -1,21 +1,23 @@
-use crate::core::errors::{self, CustomResult};
+use common_types::{
+    consts::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT},
+    primitive_wrappers::CustomerListLimit,
+};
 
-pub const CUSTOMER_LIST_LOWER_LIMIT: u16 = 1;
-pub const CUSTOMER_LIST_UPPER_LIMIT: u16 = 100;
-pub const CUSTOMER_LIST_DEFAULT_LIMIT: u16 = 10;
+use crate::core::errors::{self, CustomResult};
 
 pub fn validate_customer_list_limit(
     limit: Option<u16>,
-) -> CustomResult<u16, errors::ApiErrorResponse> {
+) -> CustomResult<CustomerListLimit, errors::ApiErrorResponse> {
     match limit {
-        Some(l) if (CUSTOMER_LIST_LOWER_LIMIT..=CUSTOMER_LIST_UPPER_LIMIT).contains(&l) => Ok(l),
-        Some(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be between {} and {}",
-                CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT
-            ),
-        }
-        .into()),
-        None => Ok(CUSTOMER_LIST_DEFAULT_LIMIT),
+        Some(l) => CustomerListLimit::new(l).map_err(|err| {
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    " limit should be between {} and {}: {}",
+                    CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT, err
+                ),
+            }
+            .into()
+        }),
+        None => Ok(CustomerListLimit::default()),
     }
 }

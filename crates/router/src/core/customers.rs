@@ -8,6 +8,7 @@ use common_utils::{
         Description,
     },
 };
+use common_types::consts::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_methods as payment_methods_domain;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
@@ -22,10 +23,7 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
-        utils::{
-            self,
-            customer_validation::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT},
-        },
+        utils::{self},
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -627,7 +625,6 @@ pub async fn list_customers(
 pub async fn list_customers_with_count(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id_list: Option<Vec<id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
@@ -635,12 +632,12 @@ pub async fn list_customers_with_count(
     let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
         .change_context(errors::CustomersErrorResponse::InvalidRequestData {
             message: format!(
-            "limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
+            " limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
         ),
         })?;
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
-        limit: request.limit.unwrap_or(limit),
+        limit: request.limit.unwrap_or_else(|| limit.get_value()),
         offset: request.offset,
         customer_id: request.customer_id,
         time_range: request.time_range,

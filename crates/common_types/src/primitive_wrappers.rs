@@ -1,5 +1,6 @@
 pub use bool_wrappers::*;
 pub use safe_string::*;
+pub use u16_wrappers::*;
 pub use u32_wrappers::*;
 mod bool_wrappers {
     use std::ops::Deref;
@@ -431,6 +432,109 @@ mod u32_wrappers {
         /// Default for `DisputePollingIntervalInHours` is `24`
         fn default() -> Self {
             Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
+        }
+    }
+}
+
+mod u16_wrappers {
+    use std::ops::Deref;
+
+    use serde::{de::Error, Deserialize, Serialize};
+
+    use crate::consts::{
+        CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT, CUSTOMER_LIST_DEFAULT_LIMIT,
+    };
+
+    /// Customer list limit wrapper with automatic validation
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
+    #[diesel(sql_type = diesel::sql_types::SmallInt)]
+    pub struct CustomerListLimit(i16);
+
+    impl Deref for CustomerListLimit {
+        type Target = i16;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<'de> Deserialize<'de> for CustomerListLimit {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let val = u16::deserialize(deserializer)?;
+            if val < CUSTOMER_LIST_LOWER_LIMIT {
+                Err(D::Error::custom(format!(
+                    "CustomerListLimit cannot be less than {}",
+                    CUSTOMER_LIST_LOWER_LIMIT
+                )))
+            } else if val > CUSTOMER_LIST_UPPER_LIMIT {
+                Err(D::Error::custom(format!(
+                    "CustomerListLimit exceeds the maximum allowed value of {}",
+                    CUSTOMER_LIST_UPPER_LIMIT
+                )))
+            } else {
+                Ok(Self(val as i16))
+            }
+        }
+    }
+
+    impl diesel::deserialize::FromSql<diesel::sql_types::SmallInt, diesel::pg::Pg>
+        for CustomerListLimit
+    {
+        fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            i16::from_sql(value).map(Self)
+        }
+    }
+
+    impl diesel::serialize::ToSql<diesel::sql_types::SmallInt, diesel::pg::Pg>
+        for CustomerListLimit
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            <i16 as diesel::serialize::ToSql<diesel::sql_types::SmallInt, diesel::pg::Pg>>::to_sql(
+                &self.0, out,
+            )
+        }
+    }
+
+    impl Default for CustomerListLimit {
+        /// Default for `CustomerListLimit` is `20`
+        fn default() -> Self {
+            Self(CUSTOMER_LIST_DEFAULT_LIMIT as i16)
+        }
+    }
+
+    impl From<u16> for CustomerListLimit {
+        fn from(value: u16) -> Self {
+            Self(value.clamp(CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT) as i16)
+        }
+    }
+
+    impl CustomerListLimit {
+        /// Creates a new CustomerListLimit with validation
+        pub fn new(value: u16) -> Result<Self, String> {
+            if value < CUSTOMER_LIST_LOWER_LIMIT {
+                Err(format!(
+                    "CustomerListLimit cannot be less than {}",
+                    CUSTOMER_LIST_LOWER_LIMIT
+                ))
+            } else if value > CUSTOMER_LIST_UPPER_LIMIT {
+                Err(format!(
+                    "CustomerListLimit exceeds the maximum allowed value of {}",
+                    CUSTOMER_LIST_UPPER_LIMIT
+                ))
+            } else {
+                Ok(Self(value as i16))
+            }
+        }
+
+        /// Returns the inner u16 value
+        pub fn get_value(&self) -> u16 {
+            self.0 as u16
         }
     }
 }
