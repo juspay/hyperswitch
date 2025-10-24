@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -49,11 +50,15 @@ use transformers as silverflow;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Silverflow;
+pub struct Silverflow {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
 impl Silverflow {
     pub fn new() -> &'static Self {
-        &Self
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
     }
 }
 
@@ -353,10 +358,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -428,10 +444,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -679,10 +706,21 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -755,10 +793,21 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value,
+            response.amount.currency.clone(),
+        )?;
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
