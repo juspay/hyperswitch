@@ -542,6 +542,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
