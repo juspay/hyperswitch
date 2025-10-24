@@ -27,7 +27,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, BrowserInformationData, CardData as _, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PhoneDetailsData, RouterData as _,
@@ -74,23 +74,17 @@ pub struct AirwallexIntentRequest {
     order: Option<AirwallexOrderData>,
 }
 
-impl TryFrom<&AirwallexRouterData<&types::PaymentsPreProcessingRouterData>>
-    for AirwallexIntentRequest
-{
+impl TryFrom<&AirwallexRouterData<&types::CreateOrderRouterData>> for AirwallexIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &AirwallexRouterData<&types::PaymentsPreProcessingRouterData>,
+        item: &AirwallexRouterData<&types::CreateOrderRouterData>,
     ) -> Result<Self, Self::Error> {
         let referrer_data = ReferrerData {
             r_type: "hyperswitch".to_string(),
             version: "1.0.0".to_string(),
         };
         let amount = item.amount.clone();
-        let currency = item.router_data.request.currency.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
+        let currency = item.router_data.request.currency;
 
         let order = match item.router_data.request.payment_method_data {
             Some(PaymentMethodData::PayLater(_)) => Some(
@@ -133,6 +127,30 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsPreProcessingRouterData>>
             merchant_order_id: item.router_data.connector_request_reference_id.clone(),
             referrer_data,
             order,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AirwallexOrderResponse {
+    pub status: AirwallexPaymentStatus,
+    pub id: String,
+    pub payment_consent_id: Option<Secret<String>>,
+    pub next_action: Option<AirwallexPaymentsNextAction>,
+}
+
+impl TryFrom<CreateOrderResponseRouterData<AirwallexOrderResponse>>
+    for types::CreateOrderRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: CreateOrderResponseRouterData<AirwallexOrderResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
+                order_id: item.response.id.clone(),
+            }),
+            ..item.data
         })
     }
 }

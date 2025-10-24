@@ -517,6 +517,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
 pub struct CreateOrderRequestData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
@@ -526,6 +528,8 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,
+            payment_method_data: Some(data.payment_method_data),
+            order_details: data.order_details,
         })
     }
 }
@@ -537,6 +541,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,
+            payment_method_data: None,
+            order_details: data.order_details,
         })
     }
 }
