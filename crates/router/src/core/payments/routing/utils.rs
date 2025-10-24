@@ -30,7 +30,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
@@ -399,7 +399,7 @@ pub async fn decision_engine_routing(
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
         payment_id,
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
@@ -1615,7 +1615,7 @@ where
             wrapper.payment_id.clone(),
             wrapper.profile_id.clone(),
             wrapper.merchant_id.clone(),
-            wrapper.request_id,
+            wrapper.request_id.clone(),
             routing_engine,
         );
 

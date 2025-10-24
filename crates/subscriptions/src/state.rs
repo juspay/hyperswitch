@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     subscription as subscription_domain,
 };
 use hyperswitch_interfaces::configs;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
