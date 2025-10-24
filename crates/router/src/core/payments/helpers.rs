@@ -7999,13 +7999,13 @@ async fn save_new_connector_customer_id_from_ucs(
         );
 
         // Create and save customer update
-        customers::update_connector_customer_in_customers(
+        if let Some(update) = customers::update_connector_customer_in_customers(
             connector_label,
             Some(customer_data),
             Some(connector_customer_id.to_string()),
         )
         .await
-        .map(|update| async {
+        {
             let db = &*state.store;
             let _ = db
                 .update_customer_by_customer_id_merchant_id(
@@ -8021,7 +8021,7 @@ async fn save_new_connector_customer_id_from_ucs(
                 .inspect_err(|e| {
                     router_env::logger::warn!("Failed to save connector_customer_id to DB: {:?}", e)
                 });
-        });
+        }
     } else if existing_connector_customer_id.is_some() {
         router_env::logger::debug!(
             "Connector_customer_id from UCS already exists in DB, skipping save - connector_customer_id={}, payment_id={}, connector_label={}",
@@ -8147,15 +8147,16 @@ where
 
     // Populate connector_customer_id from database before calling UCS
     // Track whether ID was found in DB to avoid redundant save later
-    let was_populated_from_db = populate_connector_customer_from_db_before_ucs(
-        state,
-        &mut router_data,
-        connector_label.as_deref(),
-        payment_data,
-        customer,
-        &merchant_connector_account,
-    )
-    .await?;
+    let connector_customer_id_was_populated_from_db =
+        populate_connector_customer_from_db_before_ucs(
+            state,
+            &mut router_data,
+            connector_label.as_deref(),
+            payment_data,
+            customer,
+            &merchant_connector_account,
+        )
+        .await?;
 
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
@@ -8175,48 +8176,7 @@ where
 
     // Save new connector_customer_id from UCS to database if it doesn't already exist
     // Skip if ID was already populated from DB before UCS call
-    if was_populated_from_db {
-        router_env::logger::debug!(
-            "Skipping save - connector_customer_id was already in DB before UCS call - payment_id={}",
-            payment_data.get_payment_intent().payment_id.get_string_repr()
-        );
-    } else if let (
-        Some(connector_customer_id),
-        Some(ref connector_label_str),
-        Some(connector_name),
-    ) = (
-        &router_data.connector_customer,
-        &connector_label,
-        payment_data.get_payment_attempt().connector.as_ref(),
-    ) {
-        if let Ok(connector) = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            connector_name,
-            api::GetToken::Connector,
-            merchant_connector_account.get_mca_id(),
-        ) {
-            save_new_connector_customer_id_from_ucs(
-                state,
-                connector_customer_id,
-                connector_label_str,
-                customer,
-                payment_data.get_payment_attempt(),
-                &connector,
-                merchant_context,
-                payment_data
-                    .get_payment_intent()
-                    .payment_id
-                    .get_string_repr()
-                    .to_string(),
-            )
-            .await
-            .ok();
-        }
-    }
-
-    // Save new connector_customer_id from UCS to database if it doesn't already exist
-    // Skip if ID was already populated from DB before UCS call
-    if was_populated_from_db {
+    if connector_customer_id_was_populated_from_db {
         router_env::logger::debug!(
             "Skipping save - connector_customer_id was already in DB before UCS call - payment_id={}",
             payment_data.get_payment_intent().payment_id.get_string_repr()
