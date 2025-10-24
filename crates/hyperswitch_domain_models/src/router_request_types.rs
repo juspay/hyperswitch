@@ -655,35 +655,25 @@ pub struct PaymentsAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
-    pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
-
-    // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
 }
 
-impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
-    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: Some(data.payment_method_data),
+            payment_method_data: data.payment_method_data,
             amount: Some(data.amount),
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
-            payment_method_type: data.payment_method_type,
-            router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
-            redirect_response: None,
-            enrolled_for_3ds: data.enrolled_for_3ds,
+            redirect_response: data.redirect_response,
         })
     }
 }
@@ -884,6 +874,14 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsExtendAuthorizationData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1341,6 +1339,7 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
