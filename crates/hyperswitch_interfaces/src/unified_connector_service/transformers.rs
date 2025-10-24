@@ -1,4 +1,5 @@
 use common_enums::AttemptStatus;
+use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 use hyperswitch_domain_models::{
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
@@ -8,7 +9,6 @@ use hyperswitch_domain_models::{
 };
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
-use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
