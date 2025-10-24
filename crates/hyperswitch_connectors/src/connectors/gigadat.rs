@@ -54,7 +54,9 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, PeekInterface};
+#[cfg(feature = "payouts")]
+use masking::ExposeInterface;
+use masking::{Mask, PeekInterface};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
