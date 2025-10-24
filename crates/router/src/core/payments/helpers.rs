@@ -1,7 +1,5 @@
 use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
-pub use hyperswitch_domain_models::customer;
-
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
     validate_payment_method_type_against_payment_method,
@@ -36,6 +34,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use external_services::grpc_client;
 use futures::future::Either;
+pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
