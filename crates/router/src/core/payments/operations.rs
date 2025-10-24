@@ -227,6 +227,26 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<D>>;
 
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_trackers_for_split_payments<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        request: &R,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        split_amount_data: (
+            api_models::payments::PaymentMethodData,
+            common_utils::types::MinorUnit,
+        ),
+    ) -> RouterResult<GetTrackerResponse<D>> {
+        Err(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::NotImplemented {
+            message: hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Default,
+        })?
+    }
+
     async fn validate_request_with_state(
         &self,
         _state: &SessionState,

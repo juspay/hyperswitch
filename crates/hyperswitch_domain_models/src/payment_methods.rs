@@ -1,9 +1,9 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use api_models::payment_methods::PaymentMethodsData;
 use api_models::{customers, payment_methods, payments};
+#[cfg(feature = "v2")]
+use api_models::{payment_methods::PaymentMethodsData, payments::BalanceCheckPaymentMethodData};
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
