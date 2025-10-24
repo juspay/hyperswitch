@@ -579,6 +579,10 @@ pub async fn get_token_pm_type_mandate_details(
                                 Some(payment_method_info),
                             )
                         }
+                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+                            // NetworkToken is not yet fully implemented for recurring details
+                            (None, request.payment_method, None, None, None, None, None)
+                        }
                     }
                 }
                 None => {
@@ -5572,7 +5576,11 @@ pub async fn get_additional_payment_data(
                 details: Some(mobile_payment.to_owned().into()),
             },
         )),
-        domain::PaymentMethodData::NetworkToken(_) => Ok(None),
+        domain::PaymentMethodData::NetworkToken(network_token) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken {
+                details: Some(network_token.to_owned().into()),
+            },
+        )),
     }
 }
 

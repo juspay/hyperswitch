@@ -206,7 +206,8 @@ impl CardDetailsForNetworkTransactionId {
             ) => Some(network_transaction_id_and_card_details),
             mandates::RecurringDetails::MandateId(_)
             | mandates::RecurringDetails::PaymentMethodId(_)
-            | mandates::RecurringDetails::ProcessorPaymentToken(_) => None,
+            | mandates::RecurringDetails::ProcessorPaymentToken(_)
+            | mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => None,
         }?;
 
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
@@ -1044,6 +1045,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => {
                 Self::MobilePayment(From::from(mobile_payment_data))
+            }
+            api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
+                Self::NetworkToken(From::from(network_token_data))
             }
         }
     }
@@ -2071,6 +2075,69 @@ impl From<MobilePaymentData> for api_models::payments::MobilePaymentData {
             MobilePaymentData::DirectCarrierBilling { msisdn, client_uid } => {
                 Self::DirectCarrierBilling { msisdn, client_uid }
             }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
+    fn from(network_token_data: api_models::payments::NetworkTokenData) -> Self {
+        Self {
+            token_number: network_token_data.network_token,
+            token_exp_month: network_token_data.token_exp_month,
+            token_exp_year: network_token_data.token_exp_year,
+            token_cryptogram: network_token_data.token_cryptogram,
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
+    fn from(network_token_data: api_models::payments::NetworkTokenData) -> Self {
+        Self {
+            network_token: cards::NetworkToken::from(network_token_data.network_token),
+            network_token_exp_month: network_token_data.token_exp_month,
+            network_token_exp_year: network_token_data.token_exp_year,
+            cryptogram: network_token_data.token_cryptogram,
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            card_holder_name: None,
+            nick_name: None,
+            eci: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkTokenData> for api_models::payments::NetworkTokenData {
+    fn from(network_token_data: NetworkTokenData) -> Self {
+        Self {
+            network_token: network_token_data.token_number,
+            token_exp_month: network_token_data.token_exp_month,
+            token_exp_year: network_token_data.token_exp_year,
+            token_cryptogram: network_token_data.token_cryptogram,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<NetworkTokenData> for api_models::payments::NetworkTokenData {
+    fn from(network_token_data: NetworkTokenData) -> Self {
+        Self {
+            network_token: network_token_data.network_token.into(),
+            token_exp_month: network_token_data.network_token_exp_month,
+            token_exp_year: network_token_data.network_token_exp_year,
+            token_cryptogram: network_token_data.cryptogram,
         }
     }
 }

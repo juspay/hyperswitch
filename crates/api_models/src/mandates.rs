@@ -171,6 +171,10 @@ pub enum RecurringDetails {
     /// is not stored in the application
     #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
     NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
+
+    /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    NetworkTransactionIdAndNetworkTokenDetails(NetworkTransactionIdAndNetworkTokenDetails),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -249,8 +253,32 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub network_transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndNetworkTokenDetails {
+    /// The Network Token
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub network_token: cards::CardNumber,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub token_exp_year: Secret<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// where `off_session` is true.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Secret<String>,
+}
+
 impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
+    }
+
+    pub fn is_network_transaction_id_and_network_token_details_flow(self) -> bool {
+        matches!(self, Self::NetworkTransactionIdAndNetworkTokenDetails(_))
     }
 }

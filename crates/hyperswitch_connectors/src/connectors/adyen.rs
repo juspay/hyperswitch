@@ -187,7 +187,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
-                | PaymentMethodType::Paypal => match capture_method {
+                | PaymentMethodType::Paypal
+                | PaymentMethodType::NetworkToken => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
@@ -3307,6 +3308,17 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::NetworkToken,
+        PaymentMethodType::NetworkToken,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
             specific_features: None,
         },
     );

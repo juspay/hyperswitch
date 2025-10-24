@@ -234,6 +234,9 @@ impl ConnectorApiIntegrationPayload {
                             }
                         }
                     }
+                    api_models::enums::PaymentMethod::NetworkToken => {
+                        // NetworkToken is not yet supported in the response modifier
+                    }
                 }
             }
         }

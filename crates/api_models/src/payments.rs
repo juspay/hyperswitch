@@ -3247,6 +3247,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Upi(_)
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3383,6 +3384,72 @@ pub struct VaultToken {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetworkTokenData {
+    /// The network token
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub network_token: CardNumber,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub token_exp_year: Secret<String>,
+
+    /// The token cryptogram
+    #[schema(value_type = Option<String>)]
+    pub token_cryptogram: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct NetworkTokenResponse {
+    pub token_last_four: Option<String>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_exp_month: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_exp_year: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_cryptogram: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetworkTokenData {
+    /// The network token
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub network_token: CardNumber,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub token_exp_year: Secret<String>,
+
+    /// The token cryptogram
+    #[schema(value_type = Option<String>)]
+    pub token_cryptogram: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct NetworkTokenResponse {
+    pub token_last_four: Option<String>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_exp_month: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_exp_year: Option<Secret<String>>,
+
+    #[schema(value_type = Option<String>)]
+    pub token_cryptogram: Option<Secret<String>>,
+}
+
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
 )]
@@ -3439,6 +3506,8 @@ pub enum PaymentMethodData {
     #[schema(title = "MobilePayment")]
     #[smithy(value_type = "MobilePaymentData")]
     MobilePayment(MobilePaymentData),
+    #[schema(title = "NetworkToken")]
+    NetworkToken(NetworkTokenData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3464,7 +3533,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::CardToken(_)
             | Self::OpenBanking(_)
             | Self::MandatePayment
-            | Self::MobilePayment(_) => None,
+            | Self::MobilePayment(_)
+            | Self::NetworkToken(_) => None,
         }
     }
 }
@@ -3503,6 +3573,7 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
+            Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -3966,6 +4037,10 @@ pub enum AdditionalPaymentData {
     MobilePayment {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
+    },
+    NetworkToken {
+        #[serde(flatten)]
+        details: Option<NetworkTokenData>,
     },
 }
 
@@ -5659,7 +5734,8 @@ where
                 | PaymentMethodDataResponse::Wallet(_)
                 | PaymentMethodDataResponse::BankTransfer(_)
                 | PaymentMethodDataResponse::OpenBanking(_)
-                | PaymentMethodDataResponse::Voucher(_) => {
+                | PaymentMethodDataResponse::Voucher(_)
+                | PaymentMethodDataResponse::NetworkToken(_) => {
                     payment_method_data_response.serialize(serializer)
                 }
             }
@@ -5712,6 +5788,7 @@ pub enum PaymentMethodDataResponse {
     OpenBanking(Box<OpenBankingResponse>),
     #[smithy(value_type = "MobilePaymentResponse")]
     MobilePayment(Box<MobilePaymentResponse>),
+    NetworkToken(Box<NetworkTokenResponse>),
 }
 
 #[derive(
@@ -8888,6 +8965,25 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             }
             AdditionalPaymentData::MobilePayment { details } => {
                 Self::MobilePayment(Box::new(MobilePaymentResponse { details }))
+            }
+            AdditionalPaymentData::NetworkToken { details } => {
+                Self::NetworkToken(Box::new(NetworkTokenResponse {
+                    token_last_four: details.clone().map(|dt| {
+                        dt.network_token
+                            .peek()
+                            .clone()
+                            .chars()
+                            .rev()
+                            .take(4)
+                            .collect::<String>()
+                            .chars()
+                            .rev()
+                            .collect::<String>()
+                    }),
+                    token_exp_month: details.clone().map(|dt| dt.token_exp_month.clone()),
+                    token_exp_year: details.clone().map(|dt| dt.token_exp_year.clone()),
+                    token_cryptogram: details.clone().and_then(|dt| dt.token_cryptogram.clone()),
+                }))
             }
         }
     }

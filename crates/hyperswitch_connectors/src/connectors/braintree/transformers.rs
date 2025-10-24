@@ -559,7 +559,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             | api_models::enums::PaymentMethod::Upi
             | api_models::enums::PaymentMethod::OpenBanking
             | api_models::enums::PaymentMethod::Voucher
-            | api_models::enums::PaymentMethod::GiftCard => {
+            | api_models::enums::PaymentMethod::GiftCard
+            | api_models::enums::PaymentMethod::NetworkToken => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message(
                         "complete authorize flow",
