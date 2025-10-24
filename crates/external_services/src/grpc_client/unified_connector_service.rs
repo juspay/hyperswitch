@@ -259,6 +259,36 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Cancel/Void
+    pub async fn payment_cancel(
+        &self,
+        payment_void_request: payments_grpc::PaymentServiceVoidRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceVoidResponse>>
+    {
+        let mut request = tonic::Request::new(payment_void_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .void(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCancelFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_cancel",
+                    connector_name=?connector_name,
+                    "UCS payment cancel gRPC call failed"
+                )
+            })
+    }
+
     /// Transforms incoming webhook through UCS
     pub async fn transform_incoming_webhook(
         &self,
