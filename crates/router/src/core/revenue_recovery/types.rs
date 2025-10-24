@@ -750,12 +750,12 @@ impl Action {
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
-                revenue_recovery_core::api::update_payment_intent_api(
+                Box::pin(revenue_recovery_core::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
                     revenue_recovery_payment_data,
                     payment_update_req,
-                )
+                ))
                 .await
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
                 Ok(())

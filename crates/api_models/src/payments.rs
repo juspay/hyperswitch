@@ -5221,6 +5221,18 @@ pub enum QrCodeInformation {
         display_text: Option<String>,
         border_color: Option<String>,
     },
+    QrDataUrlSantander {
+        qr_code_url: Url,
+        display_to_timestamp: Option<i64>,
+        variant: Option<SantanderVariant>,
+    },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderVariant {
+    Immediate,
+    Scheduled,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
@@ -5263,6 +5275,8 @@ pub struct VoucherNextStepData {
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
     pub digitable_line: Option<Secret<String>>,
+    /// Bank Number where the boleto was registered
+    pub bank_number: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7319,6 +7333,8 @@ pub struct PaymentsUpdateMetadataRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: pii::SecretSerdeValue,
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -7329,6 +7345,11 @@ pub struct PaymentsUpdateMetadataResponse {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::IntentStatus,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -8753,6 +8774,12 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -8772,6 +8799,9 @@ impl FeatureMetadata {
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
+            pix_qr_expiry_time: self.pix_qr_expiry_time,
+            pix_additional_details: self.pix_additional_details,
+            boleto_expiry_details: self.boleto_expiry_details,
         }
     }
 }
@@ -8788,6 +8818,63 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl FeatureMetadata {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            redirect_response: self.redirect_response.or(other.redirect_response),
+            search_tags: self.search_tags.or(other.search_tags),
+            apple_pay_recurring_details: self
+                .apple_pay_recurring_details
+                .or(other.apple_pay_recurring_details),
+            pix_qr_expiry_time: self.pix_qr_expiry_time.or(other.pix_qr_expiry_time),
+            pix_additional_details: self.pix_additional_details.or(other.pix_additional_details),
+            boleto_expiry_details: self.boleto_expiry_details.or(other.boleto_expiry_details),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PixAdditionalDetails {
+    /// The percentage of fine applied for late payment
+    pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
+    pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
+    pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
+    pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
+    pub messages: Option<Vec<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum PixQRExpirationDuration {
+    Immediate(ImmediateExpirationTime),
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: i32,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: String,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
