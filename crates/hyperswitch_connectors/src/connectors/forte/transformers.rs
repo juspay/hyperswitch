@@ -596,8 +596,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
-    status: RefundStatus,
-    transaction_id: String,
+    pub status: RefundStatus,
+    pub transaction_id: String,
+    pub authorization_amount: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>>
