@@ -39,7 +39,9 @@ use thiserror::Error;
 pub use self::global_id::{
     customer::GlobalCustomerId,
     payment::{GlobalAttemptId, GlobalPaymentId},
-    payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
+    payment_methods::{
+        GlobalPaymentMethodId, GlobalPaymentMethodSessionId, GlobalPaymentMethodToken,
+    },
     refunds::GlobalRefundId,
     token::GlobalTokenId,
     CellId,
