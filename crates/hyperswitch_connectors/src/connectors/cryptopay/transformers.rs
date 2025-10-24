@@ -178,6 +178,7 @@ impl<F, T>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             let redirection_data = item
@@ -200,8 +201,8 @@ impl<F, T>
                 charges: None,
             })
         };
-        match amount_captured_in_minor_units {
-            Some(minor_amount) => {
+        match (amount_captured_in_minor_units, status) {
+            (Some(minor_amount), enums::AttemptStatus::Charged) => {
                 let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
                     status,
@@ -211,7 +212,7 @@ impl<F, T>
                     ..item.data
                 })
             }
-            None => Ok(Self {
+            _ => Ok(Self {
                 status,
                 response,
                 ..item.data

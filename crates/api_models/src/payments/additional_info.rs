@@ -13,6 +13,7 @@ pub enum BankDebitAdditionalData {
     Bacs(Box<BacsBankDebitAdditionalData>),
     Becs(Box<BecsBankDebitAdditionalData>),
     Sepa(Box<SepaBankDebitAdditionalData>),
+    SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -154,6 +155,10 @@ pub enum BankTransferAdditionalData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        #[schema(value_type = Option<BankNames>, example = "bri")]
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -174,8 +179,8 @@ pub struct PixBankTransferAdditionalData {
     #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
     pub source_bank_account_id: Option<MaskedBankAccount>,
 
-    /// Partially masked destination bank account number
-    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
+    /// Partially masked destination bank account number _Deprecated: Will be removed in next stable release._
+    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b", deprecated)]
     pub destination_bank_account_id: Option<MaskedBankAccount>,
 
     /// The expiration date and time for the Pix QR code in ISO 8601 format
@@ -196,6 +201,7 @@ pub struct LocalBankTransferAdditionalData {
 pub enum GiftCardAdditionalData {
     Givex(Box<GivexGiftCardAdditionalData>),
     PaySafeCard {},
+    BhnCardNetwork {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -218,6 +224,8 @@ pub enum UpiAdditionalData {
     UpiCollect(Box<UpiCollectAdditionalData>),
     #[schema(value_type = UpiIntentData)]
     UpiIntent(Box<super::UpiIntentData>),
+    #[schema(value_type = UpiQrData)]
+    UpiQr(Box<super::UpiQrData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

@@ -51,18 +51,16 @@ pub async fn generate_feature_matrix(
         connector_list
             .into_iter()
             .filter_map(|connector_name| {
-                api_types::ConnectorData::convert_connector(&connector_name.to_string())
-                    .inspect_err(|_| {
-                        router_env::logger::warn!("Failed to fetch {:?} details", connector_name)
-                    })
-                    .ok()
-                    .and_then(|connector| {
-                        build_connector_feature_details(
-                            &state,
-                            connector,
-                            connector_name.to_string(),
-                        )
-                    })
+                api_types::feature_matrix::FeatureMatrixConnectorData::convert_connector(
+                    &connector_name.to_string(),
+                )
+                .inspect_err(|_| {
+                    router_env::logger::warn!("Failed to fetch {:?} details", connector_name)
+                })
+                .ok()
+                .and_then(|connector| {
+                    build_connector_feature_details(&state, connector, connector_name.to_string())
+                })
             })
             .collect();
 
@@ -80,32 +78,36 @@ fn build_connector_feature_details(
     connector_name: String,
 ) -> Option<feature_matrix::ConnectorFeatureMatrixResponse> {
     let connector_integration_features = connector.get_supported_payment_methods();
-    connector_integration_features.map(|connector_integration_feature_data| {
-        let supported_payment_methods = connector_integration_feature_data
-            .iter()
-            .flat_map(|(payment_method, supported_payment_method_types)| {
-                build_payment_method_wise_feature_details(
-                    state,
-                    &connector_name,
-                    *payment_method,
-                    supported_payment_method_types,
-                )
-            })
-            .collect::<Vec<feature_matrix::SupportedPaymentMethod>>();
+    let supported_payment_methods =
+        connector_integration_features.map(|connector_integration_feature_data| {
+            connector_integration_feature_data
+                .iter()
+                .flat_map(|(payment_method, supported_payment_method_types)| {
+                    build_payment_method_wise_feature_details(
+                        state,
+                        &connector_name,
+                        *payment_method,
+                        supported_payment_method_types,
+                    )
+                })
+                .collect::<Vec<feature_matrix::SupportedPaymentMethod>>()
+        });
+    let supported_webhook_flows = connector
+        .get_supported_webhook_flows()
+        .map(|webhook_flows| webhook_flows.to_vec());
+    let connector_about = connector.get_connector_about();
 
-        let connector_about = connector.get_connector_about();
-        let supported_webhook_flows = connector
-            .get_supported_webhook_flows()
-            .map(|webhook_flows| webhook_flows.to_vec());
-        feature_matrix::ConnectorFeatureMatrixResponse {
+    connector_about.map(
+        |connector_about| feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name.to_uppercase(),
-            display_name: connector_about.map(|about| about.display_name.to_string()),
-            description: connector_about.map(|about| about.description.to_string()),
-            category: connector_about.map(|about| about.connector_type),
+            display_name: connector_about.display_name.to_string(),
+            description: connector_about.description.to_string(),
+            integration_status: connector_about.integration_status,
+            category: connector_about.connector_type,
             supported_webhook_flows,
             supported_payment_methods,
-        }
-    })
+        },
+    )
 }
 
 fn build_payment_method_wise_feature_details(

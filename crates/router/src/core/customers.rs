@@ -22,6 +22,10 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
+        utils::{
+            self,
+            customer_validation::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT},
+        },
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -160,6 +164,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: self.name.clone(),
                         email: self.email.clone().map(|a| a.expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -215,6 +220,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_payment_method_id: None,
             updated_by: None,
             version: common_types::consts::API_VERSION,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -286,6 +292,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: Some(self.name.clone()),
                         email: Some(self.email.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -344,6 +351,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -586,6 +594,8 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -611,6 +621,61 @@ pub async fn list_customers(
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
+}
+
+#[instrument(skip(state))]
+pub async fn list_customers_with_count(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
+    key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequestWithConstraints,
+) -> errors::CustomerResponse<customers::CustomerListResponse> {
+    let db = state.store.as_ref();
+    let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
+        .change_context(errors::CustomersErrorResponse::InvalidRequestData {
+            message: format!(
+            "limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
+        ),
+        })?;
+
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request.limit.unwrap_or(limit),
+        offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: request.time_range,
+    };
+
+    let domain_customers = db
+        .list_customers_by_merchant_id_with_count(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
+        .await
+        .switch()?;
+
+    #[cfg(feature = "v1")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(feature = "v2")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            total_count: domain_customers.1,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -750,6 +815,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_shipping_address: None,
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
+                tax_registration_id: Some(redacted_encrypted_value),
             }));
 
         db.update_customer_by_global_id(
@@ -955,6 +1021,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 .storage_scheme
                 .to_string(),
             email: Some(redacted_encrypted_email),
+            origin_zip: Some(redacted_encrypted_value.clone()),
         };
 
         match db
@@ -996,9 +1063,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             phone: Box::new(Some(redacted_encrypted_value.clone())),
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
-            metadata: None,
+            metadata: Box::new(None),
             connector_customer: Box::new(None),
             address_id: None,
+            tax_registration_id: Some(redacted_encrypted_value.clone()),
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1287,6 +1355,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1323,8 +1392,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     }),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
-                    metadata: self.metadata.clone(),
+                    metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
@@ -1409,6 +1479,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1444,6 +1515,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     })),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),

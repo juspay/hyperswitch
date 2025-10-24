@@ -26,6 +26,9 @@ counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
 counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 
+counter_metric!(PAYMENT_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
+counter_metric!(SUCCESSFUL_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
+
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
 counter_metric!(SUBSEQUENT_MANDATE_PAYMENT, GLOBAL_METER);
 
@@ -140,3 +143,6 @@ histogram_metric_f64!(CHECK_NETWORK_TOKEN_STATUS_TIME, GLOBAL_METER);
 
 // A counter to indicate allowed payment method types mismatch
 counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);
+
+// AI chat metric to track number of chat request
+counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);

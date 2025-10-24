@@ -28,7 +28,9 @@ use external_services::grpc_client::dynamic_routing::{
     success_rate_client::SuccessBasedDynamicRouting,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use helpers::update_decision_engine_dynamic_routing_setup;
+use helpers::{
+    enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
+};
 use hyperswitch_domain_models::{mandates, payment_address};
 use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
@@ -694,7 +696,15 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.dynamic_routing_enabled {
-                        update_decision_engine_dynamic_routing_setup(
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
+                        &state,
+                        business_profile.get_id(),
+                        api_models::open_router::DecisionEngineDynamicAlgorithmType::SuccessRate,
+                    )
+                    .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
@@ -706,6 +716,27 @@ pub async fn link_routing_config(
                         .attach_printable(
                             "Failed to update the success rate routing config in Decision Engine",
                         )?;
+                        } else {
+                            let data: routing_types::SuccessBasedRoutingConfig =
+                            routing_algorithm.algorithm_data
+                                .clone()
+                                .parse_value("SuccessBasedRoutingConfig")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "unable to deserialize SuccessBasedRoutingConfig from routing algorithm data",
+                                )?;
+
+                            enable_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                            &mut dynamic_routing_ref,
+                            Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
@@ -725,18 +756,51 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.dynamic_routing_enabled {
-                        update_decision_engine_dynamic_routing_setup(
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
                             &state,
                             business_profile.get_id(),
-                            routing_algorithm.algorithm_data.clone(),
-                            routing_types::DynamicRoutingType::EliminationRouting,
-                            &mut dynamic_routing_ref,
+                            api_models::open_router::DecisionEngineDynamicAlgorithmType::Elimination,
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to update the elimination routing config in Decision Engine",
-                        )?;
+                        .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_algorithm.algorithm_data.clone(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to update the elimination routing config in Decision Engine",
+                            )?;
+                        } else {
+                            let data: routing_types::EliminationRoutingConfig =
+                                routing_algorithm.algorithm_data
+                                    .clone()
+                                    .parse_value("EliminationRoutingConfig")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "unable to deserialize EliminationRoutingConfig from routing algorithm data",
+                                    )?;
+
+                            enable_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                                Some(
+                                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(
+                                        data,
+                                    ),
+                                ),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
@@ -832,6 +896,23 @@ pub async fn link_routing_config(
             }
         }
     }
+
+    // redact cgraph cache on rule activation
+    helpers::redact_cgraph_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
+    // redact routing cache on rule activation
+    helpers::redact_routing_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),
@@ -1045,9 +1126,25 @@ pub async fn unlink_routing_config(
                         db,
                         key_manager_state,
                         merchant_context.get_merchant_key_store(),
-                        business_profile,
+                        business_profile.clone(),
                         routing_algorithm,
                         &transaction_type,
+                    )
+                    .await?;
+
+                    // redact cgraph cache on rule activation
+                    helpers::redact_cgraph_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
+                    )
+                    .await?;
+
+                    // redact routing cache on rule activation
+                    helpers::redact_routing_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
                     )
                     .await?;
 
@@ -1598,6 +1695,7 @@ pub async fn update_default_routing_config_for_profile(
 
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
@@ -1647,14 +1745,86 @@ pub async fn toggle_specific_dynamic_routing(
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
-            helpers::enable_dynamic_routing_algorithm(
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                None,
+            ))
+            .await
+        }
+        routing::DynamicRoutingFeatures::None => {
+            // disable specific dynamic routing for the requested profile
+            helpers::disable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
             )
+            .await
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn create_specific_dynamic_routing(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    feature_to_enable: routing::DynamicRoutingFeatures,
+    profile_id: common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing::DynamicRoutingType,
+    payload: routing_types::DynamicRoutingPayload,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        1,
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            ("algorithm_type", dynamic_routing_type.to_string())
+        ),
+    );
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        Some(&profile_id),
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    match feature_to_enable {
+        routing::DynamicRoutingFeatures::Metrics
+        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                feature_to_enable,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+                Some(payload),
+            ))
             .await
         }
         routing::DynamicRoutingFeatures::None => {

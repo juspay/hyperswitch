@@ -82,6 +82,7 @@ pub async fn construct_relay_refund_router_data<F>(
         attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(),
         status: common_enums::AttemptStatus::Charged,
         payment_method: common_enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type,
         description: None,
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
@@ -145,6 +146,9 @@ pub async fn construct_relay_refund_router_data<F>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)

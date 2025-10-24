@@ -78,7 +78,8 @@ pub struct CardNetworkTokenizeRecord {
     pub customer_phone: Option<masking::Secret<String>>,
     #[serde(rename = "phone_country_code")]
     pub customer_phone_country_code: Option<String>,
-
+    #[serde(rename = "tax_registration_id")]
+    pub customer_tax_registration_id: Option<masking::Secret<String>>,
     // Billing details
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<enums::CountryAlpha2>,
@@ -106,6 +107,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::CustomerDetails {
             email: record.customer_email.clone(),
             phone: record.customer_phone.clone(),
             phone_country_code: record.customer_phone_country_code.clone(),
+            tax_registration_id: record.customer_tax_registration_id.clone(),
         }
     }
 }
@@ -123,6 +125,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::Address {
                 zip: record.billing_address_zip.clone(),
                 state: record.billing_address_state.clone(),
                 country: record.billing_address_country,
+                origin_zip: None,
             }),
             phone: Some(payments_api::PhoneDetails {
                 number: record.billing_phone_number.clone(),
@@ -217,6 +220,7 @@ impl ForeignTryFrom<CustomerDetails> for payments_api::CustomerDetails {
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
         })
     }
 }
@@ -268,6 +272,7 @@ impl ForeignFrom<payments_api::CustomerDetails> for CustomerDetails {
             email: req.email,
             phone: req.phone,
             phone_country_code: req.phone_country_code,
+            tax_registration_id: req.tax_registration_id,
         }
     }
 }
@@ -294,6 +299,7 @@ impl ForeignFrom<payments_api::AddressDetails> for AddressDetails {
             state: req.state,
             first_name: req.first_name,
             last_name: req.last_name,
+            origin_zip: req.origin_zip,
         }
     }
 }

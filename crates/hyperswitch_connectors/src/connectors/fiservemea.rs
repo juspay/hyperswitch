@@ -240,6 +240,7 @@ impl ConnectorCommon for Fiservemea {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             None => Ok(ErrorResponse {
@@ -255,6 +256,7 @@ impl ConnectorCommon for Fiservemea {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -851,7 +853,8 @@ static FISERVEMEA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static FISERVEMEA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Fiservemea",
     description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
-    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    connector_type: enums::HyperswitchConnectorCategory::BankAcquirer,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

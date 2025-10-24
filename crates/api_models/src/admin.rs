@@ -662,6 +662,9 @@ pub struct MerchantDetails {
 
     /// The merchant's address details
     pub address: Option<AddressDetails>,
+
+    #[schema(value_type = Option<String>, example = "123456789")]
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -1210,7 +1213,9 @@ pub enum ConnectorAuthType {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
     CertificateAuth {
+        // certificate should be base64 encoded
         certificate: Secret<String>,
+        // private_key should be base64 encoded
         private_key: Secret<String>,
     },
     #[default]
@@ -1714,6 +1719,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Amazon Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub amazon_pay: Option<pii::SecretSerdeValue>,
     /// This field contains the Samsung Pay certificates and credentials
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
@@ -2183,6 +2192,32 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check  for new disputes
+    #[schema(value_type = Option<i32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2336,6 +2371,18 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2518,6 +2565,32 @@ pub struct ProfileResponse {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check dispute statuses
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2679,6 +2752,23 @@ pub struct ProfileResponse {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2767,6 +2857,11 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
@@ -2846,6 +2941,32 @@ pub struct ProfileUpdate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check for new disputes
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2989,6 +3110,19 @@ pub struct ProfileUpdate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

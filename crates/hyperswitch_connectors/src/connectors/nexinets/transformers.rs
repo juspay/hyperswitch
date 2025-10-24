@@ -30,6 +30,10 @@ use crate::{
     },
 };
 
+pub mod nexinets_constants {
+    pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 30;
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentsRequest {
@@ -187,7 +191,20 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
         let (payment, product) = get_payment_details_and_product(item)?;
         let merchant_order_id = match item.payment_method {
             // Merchant order id is sent only in case of card payment
-            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            enums::PaymentMethod::Card => {
+                if item.connector_request_reference_id.len()
+                    <= nexinets_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+                {
+                    Ok(Some(item.connector_request_reference_id.clone()))
+                } else {
+                    Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nexinets".to_string(),
+                        field_name: "merchant_order_id".to_string(),
+                        max_length: nexinets_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+                        received_length: item.connector_request_reference_id.len(),
+                    })
+                }
+            }?,
             _ => None,
         };
         Ok(Self {
@@ -706,9 +723,11 @@ fn get_wallet_details(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPay(_)
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

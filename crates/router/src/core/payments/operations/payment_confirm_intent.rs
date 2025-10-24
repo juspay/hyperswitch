@@ -47,13 +47,16 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -272,6 +275,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            external_vault_pmd: None,
+            webhook_url: request
+                .webhook_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_string()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -492,14 +500,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     network_tokenization: None,
                 };
 
-                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
-                    state,
-                    &state.get_req_state(),
-                    req,
-                    merchant_context,
-                    business_profile,
-                )
-                .await?;
+                let (_pm_response, payment_method) =
+                    Box::pin(payment_methods::create_payment_method_core(
+                        state,
+                        &state.get_req_state(),
+                        req,
+                        merchant_context,
+                        business_profile,
+                    ))
+                    .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
@@ -532,6 +541,60 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         payment_data
             .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
         Ok(connector_data)
+    }
+
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &PaymentConfirmData<F>,
+    ) -> RouterResult<payments::TokenizationAction> {
+        let connector = payment_data.payment_attempt.connector.to_owned();
+
+        let is_connector_mandate_flow = payment_data
+            .mandate_data
+            .as_ref()
+            .and_then(|mandate_details| mandate_details.mandate_reference_id.as_ref())
+            .map(|mandate_reference| match mandate_reference {
+                api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+                api_models::payments::MandateReferenceId::NetworkMandateId(_)
+                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            })
+            .unwrap_or(false);
+
+        let tokenization_action = match connector {
+            Some(_) if is_connector_mandate_flow => {
+                payments::TokenizationAction::SkipConnectorTokenization
+            }
+            Some(connector) => {
+                let payment_method = payment_data
+                    .payment_attempt
+                    .get_payment_method()
+                    .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method not found")?;
+                let payment_method_type: Option<common_enums::PaymentMethodType> =
+                    payment_data.payment_attempt.get_payment_method_type();
+
+                let mandate_flow_enabled = payment_data.payment_intent.setup_future_usage;
+
+                let is_connector_tokenization_enabled =
+                    payments::is_payment_method_tokenization_enabled_for_connector(
+                        state,
+                        &connector,
+                        payment_method,
+                        payment_method_type,
+                        mandate_flow_enabled,
+                    )?;
+
+                if is_connector_tokenization_enabled {
+                    payments::TokenizationAction::TokenizeInConnector
+                } else {
+                    payments::TokenizationAction::SkipConnectorTokenization
+                }
+            }
+            None => payments::TokenizationAction::SkipConnectorTokenization,
+        };
+
+        Ok(tokenization_action)
     }
 }
 
@@ -615,6 +678,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                             .attach_printable("Merchant connector id is none when constructing response")
                     })?,
                     authentication_type,
+                    connector_request_reference_id,
                     payment_method_id : payment_method.get_id().clone()
                 }
             }

@@ -302,35 +302,6 @@ impl Parse for Rule {
 }
 
 #[derive(Clone)]
-enum Scope {
-    Crate,
-    Extern,
-}
-
-impl Parse for Scope {
-    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(Token![crate]) {
-            input.parse::<Token![crate]>()?;
-            Ok(Self::Crate)
-        } else if lookahead.peek(Token![extern]) {
-            input.parse::<Token![extern]>()?;
-            Ok(Self::Extern)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-impl Display for Scope {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Crate => write!(f, "crate"),
-            Self::Extern => write!(f, "euclid"),
-        }
-    }
-}
-#[derive(Clone)]
 struct Program {
     rules: Vec<Rc<Rule>>,
 }

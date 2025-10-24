@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, StringExt},
     types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
@@ -14,7 +14,9 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
-use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
+use scheduler::{
+    consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
+};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -40,7 +42,6 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
-    workflows::payment_sync,
 };
 
 // ********************************************** REFUND EXECUTE **********************************************
@@ -183,13 +184,12 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let add_access_token_result = access_token::add_access_token(
+    let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
-        merchant_context,
         &router_data,
         creds_identifier.as_deref(),
-    )
+    ))
     .await?;
 
     logger::debug!(refund_router_data=?router_data);
@@ -617,13 +617,12 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
-    let add_access_token_result = access_token::add_access_token(
+    let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
-        merchant_context,
         &router_data,
         creds_identifier.as_deref(),
-    )
+    ))
     .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
@@ -1439,7 +1438,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?
         }
         _ => {
-            _ = payment_sync::retry_sync_task(
+            _ = retry_refund_sync_task(
                 &*state.store,
                 response.connector,
                 response.merchant_id,
@@ -1450,6 +1449,33 @@ pub async fn sync_refund_with_gateway_workflow(
     }
 
     Ok(())
+}
+
+/// Schedule the task for refund retry
+///
+/// Returns bool which indicates whether this was the last refund retry or not
+pub async fn retry_refund_sync_task(
+    db: &dyn db::StorageInterface,
+    connector: String,
+    merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let schedule_time =
+        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1)
+            .await?;
+
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
+    }
 }
 
 #[instrument(skip_all)]
@@ -1614,7 +1640,12 @@ pub async fn add_refund_sync_task(
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
-    let schedule_time = common_utils::date_time::now();
+    let schedule_time =
+        get_refund_sync_process_schedule_time(db, &refund.connector, &refund.merchant_id, 0)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch schedule time for refund sync process")?
+            .unwrap_or_else(common_utils::date_time::now);
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
     let tag = ["REFUND"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -1688,15 +1719,20 @@ pub async fn get_refund_sync_process_schedule_time(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
-        db::get_and_deserialize_key(
-            db,
-            &format!("pt_mapping_refund_sync_{connector}"),
-            "ConnectorPTMapping",
-        )
-        .await;
+    let mapping: common_utils::errors::CustomResult<
+        process_data::ConnectorPTMapping,
+        errors::StorageError,
+    > = db
+        .find_config_by_key(&format!("pt_mapping_refund_sync_{connector}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| {
+            config
+                .parse_struct("ConnectorPTMapping")
+                .change_context(errors::StorageError::DeserializationFailed)
+        });
 
-    let mapping = match redis_mapping {
+    let mapping = match mapping {
         Ok(x) => x,
         Err(err) => {
             logger::error!("Error: while getting connector mapping: {err:?}");
@@ -1704,8 +1740,7 @@ pub async fn get_refund_sync_process_schedule_time(
         }
     };
 
-    let time_delta =
-        process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count);
 
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
 }

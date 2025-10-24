@@ -112,7 +112,7 @@ where
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<sqlx::encode::IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
         <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
@@ -736,6 +736,21 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -768,6 +783,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             error_reason,
             first_attempt,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             total,
             count,
             start_bucket,
@@ -845,6 +863,22 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -888,6 +922,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             count,
             error_message,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             start_bucket,
             end_bucket,
         })
@@ -967,6 +1004,21 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             status,
@@ -984,6 +1036,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             error_reason,
             first_attempt,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
         })
     }
 }

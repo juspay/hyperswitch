@@ -4,22 +4,27 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, UpdateMetadata, Void,
+            CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
+            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
-        CreateOrder,
+        Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
+        PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
+    router_response_types::{
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
+    },
 };
 
 use crate::api;
@@ -30,11 +35,15 @@ pub trait Payment:
     + api::ConnectorSpecifications
     + api::ConnectorValidation
     + PaymentAuthorize
+    + PaymentsPreAuthenticate
+    + PaymentsAuthenticate
+    + PaymentsPostAuthenticate
     + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentPostCaptureVoid
     + PaymentApprove
     + PaymentReject
     + MandateSetup
@@ -44,10 +53,13 @@ pub trait Payment:
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
+    + PaymentExtendAuthorization
     + PaymentSessionUpdate
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
+    + ExternalVaultProxyPaymentsCreateV1
+    + PaymentsGiftCardBalanceCheck
 {
 }
 
@@ -84,6 +96,22 @@ pub trait PaymentSync:
 /// trait PaymentVoid
 pub trait PaymentVoid:
     api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoid
+pub trait PaymentPostCaptureVoid:
+    api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentExtendAuthorization
+pub trait PaymentExtendAuthorization:
+    api::ConnectorIntegration<
+    ExtendAuthorization,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>
 {
 }
 
@@ -163,6 +191,24 @@ pub trait PaymentsPreProcessing:
 {
 }
 
+/// trait PaymentsPreAuthenticate
+pub trait PaymentsPreAuthenticate:
+    api::ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsAuthenticate
+pub trait PaymentsAuthenticate:
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPostAuthenticate
+pub trait PaymentsPostAuthenticate:
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsPostProcessing
 pub trait PaymentsPostProcessing:
     api::ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
@@ -172,5 +218,21 @@ pub trait PaymentsPostProcessing:
 /// trait PaymentsCreateOrder
 pub trait PaymentsCreateOrder:
     api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+{
+}
+
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreateV1:
+    api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsGiftCardBalanceCheck
+pub trait PaymentsGiftCardBalanceCheck:
+    api::ConnectorIntegration<
+    GiftCardBalanceCheck,
+    GiftCardBalanceCheckRequestData,
+    GiftCardBalanceCheckResponseData,
+>
 {
 }

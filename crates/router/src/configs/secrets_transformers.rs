@@ -299,6 +299,29 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::ChatSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let chat_settings = value.get_inner();
+
+        let encryption_key = if chat_settings.enabled {
+            secret_management_client
+                .get_secret(chat_settings.encryption_key.clone())
+                .await?
+        } else {
+            chat_settings.encryption_key.clone()
+        };
+
+        Ok(value.transition_state(|chat_settings| Self {
+            encryption_key,
+            ..chat_settings
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::NetworkTokenizationService {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -450,9 +473,23 @@ pub(crate) async fn fetch_raw_secrets(
         })
         .await;
 
+    #[allow(clippy::expect_used)]
+    let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
+        .await
+        .expect("Failed to decrypt chat configs");
+
+    #[allow(clippy::expect_used)]
+    let superposition =
+        external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
+            conf.superposition,
+            secret_management_client,
+        )
+        .await
+        .expect("Failed to decrypt superposition config");
+
     Settings {
         server: conf.server,
-        chat: conf.chat,
+        chat,
         master_database,
         redis: conf.redis,
         log: conf.log,
@@ -491,6 +528,7 @@ pub(crate) async fn fetch_raw_secrets(
         zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
+        list_dispute_supported_connectors: conf.list_dispute_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
@@ -539,6 +577,7 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
+        l2_l3_data_config: conf.l2_l3_data_config,
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]
@@ -546,6 +585,12 @@ pub(crate) async fn fetch_raw_secrets(
         debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
         merchant_id_auth: conf.merchant_id_auth,
+        internal_merchant_id_profile_id_auth: conf.internal_merchant_id_profile_id_auth,
         infra_values: conf.infra_values,
+        enhancement: conf.enhancement,
+        proxy_status_mapping: conf.proxy_status_mapping,
+        internal_services: conf.internal_services,
+        superposition,
+        comparison_service: conf.comparison_service,
     }
 }

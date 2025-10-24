@@ -374,6 +374,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
             phone_country_code: customer.phone_country_code.clone(),
+            tax_registration_id: customer
+                .tax_registration_id
+                .clone()
+                .map(|tax_registration_id| tax_registration_id.into_inner()),
         };
 
         Ok((locker_id, customer_details))

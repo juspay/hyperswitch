@@ -30,7 +30,8 @@ if (!isFramed) {
    **/
   function initializeSDK() {
     // @ts-ignore
-    var paymentDetails = window.__PAYMENT_DETAILS;
+    var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+    var paymentDetails = decodeUri(encodedPaymentDetails);
     var clientSecret = paymentDetails.client_secret;
     var sdkUiRules = paymentDetails.sdk_ui_rules;
     var labelType = paymentDetails.payment_form_label_type;

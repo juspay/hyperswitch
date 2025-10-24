@@ -1361,9 +1361,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .into_boxed();
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
-            }
             PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order {
                     Order {
@@ -1457,50 +1454,54 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 query = match &params.currency {
-                    Some(currency) => query.filter(pi_dsl::currency.eq(*currency)),
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
                 };
 
                 query = match &params.connector {
-                    Some(connector) => query.filter(pa_dsl::connector.eq(*connector)),
+                    Some(connector) => query.filter(pa_dsl::connector.eq_any(connector.clone())),
                     None => query,
                 };
 
                 query = match &params.status {
-                    Some(status) => query.filter(pi_dsl::status.eq(*status)),
+                    Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
 
                 query = match &params.payment_method_type {
-                    Some(payment_method_type) => {
-                        query.filter(pa_dsl::payment_method_type_v2.eq(*payment_method_type))
-                    }
+                    Some(payment_method_type) => query
+                        .filter(pa_dsl::payment_method_type_v2.eq_any(payment_method_type.clone())),
                     None => query,
                 };
 
                 query = match &params.payment_method_subtype {
-                    Some(payment_method_subtype) => {
-                        query.filter(pa_dsl::payment_method_subtype.eq(*payment_method_subtype))
-                    }
+                    Some(payment_method_subtype) => query.filter(
+                        pa_dsl::payment_method_subtype.eq_any(payment_method_subtype.clone()),
+                    ),
                     None => query,
                 };
 
                 query = match &params.authentication_type {
-                    Some(authentication_type) => {
-                        query.filter(pa_dsl::authentication_type.eq(*authentication_type))
-                    }
+                    Some(authentication_type) => query
+                        .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
                     None => query,
                 };
 
                 query = match &params.merchant_connector_id {
-                    Some(merchant_connector_id) => query
-                        .filter(pa_dsl::merchant_connector_id.eq(merchant_connector_id.clone())),
+                    Some(merchant_connector_id) => query.filter(
+                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
+                    ),
                     None => query,
                 };
 
                 if let Some(card_network) = &params.card_network {
-                    query = query.filter(pa_dsl::card_network.eq(card_network.clone()));
+                    query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
                 }
+
+                if let Some(payment_id) = &params.payment_id {
+                    query = query.filter(pi_dsl::id.eq(payment_id.clone()));
+                }
+
                 query
             }
         };
@@ -1561,9 +1562,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .into_boxed();
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::id.eq(payment_intent_id.to_owned()))
-            }
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1604,14 +1602,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 query = match &params.currency {
-                    Some(currency) => query.filter(pi_dsl::currency.eq(*currency)),
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
                 };
 
                 query = match &params.status {
-                    Some(status) => query.filter(pi_dsl::status.eq(*status)),
+                    Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
+
+                if let Some(payment_id) = &params.payment_id {
+                    query = query.filter(pi_dsl::id.eq(payment_id.clone()));
+                }
 
                 query
             }

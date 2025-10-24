@@ -9,6 +9,8 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentIntent;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
@@ -172,6 +174,7 @@ impl ConnectorCommon for Nexinets {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -863,7 +866,8 @@ static NEXINETS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static NEXINETS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nexinets",
         description: "Nexi and Nets join forces to create The European PayTech leader, a strategic combination to offer future-proof innovative payment solutions.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static NEXINETS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
@@ -879,6 +883,24 @@ impl ConnectorSpecifications for Nexinets {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&NEXINETS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &PaymentIntent,
+        _payment_attempt: &PaymentAttempt,
+    ) -> String {
+        // The length of merchantOrderId for Nexinets should not exceed 30 characters.
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| {
+                let max_payment_reference_id_length =
+                    nexinets::nexinets_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+                nanoid::nanoid!(max_payment_reference_id_length)
+            })
     }
 }
 

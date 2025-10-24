@@ -1,5 +1,4 @@
 //! Gateway status mapping
-
 use common_enums::ErrorCategory;
 use common_utils::{
     custom_serde,
@@ -15,8 +14,6 @@ use crate::schema::gateway_status_map;
     Debug,
     Eq,
     PartialEq,
-    Ord,
-    PartialOrd,
     router_derive::DebugAsDisplay,
     Identifiable,
     Queryable,
@@ -42,6 +39,8 @@ pub struct GatewayStatusMap {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -60,6 +59,8 @@ pub struct GatewayStatusMappingNew {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: bool,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(
@@ -81,6 +82,8 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub error_category: Option<ErrorCategory>,
     pub last_modified: PrimitiveDateTime,
     pub clear_pan_possible: Option<bool>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Debug)]
@@ -93,6 +96,8 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub clear_pan_possible: Option<bool>,
+    pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -106,6 +111,8 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             unified_message,
             error_category,
             clear_pan_possible,
+            feature_data,
+            feature,
         } = value;
         Self {
             status,
@@ -122,6 +129,8 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             code: None,
             message: None,
             clear_pan_possible,
+            feature_data,
+            feature,
         }
     }
 }

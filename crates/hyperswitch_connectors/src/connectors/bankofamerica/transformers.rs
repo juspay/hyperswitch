@@ -1,14 +1,15 @@
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
-use common_utils::{consts, ext_traits::OptionExt, pii};
+use common_types::payments::ApplePayPredecryptData;
+use common_utils::{consts, ext_traits::OptionExt, pii, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, PaymentMethodData, SamsungPayWalletData,
         WalletData,
     },
     router_data::{
-        AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -31,7 +32,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
         RouterData as OtherRouterData,
     },
@@ -63,23 +64,13 @@ impl TryFrom<&ConnectorAuthType> for BankOfAmericaAuthType {
 }
 
 pub struct BankOfAmericaRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, api_models::enums::Currency, i64, T)>
-    for BankOfAmericaRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for BankOfAmericaRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            api_models::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -247,7 +238,7 @@ pub struct Card {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCard {
-    number: Secret<String>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Secret<String>,
@@ -274,7 +265,7 @@ pub struct OrderInformationWithBill {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
@@ -307,6 +298,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -322,6 +314,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -948,7 +941,7 @@ impl
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
-        let payment_information = PaymentInformation::from(&google_pay_data);
+        let payment_information = PaymentInformation::try_from(&google_pay_data)?;
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -1044,7 +1037,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
                                     let payment_information =
-                                        PaymentInformation::from(&apple_pay_data);
+                                        PaymentInformation::try_from(&apple_pay_data)?;
                                     let merchant_defined_information = item
                                         .router_data
                                         .request
@@ -1093,6 +1086,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -1107,6 +1101,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::PaypalRedirect(_)
                         | WalletData::PaypalSdk(_)
                         | WalletData::Paze(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::TouchNGoRedirect(_)
@@ -1499,7 +1494,7 @@ pub struct Initiator {
 pub struct MerchantInitiatedTransactionResponse {
     agreement_id: Option<String>,
     previous_transaction_id: Option<String>,
-    original_authorized_amount: Option<String>,
+    original_authorized_amount: Option<StringMajorUnit>,
     reason: Option<String>,
 }
 
@@ -1584,6 +1579,7 @@ fn map_error_response<F, T>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
 
     match transaction_status {
@@ -2405,6 +2401,7 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -2476,7 +2473,7 @@ impl TryFrom<(&SetupMandateRouterData, ApplePayWalletData)> for BankOfAmericaPay
                     "Bank Of America"
                 ))?,
             },
-            None => PaymentInformation::from(&apple_pay_data),
+            None => PaymentInformation::try_from(&apple_pay_data)?,
         };
         let processing_information = ProcessingInformation::try_from((
             Some(PaymentSolution::ApplePay),
@@ -2522,7 +2519,7 @@ impl TryFrom<(&SetupMandateRouterData, GooglePayWalletData)> for BankOfAmericaPa
             item.request.metadata.clone().map(|metadata| {
                 convert_metadata_to_merchant_defined_info(metadata.peek().to_owned())
             });
-        let payment_information = PaymentInformation::from(&google_pay_data);
+        let payment_information = PaymentInformation::try_from(&google_pay_data)?;
         let processing_information =
             ProcessingInformation::try_from((Some(PaymentSolution::GooglePay), None))?;
 
@@ -2568,7 +2565,7 @@ impl TryFrom<&SetupMandateRouterData> for OrderInformationWithBill {
 
         Ok(Self {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
@@ -2602,8 +2599,12 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(apple_pay_data: &Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
-        let expiration_month = apple_pay_data.get_expiry_month()?;
-        let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
+        let expiration_month = apple_pay_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
 
         Ok(Self::ApplePay(Box::new(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
@@ -2620,30 +2621,50 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     }
 }
 
-impl From<&ApplePayWalletData> for PaymentInformation {
-    fn from(apple_pay_data: &ApplePayWalletData) -> Self {
-        Self::ApplePayToken(Box::new(ApplePayTokenPaymentInformation {
-            fluid_data: FluidData {
-                value: Secret::from(apple_pay_data.payment_data.clone()),
-                descriptor: None,
+impl TryFrom<&ApplePayWalletData> for PaymentInformation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(apple_pay_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        let apple_pay_encrypted_data = apple_pay_data
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
+
+        Ok(Self::ApplePayToken(Box::new(
+            ApplePayTokenPaymentInformation {
+                fluid_data: FluidData {
+                    value: Secret::from(apple_pay_encrypted_data.clone()),
+                    descriptor: None,
+                },
+                tokenized_card: ApplePayTokenizedCard {
+                    transaction_type: TransactionType::ApplePay,
+                },
             },
-            tokenized_card: ApplePayTokenizedCard {
-                transaction_type: TransactionType::ApplePay,
-            },
-        }))
+        )))
     }
 }
 
-impl From<&GooglePayWalletData> for PaymentInformation {
-    fn from(google_pay_data: &GooglePayWalletData) -> Self {
-        Self::GooglePay(Box::new(GooglePayPaymentInformation {
+impl TryFrom<&GooglePayWalletData> for PaymentInformation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(google_pay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self::GooglePay(Box::new(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(
-                    consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token.clone()),
+                    consts::BASE64_ENGINE.encode(
+                        google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                            })?
+                            .clone(),
+                    ),
                 ),
                 descriptor: None,
             },
-        }))
+        })))
     }
 }
 
@@ -2687,6 +2708,7 @@ fn convert_to_error_response_from_error_info(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

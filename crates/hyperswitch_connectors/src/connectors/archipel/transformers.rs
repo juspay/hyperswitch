@@ -29,8 +29,8 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressData, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer,
-        PaymentsAuthorizeRequestData, RouterData as _,
+        self, AddressData, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData,
+        RouterData as _,
     },
 };
 
@@ -273,8 +273,16 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             .application_primary_account_number
             .clone();
 
-        let expiry_year_2_digit = apple_pay_decrypt_data.get_two_digit_expiry_year()?;
-        let expiry_month = apple_pay_decrypt_data.get_expiry_month()?;
+        let expiry_year_2_digit = apple_pay_decrypt_data
+            .get_two_digit_expiry_year()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay expiry year",
+            })?;
+        let expiry_month = apple_pay_decrypt_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
 
         Ok(Self {
             card_data: ArchipelTokenizedCard {
@@ -302,7 +310,7 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelTokenizedCard {
-    number: Secret<String>,
+    number: cards::CardNumber,
     expiry: CardExpiryDate,
     scheme: ArchipelCardScheme,
 }
@@ -1451,6 +1459,7 @@ impl From<ArchipelErrorMessageWithHttpCode> for ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }

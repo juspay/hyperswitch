@@ -11,7 +11,7 @@ impl utils::Connector for BarclaycardTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Barclaycard;
         utils::construct_connector_data_old(
-            Box::new(&Barclaycard),
+            Box::new(Barclaycard::new()),
             types::Connector::DummyConnector1,
             api::GetToken::Connector,
             None,

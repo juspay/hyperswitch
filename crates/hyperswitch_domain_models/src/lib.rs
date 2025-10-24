@@ -8,13 +8,17 @@ pub mod callback_mapper;
 pub mod card_testing_guard_data;
 pub mod cards_info;
 pub mod chat;
+pub mod configs;
 pub mod connector_endpoints;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
+pub mod gsm;
+pub mod invoice;
 pub mod mandates;
+pub mod master_key;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_context;
@@ -36,6 +40,7 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod transformers;
@@ -120,6 +125,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
+            gateway_system: None,
         }
     }
 
@@ -128,6 +134,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            ..
         } = self;
 
         ApiFeatureMetadata {
@@ -335,6 +342,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_network_decline_code: from
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
+            invoice_billing_started_at_time: from.invoice_billing_started_at_time,
         }
     }
 
@@ -359,6 +367,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_network_decline_code: self
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
+            invoice_billing_started_at_time: self.invoice_billing_started_at_time,
         }
     }
 }
@@ -398,6 +407,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = from;
         Self {
             product_name,
@@ -413,6 +429,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 
@@ -431,6 +454,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -446,6 +476,13 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             product_tax_code,
             tax_rate,
             total_tax_amount,
+            description,
+            sku,
+            upc,
+            commodity_code,
+            unit_of_measure,
+            total_amount,
+            unit_discount_amount,
         }
     }
 }

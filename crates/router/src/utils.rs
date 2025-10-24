@@ -1,3 +1,4 @@
+pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
@@ -40,6 +41,8 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
+use subscriptions::subscription_handler::SubscriptionHandler;
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -458,7 +461,6 @@ pub async fn get_mca_from_payment_intent(
         }
     }
 }
-
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     state: &SessionState,
@@ -638,6 +640,24 @@ pub async fn get_mca_from_object_reference_id(
                 )
                 .await
             }
+            webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
+                #[cfg(feature = "v1")]
+                {
+                    let subscription_state = state.clone().into();
+                    let subscription_handler =
+                        SubscriptionHandler::new(&subscription_state, merchant_context);
+                    let mut subscription_with_handler = subscription_handler
+                        .find_subscription(subscription_id_type)
+                        .await?;
+
+                    subscription_with_handler.get_mca(connector_name).await
+                }
+                #[cfg(feature = "v2")]
+                {
+                    let _db = db;
+                    todo!()
+                }
+            }
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
                 get_mca_from_payout_attempt(state, merchant_context, payout_id_type, connector_name)
@@ -676,6 +696,7 @@ pub fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -763,6 +784,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -796,6 +818,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
 
@@ -825,6 +848,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -862,6 +886,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         };
 
         Ok(domain::CustomerAddress {
@@ -899,6 +924,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -931,6 +957,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         })
     }
 
@@ -960,6 +987,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                         .email
                         .as_ref()
                         .map(|a| a.clone().expose().switch_strategy()),
+                    origin_zip: address_details.origin_zip.clone(),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -996,6 +1024,7 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     );
                 encryptable
             }),
+            origin_zip: encryptable_address.origin_zip,
         };
 
         Ok(domain::CustomerAddress {

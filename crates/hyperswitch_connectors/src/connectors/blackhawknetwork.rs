@@ -1,13 +1,12 @@
 pub mod transformers;
-
 use std::sync::LazyLock;
 
-use common_enums::enums;
+use common_enums::{enums, enums::PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -15,20 +14,24 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,25 +40,26 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_MESSAGE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::Maskable;
 use transformers as blackhawknetwork;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Blackhawknetwork {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Blackhawknetwork {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -72,6 +76,92 @@ impl api::Refund for Blackhawknetwork {}
 impl api::RefundExecute for Blackhawknetwork {}
 impl api::RefundSync for Blackhawknetwork {}
 impl api::PaymentToken for Blackhawknetwork {}
+impl api::PaymentsPreProcessing for Blackhawknetwork {}
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+    for Blackhawknetwork
+{
+    fn get_headers(
+        &self,
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/x-www-form-urlencoded".to_string().into(),
+        )])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/realms/dev-experience/protocol/openid-connect/token",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let auth = blackhawknetwork::BlackhawknetworkAuthType::try_from(&req.connector_auth_type)?;
+        let connector_req = blackhawknetwork::BlackhawknetworkAccessTokenRequest {
+            grant_type: "client_credentials".to_string(),
+            client_id: auth.client_id.clone(),
+            client_secret: auth.client_secret.clone(),
+            scope: "openid".to_string(),
+        };
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+            .set_body(types::RefreshTokenType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        let response: blackhawknetwork::BlackhawknetworkTokenResponse = res
+            .response
+            .parse_struct("BlackhawknetworkTokenResponse")
+            .or_else(|_| res.response.parse_struct("BlackhawknetworkErrorResponse"))
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Blackhawknetwork
@@ -87,7 +177,7 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -104,10 +194,7 @@ impl ConnectorCommon for Blackhawknetwork {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -120,14 +207,9 @@ impl ConnectorCommon for Blackhawknetwork {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = blackhawknetwork::BlackhawknetworkAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        _auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -145,14 +227,18 @@ impl ConnectorCommon for Blackhawknetwork {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error,
+            message: response
+                .error_description
+                .clone()
+                .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+            reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -160,7 +246,7 @@ impl ConnectorCommon for Blackhawknetwork {
 impl ConnectorValidation for Blackhawknetwork {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        _pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         match pm_data {
@@ -186,38 +272,112 @@ impl ConnectorValidation for Blackhawknetwork {
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Blackhawknetwork {
     //TODO: implement sessions flow
 }
-
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Blackhawknetwork
 {
+    fn get_headers(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/x-www-form-urlencoded".to_string().into(),
+        )];
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers)
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = self.base_url(connectors);
+        let connector_req = blackhawknetwork::BlackhawknetworkVerifyAccountRequest::try_from(req)?;
+        let query = serde_urlencoded::to_string(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(format!(
+            "{base_url}/accountProcessing/v1/verifyAccount?{query}"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: blackhawknetwork::BlackhawknetworkVerifyAccountResponse = res
+            .response
+            .parse_struct("BlackhawknetworkVerifyAccountResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Blackhawknetwork
 {
 }
-
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
     for Blackhawknetwork
 {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/json".to_string().into(),
+        )];
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut auth_header);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/json"
     }
 
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/accountProcessing/v1/redeem",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -230,7 +390,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.minor_amount,
             req.request.currency,
         )?;
-
         let connector_router_data =
             blackhawknetwork::BlackhawknetworkRouterData::from((amount, req));
         let connector_req =
@@ -266,12 +425,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: blackhawknetwork::BlackhawknetworkPaymentsResponse = res
+        let response: blackhawknetwork::BlackhawknetworkRedeemResponse = res
             .response
-            .parse_struct("Blackhawknetwork PaymentsAuthorizeResponse")
+            .parse_struct("BlackhawknetworkRedeemResponse")
+            .or_else(|_| res.response.parse_struct("BlackhawknetworkErrorResponse"))
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -284,303 +446,85 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        let response: blackhawknetwork::BlackhawknetworkErrorResponse = res
+            .response
+            .parse_struct("BlackhawknetworkErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error,
+            message: response
+                .error_description
+                .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+            reason: Some("Verify redemption details or contact BHN support".to_string()),
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
     }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blackhawknetwork {
-    fn get_headers(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: blackhawknetwork::BlackhawknetworkPaymentsResponse = res
-            .response
-            .parse_struct("blackhawknetwork PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Payments Sync".to_string(),
+            connector: "BlackHawkNetwork".to_string(),
+        }
+        .into())
     }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Blackhawknetwork {
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: blackhawknetwork::BlackhawknetworkPaymentsResponse = res
-            .response
-            .parse_struct("Blackhawknetwork PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "BlackHawkNetwork".to_string(),
+        }
+        .into())
     }
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Blackhawknetwork {}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Blackhawknetwork {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data =
-            blackhawknetwork::BlackhawknetworkRouterData::from((refund_amount, req));
-        let connector_req =
-            blackhawknetwork::BlackhawknetworkRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: blackhawknetwork::RefundResponse = res
-            .response
-            .parse_struct("blackhawknetwork RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refunds".to_string(),
+            connector: "BlackHawkNetwork".to_string(),
+        }
+        .into())
     }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Blackhawknetwork {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: blackhawknetwork::RefundResponse = res
-            .response
-            .parse_struct("blackhawknetwork RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refunds Sync".to_string(),
+            connector: "BlackHawkNetwork".to_string(),
+        }
+        .into())
     }
 }
 
@@ -608,16 +552,33 @@ impl webhooks::IncomingWebhook for Blackhawknetwork {
     }
 }
 
-static BLACKHAWKNETWORK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
-
 static BLACKHAWKNETWORK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Blackhawknetwork",
     description: "Blackhawknetwork connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BLACKHAWKNETWORK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+static BLACKHAWKNETWORK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+
+        supported_payment_methods.add(
+            enums::PaymentMethod::GiftCard,
+            PaymentMethodType::BhnCardNetwork,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        supported_payment_methods
+    });
 
 impl ConnectorSpecifications for Blackhawknetwork {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

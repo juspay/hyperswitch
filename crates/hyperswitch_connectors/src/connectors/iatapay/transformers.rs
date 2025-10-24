@@ -150,7 +150,7 @@ impl
                     }),
                     None,
                 ),
-                UpiData::UpiIntent(_) => (
+                UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (
                     common_enums::CountryAlpha2::IN,
                     None,
                     Some(PreferredCheckoutMethod::Qr),
@@ -346,6 +346,7 @@ fn get_iatpay_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -533,6 +534,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -572,6 +574,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {

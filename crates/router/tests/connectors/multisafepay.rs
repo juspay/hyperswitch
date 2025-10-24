@@ -51,6 +51,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
                 zip: Some(Secret::new("1033SC".to_string())),
                 country: Some(api_models::enums::CountryAlpha2::NL),
                 state: Some(Secret::new("Amsterdam".to_string())),
+                origin_zip: None,
             }),
             phone: None,
             email: None,

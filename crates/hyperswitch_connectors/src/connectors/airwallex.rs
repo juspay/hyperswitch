@@ -146,6 +146,7 @@ impl ConnectorCommon for Airwallex {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1216,7 +1217,18 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Skrill,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },
         );
@@ -1265,13 +1277,36 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::IndonesianBankTransfer,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
         airwallex_supported_payment_methods
     });
 
 static AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Airwallex",
     description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

@@ -2,13 +2,25 @@ pub mod behaviour {
     pub use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 }
 
+mod payment_attempt {
+    pub use hyperswitch_domain_models::payments::payment_attempt::*;
+}
+
 mod merchant_account {
     pub use hyperswitch_domain_models::merchant_account::*;
 }
 
+#[cfg(feature = "v2")]
 mod business_profile {
     pub use hyperswitch_domain_models::business_profile::{
         Profile, ProfileGeneralUpdate, ProfileSetter, ProfileUpdate,
+    };
+}
+
+#[cfg(feature = "v1")]
+mod business_profile {
+    pub use hyperswitch_domain_models::business_profile::{
+        ExternalVaultDetails, Profile, ProfileGeneralUpdate, ProfileSetter, ProfileUpdate,
     };
 }
 
@@ -80,6 +92,7 @@ pub use merchant_connector_account::*;
 pub use merchant_context::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
+pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use routing::*;

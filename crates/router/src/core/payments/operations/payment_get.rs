@@ -34,6 +34,7 @@ impl ValidateStatusForOperation for PaymentGet {
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
             common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
@@ -42,7 +43,9 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Conflicted => Ok(()),
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresPaymentMethod => {
@@ -52,6 +55,7 @@ impl ValidateStatusForOperation for PaymentGet {
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresCapture,
+                        common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
                         common_enums::IntentStatus::RequiresCustomerAction,
                         common_enums::IntentStatus::RequiresMerchantAction,
                         common_enums::IntentStatus::Processing,

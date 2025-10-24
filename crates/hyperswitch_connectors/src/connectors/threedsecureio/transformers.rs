@@ -122,6 +122,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
         };
@@ -176,6 +177,7 @@ impl
                             acs_trans_id: Some(response.acs_trans_id.clone()),
                             three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
                             acs_signed_content: response.acs_signed_content,
+                            challenge_request_key: None,
                         }))
                     } else {
                         AuthNFlowType::Frictionless
@@ -184,6 +186,10 @@ impl
                     connector_metadata: None,
                     ds_trans_id: Some(response.ds_trans_id),
                     eci: None,
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
                 })
             }
             ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {
@@ -200,6 +206,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => Err(ErrorResponse {
                     code: error.clone(),
@@ -211,6 +218,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
             },
         };

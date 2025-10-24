@@ -76,7 +76,14 @@ pub async fn get_user_email_from_oidc_provider(
         .exchange_code(oidc::AuthorizationCode::new(authorization_code.expose()))
         .request_async(|req| get_oidc_reqwest_client(state, req))
         .await
-        .change_context(UserErrors::InternalServerError)
+        .map_err(|e| match e {
+            oidc::RequestTokenError::ServerResponse(resp)
+                if resp.error() == &oidc_core::CoreErrorResponseType::InvalidGrant =>
+            {
+                UserErrors::SSOFailed
+            }
+            _ => UserErrors::InternalServerError,
+        })
         .attach_printable("Failed to exchange code and fetch oidc token")?;
 
     // Fetch id token from response

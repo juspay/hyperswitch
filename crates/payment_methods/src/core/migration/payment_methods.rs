@@ -51,8 +51,12 @@ pub async fn migrate_payment_method(
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
-    let card_bin_details =
-        populate_bin_details_for_masked_card(card_details, &*state.store).await?;
+    let card_bin_details = populate_bin_details_for_masked_card(
+        card_details,
+        &*state.store,
+        req.payment_method_type.as_ref(),
+    )
+    .await?;
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
@@ -176,8 +180,23 @@ pub async fn migrate_payment_method(
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn state::PaymentMethodsStorageInterface,
+    payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
-    migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
+    if let Some(
+            // Cards
+            enums::PaymentMethodType::Credit
+            | enums::PaymentMethodType::Debit
+
+            // Wallets
+            | enums::PaymentMethodType::ApplePay
+            | enums::PaymentMethodType::GooglePay,
+        ) = payment_method_type {
+        migration::validate_card_expiry(
+            &card_details.card_exp_month,
+            &card_details.card_exp_year,
+        )?;
+    }
+
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
@@ -429,6 +448,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 None,
                 None,
+                Default::default(),
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -596,6 +616,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                vault_source_details: Default::default(),
             },
             merchant_context.get_merchant_account().storage_scheme,
         )

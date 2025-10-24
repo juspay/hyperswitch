@@ -1,0 +1,1 @@
+ALTER TABLE business_profile DROP COLUMN IF EXISTS dispute_polling_interval;

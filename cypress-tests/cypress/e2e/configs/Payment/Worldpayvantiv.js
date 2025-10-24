@@ -150,7 +150,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -187,15 +187,29 @@ export const connectorDetails = {
         },
       },
     },
-    ZeroAuthMandate: {
+    MITAutoCapture: {
+      Request: {},
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayvantiv is not implemented",
-            code: "IR_00",
-          },
+          status: "processing",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_id: "cus_76452543",
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
         },
       },
     },
@@ -223,13 +237,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayvantiv is not implemented",
-            code: "IR_00",
-          },
+          status: "processing",
+          setup_future_usage: "off_session",
         },
       },
     },

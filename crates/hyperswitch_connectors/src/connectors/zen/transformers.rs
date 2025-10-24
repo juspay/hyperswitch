@@ -349,6 +349,7 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -485,8 +486,10 @@ impl
             ),
             WalletData::WeChatPayRedirect(_)
             | WalletData::PaypalRedirect(_)
+            | WalletData::AmazonPay(_)
             | WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -764,7 +767,9 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::FlexitiRedirect {}
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             )
             .into()),
@@ -779,10 +784,13 @@ impl TryFrom<&BankDebitData> for ZenPaymentsRequest {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Zen"),
-            )
-            .into()),
+            | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -806,12 +814,12 @@ impl TryFrom<&GiftCardData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            GiftCardData::PaySafeCard {} | GiftCardData::Givex(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Zen"),
-                )
-                .into())
-            }
+            GiftCardData::PaySafeCard {}
+            | GiftCardData::Givex(_)
+            | GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Zen"),
+            )
+            .into()),
         }
     }
 }
@@ -948,6 +956,7 @@ fn get_zen_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1097,6 +1106,7 @@ fn get_zen_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None

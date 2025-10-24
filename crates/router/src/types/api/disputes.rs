@@ -1,5 +1,7 @@
 pub use hyperswitch_interfaces::{
-    api::disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
+    api::disputes::{
+        AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
+    },
     disputes::DisputePayload,
 };
 use masking::{Deserialize, Serialize};
@@ -11,9 +13,19 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
-pub use hyperswitch_domain_models::router_flow_types::dispute::{Accept, Defend, Evidence};
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DisputeFetchQueryData {
+    pub fetch_from: String,
+    pub fetch_till: String,
+}
 
-pub use super::disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2};
+pub use hyperswitch_domain_models::router_flow_types::dispute::{
+    Accept, Defend, Dsync, Evidence, Fetch,
+};
+
+pub use super::disputes_v2::{
+    AcceptDisputeV2, DefendDisputeV2, DisputeSyncV2, DisputeV2, FetchDisputesV2, SubmitEvidenceV2,
+};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DisputeEvidence {
@@ -49,4 +61,21 @@ pub enum EvidenceType {
     InvoiceShowingDistinctTransactions,
     RecurringTransactionAgreement,
     UncategorizedFile,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ProcessDisputePTData {
+    pub connector_name: String,
+    pub dispute_payload: types::DisputeSyncResponse,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct DisputeListPTData {
+    pub connector_name: String,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub created_from: time::PrimitiveDateTime,
+    pub created_till: time::PrimitiveDateTime,
 }

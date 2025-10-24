@@ -23,12 +23,14 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
+        disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
@@ -37,6 +39,7 @@ use crate::{
         routing, utils as core_utils,
     },
     db::{AccountsStorageInterface, StorageInterface},
+    logger,
     routes::{metrics, SessionState},
     services::{
         self,
@@ -675,7 +678,7 @@ impl CreateProfile {
             )
             .await
             .map_err(|profile_insert_error| {
-                crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+                logger::warn!("Profile already exists {profile_insert_error:?}");
             })
             .map(|business_profile| business_profiles_vector.push(business_profile))
             .ok();
@@ -714,17 +717,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -920,7 +914,7 @@ pub async fn create_profile_from_business_labels(
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action
-            crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+            logger::warn!("Profile already exists {profile_insert_error:?}");
         });
 
         // If a profile is created, then unset the default profile
@@ -1227,25 +1221,6 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
-    // Call to DE here
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.dynamic_routing_enabled && is_deleted {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1265,7 +1240,7 @@ pub async fn merchant_account_delete(
         Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                logger::error!("requires_cvv config not found in db: {err:?}");
                 Ok(())
             } else {
                 Err(err
@@ -2603,6 +2578,12 @@ pub async fn create_connector(
             },
         )?;
 
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
+
+    #[cfg(feature = "v1")]
+    disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
+
     #[cfg(feature = "v1")]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
@@ -2892,7 +2873,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             key_manager_state,
-            mca,
+            mca.clone(),
             payment_connector.into(),
             &key_store,
         )
@@ -2909,6 +2890,37 @@ pub async fn update_connector(
 
             )
         })?;
+
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // redact routing cache on connector updation
+    #[cfg(feature = "v1")]
+    let merchant_config = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    #[cfg(feature = "v1")]
+    if req.disabled.unwrap_or(false) {
+        merchant_config
+            .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    } else {
+        merchant_config
+            .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    }
 
     let response = updated_mca.foreign_try_into()?;
 
@@ -2979,6 +2991,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
@@ -3379,8 +3393,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -3497,6 +3512,18 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .unwrap_or_default(),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
+            always_enable_overcapture: self.always_enable_overcapture,
+            external_vault_details: domain::ExternalVaultDetails::try_from((
+                self.is_external_vault_enabled,
+                self.external_vault_connector_details
+                    .map(ForeignFrom::foreign_from),
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating external vault details")?,
+            billing_processor_id: self.billing_processor_id,
+            is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
         }))
     }
 
@@ -3647,6 +3674,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 }
@@ -3931,8 +3960,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .as_ref()
             .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing country from merchant country code")?;
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
@@ -3969,6 +3999,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                always_request_extended_authorization: self.always_request_extended_authorization,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: dynamic_routing_algo_ref,
@@ -3982,13 +4013,22 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge, //
+                force_3ds_challenge: self.force_3ds_challenge,
                 is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
+                dispute_polling_interval: self.dispute_polling_interval,
+                is_manual_retry_enabled: self.is_manual_retry_enabled,
+                always_enable_overcapture: self.always_enable_overcapture,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
+                billing_processor_id: self.billing_processor_id,
+                is_l2_l3_enabled: self.is_l2_l3_enabled,
             },
         )))
     }
@@ -4081,6 +4121,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
+        let revenue_recovery_retry_algorithm_type = self.revenue_recovery_retry_algorithm_type;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4130,6 +4172,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
+                revenue_recovery_retry_algorithm_type,
+                split_txns_enabled: self.split_txns_enabled,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }

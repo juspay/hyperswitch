@@ -2,8 +2,10 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use common_enums::enums;
+use base64::Engine;
+use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -11,30 +13,32 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        CompleteAuthorize,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -42,10 +46,18 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use transformers as breadpay;
+use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use transformers::{
+    self as breadpay, BreadpayTransactionRequest, BreadpayTransactionResponse,
+    BreadpayTransactionType,
+};
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    connectors::breadpay::transformers::CallBackResponse,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentsCompleteAuthorizeRequestData},
+};
 
 #[derive(Clone)]
 pub struct Breadpay {
@@ -62,6 +74,7 @@ impl Breadpay {
 
 impl api::Payment for Breadpay {}
 impl api::PaymentSession for Breadpay {}
+impl api::PaymentsCompleteAuthorize for Breadpay {}
 impl api::ConnectorAccessToken for Breadpay {}
 impl api::MandateSetup for Breadpay {}
 impl api::PaymentAuthorize for Breadpay {}
@@ -87,7 +100,7 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -121,12 +134,17 @@ impl ConnectorCommon for Breadpay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = breadpay::BreadpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let encoded_api_key = BASE64_ENGINE.encode(format!(
+            "{}:{}",
+            auth.api_key.peek(),
+            auth.api_secret.peek()
+        ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -145,43 +163,20 @@ impl ConnectorCommon for Breadpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_type.clone(),
+            message: response.description.clone(),
+            reason: Some(response.description),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
 
-impl ConnectorValidation for Breadpay {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-}
+impl ConnectorValidation for Breadpay {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Breadpay {
     //TODO: implement sessions flow
@@ -199,7 +194,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -210,9 +205,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/carts"))
     }
 
     fn get_request_body(
@@ -227,7 +222,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = breadpay::BreadpayRouterData::from((amount, req));
-        let connector_req = breadpay::BreadpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = breadpay::BreadpayCartRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -261,7 +256,116 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: breadpay::BreadpayPaymentsResponse = res
             .response
-            .parse_struct("Breadpay PaymentsAuthorizeResponse")
+            .parse_struct("Breadpay BreadpayPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Breadpay
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let transaction_type = if req.request.is_auto_capture()? {
+            BreadpayTransactionType::Settle
+        } else {
+            BreadpayTransactionType::Authorize
+        };
+        let connector_req = BreadpayTransactionRequest { transaction_type };
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let redirect_response = req.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+        let redirect_payload = redirect_response
+            .payload
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.payload",
+            })?
+            .expose();
+        let call_back_response: CallBackResponse = serde_json::from_value::<CallBackResponse>(
+            redirect_payload.clone(),
+        )
+        .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+            field_name: "redirection_payload",
+        })?;
+
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/actions",
+            call_back_response.transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: BreadpayTransactionResponse = res
+            .response
+            .parse_struct("BreadpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -286,7 +390,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bre
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -296,10 +400,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bre
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions",
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
@@ -323,9 +435,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bre
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: breadpay::BreadpayPaymentsResponse = res
+        let response: BreadpayTransactionResponse = res
             .response
-            .parse_struct("breadpay PaymentsSyncResponse")
+            .parse_struct("BreadpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -350,7 +462,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -360,10 +472,15 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/actions",
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -371,7 +488,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_req = BreadpayTransactionRequest {
+            transaction_type: BreadpayTransactionType::Settle,
+        };
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -400,9 +520,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: breadpay::BreadpayPaymentsResponse = res
+        let response: BreadpayTransactionResponse = res
             .response
-            .parse_struct("Breadpay PaymentsCaptureResponse")
+            .parse_struct("BreadpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -422,14 +542,95 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Breadpay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Breadpay {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/transactions/actions",
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = BreadpayTransactionRequest {
+            transaction_type: BreadpayTransactionType::Cancel,
+        };
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: BreadpayTransactionResponse = res
+            .response
+            .parse_struct("BreadpayTransactionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Breadpay {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -513,7 +714,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Breadpay 
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -600,12 +801,34 @@ impl webhooks::IncomingWebhook for Breadpay {
 }
 
 static BREADPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut breadpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        breadpay_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Breadpay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        breadpay_supported_payment_methods
+    });
 
 static BREADPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Breadpay",
     description: "Breadpay connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BREADPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
@@ -621,5 +844,22 @@ impl ConnectorSpecifications for Breadpay {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&BREADPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+impl ConnectorRedirectResponse for Breadpay {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
+        match action {
+            PaymentAction::PSync
+            | PaymentAction::CompleteAuthorize
+            | PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(CallConnectorAction::Trigger)
+            }
+        }
     }
 }

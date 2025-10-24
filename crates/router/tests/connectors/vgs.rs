@@ -11,7 +11,7 @@ impl utils::Connector for VgsTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Vgs;
         utils::construct_connector_data_old(
-            Box::new(Vgs::new()),
+            Box::new(&Vgs),
             types::Connector::Vgs,
             types::api::GetToken::Connector,
             None,

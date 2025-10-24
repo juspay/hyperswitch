@@ -32,10 +32,25 @@ impl Event {
         .await
     }
 
-    pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
+    pub async fn find_by_merchant_id_idempotent_event_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::idempotent_event_id.eq(idempotent_event_id.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn list_initial_attempts_by_merchant_id_primary_object_id_or_initial_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -43,7 +58,11 @@ impl Event {
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                .and(
+                    dsl::primary_object_id
+                        .eq(primary_object_id.to_owned())
+                        .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -115,10 +134,11 @@ impl Event {
         .await
     }
 
-    pub async fn list_initial_attempts_by_profile_id_primary_object_id(
+    pub async fn list_initial_attempts_by_profile_id_primary_object_id_or_initial_attempt_id(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -126,7 +146,11 @@ impl Event {
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                .and(
+                    dsl::primary_object_id
+                        .eq(primary_object_id.to_owned())
+                        .or(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),

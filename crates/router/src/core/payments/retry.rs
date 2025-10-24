@@ -1,8 +1,9 @@
-use std::{str::FromStr, vec::IntoIter};
+use std::vec::IntoIter;
 
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -25,13 +26,13 @@ use crate::{
         metrics,
     },
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
-pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
+pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
@@ -47,8 +48,8 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -65,10 +66,10 @@ where
 
     let mut initial_gsm = get_gsm(state, &router_data).await?;
 
-    //Check if step-up to threeDS is possible and merchant has enabled
     let step_up_possible = initial_gsm
-        .clone()
-        .map(|gsm| gsm.step_up_possible)
+        .as_ref()
+        .and_then(|data| data.feature_data.get_retry_feature_data())
+        .map(|data| data.is_step_up_possible())
         .unwrap_or(false);
 
     #[cfg(feature = "v1")]
@@ -124,7 +125,7 @@ where
             };
 
             match get_gsm_decision(gsm) {
-                api_models::gsm::GsmDecision::Retry => {
+                storage_enums::GsmDecision::Retry => {
                     retries = get_retries(
                         state,
                         retries,
@@ -150,14 +151,40 @@ where
                         .map(|pmd| pmd.is_network_token_payment_method_data())
                         .unwrap_or(false);
 
+                    let clear_pan_possible = initial_gsm
+                        .and_then(|data| data.feature_data.get_retry_feature_data())
+                        .map(|data| data.is_clear_pan_possible())
+                        .unwrap_or(false);
+
                     let should_retry_with_pan = is_network_token
-                        && initial_gsm
-                            .as_ref()
-                            .map(|gsm| gsm.clear_pan_possible)
-                            .unwrap_or(false)
+                        && clear_pan_possible
                         && business_profile.is_clear_pan_retries_enabled;
 
-                    let (connector, routing_decision) = if should_retry_with_pan {
+                    // Currently we are taking off_session as a source of truth to identify MIT payments.
+                    let is_mit_payment = payment_data
+                        .get_payment_intent()
+                        .off_session
+                        .unwrap_or(false);
+
+                    let (connector, routing_decision) = if is_mit_payment {
+                        let connector_routing_data =
+                            super::get_connector_data(&mut connector_routing_data)?;
+                        let payment_method_info = payment_data
+                            .get_payment_method_info()
+                            .get_required_value("payment_method_info")?
+                            .clone();
+                        let mandate_reference_id = payments::get_mandate_reference_id(
+                            connector_routing_data.action_type.clone(),
+                            connector_routing_data.clone(),
+                            payment_data,
+                            &payment_method_info,
+                        )?;
+                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id, //mandate_ref_id
+                        });
+                        (connector_routing_data.connector_data, None)
+                    } else if should_retry_with_pan {
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
                         (original_connector_data.clone(), None)
                     } else {
@@ -195,14 +222,7 @@ where
 
                     retries = retries.map(|i| i - 1);
                 }
-                api_models::gsm::GsmDecision::Requeue => {
-                    Err(report!(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::NotImplementedMessage::Reason(
-                            "Requeue not implemented".to_string(),
-                        ),
-                    }))?
-                }
-                api_models::gsm::GsmDecision::DoDefault => break,
+                storage_enums::GsmDecision::DoDefault => break,
             }
             initial_gsm = None;
         }
@@ -278,7 +298,7 @@ pub async fn get_retries(
 pub async fn get_gsm<F, FData>(
     state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
-) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
+) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
     let error_code = error_response.map(|err| err.code.to_owned());
     let error_message = error_response.map(|err| err.message.to_owned());
@@ -292,19 +312,11 @@ pub async fn get_gsm<F, FData>(
 
 #[instrument(skip_all)]
 pub fn get_gsm_decision(
-    option_gsm: Option<storage::gsm::GatewayStatusMap>,
-) -> api_models::gsm::GsmDecision {
+    option_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
+) -> storage_enums::GsmDecision {
     let option_gsm_decision = option_gsm
-            .and_then(|gsm| {
-                api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .map_err(|err| {
-                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("gsm decision parsing failed");
-                        logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
-                        api_error
-                    })
-                    .ok()
-            });
+        .as_ref()
+        .map(|gsm| gsm.feature_data.get_decision());
 
     if option_gsm_decision.is_some() {
         metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);
@@ -326,14 +338,14 @@ fn get_flow_name<F>() -> RouterResult<String> {
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData, D>(
-    state: &routes::SessionState,
+pub async fn do_retry<'a, F, ApiRequest, FData, D>(
+    state: &'a routes::SessionState,
     req_state: ReqState,
-    connector: &api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
-    customer: &Option<domain::Customer>,
+    connector: &'a api::ConnectorData,
+    operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
+    customer: &'a Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
-    payment_data: &mut D,
+    payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -344,8 +356,8 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -530,6 +542,12 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                network_transaction_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_id
+                    .clone(),
+                is_overcapture_enabled: None,
+                authorized_amount: router_data.authorized_amount,
             };
 
             #[cfg(feature = "v1")]
@@ -581,6 +599,7 @@ where
                 authentication_type: auth_update,
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
+                network_details: Some(ForeignFrom::foreign_from(error_response)),
             };
 
             #[cfg(feature = "v1")]
@@ -728,6 +747,10 @@ pub fn make_new_payment_attempt(
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
+        network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_details: Default::default(),
+        is_stored_credential: old_payment_attempt.is_stored_credential,
+        authorized_amount: old_payment_attempt.authorized_amount,
     }
 }
 
@@ -795,6 +818,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::Authorizing
                 | storage_enums::AttemptStatus::CodInitiated
                 | storage_enums::AttemptStatus::Voided
+                | storage_enums::AttemptStatus::VoidedPostCharge
                 | storage_enums::AttemptStatus::VoidInitiated
                 | storage_enums::AttemptStatus::CaptureInitiated
                 | storage_enums::AttemptStatus::RouterDeclined
@@ -808,7 +832,9 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
-                | storage_enums::AttemptStatus::IntegrityFailure => false,
+                | storage_enums::AttemptStatus::IntegrityFailure
+                | storage_enums::AttemptStatus::Expired
+                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

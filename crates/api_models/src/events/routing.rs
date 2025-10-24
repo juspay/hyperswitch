@@ -2,7 +2,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::routing::{
     ContractBasedRoutingPayloadWrapper, ContractBasedRoutingSetupPayloadWrapper,
-    DynamicRoutingUpdateConfigQuery, EliminationRoutingPayloadWrapper,
+    CreateDynamicRoutingWrapper, DynamicRoutingUpdateConfigQuery, EliminationRoutingPayloadWrapper,
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
     RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
@@ -120,6 +120,12 @@ impl ApiEventMetric for ContractBasedRoutingSetupPayloadWrapper {
 }
 
 impl ApiEventMetric for ToggleDynamicRoutingWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for CreateDynamicRoutingWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

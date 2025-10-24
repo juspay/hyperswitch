@@ -84,6 +84,11 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+    if req.payout_method_id.is_some() && req.confirm != Some(true) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Confirm must be true for recurring payouts".to_string(),
+        }));
+    }
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     if let Some(payout_link) = &req.payout_link {
@@ -223,33 +228,48 @@ pub async fn validate_create_request(
             .await
         }
         (_, Some(_), Some(payment_method)) => {
-            match get_pm_list_context(
-                state,
-                payment_method
-                    .payment_method
-                    .as_ref()
-                    .get_required_value("payment_method_id")?,
-                merchant_context.get_merchant_key_store(),
-                payment_method,
-                None,
-                false,
-                merchant_context,
-            )
-            .await?
+            // Check if we have a stored transfer_method_id first
+            if payment_method
+                .get_common_mandate_reference()
+                .ok()
+                .and_then(|common_mandate_ref| common_mandate_ref.payouts)
+                .map(|payouts_mandate_ref| !payouts_mandate_ref.0.is_empty())
+                .unwrap_or(false)
             {
-                Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                    (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
-                        api_models::payouts::CardPayout {
-                            card_number: card.card_number.get_required_value("card_number")?,
-                            card_holder_name: card.card_holder_name,
-                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
-                            expiry_year: card.expiry_year.get_required_value("expiry_month")?,
-                        },
-                    ))),
-                    (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
-                    _ => Ok(None),
-                },
-                None => Ok(None),
+                Ok(None)
+            } else {
+                // No transfer_method_id available, proceed with vault fetch for raw card details
+                match get_pm_list_context(
+                    state,
+                    payment_method
+                        .payment_method
+                        .as_ref()
+                        .get_required_value("payment_method_id")?,
+                    merchant_context.get_merchant_key_store(),
+                    payment_method,
+                    None,
+                    false,
+                    true,
+                    merchant_context,
+                )
+                .await?
+                {
+                    Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
+                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
+                            api_models::payouts::CardPayout {
+                                card_number: card.card_number.get_required_value("card_number")?,
+                                card_holder_name: card.card_holder_name,
+                                expiry_month: card
+                                    .expiry_month
+                                    .get_required_value("expiry_month")?,
+                                expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                            },
+                        ))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        _ => Ok(None),
+                    },
+                    None => Ok(None),
+                }
             }
         }
         _ => Ok(None),

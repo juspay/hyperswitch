@@ -55,6 +55,9 @@ pub enum EuclidKey {
     PaymentAmount,
     #[strum(serialize = "currency")]
     PaymentCurrency,
+    #[cfg(feature = "payouts")]
+    #[strum(serialize = "payout_currency")]
+    PayoutCurrency,
     #[strum(serialize = "country", to_string = "business_country")]
     BusinessCountry,
     #[strum(serialize = "billing_country")]
@@ -149,6 +152,8 @@ impl EuclidKey {
             Self::CaptureMethod => DataType::EnumVariant,
             Self::PaymentAmount => DataType::Number,
             Self::PaymentCurrency => DataType::EnumVariant,
+            #[cfg(feature = "payouts")]
+            Self::PayoutCurrency => DataType::EnumVariant,
             Self::BusinessCountry => DataType::EnumVariant,
             Self::BillingCountry => DataType::EnumVariant,
             Self::MandateType => DataType::EnumVariant,
@@ -274,6 +279,8 @@ pub enum EuclidValue {
     MandateType(enums::MandateType),
     PaymentAmount(NumValue),
     PaymentCurrency(enums::Currency),
+    #[cfg(feature = "payouts")]
+    PayoutCurrency(enums::Currency),
     BusinessCountry(enums::Country),
     BillingCountry(enums::Country),
     BusinessLabel(StrValue),
@@ -309,6 +316,8 @@ impl EuclidValue {
             Self::CaptureMethod(_) => EuclidKey::CaptureMethod,
             Self::PaymentAmount(_) => EuclidKey::PaymentAmount,
             Self::PaymentCurrency(_) => EuclidKey::PaymentCurrency,
+            #[cfg(feature = "payouts")]
+            Self::PayoutCurrency(_) => EuclidKey::PayoutCurrency,
             Self::BusinessCountry(_) => EuclidKey::BusinessCountry,
             Self::BillingCountry(_) => EuclidKey::BillingCountry,
             Self::BusinessLabel(_) => EuclidKey::BusinessLabel,

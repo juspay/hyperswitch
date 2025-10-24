@@ -49,12 +49,15 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -255,6 +258,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 ),
             ),
         };
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -264,6 +268,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             mandate_data: Some(mandate_data_input),
             payment_method: None,
             merchant_connector_details: None,
+            external_vault_pmd: None,
+            webhook_url: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

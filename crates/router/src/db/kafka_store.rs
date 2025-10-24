@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, user::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -23,9 +23,14 @@ use hyperswitch_domain_models::payouts::{
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
     disputes,
+    invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
+    subscription::{
+        Subscription as DomainSubscription, SubscriptionInterface,
+        SubscriptionUpdate as DomainSubscriptionUpdate,
+    },
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -37,12 +42,13 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
+use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
+    hyperswitch_ai_interaction::HyperswitchAiInteractionInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -312,6 +318,7 @@ impl CardsInfoInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ConfigInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -500,6 +507,18 @@ impl CustomerInterface for KafkaStore {
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
         self.diesel_store
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
+            .await
+    }
+
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        constraints: super::customers::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), errors::StorageError> {
+        self.diesel_store
+            .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
             .await
     }
 
@@ -746,18 +765,37 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_merchant_id_idempotent_event_id(
+                state,
+                merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_merchant_id_primary_object_id(
+            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 state,
                 merchant_id,
                 primary_object_id,
+                initial_attempt_id,
                 merchant_key_store,
             )
             .await
@@ -807,18 +845,20 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_profile_id_primary_object_id(
+            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
                 state,
                 profile_id,
                 primary_object_id,
+                initial_attempt_id,
                 merchant_key_store,
             )
             .await
@@ -1037,6 +1077,7 @@ impl PaymentLinkInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant(
         &self,
         state: &KeyManagerState,
@@ -1214,6 +1255,7 @@ impl FileMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn update_multiple_merchant_connector_accounts(
         &self,
         merchant_connector_accounts: Vec<(
@@ -1810,12 +1852,12 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<common_enums::PaymentMethod>,
-        payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        card_network: Option<common_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -2925,6 +2967,7 @@ impl RefundInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_merchant_key_store(
         &self,
         state: &KeyManagerState,
@@ -2982,6 +3025,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
@@ -3185,8 +3229,8 @@ impl RoutingAlgorithmInterface for KafkaStore {
 impl GsmInterface for KafkaStore {
     async fn add_gsm_rule(
         &self,
-        rule: storage::GatewayStatusMappingNew,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store.add_gsm_rule(rule).await
     }
 
@@ -3210,7 +3254,7 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .find_gsm_rule(connector, flow, sub_flow, code, message)
             .await
@@ -3223,8 +3267,8 @@ impl GsmInterface for KafkaStore {
         sub_flow: String,
         code: String,
         message: String,
-        data: storage::GatewayStatusMappingUpdate,
-    ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
+        data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
+    ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         self.diesel_store
             .update_gsm_rule(connector, flow, sub_flow, code, message, data)
             .await
@@ -3298,19 +3342,27 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
         Box::new(self.clone())
     }
 }
 
 impl GlobalStorageInterface for KafkaStore {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
+
+impl subscriptions::state::SubscriptionStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
@@ -4111,6 +4163,29 @@ impl UserAuthenticationMethodInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
+impl HyperswitchAiInteractionInterface for KafkaStore {
+    async fn insert_hyperswitch_ai_interaction(
+        &self,
+        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
+    ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
+        self.diesel_store
+            .insert_hyperswitch_ai_interaction(hyperswitch_ai_interaction)
+            .await
+    }
+
+    async fn list_hyperswitch_ai_interactions(
+        &self,
+        merchant_id: Option<id_type::MerchantId>,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
+        self.diesel_store
+            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
 impl ThemeInterface for KafkaStore {
     async fn insert_theme(
         &self,
@@ -4152,13 +4227,19 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 
-    async fn delete_theme_by_lineage_and_theme_id(
+    async fn delete_theme_by_theme_id(
         &self,
         theme_id: String,
-        lineage: ThemeLineage,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.delete_theme_by_theme_id(theme_id).await
+    }
+
+    async fn list_themes_at_and_under_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::theme::Theme>, errors::StorageError> {
         self.diesel_store
-            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
+            .list_themes_at_and_under_lineage(lineage)
             .await
     }
 }
@@ -4266,7 +4347,141 @@ impl TokenizationInterface for KafkaStore {
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
             .await
     }
+
+    async fn update_tokenization_record(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .update_tokenization_record(
+                tokenization,
+                tokenization_update,
+                merchant_key_store,
+                key_manager_state,
+            )
+            .await
+    }
 }
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl TokenizationInterface for KafkaStore {}
+
+#[async_trait::async_trait]
+impl InvoiceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_new: DomainInvoice,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .insert_invoice_entry(state, key_store, invoice_new)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_id: String,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .find_invoice_by_invoice_id(state, key_store, invoice_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_id: String,
+        data: DomainInvoiceUpdate,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .update_invoice_entry(state, key_store, invoice_id, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn get_latest_invoice_for_subscription(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        subscription_id: String,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .get_latest_invoice_for_subscription(state, key_store, subscription_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        subscription_id: String,
+        connector_invoice_id: id_type::InvoiceId,
+    ) -> CustomResult<Option<DomainInvoice>, errors::StorageError> {
+        self.diesel_store
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                state,
+                key_store,
+                subscription_id,
+                connector_invoice_id,
+            )
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl SubscriptionInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_subscription_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        subscription_new: DomainSubscription,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .insert_subscription_entry(state, key_store, subscription_new)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_by_merchant_id_subscription_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        subscription_id: String,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .find_by_merchant_id_subscription_id(state, key_store, merchant_id, subscription_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        subscription_id: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .update_subscription_entry(state, key_store, merchant_id, subscription_id, data)
+            .await
+    }
+}

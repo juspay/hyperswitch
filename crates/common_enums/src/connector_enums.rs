@@ -61,8 +61,9 @@ pub enum RoutableConnectors {
     DummyConnector7,
     Aci,
     Adyen,
+    Affirm,
     Airwallex,
-    // Amazonpay,
+    Amazonpay,
     Archipel,
     Authorizedotnet,
     Bankofamerica,
@@ -70,15 +71,19 @@ pub enum RoutableConnectors {
     Billwerk,
     Bitpay,
     Bambora,
+    Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
+    #[serde(alias = "bluecode")]
+    Calida,
     Boku,
     Braintree,
+    Breadpay,
     Cashtocode,
     Celero,
     Chargebee,
     Custombilling,
-    // Checkbook,
+    Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -88,15 +93,18 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -107,6 +115,7 @@ pub enum RoutableConnectors {
     Itaubank,
     Jpmorgan,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -116,7 +125,7 @@ pub enum RoutableConnectors {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -127,8 +136,12 @@ pub enum RoutableConnectors {
     Payload,
     Payone,
     Paypal,
+    Paysafe,
     Paystack,
+    Paytm,
     Payu,
+    Peachpayments,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -140,12 +153,15 @@ pub enum RoutableConnectors {
     Santander,
     Shift4,
     Signifyd,
+    Silverflow,
     Square,
     Stax,
     Stripe,
     Stripebilling,
+    Tesouro,
     // Taxjar,
     Trustpay,
+    Trustpayments,
     // Thunes
     Tokenio,
     // Tsys,
@@ -222,8 +238,9 @@ pub enum Connector {
     DummyConnector7,
     Aci,
     Adyen,
+    Affirm,
     Airwallex,
-    // Amazonpay,
+    Amazonpay,
     Archipel,
     Authorizedotnet,
     Bambora,
@@ -233,12 +250,17 @@ pub enum Connector {
     Billwerk,
     Bitpay,
     Bluesnap,
+    Blackhawknetwork,
+    #[serde(alias = "bluecode")]
+    Calida,
     Boku,
     Braintree,
+    Breadpay,
+    Cardinal,
     Cashtocode,
     Celero,
     Chargebee,
-    // Checkbook,
+    Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -251,15 +273,18 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
+    Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -267,12 +292,14 @@ pub enum Connector {
     Hipay,
     Helcim,
     HyperswitchVault,
+    // Hyperwallet, added as template code for future usage
     Inespay,
     Iatapay,
     Itaubank,
     Jpmorgan,
     Juspaythreedsserver,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -283,7 +310,7 @@ pub enum Connector {
     Nmi,
     Nomupay,
     Noon,
-    // Nordea,
+    Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -294,8 +321,12 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paysafe,
     Paystack,
+    Paytm,
     Payu,
+    Peachpayments,
+    Phonepe,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -305,6 +336,7 @@ pub enum Connector {
     Redsys,
     Santander,
     Shift4,
+    Silverflow,
     Square,
     Stax,
     Stripe,
@@ -313,8 +345,11 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tesouro,
+    Tokenex,
     Tokenio,
     Trustpay,
+    Trustpayments,
     Tsys,
     // UnifiedAuthenticationService,
     Vgs,
@@ -343,6 +378,8 @@ impl Connector {
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
+                | (Self::Loonio, _)
+                | (Self::Worldpay, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
@@ -355,7 +392,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
-        matches!(self, Self::Wise)
+        matches!(self, Self::Wise | Self::Gigadat)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
@@ -373,23 +410,26 @@ impl Connector {
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
                 | (Self::Moneris, _)
+                | (Self::Nordea, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (
                     Self::Trustpay,
                     PaymentMethod::BankRedirect | PaymentMethod::BankTransfer
                 )
+                | (Self::Tesouro, _)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
+                | (Self::Dwolla, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
     }
     pub fn supports_file_storage_module(self) -> bool {
-        matches!(self, Self::Stripe | Self::Checkout)
+        matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)
@@ -410,9 +450,10 @@ impl Connector {
             // Add Separate authentication support for connectors
 			| Self::Authipay
             | Self::Adyen
+            | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
-            // | Self::Amazonpay
+            | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
@@ -421,12 +462,15 @@ impl Connector {
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
+            | Self::Blackhawknetwork
+            | Self::Calida
             | Self::Boku
             | Self::Braintree
+            | Self::Breadpay
             | Self::Cashtocode
             | Self::Celero
             | Self::Chargebee
-            // | Self::Checkbook
+            | Self::Checkbook
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
@@ -434,15 +478,18 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            // | Self::Dwolla
+            | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
+            | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
+            | Self::Flexiti
             | Self::Forte
             | Self::Getnet
+            | Self::Gigadat
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -456,6 +503,7 @@ impl Connector {
             | Self::Jpmorgan
             | Self::Juspaythreedsserver
             | Self::Klarna
+            | Self::Loonio
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -463,17 +511,18 @@ impl Connector {
             | Self::Nexinets
             | Self::Nexixpay
             | Self::Nomupay
-            // | Self::Nordea
+            | Self::Nordea
             | Self::Novalnet
-            | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
             | Self::Payload
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paysafe
             | Self::Paystack
             | Self::Payu
+            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -482,12 +531,15 @@ impl Connector {
             | Self::Redsys
             | Self::Santander
             | Self::Shift4
+            | Self::Silverflow
             | Self::Square
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Tesouro
             // | Self::Thunes
             | Self::Trustpay
+            | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
@@ -510,12 +562,16 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenex
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            | Self::Datatrans
+            | Self::Paytm
+            | Self::Phonepe => false,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
     }
 
@@ -524,16 +580,20 @@ impl Connector {
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
-        HashSet::new()
+        HashSet::from([PaymentMethod::Card])
     }
     pub fn get_payment_method_types_supporting_extended_authorization(
         self,
     ) -> HashSet<PaymentMethodType> {
-        HashSet::new()
+        HashSet::from([PaymentMethodType::Credit, PaymentMethodType::Debit])
+    }
+
+    pub fn is_overcapture_supported_by_connector(self) -> bool {
+        matches!(self, Self::Stripe | Self::Adyen)
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
-        matches!(self, Self::Adyenplatform)
+        matches!(self, Self::Adyenplatform | Self::Adyen)
     }
 
     /// Validates if dummy connector can be created
@@ -577,7 +637,9 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::DummyConnector7 => Self::DummyConnector7,
             RoutableConnectors::Aci => Self::Aci,
             RoutableConnectors::Adyen => Self::Adyen,
+            RoutableConnectors::Affirm => Self::Affirm,
             RoutableConnectors::Airwallex => Self::Airwallex,
+            RoutableConnectors::Amazonpay => Self::Amazonpay,
             RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
@@ -587,13 +649,16 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bambora => Self::Bambora,
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
+            RoutableConnectors::Blackhawknetwork => Self::Blackhawknetwork,
+            RoutableConnectors::Calida => Self::Calida,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
+            RoutableConnectors::Breadpay => Self::Breadpay,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
             RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
             RoutableConnectors::Custombilling => Self::Custombilling,
-            // RoutableConnectors::Checkbook => Self::Checkbook,
+            RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -602,15 +667,18 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
-            // RoutableConnectors::Dwolla => Self::Dwolla,
+            RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
+            RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
+            RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
+            RoutableConnectors::Gigadat => Self::Gigadat,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -619,6 +687,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
+            RoutableConnectors::Loonio => Self::Loonio,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -628,7 +697,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nmi => Self::Nmi,
             RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
-            // RoutableConnectors::Nordea => Self::Nordea,
+            RoutableConnectors::Nordea => Self::Nordea,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
@@ -637,8 +706,10 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paysafe => Self::Paysafe,
             RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
+            RoutableConnectors::Peachpayments => Self::Peachpayments,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
             RoutableConnectors::Prophetpay => Self::Prophetpay,
@@ -650,12 +721,15 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
+            RoutableConnectors::Silverflow => Self::Silverflow,
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
+            RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -672,6 +746,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Paytm => Self::Paytm,
+            RoutableConnectors::Phonepe => Self::Phonepe,
         }
     }
 }
@@ -701,7 +777,9 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::DummyConnector7 => Ok(Self::DummyConnector7),
             Connector::Aci => Ok(Self::Aci),
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Affirm => Ok(Self::Affirm),
             Connector::Airwallex => Ok(Self::Airwallex),
+            Connector::Amazonpay => Ok(Self::Amazonpay),
             Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
@@ -711,12 +789,15 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bambora => Ok(Self::Bambora),
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
+            Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
+            Connector::Calida => Ok(Self::Calida),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
+            Connector::Breadpay => Ok(Self::Breadpay),
             Connector::Cashtocode => Ok(Self::Cashtocode),
             Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
-            // Connector::Checkbook => Ok(Self::Checkbook),
+            Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
@@ -727,13 +808,15 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
-            // Connector::Dwolla => Ok(Self::Dwolla),
+            Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
+            Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
+            Connector::Flexiti => Ok(Self::Flexiti),
             Connector::Forte => Ok(Self::Forte),
             Connector::Globalpay => Ok(Self::Globalpay),
             Connector::Globepay => Ok(Self::Globepay),
@@ -743,6 +826,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
+            Connector::Loonio => Ok(Self::Loonio),
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
@@ -752,7 +836,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nmi => Ok(Self::Nmi),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Noon => Ok(Self::Noon),
-            // Connector::Nordea => Ok(Self::Nordea),
+            Connector::Nordea => Ok(Self::Nordea),
             Connector::Novalnet => Ok(Self::Novalnet),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
@@ -761,8 +845,10 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
+            Connector::Paysafe => Ok(Self::Paysafe),
             Connector::Paystack => Ok(Self::Paystack),
             Connector::Payu => Ok(Self::Payu),
+            Connector::Peachpayments => Ok(Self::Peachpayments),
             Connector::Placetopay => Ok(Self::Placetopay),
             Connector::Powertranz => Ok(Self::Powertranz),
             Connector::Prophetpay => Ok(Self::Prophetpay),
@@ -772,12 +858,15 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
+            Connector::Silverflow => Ok(Self::Silverflow),
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tesouro => Ok(Self::Tesouro),
             Connector::Trustpay => Ok(Self::Trustpay),
+            Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
@@ -792,9 +881,12 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
+            Connector::Paytm => Ok(Self::Paytm),
+            Connector::Phonepe => Ok(Self::Phonepe),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
@@ -803,7 +895,36 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Taxjar
             | Connector::Threedsecureio
             | Connector::Vgs
-            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
+            | Connector::CtpVisa
+            | Connector::Cardinal
+            | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
         }
     }
+}
+
+// Enum representing different status an invoice can have.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum InvoiceStatus {
+    InvoiceCreated,
+    PaymentPending,
+    PaymentPendingTimeout,
+    PaymentSucceeded,
+    PaymentFailed,
+    PaymentCanceled,
+    InvoicePaid,
+    ManualReview,
+    Voided,
 }

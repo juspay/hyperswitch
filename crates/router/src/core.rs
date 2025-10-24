@@ -9,6 +9,7 @@ pub mod blocklist;
 pub mod cache;
 pub mod card_testing_guard;
 pub mod cards_info;
+pub mod chat;
 pub mod conditional_config;
 pub mod configs;
 #[cfg(feature = "olap")]
@@ -17,6 +18,8 @@ pub mod connector_validation;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
 pub mod customers;
+#[cfg(feature = "v1")]
+pub mod debit_routing;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
@@ -24,6 +27,8 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+#[cfg(feature = "v2")]
+pub mod gift_card;
 pub mod gsm;
 pub mod health_check;
 #[cfg(feature = "v1")]
@@ -39,18 +44,26 @@ pub mod payout_link;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+pub mod profile_acquirer;
+#[cfg(feature = "v2")]
+pub mod proxy;
 #[cfg(feature = "recon")]
 pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
-
-#[cfg(feature = "v1")]
-pub mod debit_routing;
+pub mod relay;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_data_backfill;
 pub mod routing;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
+pub mod tokenization;
+pub mod unified_authentication_service;
+pub mod unified_connector_service;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -61,16 +74,3 @@ pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 pub mod webhooks;
-
-pub mod profile_acquirer;
-pub mod unified_authentication_service;
-pub mod unified_connector_service;
-
-#[cfg(feature = "v2")]
-pub mod proxy;
-pub mod relay;
-#[cfg(feature = "v2")]
-pub mod revenue_recovery;
-
-pub mod chat;
-pub mod tokenization;

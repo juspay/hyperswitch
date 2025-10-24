@@ -1,6 +1,12 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use base64::Engine;
+use common_utils::{
+    consts,
+    crypto::{self, GenerateDigest},
+    errors::CustomResult,
+    ext_traits::ValueExt,
+};
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
 use router_env::tracing;
@@ -89,6 +95,7 @@ pub async fn construct_webhook_router_data(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -135,6 +142,9 @@ pub async fn construct_webhook_router_data(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -144,18 +154,28 @@ pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
     event_type: types::storage::enums::EventType,
     delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
-) -> String {
+) -> Result<String, Report<errors::WebhooksFlowError>> {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
-    match delivery_attempt {
-        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+
+    // Hash the common prefix with SHA256 and encode with URL-safe base64 without padding
+    let digest = crypto::Sha256
+        .generate_digest(common_prefix.as_bytes())
+        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
+        .attach_printable("Failed to generate idempotent event ID")?;
+    let base_encoded = consts::BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
+
+    let result = match delivery_attempt {
+        WebhookDeliveryAttempt::InitialAttempt => base_encoded,
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
-            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &base_encoded)
         }
-    }
+    };
+
+    Ok(result)
 }
 
 #[inline]

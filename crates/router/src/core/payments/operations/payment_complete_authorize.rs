@@ -363,6 +363,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -371,6 +373,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             email: request.email.clone(),
             phone: request.phone.clone(),
             phone_country_code: request.phone_country_code.clone(),
+            tax_registration_id: None,
         });
 
         let get_trackers_response = operations::GetTrackerResponse {

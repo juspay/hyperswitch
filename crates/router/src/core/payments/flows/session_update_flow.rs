@@ -29,6 +29,8 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
             transformers::construct_router_data_to_update_calculated_tax::<
@@ -102,11 +104,16 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(
