@@ -18,7 +18,7 @@ use crate::{
     vault::PaymentMethodVaultingData,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
