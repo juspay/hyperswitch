@@ -181,7 +181,7 @@ pub(crate) async fn payments_execute_split_core(
                 .get_merchant_account()
                 .storage_scheme
                 .to_string(),
-            active_attempt_id_type: enums::ActiveAttemptIDType::AttemptsGroupID,
+            active_attempt_id_type: enums::ActiveAttemptIDType::AttemptID,
             active_attempts_group_id: id_type::GlobalAttemptGroupId::generate(&cell_id),
         };
 
