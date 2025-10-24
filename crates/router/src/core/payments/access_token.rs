@@ -12,7 +12,7 @@ use crate::{
     },
     routes::{metrics, SessionState},
     services::{self, logger},
-    types::{self, api as api_types, domain},
+    types::{self, api as api_types},
 };
 
 /// After we get the access token, check if there was an error and if the flow should proceed further
@@ -56,7 +56,6 @@ pub async fn add_access_token<
 >(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
 ) -> RouterResult<types::AddAccessTokenResult> {
@@ -64,7 +63,7 @@ pub async fn add_access_token<
         .connector_name
         .supports_access_token(router_data.payment_method)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = &router_data.merchant_id;
         let store = &*state.store;
 
         // `merchant_connector_id` may not be present in the below cases
@@ -90,7 +89,7 @@ pub async fn add_access_token<
             Some(access_token) => {
                 router_env::logger::debug!(
                     "Access token found in redis for merchant_id: {:?}, payment_id: {:?}, connector: {} which has expiry of: {} seconds",
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_id,
                     router_data.payment_id,
                     connector.connector_name,
                     access_token.expires
@@ -140,51 +139,46 @@ pub async fn add_access_token<
                     refresh_token_request_data,
                     refresh_token_response_data,
                 );
-                refresh_connector_auth(
-                    state,
-                    connector,
-                    merchant_context,
-                    &refresh_token_router_data,
-                )
-                .await?
-                .async_map(|access_token| async move {
-                    let store = &*state.store;
+                refresh_connector_auth(state, connector, &refresh_token_router_data)
+                    .await?
+                    .async_map(|access_token| async move {
+                        let store = &*state.store;
 
-                    // The expiry should be adjusted for network delays from the connector
-                    // The access token might not have been expired when request is sent
-                    // But once it reaches the connector, it might expire because of the network delay
-                    // Subtract few seconds from the expiry in order to account for these network delays
-                    // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
-                    let modified_access_token_with_expiry = types::AccessToken {
-                        expires: access_token
-                            .expires
-                            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
-                        ..access_token
-                    };
+                        // The expiry should be adjusted for network delays from the connector
+                        // The access token might not have been expired when request is sent
+                        // But once it reaches the connector, it might expire because of the network delay
+                        // Subtract few seconds from the expiry in order to account for these network delays
+                        // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
+                        let modified_access_token_with_expiry = types::AccessToken {
+                            expires: access_token
+                                .expires
+                                .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+                            ..access_token
+                        };
 
-                    logger::debug!(
-                        access_token_expiry_after_modification =
-                            modified_access_token_with_expiry.expires
-                    );
+                        logger::debug!(
+                            access_token_expiry_after_modification =
+                                modified_access_token_with_expiry.expires
+                        );
 
-                    if let Err(access_token_set_error) = store
-                        .set_access_token(
-                            merchant_id,
-                            &merchant_connector_id_or_connector_name,
-                            modified_access_token_with_expiry.clone(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("DB error when setting the access token")
-                    {
-                        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
-                        // Payments should not fail, once the access token is successfully created
-                        // The next request will create new access token, if required
-                        logger::error!(access_token_set_error=?access_token_set_error);
-                    }
-                    Some(modified_access_token_with_expiry)
-                })
-                .await
+                        if let Err(access_token_set_error) = store
+                            .set_access_token(
+                                merchant_id,
+                                &merchant_connector_id_or_connector_name,
+                                modified_access_token_with_expiry.clone(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("DB error when setting the access token")
+                        {
+                            // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+                            // Payments should not fail, once the access token is successfully created
+                            // The next request will create new access token, if required
+                            logger::error!(access_token_set_error=?access_token_set_error);
+                        }
+                        Some(modified_access_token_with_expiry)
+                    })
+                    .await
             }
         };
 
@@ -203,7 +197,6 @@ pub async fn add_access_token<
 pub async fn refresh_connector_auth(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
