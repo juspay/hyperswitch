@@ -1,10 +1,6 @@
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::AttemptStatus;
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse, 
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::RefundsData,
-    router_data::RouterData,
+    router_data::ErrorResponse, router_response_types::PaymentsResponseData,
 };
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
