@@ -219,7 +219,9 @@ where
                 )
             }
             CallConnectorAction::HandleResponse(_) => {
-                router_env::logger::info!("CallConnectorAction HandleResponse received, using Direct gateway");
+                router_env::logger::info!(
+                    "CallConnectorAction HandleResponse received, using Direct gateway"
+                );
                 (GatewaySystem::Direct, ExecutionPath::Direct)
             }
             CallConnectorAction::Trigger
