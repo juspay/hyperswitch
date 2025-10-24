@@ -811,7 +811,13 @@ impl RedisTokenManager {
                     Some(t)
                 }
             }
-            None => None,
+            None => {
+                logger::warn!(
+                    connector_customer_id = connector_customer_id,
+                    "No token found for the customer",
+                );
+                None
+            }
         };
 
         Ok(token)

@@ -314,7 +314,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_network_str = card_network.map(|network| network.to_string());
 
-    let card_issuer_str = card_info.card_issuer.clone();
+    let card_issuer_str = card_info.card_issuer.clone()
+        .filter(|card_issuer| !card_issuer.is_empty());
 
     let card_funding_str = match card_info.card_type.as_deref() {
         Some("card") => None,
