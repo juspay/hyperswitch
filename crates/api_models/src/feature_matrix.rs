@@ -68,6 +68,8 @@ pub struct ConnectorFeatureMatrixResponse {
     pub display_name: String,
     /// The description of the connector
     pub description: String,
+    /// The base url of the connector
+    pub base_url: Option<String>,
     /// The category of the connector
     #[schema(value_type = HyperswitchConnectorCategory, example = "payment_gateway")]
     pub category: common_enums::HyperswitchConnectorCategory,

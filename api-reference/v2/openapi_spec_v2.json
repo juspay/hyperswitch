@@ -9020,6 +9020,11 @@
             "type": "string",
             "description": "The description of the connector"
           },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
+            "nullable": true
+          },
           "category": {
             "$ref": "#/components/schemas/HyperswitchConnectorCategory"
           },
