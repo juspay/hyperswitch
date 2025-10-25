@@ -5871,6 +5871,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Bank redirect payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
+            PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
+                message: "Passthrough payout creation is not supported".to_string(),
+                connector: "Adyen",
+            })?,
         }
     }
 }

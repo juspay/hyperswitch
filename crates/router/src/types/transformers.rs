@@ -1199,6 +1199,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::foreign_from(bank_redirect)
             }
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                passthrough.token_type
+            }
         }
     }
 }
@@ -1243,18 +1246,27 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                Self::from(passthrough.token_type)
+            }
         }
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
-    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        value: &api_models::payouts::PayoutMethodData,
+    ) -> Result<Self, Self::Error> {
         match value {
-            api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
-            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
-            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
-            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
+            api_models::payouts::PayoutMethodData::Bank(_) => Ok(Self::Bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Ok(Self::Card),
+            api_models::payouts::PayoutMethodData::Wallet(_) => Ok(Self::Wallet),
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                Self::foreign_try_from(api_enums::PaymentMethod::from(passthrough.token_type))
+            }
         }
     }
 }
@@ -1280,6 +1292,7 @@ impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType 
             api_enums::PaymentMethod::Card => Ok(Self::Card),
             api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
             api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            api_enums::PaymentMethod::BankRedirect => Ok(Self::BankRedirect),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("PaymentMethod {value:?} is not supported for payouts"),
             })

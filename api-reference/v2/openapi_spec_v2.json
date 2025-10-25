@@ -4137,6 +4137,17 @@
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Passthrough"
+            ],
+            "properties": {
+              "Passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -16607,6 +16618,41 @@
           }
         }
       },
+      "Passthrough": {
+        "type": "object",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "PSP token generated for the payout method",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PassthroughAddtionalData": {
+        "type": "object",
+        "description": "additional payout method details for passthrough payout method",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "Psp_token of the passthrough flow",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -22009,6 +22055,17 @@
                 "$ref": "#/components/schemas/BankRedirect"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/Passthrough"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -22056,6 +22113,17 @@
             "properties": {
               "bank_redirect": {
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
               }
             }
           }

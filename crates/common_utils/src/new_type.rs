@@ -236,6 +236,21 @@ impl From<Secret<String>> for MaskedPhoneNumber {
     }
 }
 
+/// Masked Psp token
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedPspToken(Secret<String>);
+impl From<String> for MaskedPspToken {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedPspToken {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 #[cfg(test)]
 mod apply_mask_fn_test {
     use masking::PeekInterface;

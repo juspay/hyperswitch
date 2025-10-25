@@ -2470,7 +2470,8 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
             }),
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
-            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
+            | api_models::payouts::PayoutMethodData::BankRedirect(_)
+            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )

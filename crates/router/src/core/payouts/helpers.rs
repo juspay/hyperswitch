@@ -379,7 +379,8 @@ pub async fn save_payout_data_to_locker(
                         api_enums::PaymentMethodType::foreign_from(wallet),
                     ),
                     payouts::PayoutMethodData::Card(_)
-                    | payouts::PayoutMethodData::BankRedirect(_) => {
+                    | payouts::PayoutMethodData::BankRedirect(_)
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -1538,6 +1539,11 @@ pub async fn get_additional_payout_data(
         api::PayoutMethodData::BankRedirect(bank_redirect_data) => {
             Some(payout_additional::AdditionalPayoutMethodData::BankRedirect(
                 Box::new(bank_redirect_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
             ))
         }
     }
