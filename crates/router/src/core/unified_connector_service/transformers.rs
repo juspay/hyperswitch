@@ -801,8 +801,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = if !response.connector_metadata.is_empty() {
-            serde_json::to_value(&response.connector_metadata)
+        let connector_metadata = (!response.connector_metadata.is_empty())
+            .then(|| {
+                serde_json::to_value(&response.connector_metadata)
                 .map_err(|e| {
                     tracing::warn!(
                         serialization_error=?e,
@@ -812,12 +813,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     e
                 })
                 .ok()
-        } else {
-            None
-        };
-
-        // For ErrorResponse, wrap in Secret
-        let connector_metadata_secret = connector_metadata.clone().map(masking::Secret::new);
+            })
+            .flatten();
 
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
@@ -834,7 +831,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
-                connector_metadata: connector_metadata_secret,
+                connector_metadata: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;

@@ -763,11 +763,12 @@ pub fn populate_connector_customer_id_from_ucs_state<F, Req, Resp>(
     router_data: &mut RouterData<F, Req, Resp>,
     ucs_state: Option<&payments_grpc::ConnectorState>,
 ) {
-    if let Some(state) = ucs_state {
-        if let Some(connector_customer_id) = &state.connector_customer_id {
-            router_data.connector_customer = Some(connector_customer_id.to_string());
-        }
-    }
+    ucs_state.map(|state| {
+        state
+            .connector_customer_id
+            .as_ref()
+            .map(|id| router_data.connector_customer = Some(id.to_string()));
+    });
 }
 
 /// Extracts and populates connector_response from UCS response into router_data
