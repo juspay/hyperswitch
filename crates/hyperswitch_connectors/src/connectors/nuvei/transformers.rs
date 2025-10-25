@@ -1661,8 +1661,7 @@ fn get_l2_l3_items(
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
-        data.order_details
-            .as_ref()
+        data.get_order_details()
             .map_or(Ok(None), |order_details_list| {
                 // Map each order to a Result<NuveiItem>
                 let results: Vec<Result<NuveiItem, error_stack::Report<errors::ConnectorError>>> =
@@ -1721,19 +1720,19 @@ fn get_amount_details(
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
         let total_tax = data
-            .order_tax_amount
+            .get_order_tax_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_shipping = data
-            .shipping_cost
+            .get_shipping_cost()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_discount = data
-            .discount_amount
+            .get_discount_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_handling = data
-            .duty_amount
+            .get_duty_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         Ok(Some(NuveiAmountDetails {
@@ -1744,7 +1743,6 @@ fn get_amount_details(
         }))
     })
 }
-
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
     Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
