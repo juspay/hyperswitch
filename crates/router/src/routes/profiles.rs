@@ -161,8 +161,19 @@ pub async fn profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, profile_id, _| {
-            retrieve_profile(state, profile_id, key_store)
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account,
+             key_store,
+         },
+         profile_id,
+         _| {
+            retrieve_profile(
+                state,
+                profile_id,
+                merchant_account.get_id().clone(),
+                key_store,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -260,8 +271,20 @@ pub async fn profile_update(
         state,
         &req,
         payload,
-        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, req, _| {
-            update_profile(state, &profile_id, key_store, req)
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account,
+             key_store,
+         },
+         req,
+         _| {
+            update_profile(
+                state,
+                &profile_id,
+                merchant_account.get_id().clone(),
+                key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

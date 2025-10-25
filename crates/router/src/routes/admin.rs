@@ -833,7 +833,7 @@ pub async fn connector_update(
         state,
         &req,
         payload,
-        |state, _, req, _| update_connector(state, merchant_id, None, &id, req),
+        |state, _, req, _| update_connector(state, merchant_id.clone(), None, &id, req),
         auth::auth_type(
             &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
