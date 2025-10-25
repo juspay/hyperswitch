@@ -34,17 +34,16 @@ use crate::{
 
 /// Implementation of PaymentGateway for api::PSync flow
 #[async_trait]
-impl<PaymentData, RCD>
+impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         domain::PSync,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static, PaymentData>,
+        RouterGatewayContext<'static>,
     > for domain::PSync
 where
-    PaymentData: Clone + Send + Sync + 'static,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::PSync,
         types::PaymentsSyncData,
@@ -63,7 +62,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: RouterGatewayContext<'static, PaymentData>,
+        context: RouterGatewayContext<'static>,
     ) -> CustomResult<
         RouterData<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         ConnectorError,
@@ -106,16 +105,15 @@ where
 /// Implementation of FlowGateway for api::PSync
 ///
 /// This allows the flow to provide its specific gateway based on execution path
-impl<PaymentData, RCD>
+impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static, PaymentData>,
+        RouterGatewayContext<'static>,
     > for domain::PSync
 where
-    PaymentData: Clone + Send + Sync + 'static,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::PSync,
         types::PaymentsSyncData,
@@ -130,7 +128,7 @@ where
             Self,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static, PaymentData>,
+            RouterGatewayContext<'static>,
         >,
     > {
         match execution_path {

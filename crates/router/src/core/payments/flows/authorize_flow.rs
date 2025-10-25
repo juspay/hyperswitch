@@ -210,7 +210,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
-                None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>
+                None::<RouterGatewayContext<'_>>
             )
             .await
             .to_payment_failed_response()?;
@@ -294,7 +294,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_,  types::PaymentsAuthorizeData>>,
+            None::<RouterGatewayContext<'_>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -482,7 +482,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
-                None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>
+                None::<RouterGatewayContext<'_>>
             )
             .await
             .to_payment_failed_response()?;
@@ -666,7 +666,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>,
+            None::<RouterGatewayContext<'_>>,
         )
         .await
         .to_payment_failed_response()?;
@@ -752,7 +752,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_, types::PaymentsAuthorizeData>>,
+            None::<RouterGatewayContext<'_>>,
         )
         .await
         .to_payment_failed_response()?;

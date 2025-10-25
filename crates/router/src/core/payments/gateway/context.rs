@@ -15,14 +15,8 @@ use crate::core::payments::helpers;
 ///
 /// This is the router crate's implementation of gateway context. It contains
 /// all the information needed for both direct connector execution and UCS execution.
-///
-/// # Type Parameters
-/// * `PaymentData` - The payment data type (e.g., PaymentData<api::Authorize>)
 #[derive(Clone, Debug)]
-pub struct RouterGatewayContext<'a, PaymentData> {
-    /// Reference to payment data
-    pub payment_data: &'a PaymentData,
-    
+pub struct RouterGatewayContext<'a> {
     /// Merchant context (merchant_id, profile_id, etc.)
     pub merchant_context: &'a MerchantContext,
     
@@ -47,11 +41,9 @@ pub struct RouterGatewayContext<'a, PaymentData> {
     pub execution_path: ExecutionPath,
 }
 
-impl<'a, PaymentData> RouterGatewayContext<'a, PaymentData> {
+impl<'a> RouterGatewayContext<'a> {
     /// Create a new router gateway context
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        payment_data: &'a PaymentData,
         merchant_context: &'a MerchantContext,
         header_payload: &'a HeaderPayload,
         lineage_ids: LineageIds,
@@ -63,7 +55,6 @@ impl<'a, PaymentData> RouterGatewayContext<'a, PaymentData> {
         execution_path: ExecutionPath,
     ) -> Self {
         Self {
-            payment_data,
             merchant_context,
             header_payload,
             lineage_ids,
@@ -78,10 +69,7 @@ impl<'a, PaymentData> RouterGatewayContext<'a, PaymentData> {
 ///
 /// This allows the framework to extract execution metadata without knowing
 /// the concrete structure of RouterGatewayContext.
-impl<PaymentData> GatewayContext for RouterGatewayContext<'_, PaymentData>
-where
-    PaymentData: Clone + Send + Sync,
-{
+impl GatewayContext for RouterGatewayContext<'_> {
     fn execution_path(&self) -> ExecutionPath {
         self.execution_path
     }

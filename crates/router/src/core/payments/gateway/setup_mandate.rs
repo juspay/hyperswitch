@@ -43,17 +43,16 @@ use crate::{
 
 /// Implementation of PaymentGateway for api::SetupMandate flow
 #[async_trait]
-impl<PaymentData, RCD>
+impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         domain::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static, PaymentData>,
+        RouterGatewayContext<'static>,
     > for domain::SetupMandate
 where
-    PaymentData: Clone + Send + Sync + 'static,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::SetupMandate,
         types::SetupMandateRequestData,
@@ -76,7 +75,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: RouterGatewayContext<'static, PaymentData>,
+        context: RouterGatewayContext<'static>,
     ) -> CustomResult<
         RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
         ConnectorError,
@@ -85,13 +84,11 @@ where
         let merchant_context = context.merchant_context;
         let header_payload = context.header_payload;
         let lineage_ids = context.lineage_ids;
-        let payment_data = context.payment_data;
 
         // Execute payment_setup_mandate GRPC call
         let updated_router_data = execute_payment_setup_mandate(
             state,
             router_data,
-            payment_data,
             merchant_context,
             header_payload,
             lineage_ids,
@@ -108,16 +105,15 @@ where
 /// Implementation of FlowGateway for api::SetupMandate
 ///
 /// This allows the flow to provide its specific gateway based on execution path
-impl<PaymentData, RCD>
+impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static, PaymentData>,
+        RouterGatewayContext<'static>,
     > for domain::SetupMandate
 where
-    PaymentData: Clone + Send + Sync + 'static,
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
         domain::SetupMandate,
         types::SetupMandateRequestData,
@@ -132,7 +128,7 @@ where
             Self,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static, PaymentData>,
+            RouterGatewayContext<'static>,
         >,
     > {
         match execution_path {
@@ -148,14 +144,13 @@ where
 }
 
 #[cfg(feature = "v1")]
-async fn execute_payment_setup_mandate<PaymentData>(
+async fn execute_payment_setup_mandate(
     state: &SessionState,
     router_data: &RouterData<
         domain::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
     >,
-    _payment_data: &PaymentData,
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
@@ -165,10 +160,7 @@ async fn execute_payment_setup_mandate<PaymentData>(
 ) -> CustomResult<
     RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
     ConnectorError,
->
-where
-    PaymentData: Clone + Send + Sync + 'static,
-{
+> {
     // Get GRPC client
     let client = get_grpc_client(state)?;
 
@@ -235,14 +227,13 @@ where
 }
 
 #[cfg(feature = "v2")]
-async fn execute_payment_setup_mandate<PaymentData>(
+async fn execute_payment_setup_mandate(
     state: &SessionState,
     router_data: &RouterData<
         domain::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
     >,
-    _payment_data: &PaymentData,
     merchant_context: &MerchantContext,
     header_payload: &HeaderPayload,
     lineage_ids: LineageIds,
@@ -252,10 +243,7 @@ async fn execute_payment_setup_mandate<PaymentData>(
 ) -> CustomResult<
     RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
     ConnectorError,
->
-where
-    PaymentData: Clone + Send + Sync + 'static,
-{
+> {
     // Get GRPC client
     let client = get_grpc_client(state)?;
 

@@ -154,7 +154,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
-                    None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
+                    None::<RouterGatewayContext<'_>>,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -382,7 +382,7 @@ impl RouterDataPSync
                 call_connector_action.clone(),
                 None,
                 return_raw_connector_response,
-                None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
+                None::<RouterGatewayContext<'_>>,
             )
             .await
             .to_payment_failed_response()?;
@@ -402,7 +402,7 @@ impl RouterDataPSync
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
-                    None::<RouterGatewayContext<'_, types::PaymentsSyncData>>,
+                    None::<RouterGatewayContext<'_>>,
                 )
                 .await
                 .to_payment_failed_response()?;
