@@ -399,7 +399,7 @@ pub struct PaymentAttempt {
     /// Merchant id for the payment attempt
     pub merchant_id: id_type::MerchantId,
     /// Group id for the payment attempt
-    pub attempts_group_id: Option<String>,
+    pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount details for the payment attempt
     pub amount_details: AttemptAmountDetails,
     /// Status of the payment attempt. This is the status that is updated by the connector.
@@ -857,6 +857,11 @@ impl PaymentAttempt {
             }),
         };
 
+        let group_id = payment_intent
+            .active_attempts_group_id
+            .clone()
+            .or_else(|| Some(id_type::GlobalAttemptGroupId::generate(&cell_id)));
+
         let payment_method_data = request
             .payment_method_data
             .as_ref()
@@ -889,7 +894,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
-            attempts_group_id: None,
+            attempts_group_id: payment_intent.active_attempts_group_id.clone(),
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector,
