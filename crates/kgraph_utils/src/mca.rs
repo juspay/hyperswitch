@@ -180,6 +180,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::NetworkToken => Ok(dirval!(NetworkTokenType = NetworkToken)),
     }
 }
 
@@ -718,6 +719,7 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(CardRedirectType));
     global_vector.append(collect_global_variants!(OpenBankingType));
     global_vector.append(collect_global_variants!(MobilePaymentType));
+    global_vector.append(collect_global_variants!(NetworkTokenType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));

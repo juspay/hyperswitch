@@ -2109,6 +2109,7 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2233,6 +2234,7 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2279,6 +2281,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 /// Indicates the gateway system through which the payment is processed.

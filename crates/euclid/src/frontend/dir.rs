@@ -334,6 +334,8 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[serde(rename = "network_token")]
+    NetworkTokenType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -391,6 +393,7 @@ impl DirKeyKind {
             Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
+            Self::NetworkTokenType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -555,6 +558,11 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::AcquirerFraudRate => None,
+            Self::NetworkTokenType => Some(
+                enums::NetworkTokenType::iter()
+                    .map(DirValue::NetworkTokenType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -640,6 +648,8 @@ pub enum DirValue {
     AcquirerCountry(enums::Country),
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate(types::NumValue),
+    #[serde(rename = "network_token")]
+    NetworkTokenType(enums::NetworkTokenType),
 }
 
 impl DirValue {
@@ -683,6 +693,7 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
+            Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
         };
 
         DirKey::new(kind, data)
@@ -727,6 +738,7 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => None,
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
+            Self::NetworkTokenType(_) => None,
         }
     }
 
@@ -782,6 +794,7 @@ impl DirValue {
             (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
+            (Self::NetworkTokenType(ntt1), Self::NetworkTokenType(ntt2)) => ntt1 == ntt2,
             _ => false,
         }
     }
