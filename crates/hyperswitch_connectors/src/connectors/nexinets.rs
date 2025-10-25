@@ -60,6 +60,7 @@ use crate::{
     utils::{
         is_mandate_supported, to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData,
     },
+    utils as connector_utils,
 };
 
 #[derive(Debug, Clone)]
@@ -283,13 +284,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Nexinets PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.to_string().clone(),
+        )?;
+
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -362,13 +376,31 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
             .parse_struct("nexinets NexinetsPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let p_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "P_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            p_sync_response.amount.total,
+            p_sync_response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -447,13 +479,25 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("NexinetsPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.amount.total),
+            response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -611,13 +655,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexinet
             .parse_struct("nexinets RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.total,
+            response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -688,13 +744,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexinets 
             .parse_struct("nexinets RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let r_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "R_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            r_sync_response.amount.total,
+            r_sync_response.amount.currency.to_string().clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 

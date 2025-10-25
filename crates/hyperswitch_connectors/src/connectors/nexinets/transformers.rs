@@ -320,6 +320,7 @@ pub struct NexinetsTransaction {
     pub transaction_id: String,
     #[serde(rename = "type")]
     pub transaction_type: NexinetsTransactionType,
+    pub amount: i64,
     pub currency: enums::Currency,
     pub status: NexinetsPaymentStatus,
 }
@@ -351,12 +352,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
             Some(order) => order,
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
+        let mut connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id: Some(transaction.transaction_id.clone()),
             order_id: Some(item.response.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        if let serde_json::Value::Object(ref mut map) = connector_metadata {
+            map.insert(
+                "amount".to_string(),
+                serde_json::to_value(transaction.amount)
+                    .unwrap_or(serde_json::Value::Null),
+            );
+            map.insert(
+                "currency".to_string(),
+                serde_json::to_value(transaction.currency.clone())
+                    .unwrap_or(serde_json::Value::Null),
+            );
+        }
         let redirection_data = item
             .response
             .redirect_url
@@ -434,8 +447,16 @@ pub struct NexinetsPaymentResponse {
     pub transaction_id: String,
     pub status: NexinetsPaymentStatus,
     pub order: NexinetsOrder,
+    pub amount: NexinetsAmount,
     #[serde(rename = "type")]
     pub transaction_type: NexinetsTransactionType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsAmount {
+    pub total: i64,
+    pub currency: enums::Currency,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsResponseData>>
@@ -452,6 +473,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
             psync_flow: item.response.transaction_type.clone(),
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        if let serde_json::Value::Object(ref mut map) = connector_metadata {
+            map.insert(
+                "amount".to_string(),
+                serde_json::to_value(item.response.amount.total)
+                    .unwrap_or(serde_json::Value::Null),
+            );
+            map.insert(
+                "currency".to_string(),
+                serde_json::to_value(item.response.amount.currency.clone())
+                    .unwrap_or(serde_json::Value::Null),
+            );
+        }
         let resource_id = match item.response.transaction_type.clone() {
             NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
                 ResponseId::ConnectorTransactionId(item.response.transaction_id)
@@ -501,6 +534,7 @@ pub struct NexinetsRefundResponse {
     pub transaction_id: String,
     pub status: RefundStatus,
     pub order: NexinetsOrder,
+    pub amount: NexinetsAmount,
     #[serde(rename = "type")]
     pub transaction_type: RefundType,
 }
@@ -543,6 +577,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, NexinetsRefundResponse>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
+                refund_amount: Some(item.response.amount.total),
+                currency: Some(item.response.amount.currency),
             }),
             ..item.data
         })
@@ -560,6 +596,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, NexinetsRefundResponse>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
+                refund_amount: Some(item.response.amount.total),
+                currency: Some(item.response.amount.currency),
             }),
             ..item.data
         })
