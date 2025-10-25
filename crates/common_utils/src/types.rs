@@ -382,6 +382,7 @@ impl AmountConvertor for MinorUnitForConnector {
     Hash,
     ToSchema,
     PartialOrd,
+    Ord,
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);

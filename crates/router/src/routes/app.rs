@@ -798,6 +798,10 @@ impl Payments {
                         ),
                 )
                 .service(
+                    web::resource("/apply-payment-method-data")
+                        .route(web::post().to(payments::payments_apply_pm_data)),
+                )
+                .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
                 )

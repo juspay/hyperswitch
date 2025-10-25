@@ -684,6 +684,8 @@ pub enum Flow {
     PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
+    /// Apply payment method data flow
+    ApplyPaymentMethodData,
 }
 
 /// Trait for providing generic behaviour to flow metric
