@@ -466,7 +466,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
         item: ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = Some(item.response.transaction_id.clone());
-        let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
+        let mut connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id,
             order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
