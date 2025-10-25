@@ -41,7 +41,7 @@ impl<RCD>
         domain::PSync,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PSync
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -62,7 +62,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: RouterGatewayContext<'static>,
+        context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         ConnectorError,
@@ -89,9 +89,9 @@ where
         let updated_router_data = execute_payment_get(
             state,
             router_data,
-            merchant_connector_account,
-            merchant_context,
-            header_payload,
+            &merchant_connector_account,
+            &merchant_context,
+            &header_payload,
             lineage_ids,
             context.execution_mode,
             context.execution_path,
@@ -111,7 +111,7 @@ impl<RCD>
         RCD,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PSync
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -128,7 +128,7 @@ where
             Self,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         match execution_path {

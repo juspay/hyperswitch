@@ -16,23 +16,23 @@ use crate::core::payments::helpers;
 /// This is the router crate's implementation of gateway context. It contains
 /// all the information needed for both direct connector execution and UCS execution.
 #[derive(Clone, Debug)]
-pub struct RouterGatewayContext<'a> {
+pub struct RouterGatewayContext {
     /// Merchant context (merchant_id, profile_id, etc.)
-    pub merchant_context: &'a MerchantContext,
+    pub merchant_context: MerchantContext,
     
     /// Header payload (x-reference-id, etc.)
-    pub header_payload: &'a HeaderPayload,
+    pub header_payload: HeaderPayload,
     
     /// Lineage IDs for distributed tracing
     pub lineage_ids: LineageIds,
     
     /// Merchant connector account details
     #[cfg(feature = "v1")]
-    pub merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+    pub merchant_connector_account: helpers::MerchantConnectorAccountType,
     
     /// Merchant connector account details (v2)
     #[cfg(feature = "v2")]
-    pub merchant_connector_account: &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    pub merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
     
     /// Execution mode (Primary, Shadow, etc.)
     pub execution_mode: ExecutionMode,
@@ -41,16 +41,16 @@ pub struct RouterGatewayContext<'a> {
     pub execution_path: ExecutionPath,
 }
 
-impl<'a> RouterGatewayContext<'a> {
+impl RouterGatewayContext {
     /// Create a new router gateway context
     pub fn new(
-        merchant_context: &'a MerchantContext,
-        header_payload: &'a HeaderPayload,
+        merchant_context: MerchantContext,
+        header_payload: HeaderPayload,
         lineage_ids: LineageIds,
         #[cfg(feature = "v1")]
-        merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
-        merchant_connector_account: &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
         execution_mode: ExecutionMode,
         execution_path: ExecutionPath,
     ) -> Self {
@@ -69,7 +69,7 @@ impl<'a> RouterGatewayContext<'a> {
 ///
 /// This allows the framework to extract execution metadata without knowing
 /// the concrete structure of RouterGatewayContext.
-impl GatewayContext for RouterGatewayContext<'_> {
+impl GatewayContext for RouterGatewayContext {
     fn execution_path(&self) -> ExecutionPath {
         self.execution_path
     }

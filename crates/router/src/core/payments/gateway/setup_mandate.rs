@@ -50,7 +50,7 @@ impl<RCD>
         domain::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::SetupMandate
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -75,7 +75,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: RouterGatewayContext<'static>,
+        context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<domain::SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>,
         ConnectorError,
@@ -89,10 +89,10 @@ where
         let updated_router_data = execute_payment_setup_mandate(
             state,
             router_data,
-            merchant_context,
-            header_payload,
+            &merchant_context,
+            &header_payload,
             lineage_ids,
-            context.merchant_connector_account,
+            &context.merchant_connector_account,
             context.execution_mode,
             context.execution_path,
         )
@@ -111,7 +111,7 @@ impl<RCD>
         RCD,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::SetupMandate
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -128,7 +128,7 @@ where
             Self,
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         match execution_path {

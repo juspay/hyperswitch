@@ -82,7 +82,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -91,6 +91,7 @@ pub trait Feature<F, T> {
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -308,6 +309,7 @@ pub async fn call_capture_request(
             connector_request,
             business_profile,
             header_payload.clone(),
+            None,
             None,
         )
         .await

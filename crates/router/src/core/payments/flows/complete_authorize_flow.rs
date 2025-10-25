@@ -86,7 +86,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         types::PaymentsResponseData,
     >
 {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -95,6 +95,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,

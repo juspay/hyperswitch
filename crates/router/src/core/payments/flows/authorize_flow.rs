@@ -184,7 +184,7 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -193,6 +193,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: Option<RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -210,7 +211,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
-                None::<RouterGatewayContext<'_>>
+                gateway_context
             )
             .await
             .to_payment_failed_response()?;
@@ -294,7 +295,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_>>,
+            None::<RouterGatewayContext>,
         )
         .await
         .to_payment_failed_response()?;
@@ -482,7 +483,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
-                None::<RouterGatewayContext<'_>>
+                None::<RouterGatewayContext>
             )
             .await
             .to_payment_failed_response()?;
@@ -548,6 +549,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_connector_account,
                 merchant_context,
                 unified_connector_service_execution_mode,
+                None,
             ))
             .await
         } else {
@@ -559,6 +561,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_connector_account,
                 merchant_context,
                 unified_connector_service_execution_mode,
+                None,
             ))
             .await
         }
@@ -666,7 +669,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_>>,
+            None::<RouterGatewayContext>,
         )
         .await
         .to_payment_failed_response()?;
@@ -752,7 +755,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
             None,
             None,
-            None::<RouterGatewayContext<'_>>,
+            None::<RouterGatewayContext>,
         )
         .await
         .to_payment_failed_response()?;
@@ -864,6 +867,7 @@ async fn call_unified_connector_service_authorize(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    _gateway_context: Option<payments::gateway::RouterGatewayContext>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -954,6 +958,7 @@ async fn call_unified_connector_service_repeat_payment(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    _gateway_context: Option<payments::gateway::RouterGatewayContext>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client

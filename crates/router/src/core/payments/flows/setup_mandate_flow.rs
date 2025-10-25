@@ -16,7 +16,7 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, gateway, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
@@ -108,7 +108,7 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -117,6 +117,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,

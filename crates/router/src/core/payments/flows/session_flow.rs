@@ -97,7 +97,7 @@ impl
 
 #[async_trait]
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
@@ -106,6 +106,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,

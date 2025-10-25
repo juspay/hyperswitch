@@ -84,7 +84,7 @@ impl
 impl Feature<api::Capture, types::PaymentsCaptureData>
     for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -93,6 +93,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Capture,

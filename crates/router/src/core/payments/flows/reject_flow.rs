@@ -65,7 +65,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
 impl Feature<api::Reject, types::PaymentsRejectData>
     for types::RouterData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
 {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
@@ -74,6 +74,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

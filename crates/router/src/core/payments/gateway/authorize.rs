@@ -50,7 +50,7 @@ impl<RCD>
         domain::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::Authorize
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -75,7 +75,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        context: RouterGatewayContext<'static>,
+        context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
@@ -86,10 +86,10 @@ where
             execute_payment_repeat(
                 state,
                 router_data,
-                context.merchant_context,
-                context.header_payload,
+                &context.merchant_context,
+                &context.header_payload,
                 context.lineage_ids,
-                context.merchant_connector_account,
+                &context.merchant_connector_account,
                 context.execution_mode,
                 context.execution_path,
             )
@@ -99,10 +99,10 @@ where
             execute_payment_authorize(
                 state,
                 router_data,
-                context.merchant_context,
-                context.header_payload,
+                &context.merchant_context,
+                &context.header_payload,
                 context.lineage_ids,
-                context.merchant_connector_account,
+                &context.merchant_connector_account,
                 context.execution_mode,
                 context.execution_path,
             )
@@ -122,7 +122,7 @@ impl<RCD>
         RCD,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::Authorize
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -139,7 +139,7 @@ where
             Self,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         match execution_path {
@@ -341,7 +341,7 @@ impl<RCD>
         domain::AuthorizeSessionToken,
         types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::AuthorizeSessionToken
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -366,7 +366,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext<'static>,
+        _context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<
             domain::AuthorizeSessionToken,
@@ -388,7 +388,7 @@ impl<RCD>
         domain::PreProcessing,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PreProcessing
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -413,7 +413,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext<'static>,
+        _context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<
             domain::PreProcessing,
@@ -435,7 +435,7 @@ impl<RCD>
         domain::PostProcessing,
         types::PaymentsPostProcessingData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PostProcessing
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -460,7 +460,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext<'static>,
+        _context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<
             domain::PostProcessing,
@@ -480,7 +480,7 @@ impl<RCD>
         RCD,
         types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::AuthorizeSessionToken
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -497,7 +497,7 @@ where
             Self,
             types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         todo!();
@@ -511,7 +511,7 @@ impl<RCD>
         RCD,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PreProcessing
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -528,7 +528,7 @@ where
             Self,
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         todo!();
@@ -542,7 +542,7 @@ impl<RCD>
         RCD,
         types::PaymentsPostProcessingData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::PostProcessing
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<  
@@ -559,7 +559,7 @@ where
             Self,
             types::PaymentsPostProcessingData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         todo!();
@@ -575,7 +575,7 @@ impl<RCD>
         domain::CreateOrder,
         types::CreateOrderRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::CreateOrder
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -600,7 +600,7 @@ where
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext<'static>,
+        _context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<
             domain::CreateOrder,
@@ -620,7 +620,7 @@ impl<RCD>
         RCD,
         types::CreateOrderRequestData,
         types::PaymentsResponseData,
-        RouterGatewayContext<'static>,
+        RouterGatewayContext,
     > for domain::CreateOrder
 where
     RCD: Clone + Send + Sync + 'static + RouterDataConversion<
@@ -637,7 +637,7 @@ where
             Self,
             types::CreateOrderRequestData,
             types::PaymentsResponseData,
-            RouterGatewayContext<'static>,
+            RouterGatewayContext,
         >,
     > {
         todo!();

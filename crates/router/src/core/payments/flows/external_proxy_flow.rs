@@ -78,7 +78,7 @@ impl
 impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     for types::ExternalVaultProxyPaymentsRouterData
 {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -87,6 +87,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<crate::core::payments::gateway::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::ExternalVaultProxy,

@@ -100,7 +100,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 impl Feature<api::PSync, types::PaymentsSyncData>
     for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
-    async fn decide_flows<'a>(
+    async fn decide_flows(
         mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -109,6 +109,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: Option<RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -132,6 +133,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         call_connector_action,
                         connector_integration,
                         return_raw_connector_response,
+                        None,
                     )
                     .await?;
                 // Initiating Integrity checks
@@ -154,7 +156,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
-                    None::<RouterGatewayContext<'_>>,
+                    gateway_context,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -353,6 +355,7 @@ where
             types::PaymentsResponseData,
         >,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<RouterGatewayContext>,
     ) -> RouterResult<Self>;
 }
 
@@ -371,6 +374,7 @@ impl RouterDataPSync
             types::PaymentsResponseData,
         >,
         return_raw_connector_response: Option<bool>,
+        gateway_context: Option<RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -382,7 +386,7 @@ impl RouterDataPSync
                 call_connector_action.clone(),
                 None,
                 return_raw_connector_response,
-                None::<RouterGatewayContext<'_>>,
+                gateway_context,
             )
             .await
             .to_payment_failed_response()?;
@@ -402,7 +406,7 @@ impl RouterDataPSync
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
-                    None::<RouterGatewayContext<'_>>,
+                    gateway_context.as_ref().map(|ctx| ctx.clone()),
                 )
                 .await
                 .to_payment_failed_response()?;
