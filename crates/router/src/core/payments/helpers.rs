@@ -34,6 +34,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use external_services::grpc_client;
 use futures::future::Either;
+pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
@@ -74,7 +75,7 @@ use super::{
 #[cfg(feature = "v1")]
 use crate::core::{
     payments::{
-        call_connector_service,
+        call_connector_service, customers,
         flows::{ConstructFlowSpecificData, Feature},
         operations::ValidateResult as OperationsValidateResult,
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
@@ -7857,6 +7858,227 @@ pub fn is_stored_credential(
 }
 
 #[cfg(feature = "v1")]
+/// Helper function to get the connector label used for storing connector_customer_id
+/// Returns None if the merchant_connector_account ID is not present
+pub fn get_connector_label_for_customer<F, D>(
+    merchant_connector_account: &MerchantConnectorAccountType,
+    payment_data: &D,
+) -> Option<String>
+where
+    D: OperationSessionGetters<F>,
+{
+    // Get connector name from payment attempt
+    let connector_name = payment_data.get_payment_attempt().connector.as_ref()?;
+
+    // Generate the connector_label using the same logic as when storing connector_customer_id
+    let connector_label = crate::core::utils::get_connector_label(
+        payment_data.get_payment_intent().business_country,
+        payment_data.get_payment_intent().business_label.as_ref(),
+        payment_data
+            .get_payment_attempt()
+            .business_sub_label
+            .as_ref(),
+        connector_name,
+    );
+
+    // Use the same priority as in call_create_connector_customer_if_required
+    // 1. Try merchant_connector_account ID first
+    // 2. Try the dynamically generated connector_label
+    // 3. Fallback to format!("{connector_name}_{profile_id}")
+    if let Some(connector_label) = merchant_connector_account
+        .get_mca_id()
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(connector_label)
+    {
+        Some(connector_label)
+    } else {
+        // Fallback to connector_name_profileId
+        payment_data
+            .get_payment_intent()
+            .profile_id
+            .as_ref()
+            .map(|profile_id| format!("{}_{}", connector_name, profile_id.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "v1")]
+/// Helper function to populate connector_customer_id from database before calling UCS
+/// This checks if a connector_customer_id already exists in the database and populates it into router_data
+/// Returns true if connector_customer_id was found and populated from DB, false otherwise
+async fn populate_connector_customer_from_db_before_ucs<F, Req, D>(
+    state: &SessionState,
+    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
+    connector_label: Option<&str>,
+    payment_data: &D,
+    customer: &Option<domain::Customer>,
+    merchant_connector_account: &MerchantConnectorAccountType,
+) -> RouterResult<bool>
+where
+    D: OperationSessionGetters<F>,
+{
+    let mut connector_customer_id_was_populated = false;
+
+    if let (Some(connector_label), Some(connector_name)) = (
+        connector_label,
+        payment_data.get_payment_attempt().connector.as_ref(),
+    ) {
+        // Get ConnectorData to check if connector needs customer
+        let connector = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+            merchant_connector_account.get_mca_id(),
+        )
+        .inspect_err(|e| {
+            router_env::logger::warn!(
+                "Failed to get connector by name while populating connector_customer_id - payment_id={}, connector_name={}, error={:?}",
+                payment_data.get_payment_intent().payment_id.get_string_repr(),
+                connector_name,
+                e
+            )
+        })?;
+
+        // Check if connector_customer_id exists in database
+        let (_should_call_connector, existing_connector_customer_id) =
+            customers::should_call_connector_create_customer(
+                &connector,
+                customer,
+                payment_data.get_payment_attempt(),
+                connector_label,
+            );
+
+        match existing_connector_customer_id {
+            Some(connector_customer_id) => {
+                router_env::logger::info!(
+                    "Populating connector_customer from DB before UCS call - connector_customer_id={}, payment_id={}, connector_label={}",
+                    connector_customer_id,
+                    payment_data.get_payment_intent().payment_id.get_string_repr(),
+                    connector_label
+                );
+                router_data.connector_customer = Some(connector_customer_id.to_string());
+                connector_customer_id_was_populated = true;
+            }
+            None => {
+                router_env::logger::info!(
+                    "No connector_customer_id found in DB for UCS call - payment_id={}, connector_label={}",
+                    payment_data.get_payment_intent().payment_id.get_string_repr(),
+                    connector_label
+                );
+            }
+        }
+    }
+
+    Ok(connector_customer_id_was_populated)
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+/// Helper function to save connector_customer_id after UCS call with proper error logging
+/// Handles the logic of checking if ID was already in DB and logging appropriately
+async fn save_connector_customer_id_after_ucs<F, Req>(
+    state: &SessionState,
+    router_data: &RouterData<F, Req, PaymentsResponseData>,
+    connector_customer_id_was_populated_from_db: bool,
+    connector_label: &Option<String>,
+    customer: &Option<domain::Customer>,
+    merchant_context: &domain::MerchantContext,
+    payment_id: String,
+) -> RouterResult<()> {
+    // Process only if connector_customer_id was NOT already in DB
+    if !connector_customer_id_was_populated_from_db {
+        // Extract necessary fields and save if both are present
+        match (&router_data.connector_customer, connector_label.as_ref()) {
+            (Some(connector_customer_id), Some(connector_label_str)) => {
+                save_new_connector_customer_id_from_ucs(
+                    state,
+                    connector_customer_id,
+                    connector_label_str,
+                    customer,
+                    merchant_context,
+                    payment_id.clone(),
+                )
+                .await
+                .inspect_err(|e| {
+                    router_env::logger::warn!(
+                        "Failed to save connector_customer_id from UCS - payment_id={}, error={:?}",
+                        payment_id,
+                        e
+                    )
+                })?;
+            }
+            _ => {
+                router_env::logger::debug!(
+                    "Missing connector_customer_id or connector_label, skipping save - payment_id={}",
+                    payment_id
+                );
+            }
+        }
+    } else {
+        router_env::logger::debug!(
+            "Skipping save - connector_customer_id was already in DB before UCS call - payment_id={}",
+            payment_id
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+/// Helper function to save a new connector_customer_id from UCS to database
+/// This only saves if the ID doesn't already exist in the database
+async fn save_new_connector_customer_id_from_ucs(
+    state: &SessionState,
+    connector_customer_id: &str,
+    connector_label: &str,
+    customer: &Option<domain::Customer>,
+    merchant_context: &domain::MerchantContext,
+    payment_id: String,
+) -> RouterResult<()> {
+    // Process only if customer exists
+    if let Some(customer_data) = customer.as_ref() {
+        router_env::logger::info!(
+            "Saving new connector_customer_id from UCS to DB for payment_id={}, connector_label={}",
+            payment_id,
+            connector_label
+        );
+
+        // Create and save customer update
+        if let Some(update) = customers::update_connector_customer_in_customers(
+            connector_label,
+            Some(customer_data),
+            Some(connector_customer_id.to_string()),
+        )
+        .await
+        {
+            let db = &*state.store;
+            let _ = db
+                .update_customer_by_customer_id_merchant_id(
+                    &state.into(),
+                    customer_data.customer_id.clone(),
+                    customer_data.merchant_id.clone(),
+                    customer_data.clone(),
+                    update,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .inspect_err(|e| {
+                    router_env::logger::warn!("Failed to save connector_customer_id to DB: {:?}", e)
+                });
+        }
+    } else {
+        router_env::logger::debug!(
+            "No customer data available, skipping connector_customer_id save for payment_id={}, connector_label={}",
+            payment_id,
+            connector_label
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 // Helper function to process through UCS gateway
@@ -7956,6 +8178,23 @@ where
         )
         .await?;
 
+    // Calculate connector label once for reuse
+    let connector_label =
+        get_connector_label_for_customer(&merchant_connector_account, payment_data);
+
+    // Populate connector_customer_id from database before calling UCS
+    // Track whether ID was found in DB to avoid redundant save later
+    let connector_customer_id_was_populated_from_db =
+        populate_connector_customer_from_db_before_ucs(
+            state,
+            &mut router_data,
+            connector_label.as_deref(),
+            payment_data,
+            customer,
+            &merchant_connector_account,
+        )
+        .await?;
+
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
         router_data
@@ -7971,6 +8210,30 @@ where
             )
             .await?;
     }
+
+    // Save connector_customer_id from UCS to database if needed
+    let payment_id = payment_data
+        .get_payment_intent()
+        .payment_id
+        .get_string_repr()
+        .to_string();
+    let _ = save_connector_customer_id_after_ucs(
+        state,
+        &router_data,
+        connector_customer_id_was_populated_from_db,
+        &connector_label,
+        customer,
+        merchant_context,
+        payment_id.clone(),
+    )
+    .await
+    .inspect_err(|e| {
+        router_env::logger::warn!(
+            "Failed to save connector_customer_id after UCS call - payment_id={}, error={:?}",
+            payment_id,
+            e
+        )
+    }); // Don't fail payment if save fails
 
     Ok((router_data, merchant_connector_account))
 }
@@ -8100,13 +8363,32 @@ where
         .merchant_order_reference_id
         .clone();
 
+    // Calculate connector_label before cloning data for shadow UCS
+    let unified_connector_service_connector_label =
+        get_connector_label_for_customer(&merchant_connector_account, payment_data);
+
     // Clone data needed for shadow UCS call
-    let unified_connector_service_router_data = router_data.clone();
+    let mut unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
     let unified_connector_service_merchant_context = merchant_context.clone();
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
     let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
+
+    // Populate connector_customer_id from database for shadow UCS call
+    // Use the pre-calculated connector_label
+    // Track whether ID was found in DB to avoid redundant save later
+    let _connector_customer_id_was_populated_from_db =
+        populate_connector_customer_from_db_before_ucs(
+            state,
+            &mut unified_connector_service_router_data,
+            unified_connector_service_connector_label.as_deref(),
+            payment_data,
+            customer,
+            &merchant_connector_account,
+        )
+        .await
+        .unwrap_or(false); // Don't fail the main flow if shadow UCS populate fails
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -8186,7 +8468,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             &state,
             &header_payload,
             lineage_ids,
-            merchant_connector_account,
+            merchant_connector_account.clone(),
             &merchant_context,
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
