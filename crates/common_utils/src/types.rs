@@ -608,7 +608,7 @@ pub struct FloatMajorUnit(f64);
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
-    fn new(value: f64) -> Self {
+    pub fn new(value: f64) -> Self {
         Self(value)
     }
 
