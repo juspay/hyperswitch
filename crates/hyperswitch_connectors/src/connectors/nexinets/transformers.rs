@@ -361,8 +361,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
         if let serde_json::Value::Object(ref mut map) = connector_metadata {
             map.insert(
                 "amount".to_string(),
-                serde_json::to_value(transaction.amount)
-                    .unwrap_or(serde_json::Value::Null),
+                serde_json::to_value(transaction.amount).unwrap_or(serde_json::Value::Null),
             );
             map.insert(
                 "currency".to_string(),
@@ -476,8 +475,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
         if let serde_json::Value::Object(ref mut map) = connector_metadata {
             map.insert(
                 "amount".to_string(),
-                serde_json::to_value(item.response.amount.total)
-                    .unwrap_or(serde_json::Value::Null),
+                serde_json::to_value(item.response.amount.total).unwrap_or(serde_json::Value::Null),
             );
             map.insert(
                 "currency".to_string(),

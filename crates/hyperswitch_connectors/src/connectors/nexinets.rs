@@ -57,10 +57,10 @@ use transformers as nexinets;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{
         is_mandate_supported, to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData,
     },
-    utils as connector_utils,
 };
 
 #[derive(Debug, Clone)]
@@ -289,7 +289,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             response.amount,
             response.currency.to_string().clone(),
         )?;
-
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
