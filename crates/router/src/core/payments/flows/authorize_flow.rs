@@ -915,10 +915,12 @@ async fn call_unified_connector_service_authorize(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
-    let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account.clone(), merchant_context)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct request metadata")?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account.clone(),
+        merchant_context,
+    )
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct request metadata")?;
 
     let merchant_connector_id = merchant_connector_account.get_mca_id();
 
@@ -1048,10 +1050,12 @@ async fn call_unified_connector_service_repeat_payment(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Repeat Request")?;
 
-    let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account.clone(), merchant_context)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct request metadata")?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account.clone(),
+        merchant_context,
+    )
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
         .x_reference_id
         .clone()

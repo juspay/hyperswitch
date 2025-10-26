@@ -283,6 +283,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
         _merchant_order_reference_id: Option<String>,
+        _creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         // Call UCS for Authorize flow
         Ok(())

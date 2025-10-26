@@ -7955,7 +7955,7 @@ where
             header_payload.clone(),
         )
         .await?;
-let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
         router_data
@@ -7968,7 +7968,7 @@ let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
                 connector_data,
                 ExecutionMode::Primary, // UCS is called in primary mode
                 merchant_order_reference_id,
-                creds_identifier
+                creds_identifier,
             )
             .await?;
     }
@@ -8101,7 +8101,10 @@ where
         .merchant_order_reference_id
         .clone();
 
-    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned).clone();
+    let creds_identifier = payment_data
+        .get_creds_identifier()
+        .map(str::to_owned)
+        .clone();
 
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();

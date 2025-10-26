@@ -26,8 +26,8 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, Identifier, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse,
+    self as payments_grpc, AccessToken as ConnectorAccessToken, ConnectorState, Identifier,
+    PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
 use url::Url;
 
@@ -91,6 +91,17 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .access_token
             .as_ref()
             .map(|token| token.token.peek().to_string());
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(|token| ConnectorState {
+                access_token: Some(ConnectorAccessToken {
+                    token: token.token.peek().to_string(),
+                    expires_in_seconds: Some(token.expires),
+                    token_type: None,
+                }),
+                connector_customer_id: None,
+            });
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -100,6 +111,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             handle_response: None,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
+            state,
         })
     }
 }
@@ -156,6 +168,17 @@ impl
             .access_token
             .as_ref()
             .map(|token| token.token.peek().to_string());
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(|token| ConnectorState {
+                access_token: Some(ConnectorAccessToken {
+                    token: token.token.peek().to_string(),
+                    expires_in_seconds: Some(token.expires),
+                    token_type: None,
+                }),
+                connector_customer_id: None,
+            });
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -227,6 +250,8 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            state,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -358,6 +383,8 @@ impl
                 .unwrap_or_default(),
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
+            state: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -402,6 +429,18 @@ impl
             .clone()
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
+
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(|token| ConnectorState {
+                access_token: Some(ConnectorAccessToken {
+                    token: token.token.peek().to_string(),
+                    expires_in_seconds: Some(token.expires),
+                    token_type: None,
+                }),
+                connector_customer_id: None,
+            });
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -467,6 +506,9 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            state,
+            merchant_account_metadata: HashMap::new(),
+            customer_id: None,
         })
     }
 }
@@ -517,6 +559,18 @@ impl
             }
         };
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(|token| ConnectorState {
+                access_token: Some(ConnectorAccessToken {
+                    token: token.token.peek().to_string(),
+                    expires_in_seconds: Some(token.expires),
+                    token_type: None,
+                }),
+                connector_customer_id: None,
+            });
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -553,6 +607,8 @@ impl
                 .map(|token| token.token.peek().to_string()),
             test_mode: None,
             payment_method_type: None,
+            state,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -1231,5 +1287,6 @@ pub fn build_webhook_transform_request(
         request_details: Some(request_details_grpc),
         webhook_secrets,
         access_token: None, // Webhooks typically don't need access tokens
+        state: None,
     })
 }
