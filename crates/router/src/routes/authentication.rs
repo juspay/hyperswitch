@@ -2,8 +2,8 @@ use actix_web::{web, HttpRequest, Responder};
 use api_models::authentication::{AuthenticationAuthenticateRequest, AuthenticationCreateRequest};
 #[cfg(feature = "v1")]
 use api_models::authentication::{
-    AuthenticationEligibilityRequest, AuthenticationSyncPostUpdateRequest,
-    AuthenticationSyncRequest,
+    AuthenticationEligibilityRequest, AuthenticationSessionTokenRequest,
+    AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
 use router_env::{instrument, tracing, Flow};
 
@@ -138,15 +138,18 @@ pub async fn authentication_sync(
         common_utils::id_type::MerchantId,
         common_utils::id_type::AuthenticationId,
     )>,
-    json_payload: web::Query<AuthenticationSyncRequest>,
+    json_payload: web::Json<AuthenticationSyncRequest>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
+
+    println!("json_payload: {:?}", json_payload);
     let (_merchant_id, authentication_id) = path.into_inner();
     let payload = AuthenticationSyncRequest {
         authentication_id,
         ..json_payload.into_inner()
     };
+    println!("payload: {:?}", payload);
     let (auth, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
@@ -205,6 +208,50 @@ pub async fn authentication_sync_post_update(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationSessionToken))]
+pub async fn authentication_session_token(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+    json_payload: web::Json<AuthenticationSessionTokenRequest>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationSessionToken;
+    let authentication_id = path.into_inner();
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let payload = AuthenticationSessionTokenRequest {
+        authentication_id: authentication_id.clone(),
+        ..json_payload.into_inner()
+    };
+
+    let (auth, _auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, auth_flow)) => (auth, auth_flow),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            unified_authentication_service::authentication_session_core(
+                state,
+                merchant_context,
+                req,
+            )
+        },
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
