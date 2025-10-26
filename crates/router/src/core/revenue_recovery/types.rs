@@ -176,8 +176,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &connector_customer_id,
                     &None,
-                    // Since this is succeeded payment attempt, 'is_hard_decine' will be false.
-                    &Some(false),
+                    &None,
                     used_token.as_deref(),
                 )
                 .await;
@@ -768,8 +767,7 @@ impl Action {
                     state,
                     &connector_customer_id,
                     &None,
-                    // Since this is succeeded, 'hard_decine' will be false.
-                    &Some(false),
+                    &None,
                     used_token.as_deref(),
                 )
                 .await;
@@ -1058,9 +1056,19 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to deserialize the tracking data from process tracker")?;
 
+    let retry_algorithm_type = profile
+        .revenue_recovery_retry_algorithm_type
+        .filter(|retry_type| *retry_type != common_enums::RevenueRecoveryAlgorithmType::Monitoring) // ignore Monitoring
+        .unwrap_or(old_tracking_data.revenue_recovery_retry);
+
     let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
         payment_attempt_id: latest_attempt_id.clone(),
-        ..old_tracking_data
+        revenue_recovery_retry: retry_algorithm_type,
+        merchant_id: old_tracking_data.merchant_id.clone(),
+        profile_id: old_tracking_data.profile_id.clone(),
+        global_payment_id: old_tracking_data.global_payment_id.clone(),
+        billing_mca_id: old_tracking_data.billing_mca_id.clone(),
+        invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)

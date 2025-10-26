@@ -43,6 +43,8 @@ pub struct PaymentProcessorTokenStatus {
     pub scheduled_at: Option<PrimitiveDateTime>,
     /// Indicates if the token is a hard decline (no retries allowed)
     pub is_hard_decline: Option<bool>,
+    /// Timestamp of the last modification to this token status
+    pub modified_at: Option<PrimitiveDateTime>,
 }
 
 /// Token retry availability information with detailed wait times
@@ -421,11 +423,19 @@ impl RedisTokenManager {
 
         let monthly_wait_hours =
             if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+                let mut accumulated_retries = 0;
+
+                // Iterate from most recent to oldest
                 (0..RETRY_WINDOW_DAYS)
-                    .rev()
-                    .map(|i| today - Duration::days(i.into()))
-                    .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
-                    .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
+                    .map(|days_ago| today - Duration::days(days_ago.into()))
+                    .find(|date| {
+                        let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
+                        accumulated_retries += retries;
+                        accumulated_retries >= card_network_config.max_retry_count_for_thirty_day
+                    })
+                    .map(|breach_date| {
+                        Self::calculate_wait_hours(breach_date + Duration::days(31), now)
+                    })
                     .unwrap_or(0)
             } else {
                 0
@@ -469,13 +479,14 @@ impl RedisTokenManager {
         let was_existing = token_map.contains_key(&token_id);
 
         let error_code = token_data.error_code.clone();
+
+        let modified_at = token_data.modified_at;
+
         let today = OffsetDateTime::now_utc().date();
 
         token_map
             .get_mut(&token_id)
             .map(|existing_token| {
-                error_code.map(|err| existing_token.error_code = Some(err));
-
                 Self::normalize_retry_window(existing_token, today);
 
                 for (date, &value) in &token_data.daily_retry_history {
@@ -485,6 +496,12 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
+
+                (existing_token.modified_at < modified_at).then(|| {
+                    existing_token.modified_at = modified_at;
+                    error_code.map(|err| existing_token.error_code = Some(err));
+                    existing_token.is_hard_decline = token_data.is_hard_decline;
+                });
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);
@@ -535,6 +552,10 @@ impl RedisTokenManager {
                         daily_retry_history: status.daily_retry_history.clone(),
                         scheduled_at: None,
                         is_hard_decline: *is_hard_decline,
+                        modified_at: Some(PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        )),
                     })
             }
             None => None,
@@ -651,6 +672,10 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: schedule_time,
                     is_hard_decline: status.is_hard_decline,
+                    modified_at: Some(PrimitiveDateTime::new(
+                        OffsetDateTime::now_utc().date(),
+                        OffsetDateTime::now_utc().time(),
+                    )),
                 });
 
         match updated_token {
@@ -973,6 +998,11 @@ impl RedisTokenManager {
                     .unwrap_or(Some(existing_scheduled_at)) // No cutoff provided, keep existing value
             });
 
+        existing_token.modified_at = Some(PrimitiveDateTime::new(
+            OffsetDateTime::now_utc().date(),
+            OffsetDateTime::now_utc().time(),
+        ));
+
         // Save the updated token map back to Redis
         Self::update_or_add_connector_customer_payment_processor_tokens(
             state,
@@ -987,5 +1017,17 @@ impl RedisTokenManager {
         );
 
         Ok(())
+    }
+    pub async fn get_payment_processor_metadata_for_connector_customer(
+        state: &SessionState,
+        customer_id: &str,
+    ) -> CustomResult<HashMap<String, PaymentProcessorTokenWithRetryInfo>, errors::StorageError>
+    {
+        let token_map =
+            Self::get_connector_customer_payment_processor_tokens(state, customer_id).await?;
+
+        let token_data = Self::get_tokens_with_retry_metadata(state, &token_map);
+
+        Ok(token_data)
     }
 }
