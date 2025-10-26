@@ -7,6 +7,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -207,16 +208,27 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
-        let request = self.request.clone();
-        tokenization::add_payment_method_token(
-            state,
-            connector,
-            tokenization_action,
-            self,
-            types::PaymentMethodTokenizationData::try_from(request)?,
-            should_continue_payment,
-        )
-        .await
+        if connector
+            .connector
+            .should_call_tokenization_before_setup_mandate()
+        {
+            let request = self.request.clone();
+            tokenization::add_payment_method_token(
+                state,
+                connector,
+                tokenization_action,
+                self,
+                types::PaymentMethodTokenizationData::try_from(request)?,
+                should_continue_payment,
+            )
+            .await
+        } else {
+            Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+                connector_response: None,
+            })
+        }
     }
 
     async fn create_connector_customer<'a>(

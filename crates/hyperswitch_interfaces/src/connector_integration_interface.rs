@@ -641,6 +641,13 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
         }
     }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
+            Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {
