@@ -35,11 +35,13 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::{PoCreate, PoFulfill, PoQuote},
+    router_flow_types::{PoCreate, PoFulfill, PoQuote, PoSync},
     types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
 };
 #[cfg(feature = "payouts")]
-use hyperswitch_interfaces::types::{PayoutCreateType, PayoutFulfillType, PayoutQuoteType};
+use hyperswitch_interfaces::types::{
+    PayoutCreateType, PayoutFulfillType, PayoutQuoteType, PayoutSyncType,
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -52,6 +54,8 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
+#[cfg(feature = "payouts")]
+use masking::ExposeInterface;
 use masking::{Mask, PeekInterface};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
@@ -59,6 +63,8 @@ use transformers as gigadat;
 use url::form_urlencoded;
 use uuid::Uuid;
 
+#[cfg(feature = "payouts")]
+use crate::utils::{to_payout_connector_meta, RouterData as RouterDataTrait};
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
@@ -86,12 +92,15 @@ impl api::Refund for Gigadat {}
 impl api::RefundExecute for Gigadat {}
 impl api::RefundSync for Gigadat {}
 impl api::PaymentToken for Gigadat {}
+impl api::Payouts for Gigadat {}
 #[cfg(feature = "payouts")]
 impl api::PayoutQuote for Gigadat {}
 #[cfg(feature = "payouts")]
 impl api::PayoutCreate for Gigadat {}
 #[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Gigadat {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Gigadat {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Gigadat
@@ -658,9 +667,9 @@ impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Gigadat
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoQuote>, errors::ConnectorError> {
-        let response: gigadat::GigadatPayoutResponse = res
+        let response: gigadat::GigadatPayoutQuoteResponse = res
             .response
-            .parse_struct("GigadatPayoutResponse")
+            .parse_struct("GigadatPayoutQuoteResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -698,15 +707,17 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Gigada
         req: &PayoutsRouterData<PoCreate>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
-            },
-        )?;
+        let transfer_id = req.get_quote_id()?;
+
+        let metadata = Some(req.get_connector_meta()?.clone().expose());
+
+        let gigatad_meta: gigadat::GigadatPayoutMeta = to_payout_connector_meta(metadata.clone())?;
+
         Ok(format!(
-            "{}webflow?transaction={}",
+            "{}webflow?transaction={}&token={}",
             self.base_url(connectors),
             transfer_id,
+            gigatad_meta.token.peek(),
         ))
     }
 
@@ -729,26 +740,21 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Gigada
     fn handle_response(
         &self,
         data: &PayoutsRouterData<PoCreate>,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoCreate>, errors::ConnectorError> {
-        router_env::logger::debug!("Expected zero bytes response, skipped parsing of the response");
+        let response: gigadat::GigadatPayoutResponse = res
+            .response
+            .parse_struct("GigadatPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let status = if res.status_code == 200 {
-            enums::PayoutStatus::RequiresFulfillment
-        } else {
-            enums::PayoutStatus::Failed
-        };
-        Ok(PayoutsRouterData {
-            response: Ok(PayoutsResponseData {
-                status: Some(status),
-                connector_payout_id: None,
-                payout_eligible: None,
-                should_add_next_step_to_process_tracker: false,
-                error_code: None,
-                error_message: None,
-            }),
-            ..data.clone()
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
         })
     }
 
@@ -778,13 +784,22 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transaction_id",
             },
         )?;
+        let metadata = req
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|secret| secret.peek().clone());
+
+        let gigatad_meta: gigadat::GigadatPayoutMeta = to_payout_connector_meta(metadata.clone())?;
+
         Ok(format!(
-            "{}webflow?transaction={}",
+            "{}webflow/deposit?transaction={}&token={}",
             self.base_url(connectors),
             transfer_id,
+            gigatad_meta.token.peek(),
         ))
     }
 
@@ -813,6 +828,77 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
         let response: gigadat::GigadatPayoutResponse = res
             .response
             .parse_struct("GigadatPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Gigadat {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_id",
+            },
+        )?;
+        Ok(format!(
+            "{}api/transactions/{}",
+            connectors.gigadat.base_url, transfer_id
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: gigadat::GigadatPayoutSyncResponse = res
+            .response
+            .parse_struct("GigadatPayoutSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));

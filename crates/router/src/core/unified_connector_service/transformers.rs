@@ -21,6 +21,7 @@ pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::{
         transformers::convert_connector_service_status_code, WebhookTransformData,
+        WebhookTransformationStatus,
     },
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -35,13 +36,19 @@ use crate::{
     core::{errors, unified_connector_service},
     types::transformers,
 };
-impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceGetRequest
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        (router_data, call_connector_action): (
+            &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+            common_enums::CallConnectorAction,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = router_data
             .request
@@ -77,12 +84,36 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let handle_response = match call_connector_action {
+            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
+            common_enums::CallConnectorAction::Trigger => None,
+            common_enums::CallConnectorAction::HandleResponse(_)
+            | common_enums::CallConnectorAction::UCSConsumeResponse(_)
+            | common_enums::CallConnectorAction::Avoid
+            | common_enums::CallConnectorAction::StatusUpdate { .. } => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Invalid CallConnectorAction for payment sync call via UCS Gateway system"
+                        .to_string(),
+                ),
+            )?,
+        };
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            handle_response,
             access_token: None,
-            capture_method: None,
-            handle_response: None,
+            amount: router_data.request.amount.get_amount_as_i64(),
+            currency: currency.into(),
         })
     }
 }
@@ -186,7 +217,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -202,7 +233,8 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -316,7 +348,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -333,6 +365,7 @@ impl
                 })
                 .unwrap_or_default(),
             test_mode: None,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -472,6 +505,7 @@ impl
                     connector_mandate_id,
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
+                    payment_method_id: connector_mandate_id.get_payment_method_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
@@ -1158,6 +1192,15 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
+    let webhook_transformation_status = if matches!(
+        response.transformation_status(),
+        payments_grpc::WebhookTransformationStatus::Incomplete
+    ) {
+        WebhookTransformationStatus::Incomplete
+    } else {
+        WebhookTransformationStatus::Complete
+    };
+
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
@@ -1169,6 +1212,7 @@ pub fn transform_ucs_webhook_response(
                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
             })
         }),
+        webhook_transformation_status,
     })
 }
 

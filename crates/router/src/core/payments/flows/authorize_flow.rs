@@ -11,8 +11,10 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
+use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -183,6 +185,12 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn get_current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo<'_>> {
+        Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: &self.auth_type,
+            request_data: &self.request,
+        })
+    }
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -220,7 +228,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             );
             auth_router_data.integrity_check = integrity_result;
             metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
-
             match auth_router_data.response.clone() {
                 Err(_) => Ok(auth_router_data),
                 Ok(authorize_response) => {
@@ -255,13 +262,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -533,7 +539,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
@@ -544,19 +553,35 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_connector_account,
                 merchant_context,
                 unified_connector_service_execution_mode,
+                merchant_order_reference_id,
             ))
             .await
         } else {
-            Box::pin(call_unified_connector_service_authorize(
-                self,
-                state,
-                header_payload,
-                lineage_ids,
-                merchant_connector_account,
-                merchant_context,
-                unified_connector_service_execution_mode,
-            ))
-            .await
+            let alternate_flow = connector_data.connector.get_alternate_flow_if_needed(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: &self.auth_type,
+                    request_data: &self.request,
+                },
+            );
+            match alternate_flow {
+                Some(api_interface::AlternateFlow::PreAuthenticate) => {
+                    // Todo: Call UCS PreAuthenticate here
+                    Ok(())
+                }
+                None => {
+                    Box::pin(call_unified_connector_service_authorize(
+                        self,
+                        state,
+                        header_payload,
+                        lineage_ids,
+                        merchant_connector_account,
+                        merchant_context,
+                        unified_connector_service_execution_mode,
+                        merchant_order_reference_id,
+                    ))
+                    .await
+                }
+            }
         }
     }
 }
@@ -686,9 +711,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             router_data.request.to_owned(),
             resp.response.clone(),
         );
-        if connector.connector_name == api_models::enums::Connector::Airwallex {
-            authorize_router_data.reference_id = resp.reference_id;
-        } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+        if connector.connector_name == api_models::enums::Connector::Nuvei {
             let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
                     enrolled_v2,
@@ -845,6 +868,7 @@ async fn process_capture_flow(
     Ok(router_data)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_authorize(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -858,6 +882,7 @@ async fn call_unified_connector_service_authorize(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -875,9 +900,11 @@ async fn call_unified_connector_service_authorize(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-    let merchant_order_reference_id = header_payload
+
+    let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -887,7 +914,7 @@ async fn call_unified_connector_service_authorize(
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_order_reference_id)
+        .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
@@ -922,7 +949,7 @@ async fn call_unified_connector_service_authorize(
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
-                .map(Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_authorize_response))
@@ -935,6 +962,7 @@ async fn call_unified_connector_service_authorize(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_repeat_payment(
     router_data: &mut types::RouterData<
         api::Authorize,
@@ -948,6 +976,7 @@ async fn call_unified_connector_service_repeat_payment(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -965,9 +994,10 @@ async fn call_unified_connector_service_repeat_payment(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-    let merchant_order_reference_id = header_payload
+    let merchant_reference_id = header_payload
         .x_reference_id
         .clone()
+        .or(merchant_order_reference_id)
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -977,7 +1007,7 @@ async fn call_unified_connector_service_repeat_payment(
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_order_reference_id)
+        .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
@@ -1012,7 +1042,7 @@ async fn call_unified_connector_service_repeat_payment(
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response
                 .clone()
-                .map(Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_repeat_response))

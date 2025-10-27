@@ -2593,14 +2593,14 @@
         ]
       }
     },
-    "/v2/payments/{id}/check-gift-card-balance": {
-      "get": {
+    "/v2/payments/{id}/payment-methods/check-balance": {
+      "post": {
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Gift Card Balance Check",
-        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
-        "operationId": "Retrieve Gift Card Balance",
+        "summary": "Payments - Payment Method Balance Check",
+        "description": "Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency",
+        "operationId": "Retrieve Payment Method Balance",
         "parameters": [
           {
             "name": "id",
@@ -2626,7 +2626,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+                "$ref": "#/components/schemas/PaymentMethodBalanceCheckRequest"
               }
             }
           },
@@ -2634,11 +2634,11 @@
         },
         "responses": {
           "200": {
-            "description": "Get the Gift Card Balance",
+            "description": "Get the Payment Method Balance",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                  "$ref": "#/components/schemas/PaymentMethodBalanceCheckResponse"
                 }
               }
             }
@@ -4137,6 +4137,17 @@
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Passthrough"
+            ],
+            "properties": {
+              "Passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -5531,6 +5542,21 @@
             "example": "012"
           }
         }
+      },
+      "BalanceCheckPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          }
+        ]
       },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
@@ -12401,35 +12427,6 @@
           }
         ]
       },
-      "GiftCardBalanceCheckResponse": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "balance",
-          "currency",
-          "needs_additional_pm_data",
-          "remaining_amount"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
-          "balance": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "needs_additional_pm_data": {
-            "type": "boolean",
-            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
-          },
-          "remaining_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          }
-        }
-      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -12633,7 +12630,7 @@
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
             },
-            "description": "List of the allowed payment meythods"
+            "description": "List of the allowed payment methods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
@@ -16621,6 +16618,41 @@
           }
         }
       },
+      "Passthrough": {
+        "type": "object",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "PSP token generated for the payout method",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PassthroughAddtionalData": {
+        "type": "object",
+        "description": "additional payout method details for passthrough payout method",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "Psp_token of the passthrough flow",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -17789,6 +17821,39 @@
           "open_banking",
           "mobile_payment"
         ]
+      },
+      "PaymentMethodBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Payment method balance check",
+        "required": [
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentMethodBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
       },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
@@ -19879,19 +19944,6 @@
             "nullable": true
           }
         }
-      },
-      "PaymentsGiftCardBalanceCheckRequest": {
-        "type": "object",
-        "description": "Request for Gift Card balance check",
-        "required": [
-          "gift_card_data"
-        ],
-        "properties": {
-          "gift_card_data": {
-            "$ref": "#/components/schemas/GiftCardData"
-          }
-        },
-        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
@@ -22003,6 +22055,17 @@
                 "$ref": "#/components/schemas/BankRedirect"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/Passthrough"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -22050,6 +22113,17 @@
             "properties": {
               "bank_redirect": {
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
               }
             }
           }

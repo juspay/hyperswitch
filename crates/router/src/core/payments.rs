@@ -85,8 +85,9 @@ use time;
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
-    PaymentCreate, PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
-    PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentCreate, PaymentExtendAuthorization, PaymentIncrementalAuthorization,
+    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus,
+    PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -100,6 +101,8 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
+use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
@@ -4282,18 +4285,14 @@ where
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
 
-    let is_handle_response_action = matches!(
-        call_connector_action,
-        CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::HandleResponse(_)
-    );
-
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
-            // Process through UCS when system is UCS and not handling response
-            (ExecutionPath::UnifiedConnectorService, false) => {
+        match execution_path {
+            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4301,19 +4300,21 @@ where
                     operation,
                     payment_data,
                     customer,
+                    call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
                     frm_suggestion,
                     business_profile,
                     merchant_connector_account,
+                    &connector,
                     router_data,
                 )
                 .await
             }
 
             // Process through Direct with Shadow UCS
-            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
+            ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
@@ -4338,9 +4339,7 @@ where
             }
 
             // Process through Direct gateway
-            (ExecutionPath::Direct, _)
-            | (ExecutionPath::UnifiedConnectorService, true)
-            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
+            ExecutionPath::Direct => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4817,6 +4816,7 @@ where
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
 
@@ -4887,6 +4887,11 @@ where
             );
             let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
 
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4894,7 +4899,10 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
+                    merchant_order_reference_id,
+                    call_connector_action,
                 )
                 .await?;
 
@@ -4951,6 +4959,7 @@ where
             merchant_context,
             &router_data,
             Some(payment_data),
+            call_connector_action.clone(),
         )
         .await?;
         if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
@@ -4991,6 +5000,12 @@ where
                 business_profile.merchant_id.clone(),
                 business_profile.get_id().clone(),
             );
+
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4998,7 +5013,10 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
+                    merchant_order_reference_id,
+                    call_connector_action,
                 )
                 .await?;
 
@@ -5100,6 +5118,14 @@ where
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
         );
+
+        // Extract merchant_order_reference_id from payment data for UCS audit trail
+        let merchant_order_reference_id = payment_data
+            .get_payment_intent()
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
@@ -5109,6 +5135,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
                 ExecutionMode::Primary, //UCS is called in primary mode
+                merchant_order_reference_id,
             )
             .await?;
 
@@ -6628,14 +6655,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    if !is_operation_complete_authorize(&operation)
-        && connector
-            .connector_name
-            .is_pre_processing_required_before_authorize()
-    {
-        router_data = router_data.preprocessing_steps(state, connector).await?;
-        return Ok((router_data, should_continue_payment));
-    }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),
@@ -7629,6 +7648,56 @@ where
     pub is_l2_l3_enabled: bool,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone)]
+pub struct PaymentEligibilityData {
+    pub payment_method_data: Option<domain::PaymentMethodData>,
+    pub payment_intent: storage::PaymentIntent,
+    pub browser_info: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentEligibilityData {
+    pub async fn from_request(
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let key_manager_state = &(state).into();
+        let payment_method_data = payments_eligibility_request
+            .payment_method_data
+            .payment_method_data
+            .clone()
+            .map(domain::PaymentMethodData::from);
+        let browser_info = payments_eligibility_request
+            .browser_info
+            .clone()
+            .map(|browser_info| {
+                serde_json::to_value(browser_info)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode payout method data")
+            })
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_merchant_id(
+                key_manager_state,
+                &payments_eligibility_request.payment_id,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        Ok(Self {
+            payment_method_data,
+            browser_info,
+            payment_intent,
+        })
+    }
+}
+
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
     pub shipping_details: hyperswitch_domain_models::address::Address,
@@ -7811,6 +7880,11 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
+        "PaymentExtendAuthorization" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCapture
+                | storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        ),
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -10640,7 +10714,8 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         merchant_context: &domain::MerchantContext,
-        payment_method_data: &Option<domain::PaymentMethodData>,
+        payment_elgibility_data: &PaymentEligibilityData,
+        business_profile: &domain::Profile,
     ) -> CustomResult<Self::Output, errors::ApiErrorResponse>;
 
     fn transform(output: Self::Output) -> Option<api_models::payments::SdkNextAction>;
@@ -10704,12 +10779,13 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         merchant_context: &domain::MerchantContext,
-        payment_method_data: &Option<domain::PaymentMethodData>,
+        payment_elgibility_data: &PaymentEligibilityData,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
         let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
             state,
             merchant_context,
-            payment_method_data,
+            &payment_elgibility_data.payment_method_data,
         )
         .await?;
         if should_payment_be_blocked {
@@ -10726,12 +10802,77 @@ impl EligibilityCheck for BlockListCheck {
     }
 }
 
+// Perform Card Testing Gaurd Check
+#[cfg(feature = "v1")]
+struct CardTestingCheck;
+
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+impl EligibilityCheck for CardTestingCheck {
+    type Output = CheckResult;
+
+    async fn should_run(
+        &self,
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        // This check is always run as there is no runtime config enablement
+        Ok(true)
+    }
+
+    async fn execute_check(
+        &self,
+        state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        payment_elgibility_data: &PaymentEligibilityData,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
+        match &payment_elgibility_data.payment_method_data {
+            Some(domain::PaymentMethodData::Card(card)) => {
+                match card_testing_guard_utils::validate_card_testing_guard_checks(
+                    state,
+                    payment_elgibility_data
+                        .browser_info
+                        .as_ref()
+                        .map(|browser_info| browser_info.peek()),
+                    card.card_number.clone(),
+                    &payment_elgibility_data.payment_intent.customer_id,
+                    business_profile,
+                )
+                .await
+                {
+                    // If validation succeeds, allow the payment
+                    Ok(_) => Ok(CheckResult::Allow),
+                    // If validation fails, check the error type
+                    Err(e) => match e.current_context() {
+                        // If it's a PreconditionFailed error, deny with message
+                        errors::ApiErrorResponse::PreconditionFailed { message } => {
+                            Ok(CheckResult::Deny {
+                                message: message.to_string(),
+                            })
+                        }
+                        // For any other error, propagate it
+                        _ => Err(e),
+                    },
+                }
+            }
+            // If payment method is not card, allow
+            _ => Ok(CheckResult::Allow),
+        }
+    }
+
+    fn transform(output: CheckResult) -> Option<api_models::payments::SdkNextAction> {
+        output.into()
+    }
+}
+
 // Eligibility Pipeline to run all the eligibility checks in sequence
 #[cfg(feature = "v1")]
 pub struct EligibilityHandler {
     state: SessionState,
     merchant_context: domain::MerchantContext,
-    payment_method_data: Option<domain::PaymentMethodData>,
+    payment_eligibility_data: PaymentEligibilityData,
+    business_profile: domain::Profile,
 }
 
 #[cfg(feature = "v1")]
@@ -10739,12 +10880,14 @@ impl EligibilityHandler {
     fn new(
         state: SessionState,
         merchant_context: domain::MerchantContext,
-        payment_method_data: Option<domain::PaymentMethodData>,
+        payment_eligibility_data: PaymentEligibilityData,
+        business_profile: domain::Profile,
     ) -> Self {
         Self {
             state,
             merchant_context,
-            payment_method_data,
+            payment_eligibility_data,
+            business_profile,
         }
     }
 
@@ -10760,7 +10903,8 @@ impl EligibilityHandler {
                 .execute_check(
                     &self.state,
                     &self.merchant_context,
-                    &self.payment_method_data,
+                    &self.payment_eligibility_data,
+                    &self.business_profile,
                 )
                 .await
                 .map(C::transform)?,
@@ -10776,14 +10920,45 @@ pub async fn payments_submit_eligibility(
     req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
-    let payment_method_data = req
-        .payment_method_data
-        .payment_method_data
-        .map(domain::PaymentMethodData::from);
-    let eligibility_handler = EligibilityHandler::new(state, merchant_context, payment_method_data);
+    let key_manager_state = &(&state).into();
+    let payment_eligibility_data =
+        PaymentEligibilityData::from_request(&state, &merchant_context, &req).await?;
+    let profile_id = payment_eligibility_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let eligibility_handler = EligibilityHandler::new(
+        state,
+        merchant_context,
+        payment_eligibility_data,
+        business_profile,
+    );
+    // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
         .run_check(BlockListCheck)
-        .await?
+        .await
+        .transpose()
+        .async_or_else(|| async {
+            eligibility_handler
+                .run_check(CardTestingCheck)
+                .await
+                .transpose()
+        })
+        .await
+        .transpose()?
         .unwrap_or(api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::Confirm,
         });
