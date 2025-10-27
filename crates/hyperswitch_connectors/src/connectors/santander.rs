@@ -84,8 +84,10 @@ impl Santander {
 
 pub mod santander_constants {
     pub const SANTANDER_VERSION: &str = "v2";
-    pub const MIN_LEN_PAYMENT_ID: usize = 26;
-    pub const MAX_LEN_PAYMENT_ID: usize = 35;
+    pub const PIX_MIN_LEN_PAYMENT_ID: usize = 26;
+    pub const PIX_MAX_LEN_PAYMENT_ID: usize = 35;
+    pub const BOLETO_MIN_LEN_PAYMENT_ID: usize = 15;
+    pub const BOLETO_MAX_LEN_PAYMENT_ID: usize = 17;
 }
 
 impl api::Payment for Santander {}
@@ -381,7 +383,7 @@ impl ConnectorCommon for Santander {
                     })
                 }
                 SantanderGenericErrorResponse::Pattern2(response) => {
-                    let message = response.details;
+                    let message = response.details.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -441,13 +443,28 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
     fn get_url(
         &self,
-        _req: &RefreshTokenRouterData,
+        req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}oauth/token?grant_type=client_credentials",
-            connectors.santander.base_url
-        ))
+        match req.payment_method {
+            enums::PaymentMethod::BankDebit => Ok(format!(
+                "{}oauth/token?grant_type=client_credentials",
+                connectors.santander.base_url
+            )),
+            enums::PaymentMethod::Voucher => {
+                let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "secondary_base_url for Santander",
+                    },
+                )?;
+                Ok(format!("{}auth/oauth/v2/token", secondary_base_url))
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: req.payment_method.to_string(),
+                connector: "Santander",
+            }
+            .into()),
+        }
     }
 
     fn get_request_body(
@@ -573,12 +590,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .into()),
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{}/bank_slips",
-                    connectors.santander.secondary_base_url.clone(),
-                    santander_constants::SANTANDER_VERSION,
-                    santander_mca_metadata.workspace_id
-                )),
+                Some(enums::PaymentMethodType::Boleto) => {
+                    let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "secondary_base_url for Santander",
+                        },
+                    )?;
+                    Ok(format!(
+                        "{}/collection_bill_management/{}/workspaces/{}/bank_slips",
+                        secondary_base_url,
+                        santander_constants::SANTANDER_VERSION,
+                        santander_mca_metadata.workspace_id
+                    ))
+                },
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -1455,15 +1479,32 @@ impl ConnectorSpecifications for Santander {
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
         is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
     ) -> String {
-        if is_config_enabled_to_send_payment_id_as_connector_request_id
-            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
-        {
-            payment_attempt.payment_id.get_string_repr().to_owned()
-        } else {
-            connector_utils::generate_alphanumeric_code(
-                santander_constants::MIN_LEN_PAYMENT_ID,
-                santander_constants::MIN_LEN_PAYMENT_ID,
-            )
+        match payment_attempt.payment_method_type {
+            Some(enums::PaymentMethodType::Pix) => {
+                if is_config_enabled_to_send_payment_id_as_connector_request_id
+                    && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+                {
+                    payment_attempt.payment_id.get_string_repr().to_owned()
+                } else {
+                    connector_utils::generate_alphanumeric_code(
+                        santander_constants::PIX_MIN_LEN_PAYMENT_ID,
+                        santander_constants::PIX_MAX_LEN_PAYMENT_ID,
+                    )
+                }
+            }
+            Some(enums::PaymentMethodType::Boleto) => {
+                if is_config_enabled_to_send_payment_id_as_connector_request_id
+                    && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+                {
+                    payment_attempt.payment_id.get_string_repr().to_owned()
+                } else {
+                    connector_utils::generate_random_string_containing_digits(
+                        santander_constants::BOLETO_MIN_LEN_PAYMENT_ID,
+                        santander_constants::BOLETO_MAX_LEN_PAYMENT_ID,
+                    )
+                }
+            }
+            _ => payment_attempt.payment_id.get_string_repr().to_owned(),
         }
     }
 }

@@ -230,7 +230,6 @@ pub struct SantanderBoletoPaymentRequest {
     pub client_number: Option<common_utils::id_type::CustomerId>,
     pub due_date: String,
     pub issue_date: String,
-    pub currency: Option<common_enums::Currency>,
     pub nominal_value: StringMajorUnit,
     pub participant_code: Option<String>,
     pub payer: responses::Payer,

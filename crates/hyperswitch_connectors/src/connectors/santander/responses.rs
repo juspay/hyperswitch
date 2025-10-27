@@ -410,7 +410,9 @@ pub struct SantanderPattern1ErrorResponse {
 pub struct SantanderPattern2ErrorResponse {
     pub timestamp: String,
     pub http_status: String,
-    pub details: String,
+    pub details: Option<String>,
+    pub error_code: Option<serde_json::Value>,
+    pub tracking_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -575,7 +577,14 @@ pub enum SanatanderAccessTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SanatanderTokenResponse {
+#[serde(untagged)]
+pub enum SanatanderTokenResponse {
+    Pix(SanatanderPixAccessTokenResponse),
+    Boleto(SanatanderBoletoAccessTokenResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanatanderPixAccessTokenResponse {
     #[serde(rename = "refreshUrl")]
     pub refresh_url: String,
     pub token_type: String,
@@ -583,6 +592,17 @@ pub struct SanatanderTokenResponse {
     pub access_token: Secret<String>,
     pub scopes: String,
     pub expires_in: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanatanderBoletoAccessTokenResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: i64,
+    pub token_type: String,
+    #[serde(rename = "not-before-policy")]
+    pub not_before_policy: i64,
+    pub session_state: String,
+    pub scope: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -46,7 +46,7 @@ use crate::{
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
             SantanderPixVoidResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderVoidStatus, SantanderWebhookBody,
+            SantanderVoidStatus, SantanderWebhookBody, SanatanderTokenResponse
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -254,20 +254,30 @@ impl<F, T> TryFrom<ResponseRouterData<F, SanatanderAccessTokenResponse, T, Acces
     for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
         item: ResponseRouterData<F, SanatanderAccessTokenResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            SanatanderAccessTokenResponse::Response(res) => Ok(Self {
-                response: Ok(AccessToken {
-                    token: res.access_token,
-                    expires: res
-                        .expires_in
-                        .parse::<i64>()
-                        .change_context(errors::ConnectorError::ParsingFailed)?,
+            SanatanderAccessTokenResponse::Response(res) => match res {
+                SanatanderTokenResponse::Pix(pix_response) => Ok(Self {
+                    response: Ok(AccessToken {
+                        token: pix_response.access_token,
+                        expires: pix_response
+                            .expires_in
+                            .parse::<i64>()
+                            .change_context(errors::ConnectorError::ParsingFailed)?,
+                    }),
+                    ..item.data
                 }),
-                ..item.data
-            }),
+                SanatanderTokenResponse::Boleto(boleto_response) => Ok(Self {
+                    response: Ok(AccessToken {
+                        token: boleto_response.access_token,
+                        expires: boleto_response.expires_in,
+                    }),
+                    ..item.data
+                }),
+            },
             SanatanderAccessTokenResponse::Error(error) => Ok(Self {
                 response: Err(ErrorResponse {
                     code: error.error_type,
@@ -352,22 +362,13 @@ impl
             }
         };
 
-        let nsu_code = if value
-            .0
-            .router_data
-            .is_payment_id_from_merchant
-            .unwrap_or(false)
-            && value.0.router_data.payment_id.len() > 20
-        {
-            return Err(errors::ConnectorError::MaxFieldLengthViolated {
-                connector: "Santander".to_string(),
-                field_name: "payment_id".to_string(),
-                max_length: 20,
-                received_length: value.0.router_data.payment_id.len(),
+        let nsu_code = match router_env::env::which() {
+            router_env::env::Env::Sandbox | router_env::env::Env::Development => {
+                format!("TST{}", value.0.router_data.connector_request_reference_id)
             }
-            .into());
-        } else {
-            value.0.router_data.payment_id.clone()
+            router_env::env::Env::Production => {
+                value.0.router_data.connector_request_reference_id.clone()
+            }
         };
 
         let due_date = value
@@ -389,16 +390,16 @@ impl
             covenant_code: santander_mca_metadata.covenant_code.clone(),
             bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "document_type",
+                    field_name: "bank_number",
                 }
             })?, // size: 13
-            client_number: Some(value.0.router_data.get_customer_id()?),
+            // client_number: Some(value.0.router_data.get_customer_id()?),
+            client_number: None, // has to be customer id, can be alphanumeric but no special chars
             due_date,
             issue_date: time::OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
-            currency: Some(value.0.router_data.request.currency),
             nominal_value: value.0.amount.to_owned(),
             participant_code: value
                 .0
@@ -425,40 +426,44 @@ impl
                 neighborhood: value.0.router_data.get_billing_line1()?,
                 city: value.0.router_data.get_billing_city()?,
                 state: value.0.router_data.get_billing_state()?,
-                zipcode: value.0.router_data.get_billing_zip()?,
+                zipcode: value.0.router_data.get_billing_zip()?, // zip format: 05134-897
             },
             beneficiary: None,
-            document_kind: BoletoDocumentKind::BillProposal, // Need confirmation
-            discount: Some(Discount {
-                discount_type: DiscountType::Free,
-                discount_one: None,
-                discount_two: None,
-                discount_three: None,
-            }),
-            fine_percentage: value
-                .0
-                .router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.pix_additional_details.as_ref())
-                .and_then(|fine| fine.fine_percentage.clone()),
-            fine_quantity_days: value
-                .0
-                .router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.pix_additional_details.as_ref())
-                .and_then(|days| days.fine_quantity_days.clone()),
-            interest_percentage: value
-                .0
-                .router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.pix_additional_details.as_ref())
-                .and_then(|interest| interest.interest_percentage.clone()),
+            document_kind: BoletoDocumentKind::DuplicateMercantil, // Need confirmation
+            discount: None,
+            // discount: Some(Discount {
+            //     discount_type: DiscountType::Free,
+            //     discount_one: None,
+            //     discount_two: None,
+            //     discount_three: None,
+            // }),
+            // fine_percentage: value
+            //     .0
+            //     .router_data
+            //     .request
+            //     .feature_metadata
+            //     .as_ref()
+            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|fine| fine.fine_percentage.clone()),
+            // fine_quantity_days: value
+            //     .0
+            //     .router_data
+            //     .request
+            //     .feature_metadata
+            //     .as_ref()
+            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|days| days.fine_quantity_days.clone()),
+            // interest_percentage: value
+            //     .0
+            //     .router_data
+            //     .request
+            //     .feature_metadata
+            //     .as_ref()
+            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|interest| interest.interest_percentage.clone()),
+            fine_percentage: None,
+            fine_quantity_days: None,
+            interest_percentage: None,
             deduction_value: None,
             protest_type: None,
             protest_quantity_days: None,
@@ -479,14 +484,15 @@ impl
             sharing: None,
             key: None,
             tx_id: None,
-            messages: value
-                .0
-                .router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.pix_additional_details.as_ref())
-                .and_then(|messages| messages.messages.clone()),
+            // messages: value
+            //     .0
+            //     .router_data
+            //     .request
+            //     .feature_metadata
+            //     .as_ref()
+            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|messages| messages.messages.clone()),
+            messages: None,
         })))
     }
 }
