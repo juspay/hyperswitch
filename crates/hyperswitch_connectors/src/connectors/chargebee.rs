@@ -173,7 +173,12 @@ macro_rules! impl_chargebee_integration {
                 _connectors: &Connectors,
             ) -> CustomResult<String, errors::ConnectorError> {
                 let $req_param = req;
-                let _base_path : String = $url_path;
+                let _base_path_opt: Option<String> = $url_path;
+                let _base_path = _base_path_opt.ok_or_else(|| {
+                    errors::ConnectorError::NotImplemented(
+                        format!("{} operation is not supported by Chargebee", stringify!($flow))
+                    )
+                })?;
                 $(
                     let query = $query_fn(req)?;
                     let path = format!("{}{}", _base_path, query);
@@ -394,9 +399,7 @@ impl_chargebee_integration!(
     response: PaymentsResponseData,
     router_data: PaymentsAuthorizeRouterData,
     connector_response: chargebee::ChargebeePaymentsResponse,
-    url_path: |_req| {
-        return Err(errors::ConnectorError::NotImplemented("Payment authorization not supported by Chargebee".to_string()).into());
-    },
+    url_path: |_req| None,
     method: Method::Post,
     request_body: build_payments_authorize_request_body
 );
@@ -408,9 +411,7 @@ impl_chargebee_integration!(
     response: PaymentsResponseData,
     router_data: PaymentsSyncRouterData,
     connector_response: chargebee::ChargebeePaymentsResponse,
-    url_path: |_req| {
-        return Err(errors::ConnectorError::NotImplemented("Payment sync not supported by Chargebee".to_string()).into());
-    },
+    url_path: |_req| None,
     method: Method::Get
 );
 
@@ -431,9 +432,7 @@ impl_chargebee_integration!(
     response: PaymentsResponseData,
     router_data: PaymentsCaptureRouterData,
     connector_response: chargebee::ChargebeePaymentsResponse,
-    url_path: |_req| {
-        return Err(errors::ConnectorError::NotImplemented("Payment capture not supported by Chargebee".to_string()).into());
-    },
+    url_path: |_req| None,
     method: Method::Post,
     request_body: build_payments_capture_request_body
 );
@@ -462,9 +461,7 @@ impl_chargebee_integration!(
     response: RefundsResponseData,
     router_data: RefundsRouterData<Execute>,
     connector_response: chargebee::RefundResponse,
-    url_path: |_req| {
-        return Err(errors::ConnectorError::NotImplemented("Refund execution not supported by Chargebee".to_string()).into());
-    },
+    url_path: |_req| None,
     method: Method::Post,
     request_body: build_refund_execute_request_body
 );
@@ -476,9 +473,7 @@ impl_chargebee_integration!(
     response: RefundsResponseData,
     router_data: RefundSyncRouterData,
     connector_response: chargebee::RefundResponse,
-    url_path: |_req| {
-        return Err(errors::ConnectorError::NotImplemented("Refund sync not supported by Chargebee".to_string()).into());
-    },
+    url_path: |_req| None,
     method: Method::Get
 );
 
@@ -557,7 +552,7 @@ impl_chargebee_integration!(
     response: SubscriptionCreateResponse,
     router_data: SubscriptionCreateRouterData,
     connector_response: chargebee::ChargebeeSubscriptionCreateResponse,
-    url_path: |req| format!("v2/customers/{}/subscription_for_items", req.request.customer_id.get_string_repr()),
+    url_path: |req| Some(format!("v2/customers/{}/subscription_for_items", req.request.customer_id.get_string_repr())),
     method: Method::Post,
     request_body: build_subscription_create_request_body
 );
@@ -569,7 +564,7 @@ impl_chargebee_integration!(
     response: InvoiceRecordBackResponse,
     router_data: InvoiceRecordBackRouterData,
     connector_response: chargebee::ChargebeeRecordbackResponse,
-    url_path: |req| format!("v2/invoices/{}/record_payment", req.request.merchant_reference_id.get_string_repr()),
+    url_path: |req| Some(format!("v2/invoices/{}/record_payment", req.request.merchant_reference_id.get_string_repr())),
     method: Method::Post,
     request_body: build_invoice_record_back_request_body
 );
@@ -612,7 +607,7 @@ impl_chargebee_integration!(
     response: GetSubscriptionPlansResponse,
     router_data: GetSubscriptionPlansRouterData,
     connector_response: ChargebeeListPlansResponse,
-    url_path: |_req| format!("v2/items"),
+    url_path: |_req| Some("v2/items".to_string()),
     method: Method::Get,
     query_params: get_chargebee_plans_query_params
 );
@@ -624,7 +619,7 @@ impl_chargebee_integration!(
     response: PaymentsResponseData,
     router_data: ConnectorCustomerRouterData,
     connector_response: chargebee::ChargebeeCustomerCreateResponse,
-    url_path: |_req| format!("v2/customers"),
+    url_path: |_req| Some("v2/customers".to_string()),
     method: Method::Post,
     request_body: build_connector_customer_request_body
 );
@@ -646,7 +641,7 @@ impl_chargebee_integration!(
     response: GetSubscriptionPlanPricesResponse,
     router_data: GetSubscriptionPlanPricesRouterData,
     connector_response: ChargebeeGetPlanPricesResponse,
-    url_path: |_req| format!("v2/item_prices"),
+    url_path: |_req| Some("v2/item_prices".to_string()),
     method: Method::Get,
     query_params: get_chargebee_plan_prices_query_params
 );
@@ -673,7 +668,7 @@ impl_chargebee_integration!(
     response: GetSubscriptionEstimateResponse,
     router_data: GetSubscriptionEstimateRouterData,
     connector_response: chargebee::SubscriptionEstimateResponse,
-    url_path: |_req| format!("v2/estimates/create_subscription_for_items"),
+    url_path: |_req| Some("v2/estimates/create_subscription_for_items".to_string()),
     method: Method::Post,
     request_body: build_subscription_estimate_request_body
 );
@@ -688,7 +683,7 @@ impl_chargebee_integration!(
     response: SubscriptionPauseResponse,
     router_data: SubscriptionPauseRouterData,
     connector_response: chargebee::ChargebeePauseSubscriptionResponse,
-    url_path: |req| format!("v2/subscriptions/{}/pause", req.request.subscription_id.get_string_repr()),
+    url_path: |req| Some(format!("v2/subscriptions/{}/pause", req.request.subscription_id.get_string_repr())),
     method: Method::Post,
     request_body: build_subscription_pause_request_body
 );
@@ -703,7 +698,7 @@ impl_chargebee_integration!(
     response: SubscriptionResumeResponse,
     router_data: SubscriptionResumeRouterData,
     connector_response: chargebee::ChargebeeResumeSubscriptionResponse,
-    url_path: |req| format!("v2/subscriptions/{}/resume", req.request.subscription_id.get_string_repr()),
+    url_path: |req| Some(format!("v2/subscriptions/{}/resume", req.request.subscription_id.get_string_repr())),
     method: Method::Post,
     request_body: build_subscription_resume_request_body
 );
@@ -718,7 +713,7 @@ impl_chargebee_integration!(
     response: SubscriptionCancelResponse,
     router_data: SubscriptionCancelRouterData,
     connector_response: chargebee::ChargebeeCancelSubscriptionResponse,
-    url_path: |req| format!("v2/subscriptions/{}/cancel_for_items", req.request.subscription_id.get_string_repr()),
+    url_path: |req| Some(format!("v2/subscriptions/{}/cancel_for_items", req.request.subscription_id.get_string_repr())),
     method: Method::Post,
     request_body: build_subscription_cancel_request_body
 );

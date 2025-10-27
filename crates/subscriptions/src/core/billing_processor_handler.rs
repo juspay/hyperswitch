@@ -358,7 +358,7 @@ impl BillingHandler {
         let pause_subscription_request = subscription_request_types::SubscriptionPauseRequest {
             subscription_id: subscription.id.clone(),
             pause_option: request.pause_option.clone(),
-            pause_date: request.pause_at.clone(),
+            pause_date: request.pause_at,
         };
 
         let router_data = self.build_router_data(
@@ -388,7 +388,7 @@ impl BillingHandler {
     ) -> SubscriptionResult<subscription_response_types::SubscriptionResumeResponse> {
         let resume_subscription_request = subscription_request_types::SubscriptionResumeRequest {
             subscription_id: subscription.id.clone(),
-            resume_date: request.resume_date.clone(),
+            resume_date: request.resume_date,
             charges_handling: request.charges_handling.clone(),
             resume_option: request.resume_option.clone(),
             unpaid_invoices_handling: request.unpaid_invoices_handling.clone(),
@@ -421,7 +421,7 @@ impl BillingHandler {
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCancelResponse> {
         let cancel_subscription_request = subscription_request_types::SubscriptionCancelRequest {
             subscription_id: subscription.id.clone(),
-            cancel_date: request.cancel_at.clone(),
+            cancel_date: request.cancel_at,
             account_receivables_handling: request.account_receivables_handling.clone(),
             cancel_option: request.cancel_option.clone(),
             cancel_reason_code: request.cancel_reason_code.clone(),
