@@ -160,20 +160,23 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                                 card_data.get_card_issuer()?,
                             )?,
                         },
-                        PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                            Err(ConnectorError::NotImplemented(
-                                get_unimplemented_payment_method_error_message("Payone"),
-                            ))?
-                        }
+                        PayoutMethodData::Bank(_)
+                        | PayoutMethodData::Wallet(_)
+                        | PayoutMethodData::BankRedirect(_)
+                        | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+                            get_unimplemented_payment_method_error_message("Payone"),
+                        ))?,
                     };
                 Ok(Self {
                     amount_of_money,
                     card_payout_method_specific_input,
                 })
             }
-            PayoutType::Wallet | PayoutType::Bank => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Payone"),
-            ))?,
+            PayoutType::Wallet | PayoutType::Bank | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Payone"),
+                ))?
+            }
         }
     }
 }
@@ -269,6 +272,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

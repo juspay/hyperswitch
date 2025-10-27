@@ -9,14 +9,12 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-#[cfg(feature = "v1")]
-use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::flow_common_types::SubscriptionCreateData,
+    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -131,13 +129,28 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
         let customer_id = &req.request.customer_id.get_string_repr().to_string();
         Ok(format!(
-            "{url}v2/customers/{customer_id}/subscription_for_items"
+            "{base}v2/customers/{customer_id}/subscription_for_items"
         ))
     }
 
@@ -212,6 +225,17 @@ impl
         SubscriptionCreateData,
         SubscriptionCreateRequest,
         SubscriptionCreateResponse,
+    > for Chargebee
+{
+    // Not Implemented (R)
+}
+
+impl
+    ConnectorIntegrationV2<
+        CreateConnectorCustomer,
+        SubscriptionCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
     > for Chargebee
 {
     // Not Implemented (R)
@@ -713,16 +737,31 @@ impl ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
         let invoice_id = req
             .request
             .merchant_reference_id
             .get_string_repr()
             .to_string();
-        Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
+        Ok(format!("{base}v2/invoices/{invoice_id}/record_payment"))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -804,11 +843,18 @@ fn get_chargebee_plans_query_params(
 ) -> CustomResult<String, errors::ConnectorError> {
     // Try to get limit from request, else default to 10
     let limit = _req.request.limit.unwrap_or(10);
-    let param = format!("?limit={}&type[is]={}", limit, constants::PLAN_ITEM_TYPE);
+    let offset = _req.request.offset.unwrap_or(0);
+    let param = format!(
+        "?limit={}&offset={}&type[is]={}",
+        limit,
+        offset,
+        constants::PLAN_ITEM_TYPE
+    );
     Ok(param)
 }
 
 impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+impl api::subscriptions::SubscriptionRecordBackFlow for Chargebee {}
 
 impl
     ConnectorIntegration<
@@ -1166,11 +1212,26 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
-        Ok(format!("{url}v2/estimates/create_subscription_for_items"))
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
+        Ok(format!("{base}v2/estimates/create_subscription_for_items"))
     }
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
@@ -1293,17 +1354,25 @@ impl webhooks::IncomingWebhook for Chargebee {
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(
+                webhook.content.invoice.id.get_string_repr().to_string(),
+            ),
         ))
     }
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let subscription_id = webhook.content.invoice.subscription_id;
+        Ok(api_models::webhooks::ObjectReferenceId::SubscriptionId(
+            subscription_id,
+        ))
     }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1313,13 +1382,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
@@ -1348,6 +1410,36 @@ impl webhooks::IncomingWebhook for Chargebee {
         let webhook =
             transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
+    }
+
+    fn get_subscription_mit_payment_data(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        let webhook_body =
+            transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+                .attach_printable("Failed to parse Chargebee invoice webhook body")?;
+
+        let chargebee_mit_data = transformers::ChargebeeMitPaymentData::try_from(webhook_body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to extract MIT payment data from Chargebee webhook")?;
+
+        // Convert Chargebee-specific data to generic domain model
+        Ok(
+            hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData {
+                invoice_id: chargebee_mit_data.invoice_id,
+                amount_due: chargebee_mit_data.amount_due,
+                currency_code: chargebee_mit_data.currency_code,
+                status: chargebee_mit_data.status.map(|s| s.into()),
+                customer_id: chargebee_mit_data.customer_id,
+                subscription_id: chargebee_mit_data.subscription_id,
+                first_invoice: chargebee_mit_data.first_invoice,
+            },
+        )
     }
 }
 

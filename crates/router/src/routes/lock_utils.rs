@@ -50,7 +50,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
-    RecoveryDataBackfill,
+    RecoveryRecovery,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -87,9 +87,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
-
-            Flow::CreateSubscription => Self::Subscription,
-
+            Flow::CreateSubscription
+            | Flow::ConfirmSubscription
+            | Flow::CreateAndConfirmSubscription
+            | Flow::GetSubscription
+            | Flow::UpdateSubscription
+            | Flow::GetSubscriptionEstimate
+            | Flow::GetPlansForSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
@@ -110,7 +114,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
-            | Flow::CustomersList => Self::Customers,
+            | Flow::CustomersList
+            | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
@@ -123,6 +128,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::NetworkTokenStatusCheck
             | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
@@ -147,6 +153,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
+            | Flow::PaymentsExtendAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
@@ -156,7 +163,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
-            | Flow::GiftCardBalanceCheck
+            | Flow::PaymentMethodBalanceCheck
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
@@ -165,7 +172,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
             | Flow::PaymentAttemptsList
-            | Flow::RecoveryPaymentsCreate => Self::Payments,
+            | Flow::RecoveryPaymentsCreate
+            | Flow::PaymentsSubmitEligibility => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate
@@ -304,6 +312,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleV2
             | Flow::GetRoleFromToken
             | Flow::GetRoleFromTokenV2
+            | Flow::GetParentGroupsInfoForRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
@@ -350,7 +359,7 @@ impl From<Flow> for ApiIdentifier {
                 Self::GenericTokenization
             }
 
-            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
+            Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
         }
     }
 }

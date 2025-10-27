@@ -171,6 +171,10 @@ pub struct AuthenticationEligibilityRequest {
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
 
+    /// Can be used to specify the Payment Method Type
+    #[schema(value_type = Option<PaymentMethodType>, example = "debit")]
+    pub payment_method_type: Option<enums::PaymentMethodType>,
+
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
     #[schema(value_type = Option<String>)]

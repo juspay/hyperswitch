@@ -46,11 +46,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -76,11 +77,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -191,18 +193,20 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_merchant_id_primary_object_id(
+        storage::Event::list_initial_attempts_by_merchant_id_primary_object_id_or_initial_attempt_id(
             &conn,
             merchant_id,
             primary_object_id,
+            initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -306,18 +310,20 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_profile_id_primary_object_id(
+        storage::Event::list_initial_attempts_by_profile_id_primary_object_id_or_initial_attempt_id(
             &conn,
             profile_id,
             primary_object_id,
+            initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -527,11 +533,12 @@ impl EventInterface for MockDb {
             )
     }
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -539,8 +546,9 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && event.primary_object_id == primary_object_id
+                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && (event.primary_object_id == primary_object_id
+                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -663,11 +671,12 @@ impl EventInterface for MockDb {
         Ok(domain_events)
     }
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -676,7 +685,8 @@ impl EventInterface for MockDb {
             .filter(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
                     && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && event.primary_object_id == primary_object_id
+                    && (event.primary_object_id == primary_object_id
+                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -856,16 +866,15 @@ mod tests {
         events::EventMetadata,
     };
     use futures::future::join_all;
-    use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
+    use hyperswitch_domain_models::{
+        master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
+    };
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};
 
     use crate::{
         core::webhooks as webhooks_core,
-        db::{
-            events::EventInterface, merchant_key_store::MerchantKeyStoreInterface,
-            MasterKeyInterface, MockDb,
-        },
+        db::{events::EventInterface, merchant_key_store::MerchantKeyStoreInterface, MockDb},
         routes::{
             self,
             app::{settings::Settings, StorageImpl},
@@ -1182,6 +1191,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             sub_merchants_enabled: None,
             parent_merchant_id: None,
@@ -1249,6 +1259,7 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
+                multiple_webhooks_list: None,
             }),
             metadata: None,
             routing_algorithm: None,
@@ -1293,6 +1304,7 @@ mod tests {
             always_enable_overcapture: None,
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
+            is_l2_l3_enabled: false,
         });
 
         let business_profile = state
@@ -1308,6 +1320,7 @@ mod tests {
         let event_type = enums::EventType::PaymentSucceeded;
         let event_class = enums::EventClass::Payments;
         let primary_object_id = Arc::new("concurrent_payment_id".to_string());
+        let initial_attempt_id = Arc::new("initial_attempt_id".to_string());
         let primary_object_type = enums::EventObjectType::PaymentDetails;
         let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
             "pay_mbabizu24mvu3mela5njyhpit10",
@@ -1399,6 +1412,7 @@ mod tests {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            mit_category: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,
@@ -1411,6 +1425,8 @@ mod tests {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
+            request_extended_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
@@ -1457,10 +1473,11 @@ mod tests {
         // Collect all initial-attempt events for this payment
         let events = state
             .store
-            .list_initial_events_by_merchant_id_primary_object_id(
+            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 key_manager_state,
                 &business_profile.merchant_id,
                 &primary_object_id.clone(),
+                &initial_attempt_id.clone(),
                 merchant_context.get_merchant_key_store(),
             )
             .await?;

@@ -4,6 +4,7 @@ pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
+pub mod extend_authorization_flow;
 #[cfg(feature = "v2")]
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
@@ -16,12 +17,17 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
+use common_enums::{self, ExecutionMode};
 use common_types::payments::CustomerAcceptance;
+use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
-use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
+use hyperswitch_domain_models::{
+    payments as domain_payments, router_request_types::PaymentsCaptureData,
+};
+use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{
@@ -46,7 +52,9 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     #[cfg(feature = "v2")]
@@ -58,7 +66,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _header_payload: Option<domain_payments::HeaderPayload>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(
@@ -82,7 +90,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>
     where
@@ -203,13 +211,45 @@ pub trait Feature<F, T> {
     ) {
     }
 
-    async fn call_unified_connector_service<'a>(
-        &mut self,
+    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
+        None
+    }
+
+    async fn call_preprocessing_through_unified_connector_service<'a>(
+        self,
         _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: &grpc_client::LineageIds,
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        // Default behaviour is to do nothing and continue further
+        Ok((self, true))
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -223,9 +263,13 @@ pub trait Feature<F, T> {
     async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
         _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -278,7 +322,7 @@ pub async fn call_capture_request(
     connector: &api::ConnectorData,
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: domain_payments::HeaderPayload,
 ) -> RouterResult<types::RouterData<api::Capture, PaymentsCaptureData, types::PaymentsResponseData>>
 {
     // Build capture-specific connector request
