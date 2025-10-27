@@ -1,6 +1,5 @@
 pub mod transformers;
 
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -164,7 +163,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     fn get_url(
         &self,
         _req: &RefreshTokenRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(
             "https://auth.verygoodsecurity.com/auth/realms/vgs/protocol/openid-connect/token"
@@ -176,7 +175,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     }
     fn get_headers(
         &self,
-        req: &RefreshTokenRouterData,
+        _req: &RefreshTokenRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(

@@ -15,7 +15,7 @@ use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{types::ResponseRouterData, utils::RouterData as _};
+use crate::types::ResponseRouterData;
 
 pub struct VgsRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -155,7 +155,7 @@ fn get_token_from_response(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     for token_data in response {
         for response_classifier in &token_data.classifiers {
-            if matches!(response_classifier.as_str(), classifier) {
+            if matches!(response_classifier.as_str(), _classifier) {
                 for alias in &token_data.aliases {
                     if matches!(alias.format.as_str(), "UUID") {
                         return Ok(alias.alias.clone());
@@ -191,7 +191,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         match item.data.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => Ok(Self {
+            Some(PaymentMethodVaultingData::NetworkToken(_network_token_data)) => Ok(Self {
                 status: common_enums::AttemptStatus::Started,
                 response: Ok(VaultResponseData::ExternalVaultMultiTokenResponse {
                     network_token: Secret::new(get_token_from_response(

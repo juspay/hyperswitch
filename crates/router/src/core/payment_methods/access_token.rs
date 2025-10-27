@@ -10,7 +10,7 @@ use crate::{
     },
     routes::{metrics, SessionState},
     services,
-    types::{self, api as api_types, domain, storage::enums},
+    types::{self, api as api_types, domain},
 };
 
 pub async fn create_access_token<F: Clone + 'static>(
