@@ -234,7 +234,7 @@ where
         };
 
     // Single decision point using pattern matching
-    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (_gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
