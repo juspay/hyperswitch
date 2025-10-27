@@ -1,16 +1,21 @@
 pub mod types;
 use std::str::FromStr;
 
+use common_utils::ext_traits::StringExt;
+
 pub mod utils;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
-    AuthTokenData, AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
+    AuthTokenData, AuthenticationEligibilityCheckRequest, AuthenticationEligibilityCheckResponse,
+    AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
+    AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest, AuthenticationSyncResponse,
 };
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSessionTokenRequest,
+        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSdkNextAction,
+        AuthenticationSessionTokenRequest,
     },
     payments::{self, CustomerDetails},
 };
@@ -1450,6 +1455,80 @@ pub async fn authentication_authenticate_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationEligibilityCheckRequest,
+    _auth_flow: AuthFlow,
+) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
+    let redis = &state
+        .store
+        .get_redis_conn()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "{}_{}_{}",
+        consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        req.authentication_id.get_string_repr()
+    );
+    redis
+        .serialize_and_set_key_with_expiry(
+            &key.as_str().into(),
+            &req.eligibility_check_data,
+            consts::CONNECTOR_CREDS_TOKEN_TTL,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to set key in redis")?;
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationEligibilityCheckResponse {
+            authentication_id: req.authentication_id,
+            sdk_next_action: AuthenticationSdkNextAction::AwaitMerchantCallback,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_retrieve_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationRetrieveEligibilityCheckRequest,
+) -> RouterResponse<AuthenticationRetrieveEligibilityCheckResponse> {
+    let redis = &state
+        .store
+        .get_redis_conn()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "{}_{}_{}",
+        consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        req.authentication_id.get_string_repr()
+    );
+    let eligibility_check_data = redis
+        .get_key::<String>(&key.as_str().into())
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get key from redis")?
+        .parse_struct("PaymentTokenData")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize eligibility check data")?;
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationRetrieveEligibilityCheckResponse {
+            authentication_id: req.authentication_id,
+            eligibility_check_data,
+        },
     ))
 }
 

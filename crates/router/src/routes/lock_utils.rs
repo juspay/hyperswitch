@@ -352,6 +352,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthenticationSync
             | Flow::AuthenticationSyncPostUpdate
             | Flow::AuthenticationAuthenticate
+            | Flow::AuthenticationEligibilityCheck
+            | Flow::AuthenticationRetrieveEligibilityCheck
             | Flow::AuthenticationSessionToken => Self::Authentication,
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
