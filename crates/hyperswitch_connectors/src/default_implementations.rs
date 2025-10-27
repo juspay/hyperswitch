@@ -37,8 +37,9 @@ use hyperswitch_domain_models::{
             IncrementalAuthorization, PostCaptureVoid, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
-        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCancel,
-            SubscriptionPause, SubscriptionResume,
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCancel, SubscriptionPause, SubscriptionResume,
         },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
@@ -9875,31 +9876,25 @@ impl<const T: u8>
 impl<const T: u8> SubscriptionCancelFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<
-        SubscriptionCancel,
-        SubscriptionCancelRequest,
-        SubscriptionCancelResponse,
-    > for connectors::DummyConnector<T>
-{}
+    ConnectorIntegration<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>
+    for connectors::DummyConnector<T>
+{
+}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> SubscriptionPauseFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<
-        SubscriptionPause,
-        SubscriptionPauseRequest,
-        SubscriptionPauseResponse,  
-    > for connectors::DummyConnector<T>
-{}
+    ConnectorIntegration<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>
+    for connectors::DummyConnector<T>
+{
+}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> SubscriptionResumeFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<
-        SubscriptionResume,
-        SubscriptionResumeRequest,
-        SubscriptionResumeResponse,
-    > for connectors::DummyConnector<T>
-{}
+    ConnectorIntegration<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>
+    for connectors::DummyConnector<T>
+{
+}
