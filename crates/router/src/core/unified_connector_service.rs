@@ -4,8 +4,9 @@ use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{
-    connector_enums::Connector, AttemptStatus, ConnectorIntegrationType, ExecutionMode,
-    ExecutionPath, GatewaySystem, PaymentMethodType, ShadowRolloutAvailability, UcsAvailability,
+    connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
+    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, ShadowRolloutAvailability,
+    UcsAvailability,
 };
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
@@ -66,7 +67,7 @@ use crate::{
 pub mod transformers;
 
 // Re-export webhook transformer types for easier access
-pub use transformers::WebhookTransformData;
+pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
 
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<
@@ -164,7 +165,8 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
-) -> RouterResult<(ExecutionPath, SessionState)>
+    call_connector_action: CallConnectorAction,
+) -> RouterResult<ExecutionPath>
 where
     D: OperationSessionGetters<F>,
 {
@@ -223,16 +225,48 @@ where
     };
 
     // Single decision point using pattern matching
-    let (_gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
-        router_env::logger::debug!("UCS is disabled, using Direct gateway");
-        (GatewaySystem::Direct, ExecutionPath::Direct)
+    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+        match call_connector_action {
+            CallConnectorAction::UCSConsumeResponse(_)
+            | CallConnectorAction::UCSHandleResponse(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received but UCS is disabled. These actions are only valid in UCS gateway")?
+            }
+            CallConnectorAction::Avoid
+            | CallConnectorAction::Trigger
+            | CallConnectorAction::HandleResponse(_)
+            | CallConnectorAction::StatusUpdate { .. } => {
+                router_env::logger::debug!("UCS is disabled, using Direct gateway");
+                (GatewaySystem::Direct, ExecutionPath::Direct)
+            }
+        }
     } else {
-        // UCS is enabled, call decide function
-        decide_execution_path(
-            connector_integration_type,
-            previous_gateway,
-            shadow_rollout_availability,
-        )?
+        match call_connector_action {
+            CallConnectorAction::UCSConsumeResponse(_)
+            | CallConnectorAction::UCSHandleResponse(_) => {
+                router_env::logger::info!("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received, using UCS gateway");
+                (
+                    GatewaySystem::UnifiedConnectorService,
+                    ExecutionPath::UnifiedConnectorService,
+                )
+            }
+            CallConnectorAction::HandleResponse(_) => {
+                router_env::logger::info!(
+                    "CallConnectorAction HandleResponse received, using Direct gateway"
+                );
+                (GatewaySystem::Direct, ExecutionPath::Direct)
+            }
+            CallConnectorAction::Trigger
+            | CallConnectorAction::Avoid
+            | CallConnectorAction::StatusUpdate { .. } => {
+                // UCS is enabled, call decide function
+                decide_execution_path(
+                    connector_integration_type,
+                    previous_gateway,
+                    shadow_rollout_availability,
+                )?
+            }
+        }
     };
 
     router_env::logger::info!(

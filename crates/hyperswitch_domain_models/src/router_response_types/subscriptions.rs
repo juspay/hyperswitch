@@ -36,7 +36,7 @@ pub enum SubscriptionStatus {
     Created,
 }
 
-impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+impl From<SubscriptionStatus> for common_enums::SubscriptionStatus {
     fn from(status: SubscriptionStatus) -> Self {
         match status {
             SubscriptionStatus::Pending => Self::Pending,
