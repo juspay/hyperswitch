@@ -200,7 +200,8 @@ pub struct ConfirmSubscriptionPaymentDetails {
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
-    pub payment_token: Option<String>,
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 impl ConfirmSubscriptionPaymentDetails {
@@ -210,7 +211,7 @@ impl ConfirmSubscriptionPaymentDetails {
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: String::from(
-                        "either of payment_method_data or payment_token must be present",
+                        "Either payment_method_data or payment_token must be present",
                     ),
                 }
                 .into())
@@ -243,7 +244,8 @@ pub struct PaymentDetails {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_type: Option<PaymentType>,
-    pub payment_method_id: Option<String>,
+    #[schema(value_type = Option<String>, example = "pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: Option<Secret<String>>,
 }
 
 impl PaymentDetails {
@@ -253,7 +255,7 @@ impl PaymentDetails {
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: String::from(
-                        "either of payment_method_data or payment_method_id must be present",
+                        "Either payment_method_data or payment_method_id must be present",
                     ),
                 }
                 .into())
@@ -293,7 +295,8 @@ pub struct ConfirmPaymentsRequestData {
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_token: Option<String>,
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -349,7 +352,8 @@ pub struct PaymentResponseData {
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
     pub payment_type: Option<PaymentType>,
-    pub payment_token: Option<String>,
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 impl PaymentResponseData {

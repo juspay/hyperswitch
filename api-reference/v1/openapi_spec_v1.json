@@ -12958,6 +12958,7 @@
           },
           "payment_token": {
             "type": "string",
+            "example": "token_sxJdmpUnpNsJk5VWzcjl",
             "nullable": true
           }
         }
@@ -22383,6 +22384,7 @@
           },
           "payment_method_id": {
             "type": "string",
+            "example": "pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
@@ -24272,6 +24274,7 @@
           },
           "payment_token": {
             "type": "string",
+            "example": "token_sxJdmpUnpNsJk5VWzcjl",
             "nullable": true
           }
         }

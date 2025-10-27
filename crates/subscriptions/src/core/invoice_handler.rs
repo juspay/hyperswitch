@@ -1,3 +1,8 @@
+use super::errors;
+use crate::{
+    core::payments_api_client, state::SubscriptionState as SessionState,
+    types::storage as storage_types, workflows::invoice_sync as invoice_sync_workflow,
+};
 use api_models::{
     enums as api_enums,
     mandates::RecurringDetails,
@@ -7,12 +12,7 @@ use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
-
-use super::errors;
-use crate::{
-    core::payments_api_client, state::SubscriptionState as SessionState,
-    types::storage as storage_types, workflows::invoice_sync as invoice_sync_workflow,
-};
+use masking::PeekInterface;
 
 pub struct InvoiceHandler {
     pub subscription: hyperswitch_domain_models::subscription::Subscription,
@@ -177,7 +177,7 @@ impl InvoiceHandler {
             setup_future_usage: payment_details
                 .payment_method_id
                 .is_none()
-                .then(|| payment_details.setup_future_usage)
+                .then_some(payment_details.setup_future_usage)
                 .flatten(),
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
@@ -190,7 +190,7 @@ impl InvoiceHandler {
             recurring_details: payment_details
                 .payment_method_id
                 .as_ref()
-                .map(|id| RecurringDetails::PaymentMethodId(id.clone())),
+                .map(|id| RecurringDetails::PaymentMethodId(id.peek().clone())),
             off_session: Some(payment_details.payment_method_id.is_some()),
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
