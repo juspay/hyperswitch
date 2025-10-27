@@ -243,17 +243,17 @@ pub struct PaymentDetails {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_type: Option<PaymentType>,
-    pub payment_token: Option<String>,
+    pub payment_method_id: Option<String>,
 }
 
 impl PaymentDetails {
     pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
         fp_utils::when(
-            self.payment_method_data.is_none() && self.payment_token.is_none(),
+            self.payment_method_data.is_none() && self.payment_method_id.is_none(),
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: String::from(
-                        "either of payment_method_data or payment_token must be present",
+                        "either of payment_method_data or payment_method_id must be present",
                     ),
                 }
                 .into())
@@ -286,10 +286,13 @@ pub struct ConfirmPaymentsRequestData {
     pub shipping: Option<Address>,
     pub profile_id: Option<ProfileId>,
     pub payment_method: PaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<PaymentMethodType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_token: Option<String>,
 }
 
@@ -309,11 +312,16 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_method: Option<PaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<PaymentMethodType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
-    pub payment_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_details: Option<RecurringDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub off_session: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
