@@ -78,7 +78,7 @@ pub async fn get_access_token_from_ucs_response(
         .map(transformers::convert_grpc_access_token_to_domain)?;
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
-    
+
     let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|mca_id| mca_id.get_string_repr().to_string())
         .or(creds_identifier.map(|id| id.to_string()))

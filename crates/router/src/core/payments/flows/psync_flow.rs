@@ -376,8 +376,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .change_context(ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to deserialize UCS response")?;
 
-                // Extract and store access token if present
-                if let Some(access_token) =
+                        // Extract and store access token if present
+                        if let Some(access_token) =
                     crate::core::unified_connector_service::get_access_token_from_ucs_response(
                         state,
                         merchant_context,
