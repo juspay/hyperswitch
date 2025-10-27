@@ -805,23 +805,103 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        _response: payments_grpc::PaymentServicePostAuthenticateResponse,
+        response: payments_grpc::PaymentServicePostAuthenticateResponse,
     ) -> Result<Self, Self::Error> {
-        // Based on the pattern from PaymentServicePreAuthenticateResponse
-        // For now, return a default success response
-        Ok(Ok((
-            PaymentsResponseData::TransactionResponse {
-                resource_id: router_request_types::ResponseId::NoResponseId,
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
+        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+            Some(redirection_data) => match redirection_data.form_type {
+                Some(ref form_type) => match form_type {
+                    payments_grpc::redirect_form::FormType::Uri(uri) => {
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
+                            sdk_uri: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        };
+                        (
+                            Some(sdk_uri_info.encode_to_value())
+                                .transpose()
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            None,
+                        )
+                    }
+                    _ => (
+                        None,
+                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                    ),
+                },
+                None => (None, None),
             },
-            AttemptStatus::Pending,
-        )))
+            None => (None, None),
+        };
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
     }
 }
 
@@ -830,23 +910,103 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
-        _response: payments_grpc::PaymentServiceAuthenticateResponse,
+        response: payments_grpc::PaymentServiceAuthenticateResponse,
     ) -> Result<Self, Self::Error> {
-        // Based on the pattern from PaymentServicePreAuthenticateResponse
-        // For now, return a default success response
-        Ok(Ok((
-            PaymentsResponseData::TransactionResponse {
-                resource_id: router_request_types::ResponseId::NoResponseId,
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
+        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+            Some(redirection_data) => match redirection_data.form_type {
+                Some(ref form_type) => match form_type {
+                    payments_grpc::redirect_form::FormType::Uri(uri) => {
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
+                            sdk_uri: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        };
+                        (
+                            Some(sdk_uri_info.encode_to_value())
+                                .transpose()
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            None,
+                        )
+                    }
+                    _ => (
+                        None,
+                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                    ),
+                },
+                None => (None, None),
             },
-            AttemptStatus::Pending,
-        )))
+            None => (None, None),
+        };
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
     }
 }
 
