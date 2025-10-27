@@ -456,6 +456,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 }
                 .into())
             }
+            api_models::payouts::PayoutMethodData::Passthrough(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payouts via Passthrough are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into())
+            }
         }
     }
 }

@@ -16,6 +16,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to encode unified connector service request")]
     RequestEncodingFailed,
 
+    /// Failed to process webhook from unified connector service.
+    #[error("Failed to process webhook from unified connector service")]
+    WebhookProcessingFailure,
+
     /// Request encoding failed due to a specific reason.
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
@@ -94,6 +98,15 @@ pub enum UnifiedConnectorServiceError {
     PaymentCancelFailure,
 }
 
+/// UCS Webhook transformation status
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum WebhookTransformationStatus {
+    /// Transformation completed successfully, no further action needed
+    Complete,
+    /// Transformation incomplete, requires second call for final status
+    Incomplete,
+}
+
 #[allow(missing_docs)]
 /// Webhook transform data structure containing UCS response information
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -102,6 +115,7 @@ pub struct WebhookTransformData {
     pub source_verified: bool,
     pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
     pub response_ref_id: Option<String>,
+    pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>

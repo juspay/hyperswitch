@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.27.0
+
+### Features
+
+- **webhooks:** Adding event search option in the webhooks page ([#9907](https://github.com/juspay/hyperswitch/pull/9907)) ([`b0d5a1b`](https://github.com/juspay/hyperswitch/commit/b0d5a1b0463048e4d90b60dcb9674d24e2c0179c))
+
+### Bug Fixes
+
+- **connector:** [NOVALNET] Add Sepa Direct Debit Required Fields ([#9967](https://github.com/juspay/hyperswitch/pull/9967)) ([`910887d`](https://github.com/juspay/hyperswitch/commit/910887d35cda9137acace7ac1791969952f8ba59))
+- **revenue-recovery:** Stop retries on hard-decline and apply wait on retry-limit reached ([#9742](https://github.com/juspay/hyperswitch/pull/9742)) ([`d62eed7`](https://github.com/juspay/hyperswitch/commit/d62eed7c805262aab8edc0e2031829c171406977))
+
+### Refactors
+
+- **payouts:** Add bankredirect for payout links ([#9943](https://github.com/juspay/hyperswitch/pull/9943)) ([`5b42bf8`](https://github.com/juspay/hyperswitch/commit/5b42bf8c98771bf1b3a1694d5e194232e13a03b2))
+
+### Miscellaneous Tasks
+
+- Introduce placeholders for complete authorize and preprocessing through ucs ([#9915](https://github.com/juspay/hyperswitch/pull/9915)) ([`3872559`](https://github.com/juspay/hyperswitch/commit/38725599d9a12c0f9ae82aedeb2e6d3d33ddb7cb))
+- Update volume mount for Postgres 18 ([#9973](https://github.com/juspay/hyperswitch/pull/9973)) ([`7b70d24`](https://github.com/juspay/hyperswitch/commit/7b70d2454e88009554669c4a12b9052deb95b4ea))
+
+**Full Changelog:** [`2025.10.24.0...2025.10.27.0`](https://github.com/juspay/hyperswitch/compare/2025.10.24.0...2025.10.27.0)
+
+- - -
+
 ## 2025.10.24.0
 
 ### Features
