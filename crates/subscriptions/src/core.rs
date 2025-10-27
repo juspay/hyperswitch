@@ -9,6 +9,8 @@ use hyperswitch_domain_models::{
 
 pub type RouterResponse<T> =
     Result<ApplicationResponse<T>, error_stack::Report<errors::ApiErrorResponse>>;
+use api_models::enums::SubscriptionStatus;
+
 use crate::{
     core::{
         billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
@@ -16,7 +18,6 @@ use crate::{
     },
     state::SubscriptionState as SessionState,
 };
-use api_models::enums::SubscriptionStatus;
 
 pub mod billing_processor_handler;
 pub mod errors;
