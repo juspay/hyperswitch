@@ -1,6 +1,4 @@
-use api_models::subscription::{
-    self as subscription_types, SubscriptionResponse, SubscriptionStatus,
-};
+use api_models::subscription::{self as subscription_types, SubscriptionResponse};
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
@@ -293,7 +291,10 @@ pub async fn create_and_confirm_subscription(
                         .to_string(),
                 ),
                 payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    common_enums::SubscriptionStatus::from(subscription_create_response.status)
+                        .to_string(),
+                ),
                 request.plan_id,
                 Some(request.item_price_id),
             ),
@@ -336,14 +337,6 @@ pub async fn confirm_subscription(
     };
 
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
-    let customer = SubscriptionHandler::find_customer(
-        &state,
-        &merchant_context,
-        &subscription_entry.subscription.customer_id,
-    )
-    .await
-    .attach_printable("subscriptions: failed to find customer")?;
-
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
         .get_latest_invoice(&state)
@@ -368,6 +361,13 @@ pub async fn confirm_subscription(
         profile.clone(),
     )
     .await?;
+    let customer = SubscriptionHandler::find_customer(
+        &state,
+        &merchant_context,
+        &subscription_entry.subscription.customer_id,
+    )
+    .await
+    .attach_printable("subscriptions: failed to find customer")?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 
@@ -376,7 +376,7 @@ pub async fn confirm_subscription(
             &state,
             customer.clone(),
             subscription.customer_id.clone(),
-            request.get_billing_address(),
+            payment_response.get_billing_address(),
             request
                 .payment_details
                 .payment_method_data
@@ -399,7 +399,7 @@ pub async fn confirm_subscription(
             &state,
             subscription.clone(),
             subscription.item_price_id.clone(),
-            request.get_billing_address(),
+            payment_response.get_billing_address(),
         )
         .await?;
 
@@ -436,7 +436,10 @@ pub async fn confirm_subscription(
                         .to_string(),
                 ),
                 payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    common_enums::SubscriptionStatus::from(subscription_create_response.status)
+                        .to_string(),
+                ),
                 subscription.plan_id.clone(),
                 subscription.item_price_id.clone(),
             ),

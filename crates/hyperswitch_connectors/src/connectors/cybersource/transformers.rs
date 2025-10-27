@@ -5036,7 +5036,8 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
             }
             PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
-            | PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethod is not supported".to_string(),
                 connector: "Cybersource",
             })?,
