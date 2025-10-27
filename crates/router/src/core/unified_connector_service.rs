@@ -803,6 +803,17 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     Ok((router_data_response, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_payment_cancel(
+    response: payments_grpc::PaymentServiceVoidResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,

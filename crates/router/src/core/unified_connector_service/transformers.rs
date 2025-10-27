@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsSyncData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
@@ -34,7 +34,7 @@ use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::transformers,
+    types::{api, transformers},
 };
 impl
     transformers::ForeignTryFrom<(
@@ -1391,4 +1391,147 @@ pub fn build_webhook_transform_request(
         webhook_secrets,
         access_token: None,
     })
+}
+
+impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceVoidRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        let currency = router_data
+            .request
+            .currency
+            .map(payments_grpc::Currency::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            transaction_id: if router_data.request.connector_transaction_id.is_empty() {
+                None
+            } else {
+                Some(Identifier {
+                    id_type: Some(payments_grpc::identifier::IdType::Id(
+                        router_data.request.connector_transaction_id.clone(),
+                    )),
+                })
+            },
+            cancellation_reason: router_data.request.cancellation_reason.clone(),
+            all_keys_required: None,
+            browser_info,
+            access_token: None,
+            amount: router_data.request.amount,
+            currency: currency.map(|c| c.into()),
+            connector_metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceVoidResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: response.transaction_id.as_ref().and_then(|identifier| {
+                        identifier
+                            .id_type
+                            .clone()
+                            .and_then(|id_type| match id_type {
+                                payments_grpc::identifier::IdType::Id(id) => Some(
+                                    hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
+                                ),
+                                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(
+                                    hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(encoded_data),
+                                ),
+                                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                            })
+                    }).unwrap_or(hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(
+                        response.mandate_reference.map(|grpc_mandate| {
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: grpc_mandate.mandate_id,
+                                payment_method_id: grpc_mandate.payment_method_id,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            }
+                        })
+                    ),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
+    }
 }
