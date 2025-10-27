@@ -637,7 +637,9 @@ pub async fn list_customers_with_count(
         })?;
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
-        limit: request.limit.unwrap_or_else(|| limit.get_value()),
+        limit: request
+            .limit
+            .unwrap_or_else(|| limit.get_value().unwrap_or(20)),
         offset: request.offset,
         customer_id: request.customer_id,
         time_range: request.time_range,

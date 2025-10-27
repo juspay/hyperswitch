@@ -463,7 +463,7 @@ mod u16_wrappers {
         where
             D: serde::Deserializer<'de>,
         {
-            let val = u16::deserialize(deserializer)?;
+            let val = i16::deserialize(deserializer)?;
             if val < CUSTOMER_LIST_LOWER_LIMIT {
                 Err(D::Error::custom(format!(
                     "CustomerListLimit cannot be less than {}",
@@ -475,7 +475,7 @@ mod u16_wrappers {
                     CUSTOMER_LIST_UPPER_LIMIT
                 )))
             } else {
-                Ok(Self(val as i16))
+                Ok(Self(val))
             }
         }
     }
@@ -502,37 +502,40 @@ mod u16_wrappers {
     impl Default for CustomerListLimit {
         /// Default for `CustomerListLimit` is `20`
         fn default() -> Self {
-            Self(CUSTOMER_LIST_DEFAULT_LIMIT as i16)
-        }
-    }
-
-    impl From<u16> for CustomerListLimit {
-        fn from(value: u16) -> Self {
-            Self(value.clamp(CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT) as i16)
+            Self(CUSTOMER_LIST_DEFAULT_LIMIT)
         }
     }
 
     impl CustomerListLimit {
         /// Creates a new CustomerListLimit with validation
         pub fn new(value: u16) -> Result<Self, String> {
-            if value < CUSTOMER_LIST_LOWER_LIMIT {
+            // Convert constants to u16 for comparison - these should always succeed
+            let lower_u16 = u16::try_from(CUSTOMER_LIST_LOWER_LIMIT)
+                .map_err(|_| "Invalid lower limit constant".to_string())?;
+            let upper_u16 = u16::try_from(CUSTOMER_LIST_UPPER_LIMIT)
+                .map_err(|_| "Invalid upper limit constant".to_string())?;
+
+            if value < lower_u16 {
                 Err(format!(
                     "CustomerListLimit cannot be less than {}",
                     CUSTOMER_LIST_LOWER_LIMIT
                 ))
-            } else if value > CUSTOMER_LIST_UPPER_LIMIT {
+            } else if value > upper_u16 {
                 Err(format!(
                     "CustomerListLimit exceeds the maximum allowed value of {}",
                     CUSTOMER_LIST_UPPER_LIMIT
                 ))
             } else {
-                Ok(Self(value as i16))
+                let inner = i16::try_from(value)
+                    .map_err(|_| "Value too large for internal representation".to_string())?;
+                Ok(Self(inner))
             }
         }
 
-        /// Returns the inner u16 value
-        pub fn get_value(&self) -> u16 {
-            self.0 as u16
+        /// Returns the limit as u16 for external compatibility
+        pub fn get_value(&self) -> Result<u16, String> {
+            u16::try_from(self.0)
+                .map_err(|_| "Internal value cannot be converted to u16".to_string())
         }
     }
 }
