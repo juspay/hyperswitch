@@ -151,11 +151,11 @@ pub struct VgsRetrieveResponse {
 
 fn get_token_from_response(
     response: &Vec<VgsTokenResponseItem>,
-    classifier: &str,
+    alias_classifier: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     for token_data in response {
         for response_classifier in &token_data.classifiers {
-            if matches!(response_classifier.as_str(), _classifier) {
+            if response_classifier.as_str() == alias_classifier {
                 for alias in &token_data.aliases {
                     if matches!(alias.format.as_str(), "UUID") {
                         return Ok(alias.alias.clone());
@@ -164,7 +164,7 @@ fn get_token_from_response(
             }
         }
     }
-    router_env::logger::error!("missing alias for the given classifier: `{classifier}`");
+    router_env::logger::error!("missing alias for the given classifier: `{alias_classifier}`");
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "alias",
     }
@@ -191,7 +191,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         match item.data.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::NetworkToken(_network_token_data)) => Ok(Self {
+            Some(PaymentMethodVaultingData::NetworkToken(_)) => Ok(Self {
                 status: common_enums::AttemptStatus::Started,
                 response: Ok(VaultResponseData::ExternalVaultMultiTokenResponse {
                     network_token: Secret::new(get_token_from_response(
