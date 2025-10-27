@@ -8945,6 +8945,7 @@
       "AuthenticationAuthenticateResponse": {
         "type": "object",
         "required": [
+          "acs_url",
           "three_ds_requestor_url",
           "error_message",
           "error_code",
@@ -8963,12 +8964,9 @@
             "nullable": true
           },
           "acs_url": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/url.Url"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Access Server URL to be used for challenge submission",
+            "example": "https://example.com/redirect"
           },
           "challenge_request": {
             "type": "string",

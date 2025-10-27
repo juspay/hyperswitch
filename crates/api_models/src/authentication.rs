@@ -378,6 +378,7 @@ pub struct AuthenticationAuthenticateResponse {
     #[schema(value_type = Option<TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
+    #[schema(value_type = String, example = "https://example.com/redirect")]
     pub acs_url: Option<url::Url>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
