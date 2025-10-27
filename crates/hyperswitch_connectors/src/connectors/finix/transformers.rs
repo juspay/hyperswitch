@@ -132,17 +132,17 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if matches!(
-            item.router_data.auth_type,
-            enums::AuthenticationType::ThreeDs
-        ) {
-            return Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("finix"),
-            )
-            .into());
-        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
+                if matches!(
+                    item.router_data.auth_type,
+                    enums::AuthenticationType::ThreeDs
+                ) {
+                    return Err(ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("finix"),
+                    )
+                    .into());
+                }
                 let source = item.router_data.get_payment_method_token()?;
                 Ok(Self {
                     amount: item.amount,
