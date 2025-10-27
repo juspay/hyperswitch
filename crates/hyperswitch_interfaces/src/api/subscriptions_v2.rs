@@ -2,13 +2,13 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
         GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
+        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData, SubscriptionCancelData, SubscriptionPauseData, SubscriptionResumeData,
     },
     router_flow_types::{
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            SubscriptionCreate, SubscriptionCancel, SubscriptionPause, SubscriptionResume,
         },
         CreateConnectorCustomer,
     },
@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest, SubscriptionCancelRequest, SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         ConnectorCustomerData,
     },
@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionCancelResponse, SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         PaymentsResponseData,
     },
@@ -40,6 +40,9 @@ pub trait SubscriptionsV2:
     + GetSubscriptionPlanPricesV2
     + SubscriptionRecordBackV2
     + GetSubscriptionEstimateV2
+    + SubscriptionCancelV2
+    + SubscriptionPauseV2
+    + SubscriptionResumeV2
 {
 }
 
@@ -103,6 +106,38 @@ pub trait GetSubscriptionEstimateV2:
     GetSubscriptionEstimateData,
     GetSubscriptionEstimateRequest,
     GetSubscriptionEstimateResponse,
+>
+{
+}
+
+/// trait SubscriptionCancel for V2
+pub trait SubscriptionCancelV2:
+    ConnectorIntegrationV2<
+    SubscriptionCancel,
+    SubscriptionCancelData,
+    SubscriptionCancelRequest,
+    SubscriptionCancelResponse,
+>
+{
+}
+
+/// trait SubscriptionPause for V2
+pub trait SubscriptionPauseV2:
+    ConnectorIntegrationV2<
+    SubscriptionPause,
+    SubscriptionPauseData,
+    SubscriptionPauseRequest,
+    SubscriptionPauseResponse,
+>
+{
+}
+/// trait SubscriptionResume for V2
+pub trait SubscriptionResumeV2:
+    ConnectorIntegrationV2<
+    SubscriptionResume,
+    SubscriptionResumeData,
+    SubscriptionResumeRequest,
+    SubscriptionResumeResponse,
 >
 {
 }

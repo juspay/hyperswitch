@@ -37,7 +37,9 @@ use hyperswitch_domain_models::{
             IncrementalAuthorization, PostCaptureVoid, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
-        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCancel,
+            SubscriptionPause, SubscriptionResume,
+        },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -49,7 +51,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -72,7 +75,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
@@ -140,7 +144,8 @@ use hyperswitch_interfaces::{
         revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCreate, SubscriptionRecordBackFlow, Subscriptions,
+            SubscriptionCancelFlow, SubscriptionCreate, SubscriptionPauseFlow,
+            SubscriptionRecordBackFlow, SubscriptionResumeFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -7414,6 +7419,30 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionEstimateResponse
             > for $path::$connector
             {}
+            impl SubscriptionCancelFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCancel,
+            SubscriptionCancelRequest,
+            SubscriptionCancelResponse
+            > for $path::$connector
+            {}
+            impl SubscriptionResumeFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionResume,
+            SubscriptionResumeRequest,
+            SubscriptionResumeResponse
+            > for $path::$connector
+            {}
+            impl SubscriptionPauseFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionPause,
+            SubscriptionPauseRequest,
+            SubscriptionPauseResponse
+            > for $path::$connector
+            {}
         )*
     };
 }
@@ -9841,3 +9870,36 @@ impl<const T: u8>
     > for connectors::DummyConnector<T>
 {
 }
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionCancelFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionCancel,
+        SubscriptionCancelRequest,
+        SubscriptionCancelResponse,
+    > for connectors::DummyConnector<T>
+{}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionPauseFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionPause,
+        SubscriptionPauseRequest,
+        SubscriptionPauseResponse,  
+    > for connectors::DummyConnector<T>
+{}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionResumeFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionResume,
+        SubscriptionResumeRequest,
+        SubscriptionResumeResponse,
+    > for connectors::DummyConnector<T>
+{}

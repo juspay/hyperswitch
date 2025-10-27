@@ -1276,6 +1276,18 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
+            )
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            SubscriptionCreate, SubscriptionResume, SubscriptionCancel, SubscriptionPause,
         },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
@@ -25,7 +25,7 @@ use crate::{
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest, SubscriptionPauseRequest, SubscriptionResumeRequest, SubscriptionCancelRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -51,7 +51,7 @@ use crate::{
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionPauseResponse, SubscriptionResumeResponse, SubscriptionCancelResponse,
         },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
@@ -155,6 +155,16 @@ pub type GetSubscriptionEstimateRouterData = RouterData<
     GetSubscriptionEstimateRequest,
     GetSubscriptionEstimateResponse,
 >;
+
+pub type SubscriptionPauseRouterData =
+    RouterData<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>;
+
+pub type SubscriptionResumeRouterData =
+    RouterData<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>;
+
+pub type SubscriptionCancelRouterData =
+    RouterData<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>;
+
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
