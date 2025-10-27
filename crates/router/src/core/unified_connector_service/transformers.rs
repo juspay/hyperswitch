@@ -272,7 +272,32 @@ impl
             .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-
+        let connector_metadata_string = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(|metadata| metadata.encode_to_string_of_json())
+            .transpose()
+            .change_context(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Failed to serialize router_data.connector_meta_data to string of json"
+                        .to_string(),
+                ),
+            )?;
+        let mut metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+        metadata.extend(
+            connector_metadata_string
+                .map(|connector_metadata| ("connector_meta_data".to_string(), connector_metadata)),
+        );
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -295,17 +320,7 @@ impl
                 .map(|customer_name| customer_name.peek().to_owned()),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            metadata: router_data
-                .request
-                .metadata
-                .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
-                .unwrap_or_default(),
+            metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             access_token: None,
@@ -365,7 +380,32 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-
+        let connector_metadata_string = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(|metadata| metadata.encode_to_string_of_json())
+            .transpose()
+            .change_context(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Failed to serialize router_data.connector_meta_data to string of json"
+                        .to_string(),
+                ),
+            )?;
+        let mut metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|val| val.as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+        metadata.extend(
+            connector_metadata_string
+                .map(|connector_metadata| ("connector_meta_data".to_string(), connector_metadata)),
+        );
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -423,17 +463,7 @@ impl
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            metadata: router_data
-                .request
-                .metadata
-                .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
-                .unwrap_or_default(),
+            metadata,
             test_mode: None,
             connector_customer_id: router_data.connector_customer.clone(),
         })

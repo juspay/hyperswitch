@@ -564,6 +564,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             );
             match alternate_flow {
                 Some(api_interface::AlternateFlow::PreAuthenticate) => {
+                    let authorize_request_data = self.request.clone();
                     let pre_authneticate_request_data =
                         types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
                     let pre_authneticate_response_data: Result<
@@ -593,7 +594,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         merchant_order_reference_id,
                     )
                     .await;
-                    self.response = pre_authenticate_router_data.response;
+                    // Convert back to authorize router data while preserving preprocessing response data.
+                    let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+                    let authorize_router_data =
+                        helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                            pre_authenticate_router_data,
+                            authorize_request_data,
+                            pre_authenticate_response,
+                        );
+                    *self = authorize_router_data;
 
                     Ok(())
                 }
