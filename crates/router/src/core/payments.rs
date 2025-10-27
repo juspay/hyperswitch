@@ -10869,7 +10869,7 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
         connector_transaction_id,
-        amount_capturable
+        amount_capturable,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -10903,11 +10903,14 @@ pub async fn payments_manual_update(
         )?;
 
     if let Some(amount_capturable) = amount_capturable {
-        utils::when(amount_capturable > payment_attempt.net_amount.get_order_amount(), || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "amount_capturable should be less than or equal to amount".to_string(),
-            })
-        })?;
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
     }
 
     let payment_intent = state
