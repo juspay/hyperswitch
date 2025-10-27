@@ -313,6 +313,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,
         api_models::payment_methods::PaymentMethodResponse,
+        api_models::payment_methods::CustomerPaymentMethodUpdateResponse,
         api_models::payment_methods::CustomerPaymentMethod,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::domain::AcquirerConfigMap,

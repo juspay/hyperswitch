@@ -925,6 +925,70 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodUpdateResponse {
+    /// Unique identifier for a merchant
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The unique identifier of the Payment method
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    pub payment_method_id: String,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Card details from card locker
+    #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
+    pub card: Option<CardDetailFromLocker>,
+
+    /// Updated Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
+
+    /// Type of payment experience enabled with the connector
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// For Client based calls
+    pub client_secret: Option<String>,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct ConnectorTokenDetails {

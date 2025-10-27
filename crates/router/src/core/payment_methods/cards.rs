@@ -1637,7 +1637,7 @@ pub async fn update_customer_payment_method(
     merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
-) -> errors::RouterResponse<api::PaymentMethodResponse> {
+) -> errors::RouterResponse<api::CustomerPaymentMethodUpdateResponse> {
     let db = state.store.as_ref();
 
     let pm = db
@@ -1829,10 +1829,27 @@ pub async fn update_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
 
-            add_card_resp
+            api::CustomerPaymentMethodUpdateResponse {
+                merchant_id: add_card_resp.merchant_id,
+                customer_id: add_card_resp.customer_id,
+                payment_method_id: add_card_resp.payment_method_id,
+                payment_method: add_card_resp.payment_method,
+                payment_method_type: add_card_resp.payment_method_type,
+                #[cfg(feature = "payouts")]
+                bank_transfer: add_card_resp.bank_transfer,
+                card: add_card_resp.card,
+                wallet: None,
+                metadata: add_card_resp.metadata,
+                created: add_card_resp.created,
+                recurring_enabled: add_card_resp.recurring_enabled,
+                installment_payment_enabled: add_card_resp.installment_payment_enabled,
+                payment_experience: add_card_resp.payment_experience,
+                last_used_at: add_card_resp.last_used_at,
+                client_secret: add_card_resp.client_secret,
+            }
         } else {
             // Return existing payment method data as response without any changes
-            api::PaymentMethodResponse {
+            api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: pm.merchant_id.to_owned(),
                 customer_id: Some(pm.customer_id.clone()),
                 payment_method_id: pm.payment_method_id.clone(),
@@ -1841,6 +1858,7 @@ pub async fn update_customer_payment_method(
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card: Some(existing_card_data),
+                wallet: None,
                 metadata: pm.metadata,
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
@@ -1888,7 +1906,7 @@ pub async fn update_customer_payment_method(
             .attach_printable("Failed to update payment method in db")?;
 
         Ok(services::ApplicationResponse::Json(
-            api::PaymentMethodResponse {
+            api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: pm.merchant_id.to_owned(),
                 customer_id: Some(pm.customer_id.clone()),
                 payment_method_id: pm.payment_method_id.clone(),
@@ -1897,6 +1915,7 @@ pub async fn update_customer_payment_method(
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card: None,
+                wallet: req.wallet.clone(),
                 metadata: pm.metadata,
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),

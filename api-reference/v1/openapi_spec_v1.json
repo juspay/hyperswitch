@@ -15061,6 +15061,115 @@
           }
         }
       },
+      "CustomerPaymentMethodUpdateResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_method_id",
+          "payment_method"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier for a merchant",
+            "example": "merchant_1671528864"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "description": "Type of payment experience enabled with the connector",
+            "example": [
+              "redirect_to_url"
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z",
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
+            "nullable": true
+          }
+        }
+      },
       "CustomerPaymentMethodsListResponse": {
         "type": "object",
         "required": [
