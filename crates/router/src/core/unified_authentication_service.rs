@@ -1517,7 +1517,6 @@ pub async fn authentication_sync_core(
     auth_flow: AuthFlow,
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
-    println!("req: {:?}", req.clone());
     let authentication_id = req.authentication_id;
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
@@ -1562,8 +1561,6 @@ pub async fn authentication_sync_core(
         )
         .await?;
 
-    println!("authentication_connector: {:?}", authentication_connector);
-
     if authentication_connector.is_pre_auth_required_in_post_authn_flow() {
         let service_details = req.payment_method_details.and_then(|details| {
             details
@@ -1593,8 +1590,6 @@ pub async fn authentication_sync_core(
             device_channel: None,
             message_category: None,
         };
-
-        println!("service_details: {:?}", service_details);
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -1649,7 +1644,7 @@ pub async fn authentication_sync_core(
                 &authentication_connector.to_string(),
                 &authentication_id,
                 common_enums::PaymentMethod::Card,
-                &merchant_id,
+                merchant_id,
                 None,
             )
             .await?

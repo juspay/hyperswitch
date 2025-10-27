@@ -142,14 +142,11 @@ pub async fn authentication_sync(
 ) -> impl Responder {
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
-
-    println!("json_payload: {:?}", json_payload);
     let (_merchant_id, authentication_id) = path.into_inner();
     let payload = AuthenticationSyncRequest {
         authentication_id,
         ..json_payload.into_inner()
     };
-    println!("payload: {:?}", payload);
     let (auth, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),

@@ -9023,6 +9023,14 @@
               }
             ],
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9276,6 +9284,14 @@
             "type": "string",
             "description": "Profile Acquirer ID get from profile acquirer configuration",
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9297,6 +9313,14 @@
           "client_secret": {
             "type": "string",
             "description": "The client secret for this authentication."
+          },
+          "payment_method_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostAuthenticationRequestPaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
