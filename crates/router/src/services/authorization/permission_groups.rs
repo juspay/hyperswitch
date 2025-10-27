@@ -20,7 +20,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::AnalyticsView
             | Self::UsersView
-            | Self::MerchantDetailsView
             | Self::AccountView
             | Self::ReconOpsView
             | Self::ReconReportsView
@@ -30,8 +29,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ConnectorsManage
             | Self::WorkflowsManage
             | Self::UsersManage
-            | Self::MerchantDetailsManage
-            | Self::OrganizationManage
             | Self::AccountManage
             | Self::ReconOpsManage
             | Self::ReconReportsManage
@@ -47,11 +44,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::MerchantDetailsView
-            | Self::OrganizationManage
-            | Self::MerchantDetailsManage
-            | Self::AccountView
-            | Self::AccountManage => ParentGroup::Account,
+            Self::AccountView | Self::AccountManage => ParentGroup::Account,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
@@ -95,13 +88,6 @@ impl PermissionGroupExt for PermissionGroup {
 
             Self::ReconReportsView => vec![Self::ReconReportsView],
             Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
-
-            Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
-            Self::MerchantDetailsManage => {
-                vec![Self::MerchantDetailsView, Self::MerchantDetailsManage]
-            }
-
-            Self::OrganizationManage => vec![Self::OrganizationManage],
 
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],

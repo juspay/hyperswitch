@@ -15,7 +15,7 @@ use router_env::{
 };
 
 use crate::{
-    core::{api_locking, subscription},
+    core::api_locking,
     headers::X_PROFILE_ID,
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
@@ -71,8 +71,8 @@ pub async fn create_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_subscription(
-                state,
+            subscriptions::create_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -125,8 +125,8 @@ pub async fn confirm_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::confirm_subscription(
-                state,
+            subscriptions::confirm_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -174,7 +174,12 @@ pub async fn get_subscription_plans(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_subscription_plans(state, merchant_context, profile_id.clone(), query)
+            subscriptions::get_subscription_plans(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                query,
+            )
         },
         auth::auth_type(
             &*auth_type,
@@ -211,8 +216,8 @@ pub async fn get_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_subscription(
-                state,
+            subscriptions::get_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 subscription_id.clone(),
@@ -253,8 +258,8 @@ pub async fn create_and_confirm_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_and_confirm_subscription(
-                state,
+            subscriptions::create_and_confirm_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
@@ -304,7 +309,7 @@ pub async fn get_estimate(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_estimate(state, merchant_context, profile_id.clone(), query)
+            subscriptions::get_estimate(state.into(), merchant_context, profile_id.clone(), query)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -334,8 +339,8 @@ pub async fn update_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::update_subscription(
-                state,
+            subscriptions::update_subscription(
+                state.into(),
                 merchant_context,
                 profile_id.clone(),
                 subscription_id.clone(),

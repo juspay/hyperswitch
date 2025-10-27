@@ -68,6 +68,9 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             global_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
+            global_enums::PaymentMethodType::SepaGuarenteedDebit => {
+                Ok(dirval!(BankDebitType = SepaGuarenteedDebit))
+            }
             global_enums::PaymentMethodType::SepaBankTransfer => {
                 Ok(dirval!(BankTransferType = SepaBankTransfer))
             }

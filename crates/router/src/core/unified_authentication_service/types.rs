@@ -43,6 +43,7 @@ pub trait UnifiedAuthenticationService {
         _billing_address: Option<&hyperswitch_domain_models::address::Address>,
         _acquirer_bin: Option<String>,
         _acquirer_merchant_id: Option<String>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -58,6 +59,7 @@ pub trait UnifiedAuthenticationService {
         _merchant_id: &common_utils::id_type::MerchantId,
         _payment_id: Option<&common_utils::id_type::PaymentId>,
         _payment_method_data: Option<&domain::PaymentMethodData>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _authentication_id: &common_utils::id_type::AuthenticationId,

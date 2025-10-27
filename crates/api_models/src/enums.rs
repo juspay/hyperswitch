@@ -56,6 +56,7 @@ pub enum PayoutConnectors {
     Paypal,
     Stripe,
     Wise,
+    Worldpay,
 }
 
 #[cfg(feature = "v2")]
@@ -85,6 +86,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
         }
     }
 }
@@ -105,6 +107,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
         }
     }
 }
@@ -118,6 +121,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Loonio => Ok(Self::Loonio),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
@@ -125,6 +129,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Worldpay => Ok(Self::Worldpay),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
