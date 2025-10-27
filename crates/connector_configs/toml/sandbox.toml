@@ -1585,18 +1585,18 @@ api_key="Celero API Key"
 
 [chargebee]
 [chargebee.connector_auth.HeaderKey]
-api_key="Chargebee API Key"
+api_key = "Chargebee API Key"
 
 [chargebee.connector_webhook_details]
-merchant_secret="Username"
-additional_secret="Password"
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
 
 [chargebee.metadata.site]
-name="site"
-label="Site"
-placeholder="Enter chargebee site"
-required=true
-type="Text"
+name = "site"
+label = "Site"
+placeholder = "Enter chargebee site"
+required = true
+type = "Text"
 
 [checkbook]
 [[checkbook.bank_transfer]]
@@ -4632,14 +4632,6 @@ placeholder = "Enter Allowed Auth Methods"
 required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
-
-[stripebilling]
-[stripebilling.connector_auth.HeaderKey]
-api_key="Stripe Billing API Key"
-
-[stripebilling.connector_webhook_details]
-merchant_secret="Username"
-additional_secret="Password"
 
 [stax]
 [[stax.credit]]

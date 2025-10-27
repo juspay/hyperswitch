@@ -3,7 +3,9 @@ use std::collections::HashMap;
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors},
+    enums::{
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+    },
     payments,
 };
 use serde::{Deserialize, Serialize};

@@ -1586,18 +1586,18 @@ api_key="Celero API Key"
 
 [chargebee]
 [chargebee.connector_auth.HeaderKey]
-api_key="Chargebee API Key"
+api_key = "Chargebee API Key"
 
 [chargebee.connector_webhook_details]
-merchant_secret="Username"
-additional_secret="Password"
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
 
 [chargebee.metadata.site]
-name="site"
-label="Site"
-placeholder="Enter chargebee site"
-required=true
-type="Text"
+name = "site"
+label = "Site"
+placeholder = "Enter chargebee site"
+required = true
+type = "Text"
 
 [checkbook]
 [[checkbook.bank_transfer]]
