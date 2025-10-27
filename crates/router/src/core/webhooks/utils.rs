@@ -144,7 +144,7 @@ pub async fn construct_webhook_router_data(
     Ok(router_data)
 }
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
 #[inline]
 pub(crate) fn get_idempotent_event_id(
