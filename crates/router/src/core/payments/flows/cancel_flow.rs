@@ -177,6 +177,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
