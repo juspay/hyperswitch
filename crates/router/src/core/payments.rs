@@ -4285,13 +4285,9 @@ where
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
-
-    let is_handle_response_action = matches!(
-        call_connector_action,
-        CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::HandleResponse(_)
-    );
 
     // Check for cached access token in Redis (no generation for UCS flows)
     let cached_access_token = access_token::get_cached_access_token_for_ucs(
@@ -4310,9 +4306,9 @@ where
     }
 
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
-            // Process through UCS when system is UCS and not handling response
-            (ExecutionPath::UnifiedConnectorService, false) => {
+        match execution_path {
+            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4320,6 +4316,7 @@ where
                     operation,
                     payment_data,
                     customer,
+                    call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
@@ -4333,7 +4330,7 @@ where
             }
 
             // Process through Direct with Shadow UCS
-            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
+            ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
                     state,
                     req_state,
@@ -4358,9 +4355,7 @@ where
             }
 
             // Process through Direct gateway
-            (ExecutionPath::Direct, _)
-            | (ExecutionPath::UnifiedConnectorService, true)
-            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
+            ExecutionPath::Direct => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4837,6 +4832,7 @@ where
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
     )
     .await?;
 
@@ -4923,6 +4919,7 @@ where
                     &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
                     merchant_order_reference_id,
+                    call_connector_action,
                     creds_identifier,
                 )
                 .await?;
@@ -4980,6 +4977,7 @@ where
             merchant_context,
             &router_data,
             Some(payment_data),
+            call_connector_action.clone(),
         )
         .await?;
         if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
@@ -5053,6 +5051,7 @@ where
                     &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
                     merchant_order_reference_id,
+                    call_connector_action,
                     creds_identifier
                 )
                 .await?;
@@ -6694,14 +6693,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    if !is_operation_complete_authorize(&operation)
-        && connector
-            .connector_name
-            .is_pre_processing_required_before_authorize()
-    {
-        router_data = router_data.preprocessing_steps(state, connector).await?;
-        return Ok((router_data, should_continue_payment));
-    }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),

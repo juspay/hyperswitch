@@ -543,6 +543,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
         creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
@@ -714,9 +715,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             router_data.request.to_owned(),
             resp.response.clone(),
         );
-        if connector.connector_name == api_models::enums::Connector::Airwallex {
-            authorize_router_data.reference_id = resp.reference_id;
-        } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+        if connector.connector_name == api_models::enums::Connector::Nuvei {
             let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
                     enrolled_v2,
