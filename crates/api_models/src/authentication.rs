@@ -348,6 +348,8 @@ pub enum AuthenticationSdkNextAction {
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
     Deny { message: String },
+    /// The next action is to proceed with the payment
+    Proceed,
 }
 
 #[cfg(feature = "v1")]

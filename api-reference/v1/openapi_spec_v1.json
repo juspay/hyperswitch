@@ -9861,6 +9861,13 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to proceed with the payment",
+            "enum": [
+              "proceed"
+            ]
           }
         ]
       },
