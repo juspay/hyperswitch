@@ -1,7 +1,12 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
-use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
+#[cfg(feature = "payouts")]
+use api_models::webhooks::PayoutIdType;
+use api_models::{
+    payments::PaymentIdType,
+    webhooks::{IncomingWebhookEvent, RefundIdType},
+};
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     crypto,
@@ -9,7 +14,10 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     id_type,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -38,13 +46,18 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
@@ -53,6 +66,7 @@ use masking::ExposeInterface;
 use transformers as nuvei;
 
 use crate::{
+    connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
     utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
@@ -61,11 +75,17 @@ use crate::{
 #[derive(Clone)]
 pub struct Nuvei {
     pub amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 impl Nuvei {
     pub fn new() -> &'static Self {
         &Self {
             amount_convertor: &StringMajorUnitForConnector,
+            amount_converter_string_minor_unit: &StringMinorUnitForConnector,
+            amount_converter_float_major_unit: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -151,6 +171,87 @@ impl api::ConnectorAccessToken for Nuvei {}
 impl api::PaymentsPreProcessing for Nuvei {}
 impl api::PaymentPostCaptureVoid for Nuvei {}
 
+impl api::Payouts for Nuvei {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Nuvei {}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nuvei {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}ppp/api/v1/payout.do",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nuvei::NuveiPayoutRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: nuvei::NuveiPayoutResponse =
+            res.response.parse_struct("NuveiPayoutResponse").switch()?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nuvei {
     fn get_headers(
         &self,
@@ -211,7 +312,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         errors::ConnectorError,
     > {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -223,6 +324,85 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             data: data.clone(),
             http_code: res.status_code,
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nuvei {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}ppp/api/v1/voidTransaction.do",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nuvei::NuveiPaymentFlowRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .set_body(types::PaymentsVoidType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -293,87 +473,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
-            .response
-            .parse_struct("NuveiPaymentsResponse")
-            .switch()?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nuvei {
-    fn get_headers(
-        &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}ppp/api/v1/voidTransaction.do",
-            ConnectorCommon::base_url(self, connectors)
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsCancelRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nuvei::NuveiPaymentFlowRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .set_body(types::PaymentsVoidType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCancelRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -458,7 +558,7 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelPostCaptureRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -501,7 +601,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}ppp/api/v1/getPaymentStatus.do",
+            "{}ppp/api/v1/getTransactionDetails.do",
             ConnectorCommon::base_url(self, connectors)
         ))
     }
@@ -546,13 +646,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let nuvie_psync_common_response: nuvei::NuveiPaymentSyncResponse = res
             .response
-            .parse_struct("NuveiPaymentsResponse")
+            .parse_struct("NuveiPaymentSyncResponse")
             .switch()?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&nuvie_psync_common_response));
+        router_env::logger::info!(connector_response=?nuvie_psync_common_response);
+        let response = NuveiTransactionSyncResponse::from(nuvie_psync_common_response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -622,7 +723,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -678,7 +779,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -710,7 +810,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -883,13 +983,12 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -965,7 +1064,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = res
+        let response: NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
@@ -989,7 +1088,39 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {
+    fn handle_response(
+        &self,
+        data: &RefundsRouterData<RSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<RSync, RefundsData, RefundsResponseData>, errors::ConnectorError>
+    {
+        let nuvie_rsync_common_response: nuvei::PaymentDmnNotification = res
+            .response
+            .parse_struct("PaymentDmnNotification")
+            .switch()?;
+        event_builder.map(|i| i.set_response_body(&nuvie_rsync_common_response));
+        router_env::logger::info!(connector_response=?nuvie_rsync_common_response);
+        let response = NuveiTransactionSyncResponse::from(nuvie_rsync_common_response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+}
+
+fn has_payout_prefix(id_option: &Option<String>) -> bool {
+    // - Default value returns false if the Option is `None`.
+    // - The argument is a closure that runs if the Option is `Some`.
+    //   It takes the contained value (`s`) and its result is returned.
+    id_option
+        .as_deref()
+        .is_some_and(|s| s.starts_with("payout_"))
+}
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Nuvei {
@@ -1005,8 +1136,19 @@ impl IncomingWebhook for Nuvei {
         request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = utils::get_header_key_value("advanceResponseChecksum", request.headers)?;
-        hex::decode(signature).change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
+        let webhook = get_webhook_object_from_body(request.body)?;
+
+        let nuvei_notification_signature = match webhook {
+            nuvei::NuveiWebhook::PaymentDmn(notification) => notification
+                .advance_response_checksum
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?,
+            nuvei::NuveiWebhook::Chargeback(_) => {
+                utils::get_header_key_value("Checksum", request.headers)?.to_string()
+            }
+        };
+
+        hex::decode(nuvei_notification_signature)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -1016,9 +1158,7 @@ impl IncomingWebhook for Nuvei {
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         // Parse the webhook payload
-        let webhook = serde_urlencoded::from_str::<nuvei::NuveiWebhook>(&request.query_params)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
+        let webhook = get_webhook_object_from_body(request.body)?;
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
@@ -1027,38 +1167,29 @@ impl IncomingWebhook for Nuvei {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
                 // For payment DMNs, use the same format as before
                 let status = notification
-                    .transaction_status
+                    .status
                     .as_ref()
                     .map(|s| format!("{s:?}").to_uppercase())
-                    .unwrap_or_else(|| "UNKNOWN".to_string());
+                    .unwrap_or_default();
 
                 let to_sign = transformers::concat_strings(&[
                     secret_str.to_string(),
-                    notification.total_amount.unwrap_or_default(),
-                    notification.currency.unwrap_or_default(),
-                    notification.response_time_stamp.unwrap_or_default(),
-                    notification.ppp_transaction_id.unwrap_or_default(),
+                    notification.total_amount,
+                    notification.currency,
+                    notification.response_time_stamp,
+                    notification.ppp_transaction_id,
                     status,
-                    notification.product_id.unwrap_or_default(),
+                    notification.product_id.unwrap_or("NA".to_string()),
                 ]);
                 Ok(to_sign.into_bytes())
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 // For chargeback notifications, use a different format based on Nuvei's documentation
                 // Note: This is a placeholder - you'll need to adjust based on Nuvei's actual chargeback signature format
-                let status = notification
-                    .status
-                    .as_ref()
-                    .map(|s| format!("{s:?}").to_uppercase())
-                    .unwrap_or_else(|| "UNKNOWN".to_string());
+                let response = serde_json::to_string(&notification)
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-                let to_sign = transformers::concat_strings(&[
-                    secret_str.to_string(),
-                    notification.chargeback_amount.unwrap_or_default(),
-                    notification.chargeback_currency.unwrap_or_default(),
-                    notification.ppp_transaction_id.unwrap_or_default(),
-                    status,
-                ]);
+                let to_sign = format!("{secret_str}{response}");
                 Ok(to_sign.into_bytes())
             }
         }
@@ -1069,22 +1200,65 @@ impl IncomingWebhook for Nuvei {
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         // Parse the webhook payload
-        let webhook = serde_urlencoded::from_str::<nuvei::NuveiWebhook>(&request.query_params)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
+        let webhook = get_webhook_object_from_body(request.body)?;
         // Extract transaction ID from the webhook
-        let transaction_id = match &webhook {
+        match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                notification.ppp_transaction_id.clone().unwrap_or_default()
+                // if prefix contains 'payout_' then it is a payout related webhook
+                if has_payout_prefix(&notification.client_request_id) {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                            PayoutIdType::PayoutAttemptId(
+                                notification
+                                    .client_request_id
+                                    .clone()
+                                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                            ),
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                    }
+                } else {
+                    match notification.transaction_type {
+                        Some(nuvei::NuveiTransactionType::Auth)
+                        | Some(nuvei::NuveiTransactionType::Sale)
+                        | Some(nuvei::NuveiTransactionType::Settle)
+                        | Some(nuvei::NuveiTransactionType::Void)
+                        | Some(nuvei::NuveiTransactionType::Auth3D)
+                        | Some(nuvei::NuveiTransactionType::InitAuth3D) => {
+                            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                                PaymentIdType::ConnectorTransactionId(
+                                    notification.transaction_id.clone().ok_or(
+                                        errors::ConnectorError::MissingConnectorTransactionID,
+                                    )?,
+                                ),
+                            ))
+                        }
+                        Some(nuvei::NuveiTransactionType::Credit) => {
+                            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                                RefundIdType::ConnectorRefundId(
+                                    notification
+                                        .transaction_id
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+                                ),
+                            ))
+                        }
+                        None => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+                    }
+                }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                notification.ppp_transaction_id.clone().unwrap_or_default()
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(
+                        notification.transaction_details.transaction_id.to_string(),
+                    ),
+                ))
             }
-        };
-
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            PaymentIdType::ConnectorTransactionId(transaction_id),
-        ))
+        }
     }
 
     fn get_webhook_event_type(
@@ -1092,27 +1266,36 @@ impl IncomingWebhook for Nuvei {
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         // Parse the webhook payload
-        let webhook = serde_urlencoded::from_str::<nuvei::NuveiWebhook>(&request.query_params)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let webhook = get_webhook_object_from_body(request.body)?;
 
         // Map webhook type to event type
         match webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                match notification.transaction_status {
-                    Some(nuvei::TransactionStatus::Approved)
-                    | Some(nuvei::TransactionStatus::Settled) => {
-                        Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                if has_payout_prefix(&notification.client_request_id) {
+                    #[cfg(feature = "payouts")]
+                    {
+                        if let Some((status, transaction_type)) =
+                            notification.status.zip(notification.transaction_type)
+                        {
+                            nuvei::map_notification_to_event_for_payout(status, transaction_type)
+                        } else {
+                            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                        }
                     }
-                    Some(nuvei::TransactionStatus::Declined)
-                    | Some(nuvei::TransactionStatus::Error) => {
-                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
                     }
-                    _ => Ok(IncomingWebhookEvent::EventNotSupported),
+                } else if let Some((status, transaction_type)) =
+                    notification.status.zip(notification.transaction_type)
+                {
+                    nuvei::map_notification_to_event(status, transaction_type)
+                } else {
+                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
                 }
             }
-            nuvei::NuveiWebhook::Chargeback(_) => {
-                // Chargeback notifications always map to dispute opened
-                Ok(IncomingWebhookEvent::DisputeOpened)
+            nuvei::NuveiWebhook::Chargeback(notification) => {
+                nuvei::map_dispute_notification_to_event(&notification.chargeback)
             }
         }
     }
@@ -1121,14 +1304,72 @@ impl IncomingWebhook for Nuvei {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        // Parse the webhook payload
-        let webhook = serde_urlencoded::from_str::<nuvei::NuveiWebhook>(&request.query_params)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notification = get_webhook_object_from_body(request.body)?;
+        Ok(Box::new(notification))
+    }
 
-        // Convert webhook to payments response
-        let payment_response = nuvei::NuveiPaymentsResponse::from(webhook);
+    fn get_dispute_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
+        let webhook = request
+            .body
+            .parse_struct::<nuvei::ChargebackNotification>("ChargebackNotification")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let currency = webhook
+            .chargeback
+            .reported_currency
+            .to_uppercase()
+            .parse::<enums::Currency>()
+            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+        let amount_minorunit = utils::convert_back_amount_to_minor_units(
+            self.amount_converter_float_major_unit,
+            webhook.chargeback.reported_amount,
+            currency,
+        )?;
 
-        Ok(Box::new(payment_response))
+        let amount = utils::convert_amount(
+            self.amount_converter_string_minor_unit,
+            amount_minorunit,
+            currency,
+        )?;
+        let dispute_unified_status_code = webhook
+            .chargeback
+            .dispute_unified_status_code
+            .clone()
+            .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let connector_dispute_id = webhook
+            .chargeback
+            .dispute_id
+            .clone()
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        Ok(disputes::DisputePayload {
+            amount,
+            currency,
+            dispute_stage: nuvei::get_dispute_stage(&webhook.chargeback)?,
+            connector_dispute_id,
+            connector_reason: webhook.chargeback.chargeback_reason,
+            connector_reason_code: webhook.chargeback.chargeback_reason_category,
+            challenge_required_by: webhook.chargeback.dispute_due_date,
+            connector_status: dispute_unified_status_code.to_string(),
+            created_at: webhook.chargeback.date,
+            updated_at: None,
+        })
+    }
+}
+
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<nuvei::NuveiWebhook, errors::ConnectorError> {
+    let payments_response = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(body)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+    match payments_response {
+        Ok(webhook) => Ok(webhook),
+        Err(_) => body
+            .parse_struct::<nuvei::NuveiWebhook>("NuveiWebhook")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed),
     }
 }
 
@@ -1157,7 +1398,7 @@ impl ConnectorRedirectResponse for Nuvei {
                             Ok(CallConnectorAction::StatusUpdate {
                                 status: enums::AttemptStatus::AuthenticationFailed,
                                 error_code: None,
-                                error_message: None,
+                                error_message: Some("3ds Authentication failed".to_string()),
                             })
                         }
                         _ => Ok(CallConnectorAction::Trigger),
@@ -1329,7 +1570,8 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 
-static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Disputes];
 
 impl ConnectorSpecifications for Nuvei {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

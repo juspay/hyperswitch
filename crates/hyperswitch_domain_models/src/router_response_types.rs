@@ -1,13 +1,16 @@
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 use std::collections::HashMap;
 
+use api_models::payments::AddressDetails;
 use common_utils::{pii, request::Method, types::MinorUnit};
 pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
+use serde::Serialize;
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -22,7 +25,34 @@ pub struct RefundsResponseData {
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectorCustomerResponseData {
+    pub connector_customer_id: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub billing_address: Option<AddressDetails>,
+}
+
+impl ConnectorCustomerResponseData {
+    pub fn new_with_customer_id(connector_customer_id: String) -> Self {
+        Self::new(connector_customer_id, None, None, None)
+    }
+    pub fn new(
+        connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
+    ) -> Self {
+        Self {
+            connector_customer_id,
+            name,
+            email,
+            billing_address,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -54,9 +84,7 @@ pub enum PaymentsResponseData {
         token: String,
     },
 
-    ConnectorCustomerResponse {
-        connector_customer_id: String,
-    },
+    ConnectorCustomerResponse(ConnectorCustomerResponseData),
 
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
@@ -86,11 +114,17 @@ pub enum PaymentsResponseData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckResponseData {
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -98,7 +132,7 @@ pub struct MandateReference {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CaptureSyncResponse {
     Success {
         resource_id: ResponseId,
@@ -249,13 +283,13 @@ impl PaymentsResponseData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
         endpoint: String,
@@ -550,6 +584,7 @@ pub struct PayoutsResponseData {
     pub should_add_next_step_to_process_tracker: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

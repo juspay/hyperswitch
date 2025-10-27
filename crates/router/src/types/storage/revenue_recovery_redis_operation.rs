@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use api_models::revenue_recovery_data_backfill::{self, RedisKeyType};
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,8 @@ pub struct PaymentProcessorTokenStatus {
     pub scheduled_at: Option<PrimitiveDateTime>,
     /// Indicates if the token is a hard decline (no retries allowed)
     pub is_hard_decline: Option<bool>,
+    /// Timestamp of the last modification to this token status
+    pub modified_at: Option<PrimitiveDateTime>,
 }
 
 /// Token retry availability information with detailed wait times
@@ -61,12 +64,22 @@ pub struct PaymentProcessorTokenWithRetryInfo {
     pub retry_wait_time_hours: i64,
     /// Number of retries remaining in the 30-day rolling window
     pub monthly_retry_remaining: i32,
+    // Current total retry count in 30-day window
+    pub total_30_day_retries: i32,
 }
 
 /// Redis-based token management struct
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
+    fn get_connector_customer_lock_key(connector_customer_id: &str) -> String {
+        format!("customer:{connector_customer_id}:status")
+    }
+
+    fn get_connector_customer_tokens_key(connector_customer_id: &str) -> String {
+        format!("customer:{connector_customer_id}:tokens")
+    }
+
     /// Lock connector customer
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
@@ -82,7 +95,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
         let result: bool = match redis_conn
@@ -109,6 +122,42 @@ impl RedisTokenManager {
 
         Ok(result)
     }
+    #[instrument(skip_all)]
+    pub async fn update_connector_customer_lock_ttl(
+        state: &SessionState,
+        connector_customer_id: &str,
+        exp_in_seconds: i64,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
+
+        let result: bool = redis_conn
+            .set_expiry(&lock_key.into(), exp_in_seconds)
+            .await
+            .map_or_else(
+                |error| {
+                    tracing::error!(operation = "update_lock_ttl", err = ?error);
+                    false
+                },
+                |_| true,
+            );
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            new_ttl_in_seconds = exp_in_seconds,
+            ttl_updated = %result,
+            "Connector customer lock TTL update with new expiry time"
+        );
+
+        Ok(result)
+    }
 
     /// Unlock connector customer status
     #[instrument(skip_all)]
@@ -124,7 +173,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => {
@@ -158,7 +207,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         let get_hash_err =
             errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into());
@@ -168,7 +217,6 @@ impl RedisTokenManager {
             .await
             .change_context(get_hash_err)?;
 
-        // build the result map using iterator adapters (explicit match preserved for logging)
         let payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus> =
             payment_processor_tokens
                 .into_iter()
@@ -209,7 +257,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         // allocate capacity up-front to avoid rehashing
         let mut serialized_payment_processor_tokens: HashMap<String, String> =
@@ -312,15 +360,18 @@ impl RedisTokenManager {
             // Obtain network-specific limits and compute remaining monthly retries.
             let card_network_config = card_config.get_network_config(card_network);
 
-            let monthly_retry_remaining = card_network_config
-                .max_retry_count_for_thirty_day
-                .saturating_sub(retry_info.total_30_day_retries);
+            let monthly_retry_remaining = std::cmp::max(
+                0,
+                card_network_config.max_retry_count_for_thirty_day
+                    - retry_info.total_30_day_retries,
+            );
 
             // Build the per-token result struct.
             let token_with_retry_info = PaymentProcessorTokenWithRetryInfo {
                 token_status: payment_processor_token_status.clone(),
                 retry_wait_time_hours,
                 monthly_retry_remaining,
+                total_30_day_retries: retry_info.total_30_day_retries,
             };
 
             result.insert(payment_processor_token_id.clone(), token_with_retry_info);
@@ -366,10 +417,19 @@ impl RedisTokenManager {
 
         let monthly_wait_hours =
             if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+                let mut accumulated_retries = 0;
+
+                // Iterate from most recent to oldest
                 (0..RETRY_WINDOW_DAYS)
-                    .map(|i| today - Duration::days(i.into()))
-                    .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
-                    .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
+                    .map(|days_ago| today - Duration::days(days_ago.into()))
+                    .find(|date| {
+                        let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
+                        accumulated_retries += retries;
+                        accumulated_retries >= card_network_config.max_retry_count_for_thirty_day
+                    })
+                    .map(|breach_date| {
+                        Self::calculate_wait_hours(breach_date + Duration::days(31), now)
+                    })
                     .unwrap_or(0)
             } else {
                 0
@@ -413,13 +473,14 @@ impl RedisTokenManager {
         let was_existing = token_map.contains_key(&token_id);
 
         let error_code = token_data.error_code.clone();
+
+        let modified_at = token_data.modified_at;
+
         let today = OffsetDateTime::now_utc().date();
 
         token_map
             .get_mut(&token_id)
             .map(|existing_token| {
-                error_code.map(|err| existing_token.error_code = Some(err));
-
                 Self::normalize_retry_window(existing_token, today);
 
                 for (date, &value) in &token_data.daily_retry_history {
@@ -429,6 +490,12 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
+
+                (existing_token.modified_at < modified_at).then(|| {
+                    existing_token.modified_at = modified_at;
+                    error_code.map(|err| existing_token.error_code = Some(err));
+                    existing_token.is_hard_decline = token_data.is_hard_decline;
+                });
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);
@@ -479,6 +546,10 @@ impl RedisTokenManager {
                         daily_retry_history: status.daily_retry_history.clone(),
                         scheduled_at: None,
                         is_hard_decline: *is_hard_decline,
+                        modified_at: Some(PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        )),
                     })
             }
             None => None,
@@ -556,6 +627,10 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: schedule_time,
                     is_hard_decline: status.is_hard_decline,
+                    modified_at: Some(PrimitiveDateTime::new(
+                        OffsetDateTime::now_utc().date(),
+                        OffsetDateTime::now_utc().time(),
+                    )),
                 });
 
         match updated_token {
@@ -703,5 +778,188 @@ impl RedisTokenManager {
         });
 
         Ok(token)
+    }
+
+    /// Get Redis key data for revenue recovery
+    #[instrument(skip_all)]
+    pub async fn get_redis_key_data_raw(
+        state: &SessionState,
+        connector_customer_id: &str,
+        key_type: &RedisKeyType,
+    ) -> CustomResult<(bool, i64, Option<serde_json::Value>), errors::StorageError> {
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+        let redis_key = match key_type {
+            RedisKeyType::Status => Self::get_connector_customer_lock_key(connector_customer_id),
+            RedisKeyType::Tokens => Self::get_connector_customer_tokens_key(connector_customer_id),
+        };
+
+        // Get TTL
+        let ttl = redis_conn
+            .get_ttl(&redis_key.clone().into())
+            .await
+            .map_err(|error| {
+                tracing::error!(operation = "get_ttl", err = ?error);
+                errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into())
+            })?;
+
+        // Get data based on key type and determine existence
+        let (key_exists, data) = match key_type {
+            RedisKeyType::Status => match redis_conn.get_key::<String>(&redis_key.into()).await {
+                Ok(status_value) => (true, serde_json::Value::String(status_value)),
+                Err(error) => {
+                    tracing::error!(operation = "get_status_key", err = ?error);
+                    (
+                        false,
+                        serde_json::Value::String(format!(
+                            "Error retrieving status key: {}",
+                            error
+                        )),
+                    )
+                }
+            },
+            RedisKeyType::Tokens => {
+                match redis_conn
+                    .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
+                    .await
+                {
+                    Ok(hash_fields) => {
+                        let exists = !hash_fields.is_empty();
+                        let data = if exists {
+                            serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
+                        } else {
+                            serde_json::Value::Object(serde_json::Map::new())
+                        };
+                        (exists, data)
+                    }
+                    Err(error) => {
+                        tracing::error!(operation = "get_tokens_hash", err = ?error);
+                        (false, serde_json::Value::Null)
+                    }
+                }
+            }
+        };
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            key_type = ?key_type,
+            exists = key_exists,
+            ttl = ttl,
+            "Retrieved Redis key data"
+        );
+
+        Ok((key_exists, ttl, Some(data)))
+    }
+
+    /// Update Redis token with comprehensive card data
+    #[instrument(skip_all)]
+    pub async fn update_redis_token_with_comprehensive_card_data(
+        state: &SessionState,
+        customer_id: &str,
+        token: &str,
+        card_data: &revenue_recovery_data_backfill::ComprehensiveCardData,
+        cutoff_datetime: Option<PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::StorageError> {
+        // Get existing token data
+        let mut token_map =
+            Self::get_connector_customer_payment_processor_tokens(state, customer_id).await?;
+
+        // Find the token to update
+        let existing_token = token_map.get_mut(token).ok_or_else(|| {
+            tracing::warn!(
+                customer_id = customer_id,
+                "Token not found in parsed Redis data - may be corrupted or missing for "
+            );
+            error_stack::Report::new(errors::StorageError::ValueNotFound(
+                "Token not found in Redis".to_string(),
+            ))
+        })?;
+
+        // Update the token details with new card data
+        card_data.card_type.as_ref().map(|card_type| {
+            existing_token.payment_processor_token_details.card_type = Some(card_type.clone())
+        });
+
+        card_data.card_exp_month.as_ref().map(|exp_month| {
+            existing_token.payment_processor_token_details.expiry_month = Some(exp_month.clone())
+        });
+
+        card_data.card_exp_year.as_ref().map(|exp_year| {
+            existing_token.payment_processor_token_details.expiry_year = Some(exp_year.clone())
+        });
+
+        card_data.card_network.as_ref().map(|card_network| {
+            existing_token.payment_processor_token_details.card_network = Some(card_network.clone())
+        });
+
+        card_data.card_issuer.as_ref().map(|card_issuer| {
+            existing_token.payment_processor_token_details.card_issuer = Some(card_issuer.clone())
+        });
+
+        // Update daily retry history if provided
+        card_data
+            .daily_retry_history
+            .as_ref()
+            .map(|retry_history| existing_token.daily_retry_history = retry_history.clone());
+
+        // If cutoff_datetime is provided and existing scheduled_at < cutoff_datetime, set to None
+        // If no scheduled_at value exists, leave it as None
+        existing_token.scheduled_at = existing_token
+            .scheduled_at
+            .and_then(|existing_scheduled_at| {
+                cutoff_datetime
+                    .map(|cutoff| {
+                        if existing_scheduled_at < cutoff {
+                            tracing::info!(
+                                customer_id = customer_id,
+                                existing_scheduled_at = %existing_scheduled_at,
+                                cutoff_datetime = %cutoff,
+                                "Set scheduled_at to None because existing time is before cutoff time"
+                            );
+                            None
+                        } else {
+                            Some(existing_scheduled_at)
+                        }
+                    })
+                    .unwrap_or(Some(existing_scheduled_at)) // No cutoff provided, keep existing value
+            });
+
+        existing_token.modified_at = Some(PrimitiveDateTime::new(
+            OffsetDateTime::now_utc().date(),
+            OffsetDateTime::now_utc().time(),
+        ));
+
+        // Save the updated token map back to Redis
+        Self::update_or_add_connector_customer_payment_processor_tokens(
+            state,
+            customer_id,
+            token_map,
+        )
+        .await?;
+
+        tracing::info!(
+            customer_id = customer_id,
+            "Updated Redis token data with comprehensive card data using struct"
+        );
+
+        Ok(())
+    }
+    pub async fn get_payment_processor_metadata_for_connector_customer(
+        state: &SessionState,
+        customer_id: &str,
+    ) -> CustomResult<HashMap<String, PaymentProcessorTokenWithRetryInfo>, errors::StorageError>
+    {
+        let token_map =
+            Self::get_connector_customer_payment_processor_tokens(state, customer_id).await?;
+
+        let token_data = Self::get_tokens_with_retry_metadata(state, &token_map);
+
+        Ok(token_data)
     }
 }

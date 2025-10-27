@@ -108,7 +108,7 @@ impl<F, T>
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
-    pub payment_data_type: Option<String>,
+    pub payment_data_type: Option<common_enums::PaymentMethodType>,
     pub encrypted_src_card_details: Option<String>,
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
@@ -655,6 +655,11 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     NoKey,
 }
 
@@ -664,6 +669,15 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self::HeaderKey {
                 api_key: api_key.clone(),
+            }),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self::SignatureKey {
+                api_key: api_key.clone(),
+                key1: key1.clone(),
+                api_secret: api_secret.clone(),
             }),
             ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -812,15 +826,16 @@ pub struct ThreeDsAuthDetails {
     pub acs_trans_id: String,
     pub acs_reference_number: String,
     pub acs_operator_id: Option<String>,
-    pub ds_reference_number: String,
+    pub ds_reference_number: Option<String>,
     pub ds_trans_id: String,
     pub sdk_trans_id: Option<String>,
     pub trans_status: common_enums::TransactionStatus,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedEnum>,
-    pub message_type: String,
-    pub message_version: String,
+    pub message_type: Option<String>,
+    pub message_version: Option<String>,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
@@ -962,16 +977,16 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             UnifiedAuthenticationServiceAuthenticateResponse::Success(auth_response) => {
-                let authn_flow_type = match auth_response
-                    .three_ds_auth_response
-                    .acs_challenge_mandated
-                {
-                    Some(ACSChallengeMandatedEnum::Y) => {
+                let authn_flow_type = match auth_response.three_ds_auth_response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: auth_response.three_ds_auth_response.acs_url.clone(),
                             challenge_request: auth_response
                                 .three_ds_auth_response
                                 .challenge_request,
+                            challenge_request_key: auth_response
+                                .three_ds_auth_response
+                                .challenge_request_key,
                             acs_reference_number: Some(
                                 auth_response.three_ds_auth_response.acs_reference_number,
                             ),
@@ -986,7 +1001,7 @@ impl<F, T>
                                 .acs_signed_content,
                         }))
                     }
-                    Some(ACSChallengeMandatedEnum::N) | None => AuthNFlowType::Frictionless,
+                    _ => AuthNFlowType::Frictionless,
                 };
                 Ok(UasAuthenticationResponseData::Authentication {
                     authentication_details: hyperswitch_domain_models::router_request_types::unified_authentication_service::AuthenticationDetails {

@@ -908,7 +908,7 @@ impl RevenueRecoveryAttempt {
         payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
-        let error_code = revenue_recovery_attempt_data.error_code.clone();
+        let error_code = recovery_attempt.error_code.clone();
         let error_message = revenue_recovery_attempt_data.error_message.clone();
         let connector_name = payment_connector_name
             .ok_or(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
@@ -939,6 +939,7 @@ impl RevenueRecoveryAttempt {
             daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
             scheduled_at: None,
             is_hard_decline: Some(is_hard_decline),
+            modified_at: Some(recovery_attempt.created_at),
             payment_processor_token_details: PaymentProcessorTokenDetails {
                 payment_processor_token: revenue_recovery_attempt_data
                     .processor_payment_method_token
@@ -1446,6 +1447,8 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::MandateActive
             | webhooks::IncomingWebhookEvent::MandateRevoked
             | webhooks::IncomingWebhookEvent::EndpointVerification
+            | webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             | webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             | webhooks::IncomingWebhookEvent::FrmApproved
             | webhooks::IncomingWebhookEvent::FrmRejected
@@ -1455,7 +1458,9 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PayoutCancelled
             | webhooks::IncomingWebhookEvent::PayoutCreated
             | webhooks::IncomingWebhookEvent::PayoutExpired
-            | webhooks::IncomingWebhookEvent::PayoutReversed => {
+            | webhooks::IncomingWebhookEvent::PayoutReversed
+            | webhooks::IncomingWebhookEvent::InvoiceGenerated
+            | webhooks::IncomingWebhookEvent::SetupWebhook => {
                 common_types::payments::RecoveryAction::InvalidAction
             }
             webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {

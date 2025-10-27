@@ -960,7 +960,7 @@ pub async fn perform_cgraph_filtering(
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
         let filter_eligible =
-            eligible_connectors.map_or(true, |list| list.contains(&routable_connector));
+            eligible_connectors.is_none_or(|list| list.contains(&routable_connector));
 
         if cgraph_eligible && filter_eligible {
             final_selection.push(choice);

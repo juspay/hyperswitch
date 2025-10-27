@@ -5,10 +5,10 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
-use common_enums::TransactionType;
+use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::id_type;
+use common_utils::{id_type, types::TenantConfig};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -18,6 +18,7 @@ use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
+    superposition::SuperpositionClient,
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -26,7 +27,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
+use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
@@ -65,7 +66,9 @@ use super::{
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -135,6 +138,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -153,9 +157,20 @@ impl SessionState {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
-    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+    pub fn get_grpc_headers_ucs(
+        &self,
+        unified_connector_service_execution_mode: ExecutionMode,
+    ) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        GrpcHeadersUcs::builder().tenant_id(tenant_id)
+        let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        let shadow_mode = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => false,
+            ExecutionMode::Shadow => true,
+        };
+        GrpcHeadersUcs::builder()
+            .tenant_id(tenant_id)
+            .request_id(request_id)
+            .shadow_mode(Some(shadow_mode))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -188,7 +203,7 @@ impl SessionStateInfo for SessionState {
         self.event_handler.clone()
     }
     fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
+        self.api_client.get_request_id_str()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
@@ -231,8 +246,33 @@ impl SessionStateInfo for SessionState {
     fn session_state(&self) -> SessionState {
         self.clone()
     }
-    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+}
+
+impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
+    fn get_api_client(&self) -> &dyn crate::services::ApiClient {
+        self.api_client.as_ref()
+    }
+    fn get_proxy(&self) -> hyperswitch_interfaces::types::Proxy {
+        self.conf.proxy.clone()
+    }
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id
+    }
+    fn get_request_id_str(&self) -> Option<String> {
+        self.request_id
+            .map(|req_id| req_id.as_hyphenated().to_string())
+    }
+    fn get_tenant(&self) -> Tenant {
+        self.tenant.clone()
+    }
+    fn get_connectors(&self) -> hyperswitch_domain_models::connector_endpoints::Connectors {
+        self.conf.connectors.clone()
+    }
+    fn event_handler(&self) -> &dyn hyperswitch_interfaces::events::EventHandlerInterface {
+        &self.event_handler
     }
 }
 #[derive(Clone)]
@@ -259,6 +299,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -301,7 +342,7 @@ impl AppStateInfo for AppState {
         self.api_client.add_flow_name(flow_name);
     }
     fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
+        self.api_client.get_request_id_str()
     }
 }
 
@@ -425,6 +466,23 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
+            let superposition_service = if conf.superposition.get_inner().enabled {
+                match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
+                    Ok(client) => {
+                        router_env::logger::info!("Superposition client initialized successfully");
+                        Some(Arc::new(client))
+                    }
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to initialize superposition client: {:?}. Continuing without superposition support.",
+                            err
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -447,6 +505,7 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
+                superposition_service,
             }
         })
         .await
@@ -543,6 +602,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            superposition_service: self.superposition_service.clone(),
         })
     }
 
@@ -728,8 +788,14 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/payment-methods")
-                        .route(web::get().to(payments::list_payment_methods)),
+                    web::scope("/payment-methods")
+                        .service(
+                            web::resource("").route(web::get().to(payments::list_payment_methods)),
+                        )
+                        .service(
+                            web::resource("/check-balance")
+                                .route(web::post().to(payments::payment_check_gift_card_balance)),
+                        ),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -737,7 +803,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
@@ -851,6 +918,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
+                    web::resource("/{payment_id}/eligibility")
+                        .route(web::post().to(payments::payments_submit_eligibility)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )
@@ -883,7 +954,12 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(payments::post_3ds_payments_authorize)),
+                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
+                )
+                .service(
+                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
+                        .route(web::post().to(payments::post_3ds_payments_authorize))
+                        .route(web::get().to(payments::post_3ds_payments_authorize))
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
@@ -1159,6 +1235,50 @@ impl Routing {
     }
 }
 
+#[cfg(feature = "oltp")]
+pub struct Subscription;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl Subscription {
+    pub fn server(state: AppState) -> Scope {
+        let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
+
+        route
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
+            )
+            .service(web::resource("/create").route(
+                web::post().to(|state, req, payload| {
+                    subscription::create_subscription(state, req, payload)
+                }),
+            ))
+            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
+            .service(
+                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+            )
+            .service(
+                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::confirm_subscription(state, req, id, payload)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{subscription_id}/update").route(web::put().to(
+                    |state, req, id, payload| {
+                        subscription::update_subscription(state, req, id, payload)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
+            )
+    }
+}
+
 pub struct Customers;
 
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
@@ -1169,6 +1289,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
                 .service(
                     web::resource("/total-payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
@@ -1206,6 +1330,10 @@ impl Customers {
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
         }
 
         #[cfg(feature = "oltp")]
@@ -1376,6 +1504,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/create-intent")
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/check-network-token-status")
+                        .route(web::get().to(payment_methods::network_token_status_check_api)),
                 );
 
             route = route.service(
@@ -2343,12 +2475,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route
@@ -2730,51 +2866,54 @@ impl User {
         }
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        // TODO: To be deprecated
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2")
-                        .route(web::post().to(user_role::create_role_v2))
-                        .route(
-                            web::get().to(user_role::get_groups_and_resources_for_role_from_token),
-                        ),
-                )
-                // TODO: To be deprecated
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(
-                            web::resource("").route(web::get().to(user_role::list_roles_with_info)),
-                        )
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            // TODO: To be deprecated
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    .service(
+                        web::resource("/v2")
+                            .route(web::post().to(user_role::create_role_v2))
+                            .route(
+                                web::get()
+                                    .to(user_role::get_groups_and_resources_for_role_from_token),
+                            ),
+                    )
+                    .service(web::resource("/v3").route(
+                        web::get().to(user_role::get_parent_groups_info_for_role_from_token),
+                    ))
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                )
-                .service(
-                    web::resource("/{role_id}/v2")
-                        .route(web::get().to(user_role::get_parent_info_for_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -2915,8 +3054,16 @@ impl ProcessTracker {
         web::scope("/v2/process-trackers/revenue-recovery-workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/resume")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_resume_api)),
+                    ),
             )
     }
 }
@@ -2938,9 +3085,12 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("{merchant_id}/{authentication_id}/redirect")
+                    .route(web::post().to(authentication::authentication_sync_post_update)),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
-                    .route(web::post().to(authentication::authentication_sync))
-                    .route(web::get().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync)),
             )
     }
 }
@@ -2960,5 +3110,36 @@ impl ProfileAcquirer {
                 web::resource("/{profile_id}/{profile_acquirer_id}")
                     .route(web::post().to(profile_acquirer::profile_acquirer_update)),
             )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct RecoveryDataBackfill;
+#[cfg(feature = "v2")]
+impl RecoveryDataBackfill {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/data-backfill")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(
+                    web::post()
+                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                ),
+            )
+            .service(web::resource("/status/{token_id}").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
+            .service(web::resource("/redis-data/{token_id}").route(
+                web::get().to(
+                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
+                ),
+            ))
+            .service(web::resource("/update-token").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
     }
 }

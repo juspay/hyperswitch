@@ -1,11 +1,11 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
-use common_utils::DbConnectionParams;
+use common_utils::{types::TenantConfig, DbConnectionParams};
 use diesel::PgConnection;
 use error_stack::ResultExt;
 
 use crate::{
-    config::{Database, TenantConfig},
+    config::Database,
     errors::{StorageError, StorageResult},
 };
 

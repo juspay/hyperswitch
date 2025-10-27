@@ -67,6 +67,7 @@ pub mod headers {
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_INTERNAL_API_KEY: &str = "X-Internal-Api-Key";
     pub const X_ORGANIZATION_ID: &str = "X-Organization-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
@@ -98,6 +99,8 @@ pub mod headers {
     pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "connector_http_status_code";
     #[cfg(feature = "v2")]
     pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "x-connector-http-status-code";
+
+    pub const X_REFERENCE_ID: &str = "X-Reference-Id";
 }
 
 pub mod pii {
@@ -209,6 +212,7 @@ pub fn mk_app(
                 .service(routes::Files::server(state.clone()))
                 .service(routes::Disputes::server(state.clone()))
                 .service(routes::Blocklist::server(state.clone()))
+                .service(routes::Subscription::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
@@ -224,7 +228,8 @@ pub fn mk_app(
                 .service(routes::UserDeprecated::server(state.clone()))
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
-                .service(routes::Gsm::server(state.clone()));
+                .service(routes::Gsm::server(state.clone()))
+                .service(routes::RecoveryDataBackfill::server(state.clone()));
         }
     }
 

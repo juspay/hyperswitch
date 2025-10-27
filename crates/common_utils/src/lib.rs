@@ -14,11 +14,15 @@ pub mod errors;
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+/// Used for hashing
+pub mod hashing;
 pub mod id_type;
 #[cfg(feature = "keymanager")]
 pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
+#[cfg(feature = "metrics")]
+pub mod metrics;
 pub mod new_type;
 pub mod payout_method_utils;
 pub mod pii;
@@ -28,12 +32,13 @@ pub mod request;
 pub mod signals;
 pub mod transformers;
 pub mod types;
+/// Unified Connector Service (UCS) interface definitions.
+///
+/// This module defines types and traits for interacting with the Unified Connector Service.
+/// It includes reference ID types for payments and refunds, and a trait for extracting
+/// UCS reference information from requests.
+pub mod ucs_types;
 pub mod validation;
-
-/// Used for hashing
-pub mod hashing;
-#[cfg(feature = "metrics")]
-pub mod metrics;
 
 pub use base64_serializer::Base64Serializer;
 
@@ -304,7 +309,7 @@ pub trait DbConnectionParams {
     fn get_dbname(&self) -> &str;
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),

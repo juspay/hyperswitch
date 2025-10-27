@@ -34,17 +34,20 @@ use hyperswitch_domain_models::{
         SetupMandate,
     },
     router_request_types::{
-        authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        ResponseId, SetupMandateRequestData,
+        authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -97,6 +100,7 @@ impl From<CardIssuer> for String {
             CardIssuer::CarteBlanche => "006",
             CardIssuer::JCB => "007",
             CardIssuer::CartesBancaires => "036",
+            CardIssuer::UnionPay => "062",
         };
         card_type.to_string()
     }
@@ -571,7 +575,8 @@ pub struct MandateCard {
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: CybersoucrePaymentInstrument,
-    tokenized_card: MandatePaymentTokenizedCard,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tokenized_card: Option<MandatePaymentTokenizedCard>,
     card: Option<MandateCard>,
 }
 
@@ -729,6 +734,16 @@ pub struct BillTo {
     postal_code: Option<Secret<String>>,
     country: Option<enums::CountryAlpha2>,
     email: pii::Email,
+}
+
+impl From<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
+    for ClientReferenceInformation
+{
+    fn from(item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>) -> Self {
+        Self {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        }
+    }
 }
 
 impl From<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for ClientReferenceInformation {
@@ -2570,6 +2585,15 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
             _ => None,
         };
 
+        let tokenized_card = match item.router_data.request.payment_method_type {
+            Some(enums::PaymentMethodType::GooglePay)
+            | Some(enums::PaymentMethodType::ApplePay)
+            | Some(enums::PaymentMethodType::SamsungPay) => Some(MandatePaymentTokenizedCard {
+                transaction_type: TransactionType::StoredCredentials,
+            }),
+            _ => None,
+        };
+
         let bill_to = item
             .router_data
             .get_optional_billing_email()
@@ -2579,9 +2603,7 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
-                tokenized_card: MandatePaymentTokenizedCard {
-                    transaction_type: TransactionType::StoredCredentials,
-                },
+                tokenized_card,
                 card: mandate_card_information,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -2615,6 +2637,77 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
         item: &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                let payment_information =
+                    PaymentInformation::Cards(Box::new(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    }));
+                let client_reference_information = ClientReferenceInformation::from(item);
+                Ok(Self {
+                    payment_information,
+                    client_reference_information,
+                })
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
+    for CybersourceAuthSetupRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_method_data = item
+            .router_data
+            .request
+            .payment_method_data
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_data",
+            })?;
+
+        match payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
@@ -3432,6 +3525,227 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
     }
 }
 
+impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
+    for CybersourceAuthEnrollmentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&PaymentsAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        };
+        let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "payment_method_data",
+            },
+        )?;
+        let payment_information = match payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                Ok(PaymentInformation::Cards(Box::new(
+                    CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    },
+                )))
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))
+            }
+        }?;
+
+        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+
+        let amount_details = Amount {
+            total_amount: item.amount.clone(),
+            currency: item.router_data.request.currency.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                },
+            )?,
+        };
+
+        let param = redirect_response.params.ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.params",
+            },
+        )?;
+
+        let reference_id = param
+            .clone()
+            .peek()
+            .split('=')
+            .next_back()
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.params.reference_id",
+            })?
+            .to_string();
+        let email = item.router_data.get_billing_email().or(item
+            .router_data
+            .request
+            .email
+            .clone()
+            .ok_or_else(utils::missing_field_err("email")))?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let order_information = OrderInformationWithBill {
+            amount_details,
+            bill_to: Some(bill_to),
+        };
+        Ok(Self {
+            payment_information,
+            client_reference_information,
+            consumer_authentication_information: CybersourceConsumerAuthInformationRequest {
+                return_url: item
+                    .router_data
+                    .request
+                    .complete_authorize_url
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("complete_authorize_url"))?,
+                reference_id,
+            },
+            order_information,
+        })
+    }
+}
+
+impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
+    for CybersourceAuthValidateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&PaymentsPostAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        };
+        let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "payment_method_data",
+            },
+        )?;
+        let payment_information = match payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                Ok(PaymentInformation::Cards(Box::new(
+                    CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: Some(ccard.card_cvc),
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    },
+                )))
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))
+            }
+        }?;
+
+        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+
+        let amount_details = Amount {
+            total_amount: item.amount.clone(),
+            currency: item.router_data.request.currency.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                },
+            )?,
+        };
+
+        let redirect_payload: CybersourceRedirectionAuthResponse = redirect_response
+            .payload
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.payload",
+            })?
+            .peek()
+            .clone()
+            .parse_value("CybersourceRedirectionAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_information = OrderInformation { amount_details };
+        Ok(Self {
+            payment_information,
+            client_reference_information,
+            consumer_authentication_information:
+                CybersourceConsumerAuthInformationValidateRequest {
+                    authentication_transaction_id: redirect_payload.transaction_id,
+                },
+            order_information,
+        })
+    }
+}
+
 impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
     for CybersourcePaymentsRequest
 {
@@ -3520,6 +3834,13 @@ pub struct ClientAuthCheckInfoResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourcePreProcessingResponse {
+    ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
+    ErrorInformation(Box<CybersourceErrorInformationResponse>),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum CybersourceAuthenticateResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
 }
@@ -3944,6 +4265,362 @@ impl<F>
     TryFrom<
         ResponseRouterData<
             F,
+            CybersourceAuthSetupResponse,
+            PaymentsPreAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            CybersourceAuthSetupResponse,
+            PaymentsPreAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            CybersourceAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(Some(RedirectForm::CybersourceAuthSetup {
+                        access_token: info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        ddc_url: info_response
+                            .consumer_authentication_information
+                            .device_data_collection_url,
+                        reference_id: info_response
+                            .consumer_authentication_information
+                            .reference_id,
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    ),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
+            CybersourceAuthSetupResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason;
+                Ok(Self {
+                    response: Err(ErrorResponse {
+                        code: error_message
+                            .clone()
+                            .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                        message: error_message.unwrap_or(
+                            hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                        ),
+                        reason,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    }),
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            CybersourceAuthenticateResponse,
+            PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            CybersourceAuthenticateResponse,
+            PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+                let status = enums::AttemptStatus::from(info_response.status);
+                let risk_info: Option<ClientRiskInformation> = None;
+                if utils::is_payment_failure(status) {
+                    let response = Err(get_error_response(
+                        &info_response.error_information,
+                        &None,
+                        &risk_info,
+                        Some(status),
+                        item.http_code,
+                        info_response.id.clone(),
+                    ));
+
+                    Ok(Self {
+                        status,
+                        response,
+                        ..item.data
+                    })
+                } else {
+                    let connector_response_reference_id = Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    );
+
+                    let redirection_data = match (
+                        info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        info_response
+                            .consumer_authentication_information
+                            .step_up_url,
+                    ) {
+                        (Some(token), Some(step_up_url)) => {
+                            Some(RedirectForm::CybersourceConsumerAuth {
+                                access_token: token.expose(),
+                                step_up_url,
+                            })
+                        }
+                        _ => None,
+                    };
+                    let three_ds_data = serde_json::to_value(
+                        info_response
+                            .consumer_authentication_information
+                            .validate_response,
+                    )
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: Some(serde_json::json!({
+                                "three_ds_data": three_ds_data
+                            })),
+                            network_txn_id: None,
+                            connector_response_reference_id,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            CybersourceAuthenticateResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason.to_owned();
+                let response = Err(ErrorResponse {
+                    code: error_message
+                        .clone()
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: error_message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            CybersourceAuthenticateResponse,
+            PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsPostAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            CybersourceAuthenticateResponse,
+            PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+                let status = enums::AttemptStatus::from(info_response.status);
+                let risk_info: Option<ClientRiskInformation> = None;
+                if utils::is_payment_failure(status) {
+                    let response = Err(get_error_response(
+                        &info_response.error_information,
+                        &None,
+                        &risk_info,
+                        Some(status),
+                        item.http_code,
+                        info_response.id.clone(),
+                    ));
+
+                    Ok(Self {
+                        status,
+                        response,
+                        ..item.data
+                    })
+                } else {
+                    let connector_response_reference_id = Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    );
+
+                    let redirection_data = match (
+                        info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        info_response
+                            .consumer_authentication_information
+                            .step_up_url,
+                    ) {
+                        (Some(token), Some(step_up_url)) => {
+                            Some(RedirectForm::CybersourceConsumerAuth {
+                                access_token: token.expose(),
+                                step_up_url,
+                            })
+                        }
+                        _ => None,
+                    };
+                    let three_ds_data = serde_json::to_value(
+                        info_response
+                            .consumer_authentication_information
+                            .validate_response,
+                    )
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: Some(serde_json::json!({
+                                "three_ds_data": three_ds_data
+                            })),
+                            network_txn_id: None,
+                            connector_response_reference_id,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            CybersourceAuthenticateResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason.to_owned();
+                let response = Err(ErrorResponse {
+                    code: error_message
+                        .clone()
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: error_message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
             CybersourceTransactionResponse,
             PaymentsSyncData,
             PaymentsResponseData,
@@ -4298,12 +4975,12 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
                     payment_information,
                 })
             }
-            enums::PayoutType::Bank | enums::PayoutType::Wallet => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "PayoutType is not supported".to_string(),
-                    connector: "Cybersource",
-                })?
-            }
+            enums::PayoutType::Bank
+            | enums::PayoutType::Wallet
+            | enums::PayoutType::BankRedirect => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutType is not supported".to_string(),
+                connector: "Cybersource",
+            })?,
         }
     }
 }
@@ -4357,12 +5034,12 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
                 };
                 Ok(Self::Cards(Box::new(CardPaymentInformation { card })))
             }
-            PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "PayoutMethod is not supported".to_string(),
-                    connector: "Cybersource",
-                })?
-            }
+            PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutMethod is not supported".to_string(),
+                connector: "Cybersource",
+            })?,
         }
     }
 }
@@ -4408,6 +5085,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, CybersourceFulfillResponse>> for Pa
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

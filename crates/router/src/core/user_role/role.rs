@@ -1,4 +1,4 @@
-use std::{cmp, collections::HashSet};
+use std::{cmp, collections::HashSet, ops::Not};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
@@ -56,6 +56,25 @@ pub async fn get_groups_and_resources_for_role_from_token(
         groups,
         resources,
     }))
+}
+
+pub async fn get_parent_groups_info_for_role_from_token(
+    state: SessionState,
+    user_from_token: UserFromToken,
+) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
+    let role_info = user_from_token.get_role_info_from_db(&state).await?;
+
+    let groups = role_info
+        .get_permission_groups()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    let parent_groups = utils::user_role::permission_groups_to_parent_group_info(
+        &groups,
+        role_info.get_entity_type(),
+    );
+
+    Ok(ApplicationResponse::Json(parent_groups))
 }
 
 pub async fn create_role(
@@ -248,8 +267,23 @@ pub async fn create_role_v2(
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
 
-    let response_parent_groups =
+    let parent_group_details =
         utils::user_role::permission_groups_to_parent_group_info(&role.groups, role.entity_type);
+
+    let parent_group_descriptions: Vec<role_api::ParentGroupDescription> = parent_group_details
+        .into_iter()
+        .filter_map(|group_details| {
+            let description = utils::user_role::resources_to_description(
+                group_details.resources,
+                role.entity_type,
+            )?;
+            Some(role_api::ParentGroupDescription {
+                name: group_details.name,
+                description,
+                scopes: group_details.scopes,
+            })
+        })
+        .collect();
 
     Ok(ApplicationResponse::Json(
         role_api::RoleInfoResponseWithParentsGroup {
@@ -257,7 +291,7 @@ pub async fn create_role_v2(
             role_name: role.role_name,
             role_scope: role.scope,
             entity_type: role.entity_type,
-            parent_groups: response_parent_groups,
+            parent_groups: parent_group_descriptions,
         },
     ))
 }
@@ -325,19 +359,21 @@ pub async fn get_parent_info_for_role(
         role.role_id
     ))?
     .into_iter()
-    .map(|(parent_group, description)| role_api::ParentGroupInfo {
-        name: parent_group.clone(),
-        description,
-        scopes: role_info
-            .get_permission_groups()
-            .iter()
-            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-            // TODO: Remove this hashset conversion when merchant access
-            // and organization access groups are removed
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-    })
+    .map(
+        |(parent_group, description)| role_api::ParentGroupDescription {
+            name: parent_group.clone(),
+            description,
+            scopes: role_info
+                .get_permission_groups()
+                .iter()
+                .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                // TODO: Remove this hashset conversion when merchant access
+                // and organization access groups are removed
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect(),
+        },
+    )
     .collect();
 
     Ok(ApplicationResponse::Json(role_api::RoleInfoWithParents {
@@ -450,7 +486,11 @@ pub async fn list_roles_with_info(
         .into());
     }
 
-    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES
+        .values()
+        .filter(|role| role.is_internal().not())
+        .cloned()
+        .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
@@ -507,22 +547,39 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some({
                     let permission_groups = role_info.get_permission_groups();
-                    let parent_groups = utils::user_role::permission_groups_to_parent_group_info(
-                        &permission_groups,
-                        role_info.get_entity_type(),
-                    );
+                    let parent_group_details =
+                        utils::user_role::permission_groups_to_parent_group_info(
+                            &permission_groups,
+                            role_info.get_entity_type(),
+                        );
+
+                    let parent_group_descriptions: Vec<role_api::ParentGroupDescription> =
+                        parent_group_details
+                            .into_iter()
+                            .filter_map(|group_details| {
+                                let description = utils::user_role::resources_to_description(
+                                    group_details.resources,
+                                    role_info.get_entity_type(),
+                                )?;
+                                Some(role_api::ParentGroupDescription {
+                                    name: group_details.name,
+                                    description,
+                                    scopes: group_details.scopes,
+                                })
+                            })
+                            .collect();
 
                     role_api::RoleInfoResponseWithParentsGroup {
                         role_id: role_info.get_role_id().to_string(),
                         role_name: role_info.get_role_name().to_string(),
                         entity_type: role_info.get_entity_type(),
-                        parent_groups,
+                        parent_groups: parent_group_descriptions,
                         role_scope: role_info.get_scope(),
                     }
                 })
@@ -539,9 +596,9 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
                     role_id: role_info.get_role_id().to_string(),

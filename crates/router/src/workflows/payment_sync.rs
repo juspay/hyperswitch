@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -7,6 +9,8 @@ use scheduler::{
     errors as sch_errors, utils as scheduler_utils,
 };
 
+#[cfg(feature = "v2")]
+use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
     consts,
     core::{
@@ -293,6 +297,51 @@ pub async fn retry_sync_task(
     match schedule_time {
         Some(s_time) => {
             db.as_scheduler().retry_process(pt, s_time).await?;
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
+    }
+}
+
+/// Schedule the task for retry and update redis token expiry time
+///
+/// Returns bool which indicates whether this was the last retry or not
+#[cfg(feature = "v2")]
+pub async fn recovery_retry_sync_task(
+    state: &SessionState,
+    connector_customer_id: Option<String>,
+    connector: String,
+    merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let db = &*state.store;
+    let schedule_time =
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+
+            connector_customer_id
+                .async_map(|id| async move {
+                    let _ = update_token_expiry_based_on_schedule_time(state, &id, s_time)
+                        .await
+                        .map_err(|e| {
+                            logger::error!(
+                                error = ?e,
+                                connector_customer_id = %id,
+                                "Failed to update the token expiry time in redis"
+                            );
+                            e
+                        });
+                })
+                .await;
+
             Ok(false)
         }
         None => {

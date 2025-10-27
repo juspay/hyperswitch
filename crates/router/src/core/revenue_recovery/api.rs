@@ -32,12 +32,14 @@ pub async fn call_psync_api(
     state: &SessionState,
     global_payment_id: &id_type::GlobalPaymentId,
     revenue_recovery_data: &revenue_recovery_types::RevenueRecoveryPaymentData,
+    force_sync_bool: bool,
+    expand_attempts_bool: bool,
 ) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = payments_api::PaymentsRetrieveRequest {
-        force_sync: true,
+        force_sync: force_sync_bool,
         param: None,
-        expand_attempts: true,
+        expand_attempts: expand_attempts_bool,
         return_raw_connector_response: None,
         merchant_connector_details: None,
     };

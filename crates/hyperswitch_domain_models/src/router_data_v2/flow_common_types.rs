@@ -14,6 +14,7 @@ pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
+    pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
@@ -148,7 +149,34 @@ pub struct FilesFlowData {
 }
 
 #[derive(Debug, Clone)]
-pub struct RevenueRecoveryRecordBackData;
+pub struct InvoiceRecordBackData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCustomerData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCreateData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionPlansData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionPlanPricesData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
@@ -166,6 +194,9 @@ pub struct BillingConnectorInvoiceSyncFlowData;
 pub struct VaultConnectorFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
 }
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckFlowData;
 
 #[derive(Debug, Clone)]
 pub struct ExternalVaultProxyFlowData {
