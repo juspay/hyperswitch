@@ -711,9 +711,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             router_data.request.to_owned(),
             resp.response.clone(),
         );
-        if connector.connector_name == api_models::enums::Connector::Airwallex {
-            authorize_router_data.reference_id = resp.reference_id;
-        } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+        if connector.connector_name == api_models::enums::Connector::Nuvei {
             let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
                     enrolled_v2,
