@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
@@ -2377,7 +2378,7 @@ pub async fn vault_payment_method_external_v1(
     )
     .await?;
 
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault insert api call",
@@ -2394,24 +2395,41 @@ pub async fn vault_payment_method_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        ExternalVaultInsertFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
-
-    let router_data_resp = services::execute_connector_processing_step(
+    access_token::create_access_token(
         state,
-        connector_integration,
-        &old_router_data,
-        payments_core::CallConnectorAction::Trigger,
-        None,
-        None,
+        &connector_data,
+        merchant_account,
+        &mut old_router_data,
     )
-    .await
-    .to_vault_failed_response()?;
+    .await?;
 
-    get_vault_response_for_insert_payment_method_data(router_data_resp)
+    if old_router_data.access_token.is_some() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            ExternalVaultInsertFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments_core::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+
+        get_vault_response_for_insert_payment_method_data(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_vault_response_for_insert_payment_method_data<F>(
@@ -2432,8 +2450,33 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                     vault_id,
                     fingerprint_id: Some(fingerprint_id),
                     entity_id: None,
+                    multi_vault_token: None,
                 })
             }
+            types::VaultResponseData::ExternalVaultMultiTokenResponse {
+                network_token,
+                tavv,
+                token_expiration_month,
+                token_expiration_year,
+            } => {
+                #[cfg(feature = "v2")]
+                let vault_id = domain::VaultId::generate("".to_string());
+                #[cfg(not(feature = "v2"))]
+                let vault_id = "".to_string();
+
+                Ok(pm_types::AddVaultResponse {
+                    vault_id,
+                    fingerprint_id: None,
+                    entity_id: None,
+                    multi_vault_token: Some(pm_types::MultiVaultTokenData {
+                        network_token,
+                        token_expiration_month,
+                        token_expiration_year,
+                        tavv,
+                    }),
+                })
+            }
+
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
             | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {

@@ -62,6 +62,15 @@ pub struct AddVaultResponse {
     #[cfg(feature = "v1")]
     pub vault_id: String,
     pub fingerprint_id: Option<String>,
+    pub multi_vault_token: Option<MultiVaultTokenData>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultiVaultTokenData {
+    pub network_token: Secret<String>,
+    pub tavv: Secret<String>,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
 }
 
 #[cfg(feature = "v2")]

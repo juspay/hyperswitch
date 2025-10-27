@@ -875,12 +875,12 @@ pub struct NetworkTokenData {
     pub eci: Option<String>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenDetails {
     pub network_token: cards::NetworkToken,
     pub network_token_exp_month: Secret<String>,
     pub network_token_exp_year: Secret<String>,
+    pub tavv: Option<String>,
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
@@ -2524,7 +2524,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-#[cfg(feature = "v2")]
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
@@ -2559,24 +2558,6 @@ impl SingleUsePaymentMethodToken {
         Self {
             token,
             merchant_connector_id: mca_id,
-        }
-    }
-}
-
-impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
-    fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
-        Self {
-            last4_digits: item.last4_digits,
-            issuer_country: item.issuer_country,
-            network_token_expiry_month: item.network_token_expiry_month,
-            network_token_expiry_year: item.network_token_expiry_year,
-            nick_name: item.nick_name,
-            card_holder_name: item.card_holder_name,
-            card_isin: item.card_isin,
-            card_issuer: item.card_issuer,
-            card_network: item.card_network,
-            card_type: item.card_type,
-            saved_to_locker: item.saved_to_locker,
         }
     }
 }

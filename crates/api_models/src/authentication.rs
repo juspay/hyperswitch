@@ -519,6 +519,9 @@ pub struct AuthenticationSyncResponse {
     #[schema(value_type = Option<String>)]
     pub directory_server_id: Option<String>,
 
+    /// The tokens for vaulted data
+    pub token_data: Option<AuthTokenData>,
+
     /// Billing address.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -580,6 +583,25 @@ pub struct AuthenticationSyncResponse {
     /// Profile Acquirer ID
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthTokenData {
+    /// Token id for network_token
+    #[schema(value_type = String)]
+    pub network_token: masking::Secret<String>,
+
+    /// Token id for tavv
+    #[schema(value_type = String)]
+    pub tavv: masking::Secret<String>,
+
+    /// Token id for token_expiration_month
+    #[schema(value_type = String)]
+    pub token_expiration_month: masking::Secret<String>,
+
+    /// Token id for token_expiration_year
+    #[schema(value_type = String)]
+    pub token_expiration_year: masking::Secret<String>,
 }
 
 #[cfg(feature = "v1")]

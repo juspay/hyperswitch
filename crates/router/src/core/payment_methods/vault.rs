@@ -1592,7 +1592,8 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
-            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. }
+            | types::VaultResponseData::ExternalVaultMultiTokenResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1953,7 +1954,8 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
             | types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
-            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. }
+            | types::VaultResponseData::ExternalVaultMultiTokenResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -2083,7 +2085,8 @@ pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
-            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. }
+            | types::VaultResponseData::ExternalVaultMultiTokenResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
