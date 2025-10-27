@@ -1973,7 +1973,7 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
-                amount_capturable
+                amount_capturable,
             },
             Self::PostSessionTokensUpdate {
                 updated_by,

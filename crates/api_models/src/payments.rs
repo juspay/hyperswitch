@@ -8530,7 +8530,7 @@ pub struct PaymentsManualUpdateRequest {
     pub error_reason: Option<String>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,
-    /// The amount that was requested to be captured for this payment
+    /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
 }
 
