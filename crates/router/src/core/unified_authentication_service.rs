@@ -893,24 +893,6 @@ impl
             None
         };
 
-        // let customer_details = customer_data
-        //     .map(|details| {
-        //         let customer_id = customer_id
-        //             .as_ref()
-        //             .ok_or(ApiErrorResponse::InternalServerError)
-        //             .attach_printable("Customer id not found in authentication create request")?;
-
-        //         Ok(CustomerDetails {
-        //             id: customer_id.clone(),
-        //             name: details.name,
-        //             email: details.email,
-        //             phone: details.phone,
-        //             phone_country_code: details.phone_country_code,
-        //             tax_registration_id: details.tax_registration_id,
-        //         })
-        //     })
-        //     .transpose()?;
-
         Ok(Self {
             authentication_id: authentication.authentication_id,
             client_secret: authentication
