@@ -11,10 +11,11 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
-            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData, SubscriptionPauseData, SubscriptionResumeData, SubscriptionCancelData,
+            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
             GetSubscriptionPlanPricesData, GetSubscriptionPlansData, GiftCardBalanceCheckFlowData,
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
-            SubscriptionCreateData, SubscriptionCustomerData, UasFlowData, VaultConnectorFlowData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
             WebhookSourceVerifyData,
         },
         RouterDataV2,

@@ -316,7 +316,7 @@ pub async fn get_subscription_plans() {}
 pub async fn get_estimate() {}
 
 /// Subscription - Pause Subscription
-/// 
+///
 /// Pause the subscription
 #[utoipa::path(
     post,
@@ -347,7 +347,7 @@ pub async fn get_estimate() {}
 pub async fn pause_subscription() {}
 
 /// Subscription - Resume Subscription
-/// 
+///
 /// Resume the subscription
 #[utoipa::path(
     post,
@@ -379,7 +379,7 @@ pub async fn pause_subscription() {}
 pub async fn resume_subscription() {}
 
 /// Subscription - Cancel Subscription
-/// 
+///
 /// Cancel the subscription
 #[utoipa::path(
     post,

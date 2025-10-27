@@ -12,14 +12,15 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-            InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData, SubscriptionCancelData, SubscriptionPauseData, SubscriptionResumeData,
+            InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
+            SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
         },
         UasFlowData,
     },
     router_flow_types::{
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate, SubscriptionCancel, SubscriptionPause, SubscriptionResume,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -30,7 +31,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest, SubscriptionCancelRequest, SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -43,7 +45,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionCancelResponse, SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         PaymentsResponseData,
     },

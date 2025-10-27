@@ -425,7 +425,9 @@ impl BillingHandler {
             account_receivables_handling: request.account_receivables_handling.clone(),
             cancel_option: request.cancel_option.clone(),
             cancel_reason_code: request.cancel_reason_code.clone(),
-            credit_option_for_current_term_charges: request.credit_option_for_current_term_charges.clone(),
+            credit_option_for_current_term_charges: request
+                .credit_option_for_current_term_charges
+                .clone(),
             refundable_credits_handling: request.refundable_credits_handling.clone(),
             unbilled_charges_option: request.unbilled_charges_option.clone(),
         };

@@ -1,5 +1,4 @@
-use api_models::payments::Address;
-use api_models::subscription;
+use api_models::{payments::Address, subscription};
 use common_utils::id_type;
 
 use crate::connector_endpoints;
