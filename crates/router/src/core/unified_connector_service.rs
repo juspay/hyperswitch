@@ -414,9 +414,24 @@ fn decide_execution_path(
             ExecutionPath::ShadowUnifiedConnectorService,
         )),
 
-        // Case 9: UcsConnector with no previous gateway (regardless of shadow rollout)
+        // Case 9a: UcsConnector with no previous gateway and shadow rollout enabled
+        // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
+        (
+            ConnectorIntegrationType::UcsConnector,
+            None,
+            ShadowRolloutAvailability::IsAvailable,
+        ) => Ok((
+            GatewaySystem::UnifiedConnectorService,
+            ExecutionPath::ShadowUnifiedConnectorService,
+        )),
+
+        // Case 9b: UcsConnector with no previous gateway and no shadow rollout
         // Fresh payment for a UCS-enabled connector - use UCS as primary
-        (ConnectorIntegrationType::UcsConnector, None, _) => Ok((
+        (
+            ConnectorIntegrationType::UcsConnector,
+            None,
+            ShadowRolloutAvailability::NotAvailable,
+        ) => Ok((
             GatewaySystem::UnifiedConnectorService,
             ExecutionPath::UnifiedConnectorService,
         )),
