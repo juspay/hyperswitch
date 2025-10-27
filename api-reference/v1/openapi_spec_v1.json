@@ -8914,6 +8914,136 @@
           "expired"
         ]
       },
+      "AuthenticationAuthenticateRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for the authentication"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+          }
+        }
+      },
+      "AuthenticationAuthenticateResponse": {
+        "type": "object",
+        "required": [
+          "three_ds_requestor_url",
+          "error_message",
+          "error_code",
+          "authentication_value",
+          "status",
+          "authentication_id",
+          "eci"
+        ],
+        "properties": {
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/url.Url"
+              }
+            ],
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
+            "nullable": true
+          },
+          "three_ds_server_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "Contains the JWS object created by the ACS for the ARes(Authentication Response) message",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication."
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_id": {
+            "$ref": "#/components/schemas/AuthenticationId"
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI value for this authentication."
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AuthenticationConnectorDetails": {
         "type": "object",
         "required": [
@@ -9295,6 +9425,80 @@
           }
         }
       },
+      "AuthenticationSessionResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "session_token"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "session_token": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationSessionToken"
+            },
+            "description": "The list of session token object"
+          }
+        }
+      },
+      "AuthenticationSessionToken": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_name"
+            ],
+            "properties": {
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "no_session_token_received"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "wallet_name"
+        }
+      },
+      "AuthenticationSessionTokenRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret for the authentication"
+          }
+        }
+      },
       "AuthenticationStatus": {
         "type": "string",
         "enum": [
@@ -9303,6 +9507,9 @@
           "success",
           "failed"
         ]
+      },
+      "AuthenticationSyncPostUpdateRequest": {
+        "type": "object"
       },
       "AuthenticationSyncRequest": {
         "type": "object",
@@ -12785,6 +12992,39 @@
           "revert_transfer": {
             "type": "boolean",
             "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        }
+      },
+      "ClickToPayDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "encrypted_payload": {
+            "type": "string",
+            "description": "Encrypted payload",
             "nullable": true
           }
         }
@@ -30010,6 +30250,21 @@
           "completed",
           "not_found"
         ]
+      },
+      "PostAuthenticationRequestPaymentMethodData": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
+          }
+        }
       },
       "PrimaryBusinessDetails": {
         "type": "object",
