@@ -133,7 +133,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if matches!(payment_method_data, PaymentMethodData::Card(_))
+        if matches!(item.router_data.request.payment_method_data, PaymentMethodData::Card(_))
             && matches!(item.router_data.auth_type, enums::AuthenticationType::ThreeDs)
         {
             return Err(ConnectorError::NotImplemented(
