@@ -7006,7 +7006,7 @@ pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) 
     let len = rng.gen_range(min_len..=max_len);
 
     (0..len)
-        .map(|_| rng.gen_range(b'0'..=b'9') as char)
+        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
         .collect()
 }
 

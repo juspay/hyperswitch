@@ -227,39 +227,58 @@ pub struct SantanderBoletoPaymentRequest {
     pub nsu_date: String,
     pub covenant_code: String,
     pub bank_number: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_number: Option<common_utils::id_type::CustomerId>,
     pub due_date: String,
     pub issue_date: String,
     pub nominal_value: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub participant_code: Option<String>,
     pub payer: responses::Payer,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub beneficiary: Option<responses::Beneficiary>,
     pub document_kind: responses::BoletoDocumentKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Discount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fine_percentage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fine_quantity_days: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub interest_percentage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deduction_value: Option<FloatMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protest_type: Option<ProtestType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protest_quantity_days: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub write_off_quantity_days: Option<String>,
     pub payment_type: responses::PaymentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parcels_quantity: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_value_or_percentage: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_value_or_percentage: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iof_percentage: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<responses::Sharing>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<responses::Key>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tx_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub messages: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
 pub enum Environment {
-    #[serde(rename = "Teste")]
+    #[serde(rename = "TESTE")]
     Sandbox,
-    #[serde(rename = "Producao")]
+    #[serde(rename = "PRODUCAO")]
     Production,
 }

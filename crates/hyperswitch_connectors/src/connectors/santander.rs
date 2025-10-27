@@ -276,6 +276,7 @@ where
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "access_token",
                 })?;
+        let connector_req = SantanderAuthRequest::try_from(&req.connector_auth_type)?;
 
         let header = vec![
             (
@@ -285,6 +286,10 @@ where
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
+            ),
+            (
+                headers::X_APPLICATION_KEY.to_string(),
+                connector_req.client_id.peek().to_owned().into(),
             ),
         ];
 
@@ -383,7 +388,9 @@ impl ConnectorCommon for Santander {
                     })
                 }
                 SantanderGenericErrorResponse::Pattern2(response) => {
-                    let message = response.details.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+                    let message = response
+                        .details
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -591,18 +598,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => {
-                    let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "secondary_base_url for Santander",
-                        },
-                    )?;
+                    let secondary_base_url =
+                        connectors.santander.secondary_base_url.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "secondary_base_url for Santander",
+                            },
+                        )?;
                     Ok(format!(
-                        "{}/collection_bill_management/{}/workspaces/{}/bank_slips",
+                        "{}collection_bill_management/{}/workspaces/{}/bank_slips",
                         secondary_base_url,
                         santander_constants::SANTANDER_VERSION,
                         santander_mca_metadata.workspace_id
                     ))
-                },
+                }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -641,7 +649,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Put)
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)

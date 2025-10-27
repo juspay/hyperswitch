@@ -43,10 +43,10 @@ use crate::{
         },
         responses::{
             BoletoDocumentKind, FunctionType, Payer, PaymentType, SanatanderAccessTokenResponse,
-            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderPixVoidResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderVoidStatus, SantanderWebhookBody, SanatanderTokenResponse
+            SanatanderTokenResponse, SantanderPaymentStatus, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderPixVoidResponse, SantanderRefundResponse,
+            SantanderRefundStatus, SantanderVoidStatus, SantanderWebhookBody,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -250,6 +250,20 @@ impl TryFrom<&RefreshTokenRouterData> for SantanderAuthRequest {
     }
 }
 
+impl TryFrom<&ConnectorAuthType> for SantanderAuthRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(connector_auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        let auth_details = SantanderAuthType::try_from(connector_auth_type)?;
+
+        Ok(Self {
+            client_id: auth_details.client_id,
+            client_secret: auth_details.client_secret,
+            grant_type: SantanderGrantType::ClientCredentials,
+        })
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, SanatanderAccessTokenResponse, T, AccessToken>>
     for RouterData<F, T, AccessToken>
 {
@@ -425,8 +439,9 @@ impl
                 ),
                 neighborhood: value.0.router_data.get_billing_line1()?,
                 city: value.0.router_data.get_billing_city()?,
-                state: value.0.router_data.get_billing_state()?,
-                zipcode: value.0.router_data.get_billing_zip()?, // zip format: 05134-897
+                // state: value.0.router_data.get_billing_state()?,
+                state: Secret::new(String::from("SP")),
+                zip_code: value.0.router_data.get_billing_zip()?, // zip format: 05134-897
             },
             beneficiary: None,
             document_kind: BoletoDocumentKind::DuplicateMercantil, // Need confirmation
@@ -771,13 +786,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             }
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let voucher_data = VoucherNextStepData {
-                    expires_at: None,
+                    expires_at: Some(boleto_data.due_date
+                        .parse::<i64>()
+                        .map_err(|_| errors::ConnectorError::ParsingFailed)?),
                     digitable_line: boleto_data.digitable_line.clone(),
-                    reference: boleto_data.barcode.ok_or(
-                        errors::ConnectorError::MissingConnectorRedirectionPayload {
-                            field_name: "barcode",
-                        },
-                    )?,
+                    reference: boleto_data.nsu_code,
                     entry_date: boleto_data.entry_date,
                     download_url: None,
                     instructions_url: None,

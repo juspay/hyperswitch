@@ -14,7 +14,7 @@ pub struct Payer {
     pub neighborhood: Secret<String>,
     pub city: String,
     pub state: Secret<String>,
-    pub zipcode: Secret<String>,
+    pub zip_code: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +115,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentsResponse {
     pub environment: requests::Environment,
     pub nsu_code: String,
@@ -133,16 +134,16 @@ pub struct SantanderBoletoPaymentsResponse {
     pub fine_percentage: Option<String>,
     pub fine_quantity_days: Option<String>,
     pub interest_percentage: Option<String>,
-    pub deduction_value: Option<FloatMajorUnit>,
+    pub deduction_value: Option<String>,
     pub protest_type: Option<requests::ProtestType>,
-    pub protest_quantity_days: Option<i64>,
+    pub protest_quantity_days: Option<String>,
     pub write_off_quantity_days: Option<String>,
     pub payment_type: PaymentType,
-    pub parcels_quantity: Option<i64>,
+    pub parcels_quantity: Option<String>,
     pub value_type: Option<String>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub iof_percentage: Option<f64>,
+    pub min_value_or_percentage: Option<String>,
+    pub max_value_or_percentage: Option<String>,
+    pub iof_percentage: Option<String>,
     pub sharing: Option<Sharing>,
     pub key: Option<Key>,
     pub tx_id: Option<String>,
@@ -354,7 +355,7 @@ pub enum SantanderErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderGenericErrorResponse {
+pub enum  SantanderGenericErrorResponse {
     Pattern1(SantanderPattern1ErrorResponse),
     Pattern2(SantanderPattern2ErrorResponse),
     Pattern3(SantanderPattern3ErrorResponse),
@@ -418,7 +419,7 @@ pub struct SantanderPattern2ErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorObject {
     #[serde(rename = "_code")]
-    pub code: Option<i64>,
+    pub code: Option<String>,
     #[serde(rename = "_field")]
     pub field: Option<String>,
     #[serde(rename = "_message")]
