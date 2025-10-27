@@ -211,23 +211,6 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .and_then(|payment_method_type| {
-                router_data
-                    .request
-                    .payment_method_data
-                    .clone()
-                    .map(|payment_method_data| {
-                        unified_connector_service::build_unified_connector_service_payment_method(
-                            payment_method_data,
-                            payment_method_type,
-                        )
-                    })
-            })
-            .transpose()?;
-
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
@@ -243,7 +226,7 @@ impl
                 .minor_amount
                 .map(|amount| amount.get_amount_as_i64())
                 .unwrap_or(0),
-            payment_method,
+            payment_method: None,
             email: router_data
                 .request
                 .email
@@ -251,10 +234,10 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None, // PaymentsPostAuthenticateData doesn't have customer_name
             address: Some(address),
-            authentication_data: None, // PaymentsPostAuthenticateData doesn't have authentication_data field
-            metadata: HashMap::new(),  // PaymentsPostAuthenticateData doesn't have metadata
-            return_url: router_data.request.router_return_url.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            authentication_data: None,
+            metadata: HashMap::new(),
+            return_url: None,
+            continue_redirection_url: None,
             access_token: None,
             browser_info: router_data
                 .request

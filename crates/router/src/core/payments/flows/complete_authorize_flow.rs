@@ -7,6 +7,7 @@ use external_services::grpc_client;
 use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -249,7 +250,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     self,
                     state,
                     header_payload,
-                    lineage_ids,
+                    lineage_ids.clone(),
                     merchant_connector_account.clone(),
                     merchant_context,
                     connector_data,
@@ -299,20 +300,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_preprocessing_through_unified_connector_service(
-    router_data: types::RouterData<
+    mut router_data: types::RouterData<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
         types::PaymentsResponseData,
     >,
-    _state: &SessionState,
-    _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    _lineage_ids: &grpc_client::LineageIds,
-    #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    _merchant_context: &domain::MerchantContext,
+    state: &SessionState,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    lineage_ids: grpc_client::LineageIds,
+    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    merchant_context: &domain::MerchantContext,
     _connector_data: &api::ConnectorData,
-    _unified_connector_service_execution_mode: common_enums::ExecutionMode,
-    _merchant_order_reference_id: Option<String>,
+    unified_connector_service_execution_mode: common_enums::ExecutionMode,
+    merchant_order_reference_id: Option<String>,
     preprocessing_flow_name: api_interface::PreProcessingFlowName,
 ) -> RouterResult<
     types::RouterData<
@@ -323,11 +324,85 @@ async fn handle_preprocessing_through_unified_connector_service(
 > {
     match preprocessing_flow_name {
         api_interface::PreProcessingFlowName::Authenticate => {
+            // Convert CompleteAuthorize to Authenticate for UCS call
+            let complete_authorize_request_data = router_data.request.clone();
+            let authenticate_request_data =
+                types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
+            let authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let mut authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::Authenticate, _, _, _, _>(
+                    router_data.clone(),
+                    authenticate_request_data,
+                    authenticate_response_data,
+                );
+
             // Call UCS for Authenticate flow
+            call_unified_connector_service_authenticate(
+                &mut authenticate_router_data,
+                state,
+                header_payload,
+                lineage_ids,
+                merchant_connector_account,
+                merchant_context,
+                unified_connector_service_execution_mode,
+                merchant_order_reference_id,
+            )
+            .await?;
+
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let authenticate_response = authenticate_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    authenticate_router_data,
+                    complete_authorize_request_data,
+                    authenticate_response,
+                );
+            router_data = complete_authorize_router_data;
+
             Ok(router_data)
         }
         api_interface::PreProcessingFlowName::PostAuthenticate => {
+            // Convert CompleteAuthorize to PostAuthenticate for UCS call
+            let complete_authorize_request_data = router_data.request.clone();
+            let post_authenticate_request_data =
+                types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
+            let post_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let mut post_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+                    router_data.clone(),
+                    post_authenticate_request_data,
+                    post_authenticate_response_data,
+                );
+
             // Call UCS for PostAuthenticate flow
+            call_unified_connector_service_post_authenticate(
+                &mut post_authenticate_router_data,
+                state,
+                header_payload,
+                lineage_ids,
+                merchant_connector_account,
+                merchant_context,
+                unified_connector_service_execution_mode,
+                merchant_order_reference_id,
+            )
+            .await?;
+
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let post_authenticate_response = post_authenticate_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    post_authenticate_router_data,
+                    complete_authorize_request_data,
+                    post_authenticate_response,
+                );
+            router_data = complete_authorize_router_data;
+
             Ok(router_data)
         }
     }
@@ -415,7 +490,7 @@ async fn call_unified_connector_service_authenticate(
             router_data.raw_connector_response = payment_authenticate_response
                 .raw_connector_response
                 .clone()
-                .map(masking::Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_authenticate_response))
@@ -510,7 +585,7 @@ async fn call_unified_connector_service_post_authenticate(
             router_data.raw_connector_response = payment_post_authenticate_response
                 .raw_connector_response
                 .clone()
-                .map(masking::Secret::new);
+                .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
             Ok((router_data, payment_post_authenticate_response))
