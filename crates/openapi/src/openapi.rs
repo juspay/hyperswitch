@@ -904,6 +904,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::subscription::EstimateSubscriptionResponse,
         api_models::subscription::GetPlansQuery,
         api_models::subscription::EstimateSubscriptionQuery,
+        api_models::subscription::ConfirmSubscriptionResponse,
         api_models::subscription::ConfirmSubscriptionPaymentDetails,
         api_models::subscription::PaymentDetails,
         api_models::subscription::CreateSubscriptionPaymentDetails,
@@ -911,7 +912,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::subscription::SubscriptionPlanPrices,
         api_models::subscription::PaymentResponseData,
         api_models::subscription::Invoice,
-        api_models::subscription::SubscriptionStatus,
+        api_models::enums::SubscriptionStatus,
         api_models::subscription::PeriodUnit,
     )),
     modifiers(&SecurityAddon)
