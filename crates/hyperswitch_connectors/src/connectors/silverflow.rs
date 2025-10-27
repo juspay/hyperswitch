@@ -360,8 +360,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         router_env::logger::info!(connector_response=?response);
         let response_integrity_object = utils::get_authorise_integrity_object(
             self.amount_converter,
-            response.amount.value,
-            response.amount.currency.clone(),
+            data.request.minor_amount,
+            data.request.currency.to_string(),
         )?;
         let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
@@ -446,8 +446,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
         router_env::logger::info!(connector_response=?response);
         let response_integrity_object = utils::get_sync_integrity_object(
             self.amount_converter,
-            response.amount.value,
-            response.amount.currency.clone(),
+            data.request.amount,
+            data.request.currency.to_string(),
         )?;
         let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
@@ -708,8 +708,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
         router_env::logger::info!(connector_response=?response);
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
-            response.amount.value,
-            response.amount.currency.clone(),
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
         )?;
         let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
@@ -795,8 +795,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
         router_env::logger::info!(connector_response=?response);
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
-            response.amount.value,
-            response.amount.currency.clone(),
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
         )?;
         let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
