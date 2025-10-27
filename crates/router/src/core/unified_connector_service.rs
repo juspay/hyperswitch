@@ -50,7 +50,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                self, is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
                 ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
@@ -76,6 +76,25 @@ type UnifiedConnectorServiceResult = CustomResult<
     ),
     UnifiedConnectorServiceError,
 >;
+
+/// Gets the rollout percentage for a given config key
+async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+    let db = state.store.as_ref();
+    
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                Ok(config) => Some(config.rollout_percent),
+                Err(_) => {
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>().ok()
+                }
+            }
+        }
+        Err(_) => None,
+    }
+}
 
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
@@ -184,25 +203,23 @@ where
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    // Check rollout keys with priority: rollout_key takes precedence over shadow_rollout_key
+    // Check both rollout keys to determine priority based on shadow percentage
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-
-    let shadow_rollout_availability = if rollout_result.should_execute {
-        // rollout_key is present and enabled, use it (ignore shadow_rollout_key)
-        router_env::logger::debug!(
-            "rollout_key is present and enabled, prioritizing it over shadow_rollout_key"
-        );
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    
+    // Get shadow percentage to determine priority
+    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key).await.unwrap_or(0.0);
+    
+    let shadow_rollout_availability = if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
+        // Shadow is present and percentage is non-zero, use shadow
+        router_env::logger::debug!( shadow_percentage = shadow_percentage, "Shadow rollout is present with non-zero percentage, using shadow" );
+        ShadowRolloutAvailability::IsAvailable
+    } else if rollout_result.should_execute {
+        // Either shadow is 0.0 or not present, use rollout if available
+        router_env::logger::debug!( shadow_percentage = shadow_percentage, "Shadow rollout is 0.0 or not present, using rollout" );
         ShadowRolloutAvailability::IsAvailable
     } else {
-        // rollout_key is not enabled, check shadow_rollout_key
-        let shadow_rollout_result =
-            should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
-        if shadow_rollout_result.should_execute {
-            router_env::logger::debug!("rollout_key not enabled, using shadow_rollout_key");
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            ShadowRolloutAvailability::NotAvailable
-        }
+        ShadowRolloutAvailability::NotAvailable
     };
 
     // Single decision point using pattern matching
