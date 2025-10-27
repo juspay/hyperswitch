@@ -166,7 +166,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<ExecutionPath>
+) -> RouterResult<(ExecutionPath, SessionState)>
 where
     D: OperationSessionGetters<F>,
 {
@@ -269,14 +269,7 @@ where
         }
     };
 
-    router_env::logger::info!(
-        "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
-        execution_path,
-        merchant_id,
-        connector_name,
-        payment_method,
-        flow_name
-    );
+    router_env::logger::info!( "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}", execution_path, merchant_id, connector_name, payment_method, flow_name );
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
