@@ -9317,6 +9317,23 @@
           }
         }
       },
+      "AuthenticationId": {
+        "type": "string",
+        "description": "A type for authentication_id that can be used for authentication IDs"
+      },
+      "AuthenticationPaymentMethodData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClickToPayDetails"
+          }
+        ]
+      },
+      "AuthenticationPaymentMethodType": {
+        "type": "string",
+        "enum": [
+          "ctp"
+        ]
+      },
       "AuthenticationResponse": {
         "type": "object",
         "required": [
