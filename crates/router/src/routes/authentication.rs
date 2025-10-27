@@ -179,15 +179,11 @@ pub async fn authentication_eligibility_check(
 pub async fn authentication_retrieve_eligibility_check(
     state: web::Data<app::AppState>,
     req: HttpRequest,
-    json_payload: web::Json<AuthenticationRetrieveEligibilityCheckRequest>,
     path: web::Path<common_utils::id_type::AuthenticationId>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationRetrieveEligibilityCheck;
     let authentication_id = path.into_inner();
-    let payload = AuthenticationRetrieveEligibilityCheckRequest {
-        authentication_id,
-        ..json_payload.into_inner()
-    };
+    let payload = AuthenticationRetrieveEligibilityCheckRequest { authentication_id };
 
     Box::pin(api::server_wrap(
         flow,

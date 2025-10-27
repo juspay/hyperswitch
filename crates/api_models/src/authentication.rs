@@ -360,6 +360,7 @@ pub struct AuthenticationRetrieveEligibilityCheckResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
 pub enum AuthenticationEligibilityCheckData {
     ClickToPay(ClickToPayEligibilityCheckData),
 }
@@ -368,8 +369,10 @@ pub enum AuthenticationEligibilityCheckData {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ClickToPayEligibilityCheckData {
     // Visa specific eligibility check data
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub visa: Option<VisaEligibilityCheckData>,
     // MasterCard specific eligibility check data
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mastercard: Option<MasterCardEligibilityCheckData>,
 }
 
@@ -381,8 +384,10 @@ pub struct VisaEligibilityCheckData {
     #[serde(rename = "consumerPresent1")]
     pub consumer_present: bool,
     // Status of the consumer in Visa Secure program]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub consumer_status: Option<String>,
     // Additional data for eligibility check
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
@@ -393,9 +398,11 @@ pub struct MasterCardEligibilityCheckData {
     // Indicates whether the consumer is enrolled in MasterCard Identity Check program
     pub consumer_present: bool,
     // Session ID from MasterCard Identity Check program
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id_lookup_session_id: Option<String>,
     // Timestamp of the last time the card was used
-    pub last_used_card_timestamp: Option<PrimitiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_used_card_timestamp: Option<String>,
 }
 
 #[cfg(feature = "v1")]
