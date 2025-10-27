@@ -7939,6 +7939,17 @@
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Passthrough"
+            ],
+            "properties": {
+              "Passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -12959,6 +12970,74 @@
           }
         }
       },
+      "ConfirmSubscriptionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "profile_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated subscription plan.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription.",
+            "nullable": true
+          },
+          "coupon": {
+            "type": "string",
+            "description": "Optional coupon code applied to this subscription.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "payment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerId"
+              }
+            ],
+            "nullable": true
+          },
+          "invoice": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Invoice"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_subscription_id": {
+            "type": "string",
+            "description": "Billing Processor subscription ID.",
+            "nullable": true
+          }
+        }
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -16065,7 +16144,8 @@
           "refunds",
           "disputes",
           "mandates",
-          "payouts"
+          "payouts",
+          "subscriptions"
         ]
       },
       "EventListConstraints": {
@@ -16262,7 +16342,8 @@
           "payout_processing",
           "payout_cancelled",
           "payout_expired",
-          "payout_reversed"
+          "payout_reversed",
+          "invoice_paid"
         ]
       },
       "ExtendedCardInfo": {
@@ -18389,6 +18470,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "billing_processor_invoice_id": {
+            "type": "string",
+            "description": "billing processor invoice id",
+            "nullable": true
           }
         }
       },
@@ -21637,6 +21723,25 @@
                 "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "ConfirmSubscriptionResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "subscription_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/ConfirmSubscriptionResponse"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -21734,6 +21839,41 @@
             "description": "Error message in case any error occurred when trying to deliver the webhook.",
             "example": 200,
             "nullable": true
+          }
+        }
+      },
+      "Passthrough": {
+        "type": "object",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "PSP token generated for the payout method",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PassthroughAddtionalData": {
+        "type": "object",
+        "description": "additional payout method details for passthrough payout method",
+        "required": [
+          "psp_token",
+          "token_type"
+        ],
+        "properties": {
+          "psp_token": {
+            "type": "string",
+            "description": "Psp_token of the passthrough flow",
+            "example": "token_12345"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },
@@ -28992,6 +29132,17 @@
                 "$ref": "#/components/schemas/BankRedirect"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/Passthrough"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -29039,6 +29190,17 @@
             "properties": {
               "bank_redirect": {
                 "$ref": "#/components/schemas/BankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "passthrough"
+            ],
+            "properties": {
+              "passthrough": {
+                "$ref": "#/components/schemas/PassthroughAddtionalData"
               }
             }
           }
