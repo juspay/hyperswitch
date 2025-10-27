@@ -14,7 +14,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
