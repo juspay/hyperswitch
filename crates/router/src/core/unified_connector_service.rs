@@ -63,7 +63,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::{api, transformers::ForeignTryFrom},
+    types::transformers::ForeignTryFrom,
 };
 
 pub mod transformers;
@@ -658,63 +658,6 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
     }
 }
 
-/// Builds connector auth metadata from router data
-fn build_connector_auth_metadata_from_router_data<F>(
-    router_data: &RouterData<F, RefundsData, RefundsResponseData>,
-    connector_name: String,
-) -> RouterResult<ConnectorAuthMetadata> {
-    use hyperswitch_domain_models::router_data::ConnectorAuthType;
-
-    let auth_type = &router_data.connector_auth_type;
-
-    let auth_type_string = match auth_type {
-        ConnectorAuthType::HeaderKey { .. } => consts::UCS_AUTH_HEADER_KEY,
-        ConnectorAuthType::BodyKey { .. } => consts::UCS_AUTH_BODY_KEY,
-        ConnectorAuthType::SignatureKey { .. } => consts::UCS_AUTH_SIGNATURE_KEY,
-        ConnectorAuthType::CurrencyAuthKey { .. } => consts::UCS_AUTH_CURRENCY_AUTH_KEY,
-        _ => {
-            return Err(
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unsupported auth type for UCS refund"),
-            );
-        }
-    };
-
-    let api_key = match auth_type {
-        ConnectorAuthType::HeaderKey { api_key }
-        | ConnectorAuthType::BodyKey { api_key, .. }
-        | ConnectorAuthType::SignatureKey { api_key, .. } => Some(api_key.clone()),
-        _ => None,
-    };
-
-    let key1 = match auth_type {
-        ConnectorAuthType::BodyKey { key1, .. } | ConnectorAuthType::SignatureKey { key1, .. } => {
-            Some(key1.clone())
-        }
-        _ => None,
-    };
-
-    let api_secret = match auth_type {
-        ConnectorAuthType::SignatureKey { api_secret, .. } => Some(api_secret.clone()),
-        _ => None,
-    };
-
-    let auth_key_map = match auth_type {
-        ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Some(auth_key_map.clone()),
-        _ => None,
-    };
-
-    Ok(ConnectorAuthMetadata {
-        connector_name,
-        auth_type: auth_type_string.to_string(),
-        api_key,
-        key1,
-        api_secret,
-        auth_key_map,
-        merchant_id: Secret::new(router_data.merchant_id.get_string_repr().to_string()),
-    })
-}
-
 /// Gets the UCS client from session state
 fn get_ucs_client(
     state: &SessionState,
@@ -1262,22 +1205,21 @@ where
     RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => Secret::new(data),
-        Err(_) => {
-            logger::debug!("Failed to serialize HS router data");
-            return Ok(());
-        }
-    };
 
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => Secret::new(data),
-            Err(_) => {
-                logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
+    let [hyperswitch_data, unified_connector_service_data] = [
+        (hyperswitch_router_data, "hyperswitch"),
+        (unified_connector_service_router_data, "ucs"),
+    ]
+    .map(|(data, source)| {
+        serde_json::to_value(data)
+            .map(Secret::new)
+            .unwrap_or_else(|e| {
+                Secret::new(serde_json::json!({
+                    "error": e.to_string(),
+                    "source": source
+                }))
+            })
+    });
 
     let comparison_data = ComparisonData {
         hyperswitch_data,
@@ -1335,19 +1277,20 @@ pub async fn send_comparison_data(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
-    connector: &api::ConnectorData,
     merchant_context: &MerchantContext,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
     // Get UCS client
     let ucs_client = get_ucs_client(state)?;
 
-    // Build auth metadata using helper function
-    let connector_auth_metadata = build_connector_auth_metadata_from_router_data(
-        &router_data,
-        connector.connector_name.to_string(),
-    )?;
+    // Build auth metadata using standard UCS function
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
     // Transform router data to UCS refund request
     let ucs_refund_request =
@@ -1404,19 +1347,20 @@ pub async fn call_unified_connector_service_for_refund_execute(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
-    connector: &api::ConnectorData,
     merchant_context: &MerchantContext,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
     // Get UCS client
     let ucs_client = get_ucs_client(state)?;
 
-    // Build auth metadata using helper function
-    let connector_auth_metadata = build_connector_auth_metadata_from_router_data(
-        &router_data,
-        connector.connector_name.to_string(),
-    )?;
+    // Build auth metadata using standard UCS function
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build UCS auth metadata for refund sync")?;
 
     // Transform router data to UCS refund sync request
     let ucs_refund_sync_request =

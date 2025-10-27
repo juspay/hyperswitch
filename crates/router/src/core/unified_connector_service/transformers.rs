@@ -27,7 +27,6 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
-use serde_json;
 use unified_connector_service_client::payments::{
     self as payments_grpc, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
@@ -1463,7 +1462,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             refund_id: router_data.request.refund_id.clone(),
             transaction_id: Some(transaction_id),
             payment_amount: router_data.request.payment_amount,
-            currency: currency as i32,
+            currency: currency.into(),
             minor_payment_amount: router_data.request.minor_payment_amount.get_amount_as_i64(),
             refund_amount: router_data.request.refund_amount,
             minor_refund_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
@@ -1484,7 +1483,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                         "Failed to convert capture method".to_string(),
                     )
                 })?
-                .map(|cm| cm as i32),
+                .map(i32::from),
             metadata,
             refund_metadata,
             browser_info: router_data
