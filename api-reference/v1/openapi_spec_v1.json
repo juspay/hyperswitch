@@ -22381,7 +22381,7 @@
             ],
             "nullable": true
           },
-          "payment_token": {
+          "payment_method_id": {
             "type": "string",
             "nullable": true
           }
