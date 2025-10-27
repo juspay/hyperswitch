@@ -622,7 +622,7 @@ pub struct PaymentsPreAuthenticateData {
     pub browser_info: Option<BrowserInformation>,
     pub enrolled_for_3ds: bool,
     pub customer_name: Option<Secret<String>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -634,7 +634,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             customer_name: data.customer_name,
-            metadata: data.metadata,
+            metadata: data.metadata.map(Secret::new),
             amount: data.amount,
             minor_amount: data.minor_amount,
             email: data.email,

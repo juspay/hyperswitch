@@ -139,7 +139,7 @@ impl
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.as_object())
+            .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
                     .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
