@@ -330,8 +330,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 // Extract and store access token if present
                 if let Some(access_token) =
                     crate::core::unified_connector_service::get_access_token_from_ucs_response(
+                        state,
+                        merchant_context,
+                        &connector_name,
+                        merchant_connector_account.get_mca_id().as_ref(),
+                        creds_identifier.clone(),
                         payment_get_response.state.as_ref(),
                     )
+                    .await
                 {
                     if let Err(error) =
                         crate::core::unified_connector_service::set_access_token_for_ucs(
