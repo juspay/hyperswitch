@@ -628,6 +628,10 @@ impl RedisTokenManager {
                 daily_retry_history: status.daily_retry_history.clone(),
                 scheduled_at: None,
                 is_hard_decline: status.is_hard_decline,
+                modified_at: Some(PrimitiveDateTime::new(
+                    OffsetDateTime::now_utc().date(),
+                    OffsetDateTime::now_utc().time(),
+                )),
             };
             updated_tokens_map.insert(token_id, updated_status);
         }
@@ -818,7 +822,7 @@ impl RedisTokenManager {
                 if t.is_hard_decline.unwrap_or(false) {
                     // Update the schedule time to None for hard declined tokens
 
-                    logger::info!(
+                    logger::warn!(
                         connector_customer_id = connector_customer_id,
                         "Token is hard declined, setting schedule time to None"
                     );
