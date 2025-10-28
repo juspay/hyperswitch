@@ -44,8 +44,8 @@ pub struct PlaidPaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PlaidAmount {
-    currency: Currency,
-    value: FloatMajorUnit,
+    pub currency: Currency,
+    pub value: FloatMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -286,6 +286,7 @@ impl From<PlaidPaymentStatus> for AttemptStatus {
 pub struct PlaidPaymentsResponse {
     status: PlaidPaymentStatus,
     payment_id: String,
+    pub amount: PlaidAmount,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsResponseData>>
@@ -319,7 +320,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     ),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata: Some(serde_json::json!(item.response.amount)),
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
