@@ -1924,6 +1924,8 @@ pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     transaction_status: SyncStatus,
+    response_reason_code: Option<String>,
+    response_reason_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2014,6 +2016,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
         match item.response.transaction {
             Some(transaction) => {
                 let payment_status = enums::AttemptStatus::from(transaction.transaction_status);
+                if utils::is_payment_failure(payment_status) {
                 Ok(Self {
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
@@ -2031,15 +2034,35 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                     ..item.data
                 })
             }
+            else {
+                    Ok(Self {
+                        status: payment_status,
+                        response:  Ok(ErrorResponse {
+                            code: transaction.response_reason_code.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                            message:  transaction.response_reason_description.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string())
+                            reason:  transaction.response_reason_description.clone(),
+                            status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
 
             // E00053 indicates "server too busy"
-            // If the server is too busy, we return the already available data
+            // E00104 indicates "Server in maintenance"
+            // If the server is too busy or Server in maintenance, we return the already available data
             None => match item
                 .response
                 .messages
                 .message
                 .iter()
-                .find(|msg| msg.code == "E00053")
+                .find(|msg| msg.code == "E00053" |  msg.code == "E00104" )
             {
                 Some(_) => Ok(item.data),
                 None => Ok(Self {
