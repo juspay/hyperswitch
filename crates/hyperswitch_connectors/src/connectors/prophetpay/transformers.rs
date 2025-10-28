@@ -172,6 +172,8 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayTokenResponse {
     hosted_tokenize_id: Secret<String>,
+    pub amount : i64,
+    pub currency : enums::Currency,
 }
 
 impl<F>
@@ -203,13 +205,24 @@ impl<F>
         )
         .ok();
 
+        let mut metadata_map = serde_json::Map::new();
+        metadata_map.insert(
+            "amount".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(item.response.amount)),
+        );
+        metadata_map.insert(
+            "currency".to_string(),
+            serde_json::Value::String(item.response.currency.to_string()),
+        );
+        let connector_metadata = Some(serde_json::Value::Object(metadata_map));
+
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
@@ -369,6 +382,8 @@ pub struct ProphetpayCompleteAuthResponse {
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
     pub response_code: String,
+    pub amount : i64,
+    pub currency : enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -400,7 +415,25 @@ impl<F>
             let card_token_data = ProphetpayCardTokenData {
                 card_token: Secret::from(card_token),
             };
-            let connector_metadata = serde_json::to_value(card_token_data).ok();
+            let mut metadata_map = serde_json::Map::new();
+            if let Ok(serialized) = serde_json::to_value(&card_token_data) {
+                if let serde_json::Value::Object(map) = serialized {
+                    for (k, v) in map {
+                        metadata_map.insert(k, v);
+                    }
+                }
+            }
+            metadata_map.insert(
+                "amount".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(item.response.amount)),
+            );
+            metadata_map.insert(
+                "currency".to_string(),
+                serde_json::Value::String(item.response.currency.to_string()),
+            );
+
+            let connector_metadata = Some(serde_json::Value::Object(metadata_map));
+
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -443,6 +476,8 @@ pub struct ProphetpaySyncResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
+    pub amount : i64,
+    pub currency : enums::Currency,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResponseData>>
@@ -453,13 +488,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
         item: ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
+            let mut metadata_map = serde_json::Map::new();
+            metadata_map.insert(
+                "amount".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(item.response.amount)),
+            );
+            metadata_map.insert(
+                "currency".to_string(),
+                serde_json::Value::String(item.response.currency.to_string()),
+            );
+            let connector_metadata = Some(serde_json::Value::Object(metadata_map));
+
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
@@ -609,6 +655,8 @@ pub struct ProphetpayRefundResponse {
     pub success: bool,
     pub response_text: String,
     pub tran_seq_number: Option<String>,
+    pub amount : i64,
+    pub currency : enums::Currency,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
@@ -619,6 +667,17 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
         item: RefundsResponseRouterData<Execute, ProphetpayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
+            let mut metadata_map = serde_json::Map::new();
+            metadata_map.insert(
+                "amount".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(item.response.amount)),
+            );
+            metadata_map.insert(
+                "currency".to_string(),
+                serde_json::Value::String(item.response.currency.to_string()),
+            );
+            let connector_metadata = Some(serde_json::Value::Object(metadata_map));
+
             Ok(Self {
                 response: Ok(RefundsResponseData {
                     // no refund id is generated, tranSeqNumber is kept for future usage
@@ -628,6 +687,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
                         },
                     )?,
                     refund_status: enums::RefundStatus::Success,
+                    connector_metadata,
                 }),
                 ..item.data
             })
@@ -657,6 +717,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
 pub struct ProphetpayRefundSyncResponse {
     pub success: bool,
     pub response_text: String,
+    pub amount : i64,
+    pub currency : enums::Currency,
 }
 
 impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
@@ -667,11 +729,23 @@ impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
         item: RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
+            let mut metadata_map = serde_json::Map::new();
+            metadata_map.insert(
+                "amount".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(item.response.amount)),
+            );
+            metadata_map.insert(
+                "currency".to_string(),
+                serde_json::Value::String(item.response.currency.to_string()),
+            );
+            let connector_metadata = Some(serde_json::Value::Object(metadata_map));
+
             Ok(Self {
                 response: Ok(RefundsResponseData {
                     // no refund id is generated, rather transaction id is used for referring to status in refund also
                     connector_refund_id: item.data.request.connector_transaction_id.clone(),
                     refund_status: enums::RefundStatus::Success,
+                    connector_metadata,
                 }),
                 ..item.data
             })
