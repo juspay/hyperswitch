@@ -5180,7 +5180,7 @@
         "tags": [
           "Routing"
         ],
-        "summary": "Routing - Auth Rate Based",
+        "summary": "Routing - Create success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
         "operationId": "Create success based dynamic routing algorithm",
         "parameters": [
