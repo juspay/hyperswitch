@@ -285,6 +285,8 @@ pub struct PowertranzBaseResponse {
     redirect_data: Option<Secret<String>>,
     response_message: String,
     order_identifier: String,
+    pub amount: FloatMajorUnit,
+    pub currency_code: String,
 }
 
 fn get_status((transaction_type, approved, is_3ds): (u8, bool, bool)) -> enums::AttemptStatus {
@@ -351,7 +353,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata: Some(serde_json::json!({
+                    "amount": item.response.amount,
+                    "currency": item.response.currency_code
+                })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
                 incremental_authorization_allowed: None,
