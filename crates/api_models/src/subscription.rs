@@ -1,4 +1,4 @@
-use common_enums::connector_enums::InvoiceStatus;
+use common_enums::{connector_enums::InvoiceStatus, SubscriptionStatus};
 use common_types::payments::CustomerAcceptance;
 use common_utils::{
     events::ApiEventMetric,
@@ -92,43 +92,6 @@ pub struct SubscriptionResponse {
 
     /// Invoice Details for the subscription.
     pub invoice: Option<Invoice>,
-}
-
-/// Possible states of a subscription lifecycle.
-///
-/// - `Created`: Subscription was created but not yet activated.
-/// - `Active`: Subscription is currently active.
-/// - `InActive`: Subscription is inactive.
-/// - `Pending`: Subscription is pending activation.
-/// - `Trial`: Subscription is in a trial period.
-/// - `Paused`: Subscription is paused.
-/// - `Unpaid`: Subscription is unpaid.
-/// - `Onetime`: Subscription is a one-time payment.
-/// - `Cancelled`: Subscription has been cancelled.
-/// - `Failed`: Subscription has failed.
-#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SubscriptionStatus {
-    /// Subscription is active.
-    Active,
-    /// Subscription is created but not yet active.
-    Created,
-    /// Subscription is inactive.
-    InActive,
-    /// Subscription is in pending state.
-    Pending,
-    /// Subscription is in trial state.
-    Trial,
-    /// Subscription is paused.
-    Paused,
-    /// Subscription is unpaid.
-    Unpaid,
-    /// Subscription is a one-time payment.
-    Onetime,
-    /// Subscription is cancelled.
-    Cancelled,
-    /// Subscription has failed.
-    Failed,
 }
 
 impl SubscriptionResponse {
@@ -342,6 +305,12 @@ pub struct PaymentResponseData {
     pub payment_type: Option<PaymentType>,
 }
 
+impl PaymentResponseData {
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.billing.clone()
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateMitPaymentRequestData {
     pub amount: MinorUnit,
@@ -451,6 +420,18 @@ pub struct ConfirmSubscriptionResponse {
     pub billing_processor_subscription_id: Option<String>,
 }
 
+impl ConfirmSubscriptionResponse {
+    pub fn get_optional_invoice_id(&self) -> Option<InvoiceId> {
+        self.invoice.as_ref().map(|invoice| invoice.id.to_owned())
+    }
+
+    pub fn get_optional_payment_id(&self) -> Option<PaymentId> {
+        self.payment
+            .as_ref()
+            .map(|payment| payment.payment_id.to_owned())
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct Invoice {
     /// Unique identifier for the invoice.
@@ -486,6 +467,9 @@ pub struct Invoice {
 
     /// Status of the invoice.
     pub status: InvoiceStatus,
+
+    /// billing processor invoice id
+    pub billing_processor_invoice_id: Option<String>,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
