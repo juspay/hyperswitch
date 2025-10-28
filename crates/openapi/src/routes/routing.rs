@@ -281,12 +281,12 @@ pub async fn routing_update_default_config_for_profile() {}
 pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Create success based dynamic routing for profile
-///
+/// Routing - Auth Rate Based
 /// Create a success based dynamic routing algorithm
 #[utoipa::path(
     post,
     path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/create",
+    request_body = SuccessBasedRoutingConfig,
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
@@ -360,12 +360,13 @@ pub async fn success_based_routing_update_configs() {}
 pub async fn toggle_elimination_routing() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Create elimination routing for profile
+/// Routing - Elimination
 ///
 /// Create a elimination based dynamic routing algorithm
 #[utoipa::path(
     post,
     path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/create",
+    request_body = EliminationRoutingConfig,
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),

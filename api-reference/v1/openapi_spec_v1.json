@@ -5212,6 +5212,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Routing Algorithm created",
@@ -5254,7 +5264,7 @@
         "tags": [
           "Routing"
         ],
-        "summary": "Routing - Create elimination routing for profile",
+        "summary": "Routing - Elimination",
         "description": "Create a elimination based dynamic routing algorithm",
         "operationId": "Create elimination routing algorithm",
         "parameters": [
@@ -5286,6 +5296,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EliminationRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Routing Algorithm created",
