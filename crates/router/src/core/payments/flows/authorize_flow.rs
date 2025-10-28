@@ -28,9 +28,7 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat,
-            populate_connector_customer_id_from_ucs_state, populate_connector_response_from_ucs,
-            ucs_logging_wrapper,
+            handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper,
         },
     },
     logger,
@@ -938,6 +936,7 @@ async fn call_unified_connector_service_authorize(
 
             let (router_data_response, status_code) =
                 handle_unified_connector_service_response_for_payment_authorize(
+                    &mut router_data,
                     payment_authorize_response.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -953,18 +952,6 @@ async fn call_unified_connector_service_authorize(
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
-
-            // Extract connector_customer_id from UCS state
-            populate_connector_customer_id_from_ucs_state(
-                &mut router_data,
-                payment_authorize_response.state.as_ref(),
-            );
-
-            // Extract connector_response from UCS response
-            populate_connector_response_from_ucs(
-                &mut router_data,
-                payment_authorize_response.connector_response.as_ref(),
-            )?;
 
             Ok((router_data, payment_authorize_response))
         },
@@ -1043,6 +1030,7 @@ async fn call_unified_connector_service_repeat_payment(
 
             let (router_data_response, status_code) =
                 handle_unified_connector_service_response_for_payment_repeat(
+                    &mut router_data,
                     payment_repeat_response.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -1058,18 +1046,6 @@ async fn call_unified_connector_service_repeat_payment(
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
-
-            // Extract connector_customer_id from UCS state
-            populate_connector_customer_id_from_ucs_state(
-                &mut router_data,
-                payment_repeat_response.state.as_ref(),
-            );
-
-            // Extract connector_response from UCS response
-            populate_connector_response_from_ucs(
-                &mut router_data,
-                payment_repeat_response.connector_response.as_ref(),
-            )?;
 
             Ok((router_data, payment_repeat_response))
         },

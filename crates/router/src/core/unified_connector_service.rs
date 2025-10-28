@@ -759,13 +759,27 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
     }
 }
 
-pub fn handle_unified_connector_service_response_for_payment_authorize(
+pub fn handle_unified_connector_service_response_for_payment_authorize<F, Req>(
+    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
     response: PaymentServiceAuthorizeResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+
+    // Populate connector_customer_id from UCS state
+    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
+
+    // Populate connector_response from UCS response (log errors, don't fail)
+    populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
+        .inspect_err(|err| {
+            router_env::logger::warn!(
+                "Failed to populate connector_response from UCS: {:?}",
+                err
+            );
+        })
+        .ok();
 
     Ok((router_data_response, status_code))
 }
@@ -781,24 +795,42 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_payment_register(
+pub fn handle_unified_connector_service_response_for_payment_register<F, Req>(
+    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
     response: payments_grpc::PaymentServiceRegisterResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+
+    // Populate connector_customer_id from UCS state
+    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
 
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_payment_repeat(
+pub fn handle_unified_connector_service_response_for_payment_repeat<F, Req>(
+    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+
+    // Populate connector_customer_id from UCS state
+    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
+
+    // Populate connector_response from UCS response (log errors, don't fail)
+    populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
+        .inspect_err(|err| {
+            router_env::logger::warn!(
+                "Failed to populate connector_response from UCS: {:?}",
+                err
+            );
+        })
+        .ok();
 
     Ok((router_data_response, status_code))
 }
