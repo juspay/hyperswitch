@@ -1015,7 +1015,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
 
 pub async fn resume_revenue_recovery_process_tracker(
     state: SessionState,
-    id: id_type::GlobalPaymentId,
+    id: GlobalPaymentId,
     request_retrigger: revenue_recovery::RevenueRecoveryRetriggerRequest,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
@@ -1077,7 +1077,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         .attach_printable("Unexpected response from payments core")?;
 
     match response.status {
-        enums::IntentStatus::Failed => {
+        IntentStatus::Failed => {
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: process_tracker.name.clone(),
                 tracking_data: Some(process_tracker.tracking_data.clone()),
@@ -1105,20 +1105,20 @@ pub async fn resume_revenue_recovery_process_tracker(
             };
             Ok(ApplicationResponse::Json(response))
         }
-        enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Cancelled
-        | enums::IntentStatus::CancelledPostCapture
-        | enums::IntentStatus::Processing
-        | enums::IntentStatus::RequiresCustomerAction
-        | enums::IntentStatus::RequiresMerchantAction
-        | enums::IntentStatus::RequiresPaymentMethod
-        | enums::IntentStatus::RequiresConfirmation
-        | enums::IntentStatus::RequiresCapture
-        | enums::IntentStatus::PartiallyCaptured
-        | enums::IntentStatus::PartiallyCapturedAndCapturable
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-        | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
+        IntentStatus::Succeeded
+        | IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Processing
+        | IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyCaptured
+        | IntentStatus::PartiallyCapturedAndCapturable
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
         })),
     }
