@@ -1,14 +1,20 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
-use common_utils::{pii, types::MinorUnit};
+use common_enums::enums as storage_enums;
+use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    network_tokenization::NetworkTokenNumber,
+    payment_method_data::{Card, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::ResponseId,
-    router_response_types::PaymentsResponseData,
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{RefundsData, ResponseId},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -16,12 +22,11 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use strum::Display;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, CardData},
+    utils::{self, CardData, NetworkTokenData as _, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -51,73 +56,142 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
     }
 }
 
+const COF_DATA_TYPE: &str = "adhoc";
+const COF_DATA_SOURCE: &str = "cit";
+const COF_DATA_MODE: &str = "initial";
+
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PeachpaymentsPaymentsRequest {
+pub struct PeachpaymentsPaymentsCardRequest {
     pub charge_method: String,
     pub reference_id: String,
-    pub ecommerce_card_payment_only_transaction_data: EcommerceCardPaymentOnlyTransactionData,
+    pub ecommerce_card_payment_only_transaction_data: EcommercePaymentOnlyTransactionData,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pos_data: Option<serde_json::Value>,
     pub send_date_time: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsPaymentsNTRequest {
+    pub payment_method: String,
+    pub reference_id: String,
+    pub ecommerce_card_payment_only_transaction_data: EcommercePaymentOnlyTransactionData,
+    pub send_date_time: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(untagged)]
+pub enum PeachpaymentsPaymentsRequest {
+    Card(PeachpaymentsPaymentsCardRequest),
+    NetworkToken(PeachpaymentsPaymentsNTRequest),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CardOnFileData {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub source: String,
+    pub mode: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyTransactionData {
     pub merchant_information: MerchantInformation,
     pub routing: Routing,
     pub card: CardDetails,
     pub amount: AmountDetails,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub three_ds_data: Option<ThreeDSData>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct MerchantInformation {
-    pub client_merchant_reference_id: String,
-    pub name: String,
-    pub mcc: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct Routing {
-    pub route: String,
-    pub mid: String,
-    pub tid: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<String>,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
+pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
+    pub merchant_information: MerchantInformation,
+    pub routing: Routing,
+    pub network_token_data: NetworkTokenDetails,
+    pub amount: AmountDetails,
+    pub cof_data: CardOnFileData,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(untagged)]
+pub enum EcommercePaymentOnlyTransactionData {
+    Card(EcommerceCardPaymentOnlyTransactionData),
+    NetworkToken(EcommerceNetworkTokenPaymentOnlyTransactionData),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantInformation {
+    pub client_merchant_reference_id: Secret<String>,
+    pub name: Secret<String>,
+    pub mcc: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_type: Option<MerchantType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub website_url: Option<url::Url>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum MerchantType {
+    Standard,
+    Sub,
+    Iso,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Routing {
+    pub route: Route,
+    pub mid: Secret<String>,
+    pub tid: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visa_payment_facilitator_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub master_card_payment_facilitator_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_mid: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amex_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Route {
+    ExipayEmulator,
+    AbsaBase24,
+    NedbankPostbridge,
+    AbsaPostbridgeEcentric,
+    PostbridgeDirecttransact,
+    PostbridgeEfficacy,
+    FiservLloyds,
+    NfsIzwe,
+    AbsaHpsZambia,
+    EcentricEcommerce,
+    UnitTestEmptyConfig,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CardDetails {
     pub pan: CardNumber,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -129,44 +203,111 @@ pub struct CardDetails {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct RefundCardDetails {
-    pub pan: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_name: Option<Secret<String>>,
+#[serde(rename_all = "camelCase")]
+pub struct NetworkTokenDetails {
+    pub token: NetworkTokenNumber,
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<Secret<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct AmountDetails {
-    pub amount: MinorUnit,
-    pub currency_code: String,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub scheme: Option<CardNetworkLowercase>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct ThreeDSData {
+#[serde(rename_all = "lowercase")]
+pub enum CardNetworkLowercase {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
+    Jcb,
+    Diners,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
+    Star,
+    Pulse,
+    Accel,
+    Nyce,
+}
+
+impl From<common_enums::CardNetwork> for CardNetworkLowercase {
+    fn from(value: common_enums::CardNetwork) -> Self {
+        match value {
+            common_enums::CardNetwork::Visa => Self::Visa,
+            common_enums::CardNetwork::Mastercard => Self::Mastercard,
+            common_enums::CardNetwork::AmericanExpress => Self::Amex,
+            common_enums::CardNetwork::Discover => Self::Discover,
+            common_enums::CardNetwork::JCB => Self::Jcb,
+            common_enums::CardNetwork::DinersClub => Self::Diners,
+            common_enums::CardNetwork::CartesBancaires => Self::CartesBancaires,
+            common_enums::CardNetwork::UnionPay => Self::UnionPay,
+            common_enums::CardNetwork::Interac => Self::Interac,
+            common_enums::CardNetwork::RuPay => Self::RuPay,
+            common_enums::CardNetwork::Maestro => Self::Maestro,
+            common_enums::CardNetwork::Star => Self::Star,
+            common_enums::CardNetwork::Pulse => Self::Pulse,
+            common_enums::CardNetwork::Accel => Self::Accel,
+            common_enums::CardNetwork::Nyce => Self::Nyce,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AmountDetails {
+    pub amount: MinorUnit,
+    pub currency_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cavv: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tavv: Option<Secret<String>>,
-    pub eci: String,
-    pub ds_trans_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub xid: Option<String>,
-    pub authentication_status: AuthenticationStatus,
-    pub three_ds_version: String,
+    pub display_amount: Option<String>,
 }
 
 // Confirm Transaction Request (for capture)
 #[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsConfirmRequest {
     pub ecommerce_card_payment_only_confirmation_data: EcommerceCardPaymentOnlyConfirmationData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundRequest {
+    pub reference_id: String,
+    pub ecommerce_card_payment_only_transaction_data: PeachpaymentsRefundTransactionData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pos_data: Option<PosData>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PosData {
+    pub referral: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundTransactionData {
+    pub amount: AmountDetails,
+}
+
+impl TryFrom<&RefundsRouterData<Execute>> for PeachpaymentsRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefundsRouterData<Execute>) -> Result<Self, Self::Error> {
+        let amount = AmountDetails {
+            amount: item.request.minor_refund_amount,
+            currency_code: item.request.currency.to_string(),
+            display_amount: None,
+        };
+        let ecommerce_card_payment_only_transaction_data =
+            PeachpaymentsRefundTransactionData { amount };
+        Ok(Self {
+            reference_id: item.request.refund_id.clone(),
+            ecommerce_card_payment_only_transaction_data,
+            pos_data: None,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -199,6 +340,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsCaptureRouterData>> for Peachpaym
         let amount = AmountDetails {
             amount: amount_in_cents,
             currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
         };
 
         let confirmation_data = EcommerceCardPaymentOnlyConfirmationData { amount };
@@ -271,57 +413,40 @@ impl TryFrom<&PaymentsCancelRouterData> for PeachpaymentsVoidRequest {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-pub enum AuthenticationStatus {
-    Y, // Fully authenticated
-    A, // Attempted authentication / liability shift
-    N, // Not authenticated / failed
-}
-
-impl From<&str> for AuthenticationStatus {
-    fn from(eci: &str) -> Self {
-        match eci {
-            "05" | "06" => Self::Y,
-            "07" => Self::A,
-            _ => Self::N,
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PeachPaymentsConnectorMetadataObject {
-    pub client_merchant_reference_id: String,
-    pub name: String,
-    pub mcc: String,
+    pub client_merchant_reference_id: Secret<String>,
+    pub name: Secret<String>,
+    pub mcc: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<String>,
+    pub mobile: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
+    pub address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<String>,
+    pub region_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<String>,
+    pub merchant_type: Option<MerchantType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<String>,
-    pub route: String,
-    pub mid: String,
-    pub tid: String,
+    pub website_url: Option<url::Url>,
+    pub route: Route,
+    pub mid: Secret<String>,
+    pub tid: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<String>,
+    pub visa_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<String>,
+    pub master_card_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<String>,
+    pub sub_mid: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<String>,
+    pub amex_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
@@ -331,123 +456,193 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let amount_in_cents = item.amount;
-
-                let connector_merchant_config = PeachPaymentsConnectorMetadataObject::try_from(
-                    &item.router_data.connector_meta_data,
-                )?;
-
-                let merchant_information = MerchantInformation {
-                    client_merchant_reference_id: connector_merchant_config
-                        .client_merchant_reference_id,
-                    name: connector_merchant_config.name,
-                    mcc: connector_merchant_config.mcc,
-                    phone: connector_merchant_config.phone,
-                    email: connector_merchant_config.email,
-                    mobile: connector_merchant_config.mobile,
-                    address: connector_merchant_config.address,
-                    city: connector_merchant_config.city,
-                    postal_code: connector_merchant_config.postal_code,
-                    region_code: connector_merchant_config.region_code,
-                    merchant_type: connector_merchant_config.merchant_type,
-                    website_url: connector_merchant_config.website_url,
-                };
-
-                // Get routing configuration from metadata
-                let routing = Routing {
-                    route: connector_merchant_config.route,
-                    mid: connector_merchant_config.mid,
-                    tid: connector_merchant_config.tid,
-                    visa_payment_facilitator_id: connector_merchant_config
-                        .visa_payment_facilitator_id,
-                    master_card_payment_facilitator_id: connector_merchant_config
-                        .master_card_payment_facilitator_id,
-                    sub_mid: connector_merchant_config.sub_mid,
-                    amex_id: connector_merchant_config.amex_id,
-                };
-
-                let card = CardDetails {
-                    pan: req_card.card_number.clone(),
-                    cardholder_name: req_card.card_holder_name.clone(),
-                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
-                    expiry_month: req_card.card_exp_month.clone(),
-                    cvv: Some(req_card.card_cvc.clone()),
-                };
-
-                let amount = AmountDetails {
-                    amount: amount_in_cents,
-                    currency_code: item.router_data.request.currency.to_string(),
-                };
-
-                // Extract 3DS data if available
-                let three_ds_data = item
-                    .router_data
-                    .request
-                    .authentication_data
-                    .as_ref()
-                    .and_then(|auth_data| {
-                        // Only include 3DS data if we have essential fields (ECI is most critical)
-                        if let Some(eci) = &auth_data.eci {
-                            let ds_trans_id = auth_data
-                                .ds_trans_id
-                                .clone()
-                                .or_else(|| auth_data.threeds_server_transaction_id.clone())?;
-
-                            // Determine authentication status based on ECI value
-                            let authentication_status = eci.as_str().into();
-
-                            // Convert message version to string, handling None case
-                            let three_ds_version = auth_data.message_version.as_ref().map(|v| {
-                                let version_str = v.to_string();
-                                let mut parts = version_str.split('.');
-                                match (parts.next(), parts.next()) {
-                                    (Some(major), Some(minor)) => format!("{}.{}", major, minor),
-                                    _ => v.to_string(), // fallback if format unexpected
-                                }
-                            })?;
-
-                            Some(ThreeDSData {
-                                cavv: Some(auth_data.cavv.clone()),
-                                tavv: None, // Network token field - not available in Hyperswitch AuthenticationData
-                                eci: eci.clone(),
-                                ds_trans_id,
-                                xid: None, // Legacy 3DS 1.x/network token field - not available in Hyperswitch AuthenticationData
-                                authentication_status,
-                                three_ds_version,
-                            })
-                        } else {
-                            None
-                        }
-                    });
-
-                let ecommerce_data = EcommerceCardPaymentOnlyTransactionData {
-                    merchant_information,
-                    routing,
-                    card,
-                    amount,
-                    three_ds_data,
-                };
-
-                // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
-                let send_date_time = OffsetDateTime::now_utc()
-                    .format(&time::format_description::well_known::Iso8601::DEFAULT)
-                    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-
-                Ok(Self {
-                    charge_method: "ecommerce_card_payment_only".to_string(),
-                    reference_id: item.router_data.connector_request_reference_id.clone(),
-                    ecommerce_card_payment_only_transaction_data: ecommerce_data,
-                    pos_data: None,
-                    send_date_time,
-                })
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Peachpayments",
             }
+            .into());
+        }
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
+            PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
+
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
+impl
+    TryFrom<(
+        &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        NetworkTokenData,
+    )> for PeachpaymentsPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, token_data): (
+            &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+            NetworkTokenData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount_in_cents = item.amount;
+
+        let connector_merchant_config =
+            PeachPaymentsConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        let merchant_information = MerchantInformation {
+            client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+            name: connector_merchant_config.name,
+            mcc: connector_merchant_config.mcc,
+            phone: connector_merchant_config.phone,
+            email: connector_merchant_config.email,
+            mobile: connector_merchant_config.mobile,
+            address: connector_merchant_config.address,
+            city: connector_merchant_config.city,
+            postal_code: connector_merchant_config.postal_code,
+            region_code: connector_merchant_config.region_code,
+            merchant_type: connector_merchant_config.merchant_type,
+            website_url: connector_merchant_config.website_url,
+        };
+
+        // Get routing configuration from metadata
+        let routing = Routing {
+            route: connector_merchant_config.route,
+            mid: connector_merchant_config.mid,
+            tid: connector_merchant_config.tid,
+            visa_payment_facilitator_id: connector_merchant_config.visa_payment_facilitator_id,
+            master_card_payment_facilitator_id: connector_merchant_config
+                .master_card_payment_facilitator_id,
+            sub_mid: connector_merchant_config.sub_mid,
+            amex_id: connector_merchant_config.amex_id,
+        };
+
+        let network_token_data = NetworkTokenDetails {
+            token: token_data.get_network_token(),
+            expiry_year: token_data.get_token_expiry_year_2_digit()?,
+            expiry_month: token_data.get_network_token_expiry_month(),
+            cryptogram: token_data.get_cryptogram(),
+            eci: token_data.eci.clone(),
+            scheme: Some(CardNetworkLowercase::from(
+                token_data.card_network.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_network",
+                    },
+                )?,
+            )),
+        };
+
+        let amount = AmountDetails {
+            amount: amount_in_cents,
+            currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
+        };
+
+        let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
+            EcommerceNetworkTokenPaymentOnlyTransactionData {
+                merchant_information,
+                routing,
+                network_token_data,
+                amount,
+                cof_data: CardOnFileData {
+                    _type: COF_DATA_TYPE.to_string(),
+                    source: COF_DATA_SOURCE.to_string(),
+                    mode: COF_DATA_MODE.to_string(),
+                },
+            },
+        );
+
+        // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
+        let send_date_time = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Iso8601::DEFAULT)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self::NetworkToken(PeachpaymentsPaymentsNTRequest {
+            payment_method: "ecommerce_card_payment_only".to_string(),
+            reference_id: item.router_data.connector_request_reference_id.clone(),
+            ecommerce_card_payment_only_transaction_data: ecommerce_data,
+            send_date_time: send_date_time.clone(),
+        }))
+    }
+}
+
+impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
+    for PeachpaymentsPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, req_card): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card),
+    ) -> Result<Self, Self::Error> {
+        let amount_in_cents = item.amount;
+
+        let connector_merchant_config =
+            PeachPaymentsConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        let merchant_information = MerchantInformation {
+            client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+            name: connector_merchant_config.name,
+            mcc: connector_merchant_config.mcc,
+            phone: connector_merchant_config.phone,
+            email: connector_merchant_config.email,
+            mobile: connector_merchant_config.mobile,
+            address: connector_merchant_config.address,
+            city: connector_merchant_config.city,
+            postal_code: connector_merchant_config.postal_code,
+            region_code: connector_merchant_config.region_code,
+            merchant_type: connector_merchant_config.merchant_type,
+            website_url: connector_merchant_config.website_url,
+        };
+
+        // Get routing configuration from metadata
+        let routing = Routing {
+            route: connector_merchant_config.route,
+            mid: connector_merchant_config.mid,
+            tid: connector_merchant_config.tid,
+            visa_payment_facilitator_id: connector_merchant_config.visa_payment_facilitator_id,
+            master_card_payment_facilitator_id: connector_merchant_config
+                .master_card_payment_facilitator_id,
+            sub_mid: connector_merchant_config.sub_mid,
+            amex_id: connector_merchant_config.amex_id,
+        };
+
+        let card = CardDetails {
+            pan: req_card.card_number.clone(),
+            cardholder_name: req_card.card_holder_name.clone(),
+            expiry_year: req_card.get_card_expiry_year_2_digit()?,
+            expiry_month: req_card.card_exp_month.clone(),
+            cvv: Some(req_card.card_cvc.clone()),
+        };
+
+        let amount = AmountDetails {
+            amount: amount_in_cents,
+            currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
+        };
+
+        let ecommerce_data =
+            EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
+                merchant_information,
+                routing,
+                card,
+                amount,
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+            });
+
+        // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
+        let send_date_time = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Iso8601::DEFAULT)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self::Card(PeachpaymentsPaymentsCardRequest {
+            charge_method: "ecommerce_card_payment_only".to_string(),
+            reference_id: item.router_data.connector_request_reference_id.clone(),
+            ecommerce_card_payment_only_transaction_data: ecommerce_data,
+            pos_data: None,
+            send_date_time,
+        }))
+    }
+}
 // Auth Struct for Card Gateway API
 pub struct PeachpaymentsAuthType {
     pub(crate) api_key: Secret<String>,
@@ -469,18 +664,16 @@ impl TryFrom<&ConnectorAuthType> for PeachpaymentsAuthType {
 }
 // Card Gateway API Response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum PeachpaymentsPaymentStatus {
     Successful,
     Pending,
     Authorized,
     Approved,
-    #[serde(rename = "approved_confirmed")]
     ApprovedConfirmed,
     Declined,
     Failed,
     Reversed,
-    #[serde(rename = "threeds_required")]
     ThreedsRequired,
     Voided,
 }
@@ -505,39 +698,177 @@ impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum PeachpaymentsPaymentsResponse {
+    Response(Box<PeachpaymentsPaymentsData>),
+    WebhookResponse(Box<PeachpaymentsIncomingWebhook>),
+}
+
+impl From<PeachpaymentsRefundStatus> for common_enums::RefundStatus {
+    fn from(item: PeachpaymentsRefundStatus) -> Self {
+        match item {
+            PeachpaymentsRefundStatus::ApprovedConfirmed => Self::Success,
+            PeachpaymentsRefundStatus::Failed | PeachpaymentsRefundStatus::Declined => {
+                Self::Failure
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct PeachpaymentsPaymentsResponse {
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsPaymentsData {
     pub transaction_id: String,
-    pub response_code: ResponseCode,
+    pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRsyncResponse {
+    pub transaction_id: String,
+    pub transaction_result: PeachpaymentsRefundStatus,
+    pub response_code: Option<ResponseCode>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsRefundResponse {
+    pub transaction_id: String,
+    pub original_transaction_id: Option<String>,
+    pub reference_id: String,
+    pub transaction_result: PeachpaymentsRefundStatus,
+    pub response_code: Option<ResponseCode>,
+    pub refund_balance_data: Option<RefundBalanceData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PeachpaymentsRefundStatus {
+    ApprovedConfirmed,
+    Declined,
+    Failed,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundBalanceData {
+    pub amount: AmountDetails,
+    pub balance: AmountDetails,
+    pub refund_history: Vec<RefundHistory>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundHistory {
+    pub transaction_id: String,
+    pub reference_id: String,
+    pub amount: AmountDetails,
+}
+
+impl<F>
+    TryFrom<ResponseRouterData<F, PeachpaymentsRefundResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PeachpaymentsRefundResponse, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = common_enums::RefundStatus::from(item.response.transaction_result);
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_id),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<ResponseRouterData<RSync, PeachpaymentsRsyncResponse, RefundsData, RefundsResponseData>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            RSync,
+            PeachpaymentsRsyncResponse,
+            RefundsData,
+            RefundsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = item.response.transaction_result.into();
+        let response = if refund_status == storage_enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_id),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
 }
 
 // Confirm Transaction Response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsConfirmResponse {
     pub transaction_id: String,
-    pub response_code: ResponseCode,
+    pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ResponseCode {
     Text(String),
     Structured {
-        value: ResponseCodeValue,
+        value: String,
         description: String,
+        terminal_outcome_string: Option<String>,
+        receipt_string: Option<String>,
     },
 }
 
 impl ResponseCode {
-    pub fn value(&self) -> Option<&ResponseCodeValue> {
+    pub fn value(&self) -> Option<&String> {
         match self {
             Self::Structured { value, .. } => Some(value),
             _ => None,
@@ -559,33 +890,147 @@ impl ResponseCode {
     }
 }
 
-#[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ResponseCodeValue {
-    #[serde(rename = "00", alias = "08")]
-    Success,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyResponseData {
-    pub card: Option<CardResponseData>,
     pub amount: Option<AmountDetails>,
-    pub stan: Option<String>,
-    pub rrn: Option<String>,
-    #[serde(rename = "approvalCode")]
+    pub stan: Option<Secret<String>>,
+    pub rrn: Option<Secret<String>>,
     pub approval_code: Option<String>,
-    #[serde(rename = "merchantAdviceCode")]
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,
+    pub trace_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct CardResponseData {
-    pub bin_number: Option<String>,
-    pub masked_pan: Option<String>,
-    pub cardholder_name: Option<String>,
-    pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>,
+fn is_payment_success(value: Option<&String>) -> bool {
+    if let Some(val) = value {
+        val == "00" || val == "08" || val == "X94"
+    } else {
+        false
+    }
+}
+
+fn get_error_code(response_code: Option<&ResponseCode>) -> String {
+    response_code
+        .and_then(|code| code.value())
+        .map(|val| val.to_string())
+        .unwrap_or(
+            response_code
+                .and_then(|code| code.as_text())
+                .map(|text| text.to_string())
+                .unwrap_or(NO_ERROR_CODE.to_string()),
+        )
+}
+
+fn get_error_message(response_code: Option<&ResponseCode>) -> String {
+    response_code
+        .and_then(|code| code.description())
+        .map(|desc| desc.to_string())
+        .unwrap_or(
+            response_code
+                .and_then(|code| code.as_text())
+                .map(|text| text.to_string())
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+        )
+}
+
+pub fn get_peachpayments_response(
+    response: PeachpaymentsPaymentsData,
+    status_code: u16,
+) -> CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+    ),
+    errors::ConnectorError,
+> {
+    let status = common_enums::AttemptStatus::from(response.transaction_result);
+    let payments_response = if !is_payment_success(
+        response
+            .response_code
+            .as_ref()
+            .and_then(|code| code.value()),
+    ) {
+        Err(ErrorResponse {
+            code: get_error_code(response.response_code.as_ref()),
+            message: get_error_message(response.response_code.as_ref()),
+            reason: response
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.description),
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(response.transaction_id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    } else {
+        Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response.transaction_id),
+            incremental_authorization_allowed: None,
+            charges: None,
+        })
+    };
+    Ok((status, payments_response))
+}
+
+pub fn get_webhook_response(
+    response: PeachpaymentsIncomingWebhook,
+    status_code: u16,
+) -> CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Result<PaymentsResponseData, ErrorResponse>,
+    ),
+    errors::ConnectorError,
+> {
+    let transaction = response
+        .transaction
+        .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+    let status = common_enums::AttemptStatus::from(transaction.transaction_result);
+    let webhook_response = if !is_payment_success(
+        transaction
+            .response_code
+            .as_ref()
+            .and_then(|code| code.value()),
+    ) {
+        Err(ErrorResponse {
+            code: get_error_code(transaction.response_code.as_ref()),
+            message: get_error_message(transaction.response_code.as_ref()),
+            reason: transaction
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.description),
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(transaction.transaction_id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    } else {
+        Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                transaction
+                    .original_transaction_id
+                    .unwrap_or(transaction.transaction_id.clone()),
+            ),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(transaction.transaction_id.clone()),
+            incremental_authorization_allowed: None,
+            charges: None,
+        })
+    };
+    Ok((status, webhook_response))
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, PaymentsResponseData>>
@@ -595,48 +1040,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, Payme
     fn try_from(
         item: ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.transaction_result);
-
-        // Check if it's an error response
-        let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
-            Err(ErrorResponse {
-                code: item
-                    .response
-                    .response_code
-                    .value()
-                    .map(|val| val.to_string())
-                    .unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_code
-                    .description()
-                    .map(|desc| desc.to_string())
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-                reason: item
-                    .response
-                    .ecommerce_card_payment_only_transaction_data
-                    .and_then(|data| data.description),
-                status_code: item.http_code,
-                attempt_status: Some(status),
-                connector_transaction_id: Some(item.response.transaction_id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
-        } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
+        let (status, response) = match item.response {
+            PeachpaymentsPaymentsResponse::Response(response) => {
+                get_peachpayments_response(*response, item.http_code)?
+            }
+            PeachpaymentsPaymentsResponse::WebhookResponse(response) => {
+                get_webhook_response(*response, item.http_code)?
+            }
         };
 
         Ok(Self {
@@ -658,20 +1068,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsConfirmResponse, T, Paymen
         let status = common_enums::AttemptStatus::from(item.response.transaction_result);
 
         // Check if it's an error response
-        let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
+        let response = if !is_payment_success(
+            item.response
+                .response_code
+                .as_ref()
+                .and_then(|code| code.value()),
+        ) {
             Err(ErrorResponse {
-                code: item
-                    .response
-                    .response_code
-                    .value()
-                    .map(|val| val.to_string())
-                    .unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_code
-                    .description()
-                    .map(|desc| desc.to_string())
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: Some(status),
@@ -720,6 +1125,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         let amount = AmountDetails {
             amount: amount_in_cents,
             currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
         };
 
         let confirmation_data = EcommerceCardPaymentOnlyConfirmationData { amount };
@@ -728,6 +1134,28 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             ecommerce_card_payment_only_confirmation_data: confirmation_data,
         })
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsIncomingWebhook {
+    pub webhook_id: String,
+    pub webhook_type: String,
+    pub reversal_failure_reason: Option<String>,
+    pub transaction: Option<WebhookTransaction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookTransaction {
+    pub transaction_id: String,
+    pub original_transaction_id: Option<String>,
+    pub reference_id: String,
+    pub transaction_result: PeachpaymentsPaymentStatus,
+    pub error_message: Option<String>,
+    pub response_code: Option<ResponseCode>,
+    pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub payment_method: Secret<String>,
 }
 
 // Error Response

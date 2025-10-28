@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
+pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use tokio::time::{timeout, Duration};
@@ -21,91 +22,6 @@ use crate::{
     grpc_client::{GrpcClientSettings, GrpcHeadersUcs},
     utils::deserialize_hashset,
 };
-
-/// Unified Connector Service error variants
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum UnifiedConnectorServiceError {
-    /// Error occurred while communicating with the gRPC server.
-    #[error("Error from gRPC Server : {0}")]
-    ConnectionError(String),
-
-    /// Failed to encode the request to the unified connector service.
-    #[error("Failed to encode unified connector service request")]
-    RequestEncodingFailed,
-
-    /// Request encoding failed due to a specific reason.
-    #[error("Request encoding failed : {0}")]
-    RequestEncodingFailedWithReason(String),
-
-    /// Failed to deserialize the response from the connector.
-    #[error("Failed to deserialize connector response")]
-    ResponseDeserializationFailed,
-
-    /// The connector name provided is invalid or unrecognized.
-    #[error("An invalid connector name was provided")]
-    InvalidConnectorName,
-
-    /// Connector name is missing
-    #[error("Connector name is missing")]
-    MissingConnectorName,
-
-    /// A required field was missing in the request.
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField {
-        /// Missing Field
-        field_name: &'static str,
-    },
-
-    /// Multiple required fields were missing in the request.
-    #[error("Missing required fields: {field_names:?}")]
-    MissingRequiredFields {
-        /// Missing Fields
-        field_names: Vec<&'static str>,
-    },
-
-    /// The requested step or feature is not yet implemented.
-    #[error("This step has not been implemented for: {0}")]
-    NotImplemented(String),
-
-    /// Parsing of some value or input failed.
-    #[error("Parsing failed")]
-    ParsingFailed,
-
-    /// Data format provided is invalid
-    #[error("Invalid Data format")]
-    InvalidDataFormat {
-        /// Field Name for which data is invalid
-        field_name: &'static str,
-    },
-
-    /// Failed to obtain authentication type
-    #[error("Failed to obtain authentication type")]
-    FailedToObtainAuthType,
-
-    /// Failed to inject metadata into request headers
-    #[error("Failed to inject metadata into request headers: {0}")]
-    HeaderInjectionFailed(String),
-
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
-    PaymentAuthorizeFailure,
-
-    /// Failed to perform Payment Get from gRPC Server
-    #[error("Failed to perform Payment Get from gRPC Server")]
-    PaymentGetFailure,
-
-    /// Failed to perform Payment Setup Mandate from gRPC Server
-    #[error("Failed to perform Setup Mandate from gRPC Server")]
-    PaymentRegisterFailure,
-
-    /// Failed to perform Payment Repeat Payment from gRPC Server
-    #[error("Failed to perform Repeat Payment from gRPC Server")]
-    PaymentRepeatEverythingFailure,
-
-    /// Failed to transform incoming webhook from gRPC Server
-    #[error("Failed to transform incoming webhook from gRPC Server")]
-    WebhookTransformFailure,
-}
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
@@ -282,6 +198,36 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Capture
+    pub async fn payment_capture(
+        &self,
+        payment_capture_request: payments_grpc::PaymentServiceCaptureRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceCaptureResponse>>
+    {
+        let mut request = tonic::Request::new(payment_capture_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .capture(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCaptureFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_capture",
+                    connector_name=?connector_name,
+                    "UCS payment capture gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Setup Mandate
     pub async fn payment_setup_mandate(
         &self,
@@ -339,6 +285,36 @@ impl UnifiedConnectorServiceClient {
                     method="payment_repeat",
                     connector_name=?connector_name,
                     "UCS payment repeat gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Cancel/Void
+    pub async fn payment_cancel(
+        &self,
+        payment_void_request: payments_grpc::PaymentServiceVoidRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceVoidResponse>>
+    {
+        let mut request = tonic::Request::new(payment_void_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .void(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCancelFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_cancel",
+                    connector_name=?connector_name,
+                    "UCS payment cancel gRPC call failed"
                 )
             })
     }
@@ -445,6 +421,33 @@ pub fn build_unified_connector_service_grpc_headers(
         consts::UCS_LINEAGE_IDS,
         parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
+
+    if let Some(reference_id) = grpc_headers.merchant_reference_id {
+        metadata.append(
+            consts::UCS_HEADER_REFERENCE_ID,
+            parse(
+                consts::UCS_HEADER_REFERENCE_ID,
+                reference_id.get_string_repr(),
+            )?,
+        );
+    };
+
+    if let Some(request_id) = grpc_headers.request_id {
+        metadata.append(
+            common_utils_consts::X_REQUEST_ID,
+            parse(common_utils_consts::X_REQUEST_ID, &request_id)?,
+        );
+    };
+
+    if let Some(shadow_mode) = grpc_headers.shadow_mode {
+        metadata.append(
+            common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+            parse(
+                common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+                &shadow_mode.to_string(),
+            )?,
+        );
+    }
 
     if let Err(err) = grpc_headers
         .tenant_id

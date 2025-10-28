@@ -3,14 +3,9 @@ pub mod models {
 
     use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
-    use masking::{ExposeInterface, Secret};
+    use masking::Secret;
     use router_env::logger;
     use serde::{Deserialize, Serialize};
-
-    // Import vault metadata processing trait at top level
-    use crate::{
-        consts::EXTERNAL_VAULT_METADATA_HEADER, vault_metadata::VaultMetadataExtractorExt,
-    };
 
     // Enums for the injector - making it standalone
 
@@ -76,6 +71,9 @@ pub mod models {
         pub headers: HashMap<String, Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
         pub proxy_url: Option<Secret<String>>,
+        /// Optional backup proxy URL to use if vault metadata doesn't provide one
+        #[serde(default)]
+        pub backup_proxy_url: Option<Secret<String>>,
         /// Optional client certificate for mutual TLS authentication
         pub client_cert: Option<Secret<String>>,
         /// Optional client private key for mutual TLS authentication
@@ -166,19 +164,9 @@ pub mod models {
                 "Processing connector response"
             );
 
-            // Try to parse as JSON, fallback to string value with error logging
             let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
-                Ok(json) => {
-                    logger::debug!("Successfully parsed response as JSON");
-                    json
-                }
-                Err(e) => {
-                    logger::debug!(
-                        "Failed to parse response as JSON: {}, returning as string",
-                        e
-                    );
-                    serde_json::Value::String(response_text)
-                }
+                Ok(json) => json,
+                Err(_e) => serde_json::Value::String(response_text),
             };
 
             Ok(InjectorResponse {
@@ -203,30 +191,13 @@ pub mod models {
             client_key: Option<Secret<String>>,
             ca_cert: Option<Secret<String>>,
         ) -> Self {
-            let mut headers = headers.unwrap_or_default();
+            let headers = headers.unwrap_or_default();
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
-            // Process vault metadata if present
-            if let Some(vault_header) = headers.remove(EXTERNAL_VAULT_METADATA_HEADER) {
-                let vault_header_value = vault_header.expose();
-                logger::info!(
-                    vault_header_length = vault_header_value.len(),
-                    "Processing vault metadata header in InjectorRequest::new"
-                );
-                let vault_applied = connection_config
-                    .extract_and_apply_vault_metadata_with_fallback_from_header(
-                        &vault_header_value,
-                    );
-                logger::info!(
-                    vault_applied = vault_applied,
-                    proxy_configured = connection_config.proxy_url.is_some(),
-                    ca_cert_configured = connection_config.ca_cert.is_some(),
-                    "Vault metadata processing result in InjectorRequest::new"
-                );
-            }
+            // Keep vault metadata header for processing in make_http_request
 
-            // Set fallback configurations
-            connection_config.proxy_url = connection_config.proxy_url.or(proxy_url);
+            // Store backup proxy for make_http_request to use as fallback
+            connection_config.backup_proxy_url = proxy_url;
             connection_config.client_cert = connection_config.client_cert.or(client_cert);
             connection_config.client_key = connection_config.client_key.or(client_key);
             connection_config.ca_cert = connection_config.ca_cert.or(ca_cert);
@@ -248,6 +219,7 @@ pub mod models {
                 http_method,
                 headers: HashMap::new(),
                 proxy_url: None,
+                backup_proxy_url: None,
                 client_cert: None,
                 client_key: None,
                 ca_cert: None,

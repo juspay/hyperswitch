@@ -7,7 +7,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
@@ -303,6 +306,21 @@ where
                     None
                 };
 
+                let connector_response = {
+                    response.avs.map(|avs_response| {
+                        let payment_checks = serde_json::json!({
+                            "avs_result": avs_response
+                        });
+                        AdditionalPaymentMethodConnectorResponse::Card {
+                            authentication_data: None,
+                            payment_checks: Some(payment_checks),
+                            card_network: None,
+                            domestic_network: None,
+                        }
+                    })
+                }
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
                 let response_result = if status == enums::AttemptStatus::Failure {
                     Err(ErrorResponse {
                         attempt_status: None,
@@ -337,6 +355,7 @@ where
                 Ok(Self {
                     status,
                     response: response_result,
+                    connector_response,
                     ..item.data
                 })
             }

@@ -12,7 +12,6 @@ pub mod subscriptions;
 pub mod unified_authentication_service;
 pub mod vault;
 pub mod webhooks;
-
 pub use access_token_auth::*;
 pub use dispute::*;
 pub use files::*;
@@ -21,6 +20,7 @@ pub use payments::*;
 pub use payouts::*;
 pub use refunds::*;
 pub use revenue_recovery::*;
+pub use subscriptions::*;
 pub use unified_authentication_service::*;
 pub use vault::*;
 pub use webhooks::*;

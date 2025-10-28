@@ -50,7 +50,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
-    impl_enum_str,
+    id_type, impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -382,6 +382,7 @@ impl AmountConvertor for MinorUnitForConnector {
     Hash,
     ToSchema,
     PartialOrd,
+    Ord,
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
@@ -1232,6 +1233,9 @@ pub struct BrowserInformation {
 
     /// Accept-language of the browser
     pub accept_language: Option<String>,
+
+    /// Identifier of the source that initiated the request.
+    pub referer: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1438,3 +1442,12 @@ impl_enum_str!(
         },
     }
 );
+
+#[allow(missing_docs)]
+pub trait TenantConfig: Send + Sync {
+    fn get_tenant_id(&self) -> &id_type::TenantId;
+    fn get_schema(&self) -> &str;
+    fn get_accounts_schema(&self) -> &str;
+    fn get_redis_key_prefix(&self) -> &str;
+    fn get_clickhouse_database(&self) -> &str;
+}

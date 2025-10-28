@@ -38,6 +38,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
+        self as router_types,
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
@@ -377,7 +378,9 @@ pub async fn save_payout_data_to_locker(
                         Some(wallet.to_owned()),
                         api_enums::PaymentMethodType::foreign_from(wallet),
                     ),
-                    payouts::PayoutMethodData::Card(_) => {
+                    payouts::PayoutMethodData::Card(_)
+                    | payouts::PayoutMethodData::BankRedirect(_)
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -646,6 +649,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 None,
+                Default::default(),
             )
             .await?,
         );
@@ -1532,6 +1536,16 @@ pub async fn get_additional_payout_data(
                 Box::new(wallet_data.to_owned().into()),
             ))
         }
+        api::PayoutMethodData::BankRedirect(bank_redirect_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::BankRedirect(
+                Box::new(bank_redirect_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
+            ))
+        }
     }
 }
 
@@ -1635,4 +1649,10 @@ pub async fn resolve_billing_address_for_payout(
 
         (None, None, None) => Ok((None, None)),
     }
+}
+
+pub fn should_continue_payout<F: Clone + 'static>(
+    router_data: &router_types::PayoutsRouterData<F>,
+) -> bool {
+    router_data.response.is_ok()
 }

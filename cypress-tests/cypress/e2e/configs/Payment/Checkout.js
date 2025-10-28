@@ -7,11 +7,11 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
-  card_exp_month: "01",
-  card_exp_year: "50",
+  card_number: "4111111111111111",
+  card_exp_month: "12",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "100",
 };
 
 const customerAcceptance = {

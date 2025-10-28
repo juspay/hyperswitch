@@ -16,7 +16,10 @@ use diesel_models::merchant_connector_account::{
     MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
     RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
 };
-use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
+use diesel_models::{
+    enums,
+    merchant_connector_account::{self as storage, MerchantConnectorAccountUpdateInternal},
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
@@ -27,6 +30,7 @@ use super::behaviour;
 use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
+    merchant_key_store::MerchantKeyStore,
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
@@ -173,6 +177,17 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
+    pub fn get_connector_name_as_string(&self) -> String {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.connector_name.to_string()
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details.connector_name.to_string()
+            }
+        }
+    }
+
     pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
@@ -255,6 +270,11 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone().to_string()
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
     }
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
@@ -476,40 +496,38 @@ pub enum MerchantConnectorAccountUpdate {
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = storage::MerchantConnectorAccount;
+    type NewDstType = storage::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(
-            diesel_models::merchant_connector_account::MerchantConnectorAccount {
-                merchant_id: self.merchant_id,
-                connector_name: self.connector_name,
-                connector_account_details: self.connector_account_details.into(),
-                test_mode: self.test_mode,
-                disabled: self.disabled,
-                merchant_connector_id: self.merchant_connector_id.clone(),
-                id: Some(self.merchant_connector_id),
-                payment_methods_enabled: self.payment_methods_enabled,
-                connector_type: self.connector_type,
-                metadata: self.metadata,
-                frm_configs: None,
-                frm_config: self.frm_configs,
-                business_country: self.business_country,
-                business_label: self.business_label,
-                connector_label: self.connector_label,
-                business_sub_label: self.business_sub_label,
-                created_at: self.created_at,
-                modified_at: self.modified_at,
-                connector_webhook_details: self.connector_webhook_details,
-                profile_id: Some(self.profile_id),
-                applepay_verified_domains: self.applepay_verified_domains,
-                pm_auth_config: self.pm_auth_config,
-                status: self.status,
-                connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
-                additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
-                version: self.version,
-            },
-        )
+        Ok(storage::MerchantConnectorAccount {
+            merchant_id: self.merchant_id,
+            connector_name: self.connector_name,
+            connector_account_details: self.connector_account_details.into(),
+            test_mode: self.test_mode,
+            disabled: self.disabled,
+            merchant_connector_id: self.merchant_connector_id.clone(),
+            id: Some(self.merchant_connector_id),
+            payment_methods_enabled: self.payment_methods_enabled,
+            connector_type: self.connector_type,
+            metadata: self.metadata,
+            frm_configs: None,
+            frm_config: self.frm_configs,
+            business_country: self.business_country,
+            business_label: self.business_label,
+            connector_label: self.connector_label,
+            business_sub_label: self.business_sub_label,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            connector_webhook_details: self.connector_webhook_details,
+            profile_id: Some(self.profile_id),
+            applepay_verified_domains: self.applepay_verified_domains,
+            pm_auth_config: self.pm_auth_config,
+            status: self.status,
+            connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+            additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
+        })
     }
 
     async fn convert_back(
@@ -612,35 +630,33 @@ impl behaviour::Conversion for MerchantConnectorAccount {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = storage::MerchantConnectorAccount;
+    type NewDstType = storage::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(
-            diesel_models::merchant_connector_account::MerchantConnectorAccount {
-                id: self.id,
-                merchant_id: self.merchant_id,
-                connector_name: self.connector_name,
-                connector_account_details: self.connector_account_details.into(),
-                disabled: self.disabled,
-                payment_methods_enabled: self.payment_methods_enabled,
-                connector_type: self.connector_type,
-                metadata: self.metadata,
-                frm_config: self.frm_configs,
-                connector_label: self.connector_label,
-                created_at: self.created_at,
-                modified_at: self.modified_at,
-                connector_webhook_details: self.connector_webhook_details,
-                profile_id: self.profile_id,
-                applepay_verified_domains: self.applepay_verified_domains,
-                pm_auth_config: self.pm_auth_config,
-                status: self.status,
-                connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
-                additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
-                version: self.version,
-                feature_metadata: self.feature_metadata.map(From::from),
-            },
-        )
+        Ok(storage::MerchantConnectorAccount {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            connector_name: self.connector_name,
+            connector_account_details: self.connector_account_details.into(),
+            disabled: self.disabled,
+            payment_methods_enabled: self.payment_methods_enabled,
+            connector_type: self.connector_type,
+            metadata: self.metadata,
+            frm_config: self.frm_configs,
+            connector_label: self.connector_label,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            connector_webhook_details: self.connector_webhook_details,
+            profile_id: self.profile_id,
+            applepay_verified_domains: self.applepay_verified_domains,
+            pm_auth_config: self.pm_auth_config,
+            status: self.status,
+            connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
+            additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
+            feature_metadata: self.feature_metadata.map(From::from),
+        })
     }
 
     async fn convert_back(
@@ -981,4 +997,118 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
         });
         Self { revenue_recovery }
     }
+}
+
+#[async_trait::async_trait]
+pub trait MerchantConnectorAccountInterface
+where
+    MerchantConnectorAccount: behaviour::Conversion<
+        DstType = storage::MerchantConnectorAccount,
+        NewDstType = storage::MerchantConnectorAccountNew,
+    >,
+{
+    type Error;
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        connector_label: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_merchant_id_connector_name(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<Vec<MerchantConnectorAccount>, Self::Error>;
+
+    async fn insert_merchant_connector_account(
+        &self,
+        state: &KeyManagerState,
+        t: MerchantConnectorAccount,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_merchant_connector_account_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: &id_type::MerchantConnectorAccountId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccounts, Self::Error>;
+
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    async fn list_connector_account_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<Vec<MerchantConnectorAccount>, Self::Error>;
+
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<MerchantConnectorAccount>, Self::Error>;
+
+    async fn update_merchant_connector_account(
+        &self,
+        state: &KeyManagerState,
+        this: MerchantConnectorAccount,
+        merchant_connector_account: MerchantConnectorAccountUpdateInternal,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        this: Vec<(
+            MerchantConnectorAccount,
+            MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn delete_merchant_connector_account_by_id(
+        &self,
+        id: &id_type::MerchantConnectorAccountId,
+    ) -> CustomResult<bool, Self::Error>;
 }
