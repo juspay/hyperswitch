@@ -60,7 +60,10 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::{transformers::ForeignTryFrom, UcsResponseData},
+    types::{
+        transformers::ForeignTryFrom, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
+        UcsSetupMandateResponseData,
+    },
 };
 
 pub mod transformers;
@@ -69,7 +72,13 @@ pub mod transformers;
 pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
 
 /// Type alias for return type used by unified connector service response handlers
-type UnifiedConnectorServiceResult = CustomResult<UcsResponseData, UnifiedConnectorServiceError>;
+type UnifiedConnectorServiceResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
@@ -755,7 +764,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -768,7 +777,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     let connector_response =
         extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    Ok(UcsResponseData {
+    Ok(UcsAuthorizeResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
@@ -784,17 +793,12 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok(UcsResponseData {
-        router_data_response,
-        status_code,
-        connector_customer_id: None,
-        connector_response: None,
-    })
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -805,17 +809,16 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
 
-    Ok(UcsResponseData {
+    Ok(UcsSetupMandateResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
-        connector_response: None, // Register doesn't need connector_response
     })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -828,7 +831,7 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     let connector_response =
         extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    Ok(UcsResponseData {
+    Ok(UcsRepeatPaymentResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
@@ -873,12 +876,7 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok(UcsResponseData {
-        router_data_response,
-        status_code,
-        connector_customer_id: None,
-        connector_response: None,
-    })
+    Ok((router_data_response, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(

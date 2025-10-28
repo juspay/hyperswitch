@@ -361,8 +361,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     router_data.connector_customer = Some(connector_customer_id);
                 });
 
-                // Note: Register flow doesn't populate connector_response
-
                 Ok((router_data, payment_register_response))
             },
         ))
