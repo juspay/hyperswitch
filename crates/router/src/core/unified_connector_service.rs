@@ -766,7 +766,9 @@ pub fn handle_unified_connector_service_response_for_payment_authorize<F, Req>(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
     // Populate connector_customer_id from UCS state
     populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
@@ -774,10 +776,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize<F, Req>(
     // Populate connector_response from UCS response (log errors, don't fail)
     populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
         .inspect_err(|err| {
-            router_env::logger::warn!(
-                "Failed to populate connector_response from UCS: {:?}",
-                err
-            );
+            router_env::logger::warn!("Failed to populate connector_response from UCS: {:?}", err);
         })
         .ok();
 
@@ -802,7 +801,9 @@ pub fn handle_unified_connector_service_response_for_payment_register<F, Req>(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
     // Populate connector_customer_id from UCS state
     populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
@@ -817,7 +818,9 @@ pub fn handle_unified_connector_service_response_for_payment_repeat<F, Req>(
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response.clone())?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
     // Populate connector_customer_id from UCS state
     populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
@@ -825,10 +828,7 @@ pub fn handle_unified_connector_service_response_for_payment_repeat<F, Req>(
     // Populate connector_response from UCS response (log errors, don't fail)
     populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
         .inspect_err(|err| {
-            router_env::logger::warn!(
-                "Failed to populate connector_response from UCS: {:?}",
-                err
-            );
+            router_env::logger::warn!("Failed to populate connector_response from UCS: {:?}", err);
         })
         .ok();
 
