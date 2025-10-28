@@ -8550,7 +8550,7 @@ where
             &state,
             &header_payload,
             lineage_ids,
-            merchant_connector_account.clone(),
+            merchant_connector_account,
             &merchant_context,
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
