@@ -591,9 +591,9 @@ pub struct ResumeSubscriptionRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ResumeOption {
-    /// Pause immediately
+    /// Resume immediately
     Immediately,
-    /// Pause on a specific date,
+    /// Resume on a specific date,
     SpecificDate,
 }
 
