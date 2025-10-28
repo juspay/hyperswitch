@@ -917,10 +917,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             cy.get("body").then(($body) => {
               if ($body.find("#btn1").length > 0) {
                 cy.get("#btn1").click();
-                cy.wait(3000);
                 cy.get(
-                  "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
+                  "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+                  { timeout: 10000 }
                 )
+                  .should("be.visible")
                   .first()
                   .click();
               }
@@ -932,10 +933,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
         cy.get("body").then(($body) => {
           if ($body.find("#btn1").length > 0) {
             cy.get("#btn1").click();
-            cy.wait(3000);
             cy.get(
-              "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
+              "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+              { timeout: 10000 }
             )
+              .should("be.visible")
               .first()
               .click();
           }
@@ -1118,18 +1120,16 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "nuvei":
-          cy.wait(constants.WAIT_TIME);
-          cy.get("body").then(($body) => {
-            if ($body.find("#btn1").length > 0) {
-              cy.get("#btn1").click();
-              cy.wait(3000);
-              cy.get(
-                "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']"
-              )
-                .first()
-                .click();
-            }
-          });
+          cy.get("#btn1", { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          cy.get(
+            "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+            { timeout: 10000 }
+          )
+            .should("be.visible")
+            .first()
+            .click();
           break;
         case "stripe":
           cy.get("iframe", { timeout: constants.TIMEOUT })
