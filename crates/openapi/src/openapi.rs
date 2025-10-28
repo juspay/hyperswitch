@@ -174,7 +174,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::toggle_elimination_routing,
         routes::routing::create_success_based_routing,
         routes::routing::create_elimination_routing,
-        routes::routing::create_contract_based_routing_setup_config,
         routes::routing::contract_based_routing_setup_config,
         routes::routing::contract_based_routing_update_configs,
         routes::routing::call_decide_gateway_open_router,

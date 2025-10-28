@@ -413,33 +413,6 @@ pub async fn create_elimination_routing() {}
 pub async fn contract_based_routing_setup_config() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Create Contract routing for profile
-///
-/// Create a Contract based dynamic routing algorithm
-#[utoipa::path(
-    post,
-    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/create",
-    params(
-        ("account_id" = String, Path, description = "Merchant id"),
-        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
-        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for contract based routing"),
-    ),
-    request_body = ContractBasedRoutingConfig,
-    responses(
-        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
-        (status = 400, description = "Request body is malformed"),
-        (status = 500, description = "Internal server error"),
-        (status = 404, description = "Resource missing"),
-        (status = 422, description = "Unprocessable request"),
-        (status = 403, description = "Forbidden"),
-    ),
-   tag = "Routing",
-   operation_id = "Create contract routing algorithm",
-   security(("api_key" = []), ("jwt_key" = []))
-)]
-pub async fn create_contract_based_routing_setup_config() {}
-
-#[cfg(feature = "v1")]
 /// Routing - Update contract based dynamic routing config for profile
 ///
 /// Update contract based dynamic routing algorithm
