@@ -438,6 +438,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
                 let (router_data_response, status_code) =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
+                        &mut router_data,
                         payment_authorize_response.clone(),
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
