@@ -172,8 +172,8 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayTokenResponse {
     hosted_tokenize_id: Secret<String>,
-    pub amount : i64,
-    pub currency : enums::Currency,
+    pub amount: i64,
+    pub currency: enums::Currency,
 }
 
 impl<F>
@@ -382,8 +382,8 @@ pub struct ProphetpayCompleteAuthResponse {
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
     pub response_code: String,
-    pub amount : i64,
-    pub currency : enums::Currency,
+    pub amount: i64,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -476,8 +476,8 @@ pub struct ProphetpaySyncResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
-    pub amount : i64,
-    pub currency : enums::Currency,
+    pub amount: i64,
+    pub currency: enums::Currency,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResponseData>>
@@ -655,8 +655,8 @@ pub struct ProphetpayRefundResponse {
     pub success: bool,
     pub response_text: String,
     pub tran_seq_number: Option<String>,
-    pub amount : i64,
-    pub currency : enums::Currency,
+    pub amount: i64,
+    pub currency: enums::Currency,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
@@ -717,8 +717,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
 pub struct ProphetpayRefundSyncResponse {
     pub success: bool,
     pub response_text: String,
-    pub amount : i64,
-    pub currency : enums::Currency,
+    pub amount: i64,
+    pub currency: enums::Currency,
 }
 
 impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
