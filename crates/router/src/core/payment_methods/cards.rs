@@ -1636,33 +1636,30 @@ pub async fn update_customer_payment_method(
     merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
-    pm_fetch: Option<common_enums::enums::PaymentMethodFetch>,
+    pm_data: Option<domain::PaymentMethod>,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     // Currently update is supported only for cards
     if let Some(card_update) = req.card.clone() {
         let db = state.store.as_ref();
-
-        let pm = db
-            .find_payment_method(
-                &((&state).into()),
-                merchant_context.get_merchant_key_store(),
-                payment_method_id,
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
-        if let Some(fetch) = pm_fetch {
-            if matches!(fetch, common_enums::enums::PaymentMethodFetch::Fetch)
-                && pm.locker_id.is_some()
-            {
+        let pm = if let Some(pm) = pm_data.clone() {
+            if pm.locker_id.is_some() {
                 return Err(report!(errors::ApiErrorResponse::NotSupported {
                     message:
                         "Cannot proceed to update Payment Method when locker_id is already present"
                             .into(),
                 }));
             }
-        }
+            pm
+        } else {
+            db.find_payment_method(
+                &((&state).into()),
+                merchant_context.get_merchant_key_store(),
+                payment_method_id,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        };
 
         if let Some(cs) = &req.client_secret {
             let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;

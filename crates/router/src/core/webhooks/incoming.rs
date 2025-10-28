@@ -2409,12 +2409,24 @@ async fn update_additional_payment_method_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
+    let db = state.store.as_ref();
+
+    let pm = db
+        .find_payment_method(
+            &state.into(),
+            merchant_context.get_merchant_key_store(),
+            payment_method_id.as_str(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
         merchant_context.clone(),
         payment_method_update,
         &payment_method_id,
-        Some(common_enums::enums::PaymentMethodFetch::Fetch),
+        Some(pm),
     ))
     .await?;
     Ok(())
