@@ -230,6 +230,36 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Capture
+    pub async fn payment_capture(
+        &self,
+        payment_capture_request: payments_grpc::PaymentServiceCaptureRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceCaptureResponse>>
+    {
+        let mut request = tonic::Request::new(payment_capture_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .capture(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCaptureFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_capture",
+                    connector_name=?connector_name,
+                    "UCS payment capture gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Setup Mandate
     pub async fn payment_setup_mandate(
         &self,
@@ -287,6 +317,36 @@ impl UnifiedConnectorServiceClient {
                     method="payment_repeat",
                     connector_name=?connector_name,
                     "UCS payment repeat gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Cancel/Void
+    pub async fn payment_cancel(
+        &self,
+        payment_void_request: payments_grpc::PaymentServiceVoidRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceVoidResponse>>
+    {
+        let mut request = tonic::Request::new(payment_void_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .void(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCancelFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_cancel",
+                    connector_name=?connector_name,
+                    "UCS payment cancel gRPC call failed"
                 )
             })
     }
