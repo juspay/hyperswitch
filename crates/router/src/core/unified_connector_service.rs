@@ -420,36 +420,69 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     merchant_context: &MerchantContext,
     connector_name: &str,
-) -> RouterResult<bool> {
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        logger::debug!(
-            connector = connector_name.to_string(),
-            "Unified Connector Service client is not available for webhooks"
-        );
-        return Ok(false);
-    }
-
-    let ucs_config_key = consts::UCS_ENABLED;
-
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        return Ok(false);
-    }
-
+) -> RouterResult<ExecutionPath> {
+    // Extract context information
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let config_key = format!(
-        "{}_{}_{}_Webhooks",
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
+
+    let flow_name = "Webhooks";
+
+    // Check UCS availability using idiomatic helper
+    let ucs_availability = check_ucs_availability(state).await;
+
+    // Build rollout keys
+    let rollout_key = format!(
+        "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_name
+        connector_name,
+        "Webhooks"
     );
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    // Determine connector integration type
+    let connector_integration_type =
+        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
 
-    Ok(should_execute)
+    // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
+    let previous_gateway = None;
+    let shadow_rollout_key = format!("{}_shadow", rollout_key);
+
+    let shadow_rollout_availability =
+        if should_execute_based_on_rollout(state, &shadow_rollout_key).await? {
+            ShadowRolloutAvailability::IsAvailable
+        } else {
+            ShadowRolloutAvailability::NotAvailable
+        };
+
+    // Use the same decision logic as payments, with no call_connector_action to consider
+    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+        router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
+        (GatewaySystem::Direct, ExecutionPath::Direct)
+    } else {
+        // UCS is enabled, use decide function with no previous gateway for webhooks
+        decide_execution_path(
+            connector_integration_type,
+            previous_gateway,
+            shadow_rollout_availability,
+        )?
+    };
+
+    router_env::logger::info!(
+        "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
+    );
+
+    Ok(execution_path)
 }
 
 pub fn build_unified_connector_service_payment_method(
