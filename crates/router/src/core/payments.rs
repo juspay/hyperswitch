@@ -109,15 +109,15 @@ use crate::core::debit_routing;
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::vault;
-#[cfg(feature = "v2")]
-use crate::core::revenue_recovery::get_workflow_entries;
-#[cfg(feature = "v2")]
-use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::payments::helpers::{
     process_through_direct, process_through_direct_with_shadow_unified_connector_service,
     process_through_ucs,
 };
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::get_workflow_entries;
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
