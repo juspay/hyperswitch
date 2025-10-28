@@ -8777,9 +8777,7 @@ pub struct FeatureMetadata {
     /// Pix QR Code expiry time for Merchants
     pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
-    pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Date until the Boleto is valid
-    pub boleto_expiry_details: Option<String>,
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -8800,7 +8798,7 @@ impl FeatureMetadata {
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
             pix_qr_expiry_time: self.pix_qr_expiry_time,
-            pix_additional_details: self.pix_additional_details,
+            boleto_additional_details: self.boleto_additional_details,
             boleto_expiry_details: self.boleto_expiry_details,
         }
     }
@@ -8821,9 +8819,7 @@ pub struct FeatureMetadata {
     /// Pix QR Code expiry time for Merchants
     pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
-    pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Date until the Boleto is valid
-    pub boleto_expiry_details: Option<String>,
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -8836,14 +8832,15 @@ impl FeatureMetadata {
                 .apple_pay_recurring_details
                 .or(other.apple_pay_recurring_details),
             pix_qr_expiry_time: self.pix_qr_expiry_time.or(other.pix_qr_expiry_time),
-            pix_additional_details: self.pix_additional_details.or(other.pix_additional_details),
-            boleto_expiry_details: self.boleto_expiry_details.or(other.boleto_expiry_details),
+            boleto_additional_details: self
+                .boleto_additional_details
+                .or(other.boleto_additional_details),
         }
     }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PixAdditionalDetails {
+pub struct BoletoAdditionalDetails {
     /// The percentage of fine applied for late payment
     pub fine_percentage: Option<String>,
     /// The number of days after due date when fine is applied
@@ -8854,6 +8851,8 @@ pub struct PixAdditionalDetails {
     pub write_off_quantity_days: Option<String>,
     /// Additional messages to display to the shopper
     pub messages: Option<Vec<String>>,
+    /// Due Date for the Boleto
+    pub due_date: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

@@ -84,8 +84,12 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest
 
         let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
 
+        let boleto_mca_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
         Ok(Self {
-            covenant_code: santander_mca_metadata.covenant_code,
+            covenant_code: boleto_mca_metadata.covenant_code,
             bank_number: extract_bank_number(item.request.connector_meta.clone())?,
             due_date: update_metadata_fields.due_date,
             discount: update_metadata_fields.discount,
@@ -237,14 +241,43 @@ impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
     }
 }
 
-impl TryFrom<&RefreshTokenRouterData> for SantanderAuthRequest {
+impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderAuthRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
-        let auth_details = SantanderAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(
+        item: (&RefreshTokenRouterData, &SantanderMetadataObject),
+    ) -> Result<Self, Self::Error> {
+        let (client_id, client_secret) = match item.0.payment_method_type {
+            Some(enums::PaymentMethodType::Pix) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::Boleto) => {
+                let boleto_mca_metadata = item
+                    .1
+                    .boleto
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    boleto_mca_metadata.client_id.clone(),
+                    boleto_mca_metadata.client_secret.clone(),
+                ))
+            }
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: item.0.payment_method.to_string(),
+                connector: "Santander",
+            })),
+        }?;
 
         Ok(Self {
-            client_id: auth_details.client_id,
-            client_secret: auth_details.client_secret,
+            client_id,
+            client_secret,
             grant_type: SantanderGrantType::ClientCredentials,
         })
     }
@@ -366,6 +399,10 @@ impl
         let santander_mca_metadata =
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
+        let boleto_mca_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
         let voucher_data = match &value.0.router_data.request.payment_method_data {
             PaymentMethodData::Voucher(VoucherData::Boleto(boleto_data)) => boleto_data,
             _ => {
@@ -390,9 +427,10 @@ impl
             .router_data
             .request
             .feature_metadata
-            .clone()
-            .and_then(|fm| fm.boleto_expiry_details)
-            .unwrap_or_else(|| "boleto_expiry_details".to_string());
+            .as_ref()
+            .and_then(|fm| fm.boleto_additional_details.as_ref())
+            .and_then(|details| details.due_date.clone())
+            .unwrap_or_else(|| "boleto_due_date".to_string());
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Environment::from(router_env::env::which()),
@@ -401,7 +439,7 @@ impl
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
-            covenant_code: santander_mca_metadata.covenant_code.clone(),
+            covenant_code: boleto_mca_metadata.covenant_code.clone(),
             bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_number",
@@ -458,7 +496,7 @@ impl
             //     .request
             //     .feature_metadata
             //     .as_ref()
-            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
             //     .and_then(|fine| fine.fine_percentage.clone()),
             // fine_quantity_days: value
             //     .0
@@ -466,7 +504,7 @@ impl
             //     .request
             //     .feature_metadata
             //     .as_ref()
-            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
             //     .and_then(|days| days.fine_quantity_days.clone()),
             // interest_percentage: value
             //     .0
@@ -474,7 +512,7 @@ impl
             //     .request
             //     .feature_metadata
             //     .as_ref()
-            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
             //     .and_then(|interest| interest.interest_percentage.clone()),
             fine_percentage: None,
             fine_quantity_days: None,
@@ -488,7 +526,7 @@ impl
                 .request
                 .feature_metadata
                 .as_ref()
-                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|fm| fm.boleto_additional_details.as_ref())
                 .and_then(|days| days.write_off_quantity_days.clone()),
             payment_type: PaymentType::Registration,
             parcels_quantity: None,
@@ -505,7 +543,7 @@ impl
             //     .request
             //     .feature_metadata
             //     .as_ref()
-            //     .and_then(|fm| fm.pix_additional_details.as_ref())
+            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
             //     .and_then(|messages| messages.messages.clone()),
             messages: None,
         })))
@@ -528,6 +566,10 @@ impl
         let santander_mca_metadata =
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
+        let pix_mca_metadata = santander_mca_metadata
+            .pix
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
         let (calendar, debtor) = match &value
             .0
             .router_data
@@ -542,7 +584,7 @@ impl
                         expiration: val.time,
                     });
                 let debt = Some(SantanderDebtor {
-                    cnpj: Some(santander_mca_metadata.cnpj.clone()),
+                    cnpj: Some(pix_mca_metadata.cnpj.clone()),
                     name: value.0.router_data.get_billing_full_name()?,
                     street: None,
                     city: None,
@@ -561,7 +603,7 @@ impl
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cpf: Some(santander_mca_metadata.cpf.clone()),
+                    cpf: Some(pix_mca_metadata.cpf.clone()),
                     name: value.0.router_data.get_billing_full_name()?,
                     street: None,
                     city: None,
@@ -579,7 +621,7 @@ impl
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cnpj: Some(santander_mca_metadata.cpf.clone()),
+                    cnpj: Some(pix_mca_metadata.cpf.clone()),
                     name: value.0.router_data.get_billing_full_name()?,
                     street: None,
                     city: None,
@@ -598,7 +640,7 @@ impl
             value: Some(SantanderValue {
                 original: value.0.amount.to_owned(),
             }),
-            key: Some(santander_mca_metadata.pix_key.clone()),
+            key: Some(pix_mca_metadata.pix_key.clone()),
             request_payer: value.0.router_data.request.statement_descriptor.clone(),
             additional_info: None,
         })))
@@ -786,10 +828,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             }
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let voucher_data = VoucherNextStepData {
-                    expires_at: Some(boleto_data.due_date
-                        .parse::<i64>()
-                        .map_err(|_| errors::ConnectorError::ParsingFailed)?),
                     digitable_line: boleto_data.digitable_line.clone(),
+                    expires_at: None, // have to convert a date to seconds in i64
                     reference: boleto_data.nsu_code,
                     entry_date: boleto_data.entry_date,
                     download_url: None,
@@ -873,6 +913,9 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
     type Error = Error;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+        let boleto_mca_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
         match item.payment_method {
             enums::PaymentMethod::BankTransfer => match item.request.payment_method_type {
@@ -888,7 +931,7 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
                 Some(enums::PaymentMethodType::Boleto) => {
                     Ok(Self::Boleto(SantanderBoletoCancelRequest {
                         operation: SantanderBoletoCancelOperation::WriteOff,
-                        covenant_code: santander_mca_metadata.covenant_code.clone(),
+                        covenant_code: boleto_mca_metadata.covenant_code.clone(),
                         bank_number: extract_bank_number(item.request.connector_meta.clone())?,
                     }))
                 }
@@ -939,11 +982,15 @@ fn get_qr_code_data<F, T>(
 
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
+    let pix_mca_metadata = santander_mca_metadata
+        .pix
+        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
     let response = pix_data.clone();
 
-    let merchant_city = santander_mca_metadata.merchant_city.as_str();
+    let merchant_city = pix_mca_metadata.merchant_city.as_str();
 
-    let merchant_name = santander_mca_metadata.merchant_name.as_str();
+    let merchant_name = pix_mca_metadata.merchant_name.as_str();
 
     let amount_i64 = StringMajorUnitForConnector
         .convert_back(response.value.original, enums::Currency::BRL)

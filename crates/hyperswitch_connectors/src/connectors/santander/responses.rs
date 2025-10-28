@@ -355,7 +355,7 @@ pub enum SantanderErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum  SantanderGenericErrorResponse {
+pub enum SantanderGenericErrorResponse {
     Pattern1(SantanderPattern1ErrorResponse),
     Pattern2(SantanderPattern2ErrorResponse),
     Pattern3(SantanderPattern3ErrorResponse),

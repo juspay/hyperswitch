@@ -56,13 +56,31 @@ pub enum DiscountType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
+    pub pix: Option<PixMetadataObject>,
+    pub boleto: Option<BoletoMetadataObject>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoletoMetadataObject {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
+    pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
+    pub workspace_id: String,
+    pub covenant_code: String, // max_size : 9
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PixMetadataObject {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
     pub pix_key: Secret<String>,
     pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
     pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
-    pub merchant_city: String,
     pub merchant_name: String,
-    pub workspace_id: String,
-    pub covenant_code: String, // max_size : 9
+    pub merchant_city: String,
 }
 
 pub struct SantanderRouterData<T> {
