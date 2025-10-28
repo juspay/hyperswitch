@@ -597,6 +597,10 @@ pub enum DocumentKind {
     Cpf,
 }
 
+pub enum PaymentMethodFetch {
+    Fetch,
+}
+
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(

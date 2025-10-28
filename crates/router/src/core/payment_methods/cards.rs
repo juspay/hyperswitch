@@ -1636,6 +1636,7 @@ pub async fn update_customer_payment_method(
     merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
+    pm_fetch: Option<common_enums::enums::PaymentMethodFetch>,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     // Currently update is supported only for cards
     if let Some(card_update) = req.card.clone() {
@@ -1650,6 +1651,18 @@ pub async fn update_customer_payment_method(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if let Some(fetch) = pm_fetch {
+            if matches!(fetch, common_enums::enums::PaymentMethodFetch::Fetch)
+                && pm.locker_id.is_some()
+            {
+                return Err(report!(errors::ApiErrorResponse::NotSupported {
+                    message:
+                        "Cannot proceed to update Payment Method when locker_id is already present"
+                            .into(),
+                }));
+            }
+        }
 
         if let Some(cs) = &req.client_secret {
             let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;

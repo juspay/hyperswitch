@@ -1141,30 +1141,16 @@ async fn payments_incoming_webhook_flow(
 
             match payment_method_id_opt {
                 Some(payment_method_id) => {
-                    let db = state.store.as_ref();
-                    let pm = db
-                        .find_payment_method(
-                            &(&state).into(),
-                            merchant_context.get_merchant_key_store(),
-                            payment_method_id.as_str(),
-                            merchant_context.get_merchant_account().storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                        .attach_printable("Failed to fetch the payment method")?;
-
-                    if should_update_additional_payment_method_data(pm).await {
-                        if let Err(e) = update_additional_payment_method_data(
-                            &state,
-                            &merchant_context,
-                            connector,
-                            request_details,
-                            payment_method_id,
-                        )
-                        .await
-                        {
-                            logger::warn!(?e, "Failed to update additional payment method data");
-                        }
+                    if let Err(e) = update_additional_payment_method_data(
+                        &state,
+                        &merchant_context,
+                        connector,
+                        request_details,
+                        payment_method_id,
+                    )
+                    .await
+                    {
+                        logger::warn!(?e, "Failed to update additional payment method data");
                     }
                 }
                 None => {
@@ -2411,15 +2397,6 @@ fn should_update_connector_mandate_details(
     source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentSuccess
 }
 
-async fn should_update_additional_payment_method_data(
-    pm: hyperswitch_domain_models::payment_methods::PaymentMethod,
-) -> bool {
-    if pm.locker_id.is_some() {
-        return false;
-    }
-    true
-}
-
 async fn update_additional_payment_method_data(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -2437,6 +2414,7 @@ async fn update_additional_payment_method_data(
         merchant_context.clone(),
         payment_method_update,
         &payment_method_id,
+        Some(common_enums::enums::PaymentMethodFetch::Fetch),
     ))
     .await?;
     Ok(())
