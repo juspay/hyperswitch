@@ -163,12 +163,17 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     fn get_url(
         &self,
         _req: &RefreshTokenRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(
-            "https://auth.verygoodsecurity.com/auth/realms/vgs/protocol/openid-connect/token"
-                .to_string(),
-        )
+        let auth_base_url = connectors
+            .vgs
+            .secondary_base_url
+            .as_ref()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        Ok(format!(
+            "{}/auth/realms/vgs/protocol/openid-connect/token",
+            auth_base_url
+        ))
     }
     fn get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
