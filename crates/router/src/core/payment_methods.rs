@@ -2450,33 +2450,8 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                     vault_id,
                     fingerprint_id: Some(fingerprint_id),
                     entity_id: None,
-                    multi_vault_token: None,
                 })
             }
-            types::VaultResponseData::ExternalVaultMultiTokenResponse {
-                network_token,
-                tavv,
-                token_expiration_month,
-                token_expiration_year,
-            } => {
-                #[cfg(feature = "v2")]
-                let vault_id = domain::VaultId::generate("".to_string());
-                #[cfg(not(feature = "v2"))]
-                let vault_id = "".to_string();
-
-                Ok(pm_types::AddVaultResponse {
-                    vault_id,
-                    fingerprint_id: None,
-                    entity_id: None,
-                    multi_vault_token: Some(pm_types::MultiVaultTokenData {
-                        network_token,
-                        token_expiration_month,
-                        token_expiration_year,
-                        tavv,
-                    }),
-                })
-            }
-
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
             | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {

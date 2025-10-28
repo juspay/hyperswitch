@@ -10,7 +10,7 @@ pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -716,14 +716,8 @@ pub enum VaultResponseData {
         client_secret: masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
-        connector_vault_id: String,
+        connector_vault_id: VaultIdType,
         fingerprint_id: String,
-    },
-    ExternalVaultMultiTokenResponse {
-        network_token: masking::Secret<String>,
-        tavv: masking::Secret<String>,
-        token_expiration_month: masking::Secret<String>,
-        token_expiration_year: masking::Secret<String>,
     },
     ExternalVaultRetrieveResponse {
         vault_data: PaymentMethodVaultingData,
@@ -733,10 +727,28 @@ pub enum VaultResponseData {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VaultIdType {
+    SingleVaultId(String),
+    MultiVauldIds(HashMap<String, String>),
+}
+
+impl VaultIdType {
+    pub fn get_single_vault_id(&self) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
+            Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "SingleVaultId",
+            }
+            .into()),
+        }
+    }
+}
+
 impl Default for VaultResponseData {
     fn default() -> Self {
         Self::ExternalVaultInsertResponse {
-            connector_vault_id: String::new(),
+            connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
     }

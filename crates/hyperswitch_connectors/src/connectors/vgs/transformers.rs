@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
     router_request_types::VaultRequestData,
-    router_response_types::VaultResponseData,
+    router_response_types::{VaultIdType, VaultResponseData},
     types::{RefreshTokenRouterData, VaultRouterData},
     vault::PaymentMethodVaultingData,
 };
@@ -191,32 +191,45 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         match item.data.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::NetworkToken(_)) => Ok(Self {
-                status: common_enums::AttemptStatus::Started,
-                response: Ok(VaultResponseData::ExternalVaultMultiTokenResponse {
-                    network_token: Secret::new(get_token_from_response(
-                        &item.response.data,
-                        "network_token",
-                    )?),
-                    tavv: Secret::new(get_token_from_response(&item.response.data, "tavv")?),
-                    token_expiration_month: Secret::new(get_token_from_response(
-                        &item.response.data,
-                        "expiry_month",
-                    )?),
-                    token_expiration_year: Secret::new(get_token_from_response(
-                        &item.response.data,
-                        "expiry_year",
-                    )?),
-                }),
-                ..item.data
-            }),
+            Some(PaymentMethodVaultingData::NetworkToken(_)) => {
+                let mut multi_tokens: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+
+                multi_tokens.insert(
+                    "network_token".to_string(),
+                    get_token_from_response(&item.response.data, "network_token")?,
+                );
+                multi_tokens.insert(
+                    "tavv".to_string(),
+                    get_token_from_response(&item.response.data, "tavv")?,
+                );
+                multi_tokens.insert(
+                    "token_expiry_month".to_string(),
+                    get_token_from_response(&item.response.data, "token_expiry_month")?,
+                );
+                multi_tokens.insert(
+                    "token_expiry_year".to_string(),
+                    get_token_from_response(&item.response.data, "token_expiry_year")?,
+                );
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                        connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
+                        fingerprint_id: get_token_from_response(
+                            &item.response.data,
+                            "network_token",
+                        )?,
+                    }),
+                    ..item.data
+                })
+            }
             _ => {
                 let vgs_alias = get_token_from_response(&item.response.data, "data")?;
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                        connector_vault_id: vgs_alias.clone(),
+                        connector_vault_id: VaultIdType::SingleVaultId(vgs_alias.clone()),
                         fingerprint_id: vgs_alias.clone(),
                     }),
                     ..item.data

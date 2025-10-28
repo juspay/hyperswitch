@@ -1193,7 +1193,7 @@ pub async fn save_in_locker_external(
         )
         .await?;
 
-        let payment_method_id = vault_response.vault_id.to_string().to_owned();
+        let payment_method_id = vault_response.vault_id.get_single_vault_id()?;
         let card_detail = CardDetailFromLocker::from(card);
 
         let pm_resp = api::PaymentMethodResponse {

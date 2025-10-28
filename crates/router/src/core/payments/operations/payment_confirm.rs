@@ -1329,7 +1329,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .attach_printable("Missing authentication_details.token_details")?;
                                 (Some(
                                     hyperswitch_domain_models::payment_method_data::NetworkTokenData {
-                                        token_number: token_details.payment_token,
+                                        token_number:token_details.payment_token,
                                         token_exp_month: token_details
                                             .token_expiration_month,
                                         token_exp_year: token_details
