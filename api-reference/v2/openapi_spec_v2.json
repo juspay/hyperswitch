@@ -2651,6 +2651,64 @@
         ]
       }
     },
+    "/v2/payments/{id}/apply-payment-method-data": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Apply PM Data",
+        "description": "Apply the payment method data and recalculate surcharge",
+        "operationId": "Apply Payment Method Data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyPaymentMethodDataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Apply the Payment Method Data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyPaymentMethodDataResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -5269,6 +5327,69 @@
           "connector_merchant_id": {
             "type": "string",
             "description": "The connector merchant id",
+            "nullable": true
+          }
+        }
+      },
+      "ApplyPaymentMethodDataRequest": {
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "properties": {
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+            }
+          }
+        }
+      },
+      "ApplyPaymentMethodDataResponse": {
+        "type": "object",
+        "required": [
+          "remaining_amount",
+          "currency",
+          "requires_additional_pm_data"
+        ],
+        "properties": {
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "requires_additional_pm_data": {
+            "type": "boolean"
+          },
+          "surcharge_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ApplyPaymentMethodDataSurchargeResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
             "nullable": true
           }
         }
