@@ -7983,7 +7983,7 @@ async fn save_connector_customer_id_after_ucs<F, Req>(
     payment_id: String,
 ) -> RouterResult<()> {
     // Process only if connector_customer_id was NOT already in DB
-    if !connector_customer_id_was_populated_from_db.is_some() {
+    if connector_customer_id_was_populated_from_db.is_none() {
         // Extract necessary fields and save if both are present
         match (&router_data.connector_customer, connector_label.as_ref()) {
             (Some(connector_customer_id), Some(connector_label_str)) => {
