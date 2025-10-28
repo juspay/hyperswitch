@@ -821,7 +821,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Bluecode
             | enums::PaymentMethodType::SepaGuarenteedDebit
-            | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::Payjustnow => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1134,7 +1135,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect {}
-            | PayLaterData::BreadpayRedirect {} => Err(ConnectorError::NotImplemented(
+            | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayjustnowRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
         }

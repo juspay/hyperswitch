@@ -1861,10 +1861,13 @@ where
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
                 | PayLaterData::AtomeRedirect {}
-                | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nuvei"),
-                )
-                .into()),
+                | PayLaterData::BreadpayRedirect {}
+                | PayLaterData::PayjustnowRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
+                }
             },
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
