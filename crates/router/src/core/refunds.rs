@@ -823,50 +823,66 @@ pub async fn sync_refund_with_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    // Check which gateway system to use for refund sync
-    let execution_path = unified_connector_service::should_call_unified_connector_service(
-        state,
-        merchant_context,
-        &router_data,
-        None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
-        payments::CallConnectorAction::Trigger,
-    )
-    .await?;
+    // Common access token handling for all flows
+    let router_data_res = if !(add_access_token_result.connector_supports_access_token
+        && router_data.access_token.is_none())
+    {
+        // Access token available or not needed - proceed with execution
 
-    // Execute refund sync based on gateway system decision
-    let router_data_res = match execution_path {
-        common_enums::ExecutionPath::UnifiedConnectorService => {
-            unified_connector_service::call_unified_connector_service_for_refund_sync(
-                state,
-                merchant_context,
-                router_data.clone(),
-                ExecutionMode::Primary,
-                merchant_connector_account,
-            )
-            .await
-            .attach_printable(format!(
-                "UCS refund sync failed for connector: {}, refund_id: {}",
-                connector.connector_name, router_data.request.refund_id
-            ))?
+        // Check which gateway system to use for refund sync
+        let execution_path = unified_connector_service::should_call_unified_connector_service(
+            state,
+            merchant_context,
+            &router_data,
+            None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+            payments::CallConnectorAction::Trigger,
+        )
+        .await?;
+
+        router_env::logger::info!(
+            refund_id = router_data.request.refund_id,
+            execution_path = ?execution_path,
+            "Executing refund sync via {execution_path:?}"
+        );
+
+        // Execute refund sync based on gateway system decision
+        match execution_path {
+            common_enums::ExecutionPath::UnifiedConnectorService => {
+                unified_connector_service::call_unified_connector_service_for_refund_sync(
+                    state,
+                    merchant_context,
+                    router_data.clone(),
+                    ExecutionMode::Primary,
+                    merchant_connector_account,
+                )
+                .await
+                .attach_printable(format!(
+                    "UCS refund sync failed for connector: {}, refund_id: {}",
+                    connector.connector_name, router_data.request.refund_id
+                ))?
+            }
+            common_enums::ExecutionPath::Direct => {
+                Box::pin(execute_refund_sync_via_direct(
+                    state,
+                    &connector,
+                    router_data,
+                ))
+                .await?
+            }
+            common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                Box::pin(execute_refund_sync_via_direct_with_ucs_shadow(
+                    state,
+                    &connector,
+                    merchant_context,
+                    router_data,
+                    merchant_connector_account,
+                ))
+                .await?
+            }
         }
-        common_enums::ExecutionPath::Direct => {
-            Box::pin(execute_refund_sync_via_direct(
-                state,
-                &connector,
-                router_data,
-            ))
-            .await?
-        }
-        common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
-            Box::pin(execute_refund_sync_via_direct_with_ucs_shadow(
-                state,
-                &connector,
-                merchant_context,
-                router_data,
-                merchant_connector_account,
-            ))
-            .await?
-        }
+    } else {
+        // Access token needed but not available - return error router_data
+        router_data
     };
 
     let refund_update = match router_data_res.response {
@@ -977,12 +993,6 @@ async fn execute_refund_sync_via_direct(
     connector: &api::ConnectorData,
     router_data: types::RefundSyncRouterData,
 ) -> RouterResult<types::RefundSyncRouterData> {
-    router_env::logger::info!(
-        connector = connector.connector_name.to_string(),
-        refund_id = router_data.request.refund_id,
-        "Executing refund sync via Direct connector"
-    );
-
     let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         api::RSync,
         types::RefundsData,

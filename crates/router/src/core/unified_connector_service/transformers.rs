@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, AuthenticationType};
+use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
 use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -1609,15 +1609,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 connector_metadata: None,
             })
         } else {
-            let refund_status = match response.status {
-                0 => common_enums::RefundStatus::Pending, // REFUND_STATUS_UNSPECIFIED
-                1 => common_enums::RefundStatus::Failure, // REFUND_FAILURE
-                2 => common_enums::RefundStatus::ManualReview, // REFUND_MANUAL_REVIEW
-                3 => common_enums::RefundStatus::Pending, // REFUND_PENDING
-                4 => common_enums::RefundStatus::Success, // REFUND_SUCCESS
-                5 => common_enums::RefundStatus::TransactionFailure, // REFUND_TRANSACTION_FAILURE
-                _ => common_enums::RefundStatus::Pending, // Default fallback
-            };
+            let refund_status = RefundStatus::foreign_try_from(response.status())?;
 
             Ok(RefundsResponseData {
                 connector_refund_id: response.refund_id,
@@ -1683,6 +1675,21 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 })
                 .unwrap_or_default(),
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(grpc_status: payments_grpc::RefundStatus) -> Result<Self, Self::Error> {
+        match grpc_status {
+            payments_grpc::RefundStatus::Unspecified => Ok(Self::Pending),
+            payments_grpc::RefundStatus::RefundFailure => Ok(Self::Failure),
+            payments_grpc::RefundStatus::RefundManualReview => Ok(Self::ManualReview),
+            payments_grpc::RefundStatus::RefundPending => Ok(Self::Pending),
+            payments_grpc::RefundStatus::RefundSuccess => Ok(Self::Success),
+            payments_grpc::RefundStatus::RefundTransactionFailure => Ok(Self::TransactionFailure),
+        }
     }
 }
 
