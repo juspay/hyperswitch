@@ -8237,7 +8237,7 @@ where
             state,
             connector_label.as_deref(),
             payment_data.get_payment_attempt(),
-            &payment_data
+            payment_data
                 .get_payment_intent()
                 .payment_id
                 .get_string_repr(),
