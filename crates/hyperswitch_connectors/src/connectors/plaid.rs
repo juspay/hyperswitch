@@ -47,8 +47,8 @@ use transformers as plaid;
 use crate::{
     constants::headers,
     types::{PaymentsPostProcessingRouterData, ResponseRouterData},
-    utils::convert_amount,
     utils as connector_utils,
+    utils::convert_amount,
 };
 
 #[derive(Clone)]
