@@ -239,23 +239,23 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 
                 let payment_capture_response = response.into_inner();
 
-                let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_payment_capture(
-                        payment_capture_response.clone(),
-                    )
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data = handle_unified_connector_service_response_for_payment_capture(
+                    payment_capture_response.clone(),
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response =
+                    ucs_data.router_data_response.map(|(response, status)| {
+                        router_data.status = status;
+                        response
+                    });
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_capture_response.captured_amount;
                 router_data.minor_amount_captured = payment_capture_response
                     .minor_captured_amount
                     .map(MinorUnit::new);
-                router_data.connector_http_status_code = Some(status_code);
+                router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                 Ok((router_data, payment_capture_response))
             },

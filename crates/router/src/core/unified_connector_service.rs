@@ -60,7 +60,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::{transformers::ForeignTryFrom, UcsResponseData},
 };
 
 pub mod transformers;
@@ -69,13 +69,7 @@ pub mod transformers;
 pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
 
 /// Type alias for return type used by unified connector service response handlers
-type UnifiedConnectorServiceResult = CustomResult<
-    (
-        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
->;
+type UnifiedConnectorServiceResult = CustomResult<UcsResponseData, UnifiedConnectorServiceError>;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
@@ -759,8 +753,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
     }
 }
 
-pub fn handle_unified_connector_service_response_for_payment_authorize<F, Req>(
-    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
+pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -770,17 +763,17 @@ pub fn handle_unified_connector_service_response_for_payment_authorize<F, Req>(
             response.clone(),
         )?;
 
-    // Populate connector_customer_id from UCS state
-    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    // Populate connector_response from UCS response (log errors, don't fail)
-    populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
-        .inspect_err(|err| {
-            router_env::logger::warn!("Failed to populate connector_response from UCS: {:?}", err);
-        })
-        .ok();
-
-    Ok((router_data_response, status_code))
+    Ok(UcsResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_capture(
@@ -791,11 +784,15 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok(UcsResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id: None,
+        connector_response: None,
+    })
 }
 
-pub fn handle_unified_connector_service_response_for_payment_register<F, Req>(
-    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
+pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -805,14 +802,18 @@ pub fn handle_unified_connector_service_response_for_payment_register<F, Req>(
             response.clone(),
         )?;
 
-    // Populate connector_customer_id from UCS state
-    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
 
-    Ok((router_data_response, status_code))
+    Ok(UcsResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response: None, // Register doesn't need connector_response
+    })
 }
 
-pub fn handle_unified_connector_service_response_for_payment_repeat<F, Req>(
-    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
+pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -822,45 +823,46 @@ pub fn handle_unified_connector_service_response_for_payment_repeat<F, Req>(
             response.clone(),
         )?;
 
-    // Populate connector_customer_id from UCS state
-    populate_connector_customer_id_from_ucs_state(router_data, response.state.as_ref());
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    // Populate connector_response from UCS response (log errors, don't fail)
-    populate_connector_response_from_ucs(router_data, response.connector_response.as_ref())
-        .inspect_err(|err| {
-            router_env::logger::warn!("Failed to populate connector_response from UCS: {:?}", err);
-        })
-        .ok();
-
-    Ok((router_data_response, status_code))
+    Ok(UcsResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
 }
 
-/// Extracts and populates connector_customer_id from UCS state into router_data
-pub fn populate_connector_customer_id_from_ucs_state<F, Req, Resp>(
-    router_data: &mut RouterData<F, Req, Resp>,
+/// Extracts connector_customer_id from UCS state
+pub fn extract_connector_customer_id_from_ucs_state(
     ucs_state: Option<&payments_grpc::ConnectorState>,
-) {
-    ucs_state.map(|state| {
+) -> Option<String> {
+    ucs_state.and_then(|state| {
         state
             .connector_customer_id
             .as_ref()
-            .map(|id| router_data.connector_customer = Some(id.to_string()));
-    });
+            .map(|id| id.to_string())
+    })
 }
 
-/// Extracts and populates connector_response from UCS response into router_data
-pub fn populate_connector_response_from_ucs<F, Req, Resp>(
-    router_data: &mut RouterData<F, Req, Resp>,
+/// Extracts connector_response from UCS response
+pub fn extract_connector_response_from_ucs(
     connector_response: Option<&payments_grpc::ConnectorResponseData>,
-) -> RouterResult<()> {
-    router_data.connector_response = connector_response
-        .map(|data| {
-            <hyperswitch_domain_models::router_data::ConnectorResponseData as hyperswitch_interfaces::helpers::ForeignTryFrom<payments_grpc::ConnectorResponseData>>::foreign_try_from(data.clone())
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize connector_response from UCS")?;
-    Ok(())
+) -> Option<hyperswitch_domain_models::router_data::ConnectorResponseData> {
+    connector_response.and_then(|data| {
+        <hyperswitch_domain_models::router_data::ConnectorResponseData as hyperswitch_interfaces::helpers::ForeignTryFrom<payments_grpc::ConnectorResponseData>>::foreign_try_from(data.clone())
+            .map_err(|e| {
+                logger::warn!(
+                    error=?e,
+                    "Failed to deserialize connector_response from UCS"
+                );
+                e
+            })
+            .ok()
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_cancel(
@@ -871,7 +873,12 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok(UcsResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id: None,
+        connector_response: None,
+    })
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(

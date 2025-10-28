@@ -7905,18 +7905,17 @@ where
 /// Helper function to populate connector_customer_id from database before calling UCS
 /// This checks if a connector_customer_id already exists in the database and populates it into router_data
 /// Returns true if connector_customer_id was found and populated from DB, false otherwise
-async fn populate_connector_customer_from_db_before_ucs<F, Req, D>(
+async fn populate_connector_customer_from_db_before_ucs<D, F>(
     state: &SessionState,
-    router_data: &mut RouterData<F, Req, PaymentsResponseData>,
     connector_label: Option<&str>,
     payment_data: &D,
     customer: &Option<domain::Customer>,
     merchant_connector_account: &MerchantConnectorAccountType,
-) -> RouterResult<bool>
+) -> RouterResult<Option<String>>
 where
     D: OperationSessionGetters<F>,
 {
-    let mut connector_customer_id_was_populated = false;
+    let mut connector_customer_id_was_populated = None;
 
     if let (Some(connector_label), Some(connector_name)) = (
         connector_label,
@@ -7955,8 +7954,7 @@ where
                     payment_data.get_payment_intent().payment_id.get_string_repr(),
                     connector_label
                 );
-                router_data.connector_customer = Some(connector_customer_id.to_string());
-                connector_customer_id_was_populated = true;
+                connector_customer_id_was_populated = Some(connector_customer_id.to_string());
             }
             None => {
                 router_env::logger::info!(
@@ -7978,14 +7976,14 @@ where
 async fn save_connector_customer_id_after_ucs<F, Req>(
     state: &SessionState,
     router_data: &RouterData<F, Req, PaymentsResponseData>,
-    connector_customer_id_was_populated_from_db: bool,
+    connector_customer_id_was_populated_from_db: Option<String>,
     connector_label: &Option<String>,
     customer: &Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
     payment_id: String,
 ) -> RouterResult<()> {
     // Process only if connector_customer_id was NOT already in DB
-    if !connector_customer_id_was_populated_from_db {
+    if !connector_customer_id_was_populated_from_db.is_some() {
         // Extract necessary fields and save if both are present
         match (&router_data.connector_customer, connector_label.as_ref()) {
             (Some(connector_customer_id), Some(connector_label_str)) => {
@@ -8019,7 +8017,6 @@ async fn save_connector_customer_id_after_ucs<F, Req>(
             payment_id
         );
     }
-
     Ok(())
 }
 
@@ -8188,13 +8185,18 @@ where
     let connector_customer_id_was_populated_from_db =
         populate_connector_customer_from_db_before_ucs(
             state,
-            &mut router_data,
             connector_label.as_deref(),
             payment_data,
             customer,
             &merchant_connector_account,
         )
         .await?;
+
+    connector_customer_id_was_populated_from_db
+        .as_ref()
+        .map(|id| {
+            router_data.connector_customer = Some(id.clone());
+        });
 
     // Based on the preprocessing response, decide whether to continue with UCS call
     if should_continue {
@@ -8380,17 +8382,20 @@ where
     // Populate connector_customer_id from database for shadow UCS call
     // Use the pre-calculated connector_label
     // Track whether ID was found in DB to avoid redundant save later
-    let _connector_customer_id_was_populated_from_db =
+    let connector_customer_id_was_populated_from_db =
         populate_connector_customer_from_db_before_ucs(
             state,
-            &mut unified_connector_service_router_data,
             unified_connector_service_connector_label.as_deref(),
             payment_data,
             customer,
             &merchant_connector_account,
         )
         .await
-        .unwrap_or(false); // Don't fail the main flow if shadow UCS populate fails
+        .unwrap_or_default(); // Don't fail the main flow if shadow UCS populate fails
+
+    connector_customer_id_was_populated_from_db.map(|id| {
+        unified_connector_service_router_data.connector_customer = Some(id);
+    });
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),

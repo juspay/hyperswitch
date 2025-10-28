@@ -721,6 +721,15 @@ pub struct PspTokenResult {
     pub token: Result<String, ErrorResponse>,
 }
 
+/// Data extracted from UCS response
+pub struct UcsResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
