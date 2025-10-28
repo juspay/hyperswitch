@@ -464,8 +464,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pro
 
         let response_integrity_object = connector_utils::get_sync_integrity_object(
             self.amount_converter,
-            p_sync_response.amount.total,
-            p_sync_response.amount.currency.to_string().clone(),
+            p_sync_response.amount,
+            p_sync_response.currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -639,8 +639,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Prophet
 
         let response_integrity_object = connector_utils::get_refund_integrity_object(
             self.amount_converter,
-            response.amount.total,
-            response.amount.currency.to_string().clone(),
+            response.amount,
+            response.currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -739,8 +739,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Prophetpa
 
         let response_integrity_object = connector_utils::get_refund_integrity_object(
             self.amount_converter,
-            r_sync_response.amount.total,
-            r_sync_response.amount.currency.to_string().clone(),
+            r_sync_response.amount,
+            r_sync_response.currency.to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
