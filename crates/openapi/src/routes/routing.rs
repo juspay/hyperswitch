@@ -282,6 +282,7 @@ pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
 /// Routing - Auth Rate Based
+///
 /// Create a success based dynamic routing algorithm
 #[utoipa::path(
     post,
