@@ -224,9 +224,11 @@ where
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
                 if shadow_ucs_call_connector_action.is_some() {
-                    (GatewaySystem::Direct, ExecutionPath::ShadowUnifiedConnectorService)
-                }
-                else {
+                    (
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    )
+                } else {
                     (GatewaySystem::Direct, ExecutionPath::Direct)
                 }
             }
