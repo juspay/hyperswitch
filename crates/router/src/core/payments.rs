@@ -5161,7 +5161,6 @@ where
             .merchant_reference_id
             .clone()
             .map(|id| id.get_string_repr().to_string());
-        let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
@@ -5173,7 +5172,6 @@ where
                 merchant_context,
                 ExecutionMode::Primary, //UCS is called in primary mode
                 merchant_order_reference_id,
-                creds_identifier,
             )
             .await?;
 
