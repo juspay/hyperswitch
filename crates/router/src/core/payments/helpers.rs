@@ -8067,6 +8067,7 @@ pub async fn process_through_direct_with_shadow_unified_connector_service<
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -8155,6 +8156,7 @@ where
             unified_connector_service_merchant_context,
             unified_connector_service_merchant_order_reference_id,
             call_connector_action,
+            shadow_ucs_call_connector_action,
         )
         .await
     });
@@ -8177,6 +8179,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_context: domain::MerchantContext,
     merchant_order_reference_id: Option<String>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
@@ -8195,7 +8198,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
-            call_connector_action,
+            shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));

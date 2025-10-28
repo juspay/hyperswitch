@@ -469,10 +469,10 @@ async fn process_ucs_webhook_transform<'a>(
 
 /// Shadow UCS data container
 pub struct ShadowUcsData<'a> {
-    ucs_source_verified: Option<bool>,
-    ucs_event_type: Option<webhooks::IncomingWebhookEvent>,
-    ucs_transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
-    request_details: Option<&'a IncomingWebhookRequestDetails<'a>>,
+    ucs_source_verified: bool,
+    ucs_event_type: webhooks::IncomingWebhookEvent,
+    ucs_transform_data: Box<unified_connector_service::WebhookTransformData>,
+    request_details: &'a IncomingWebhookRequestDetails<'a>,
     webhook_details: Option<api::IncomingWebhookDetails>,
 }
 
@@ -495,7 +495,6 @@ async fn process_shadow_ucs_webhook_transform<'a>(
     request_details: &'a IncomingWebhookRequestDetails<'a>,
     merchant_connector_account: Option<&'a domain::MerchantConnectorAccount>,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    println!("process_shadow_ucs_webhook_transform() starts");
     // Execute UCS path
     let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
         state,
@@ -523,45 +522,16 @@ async fn process_shadow_ucs_webhook_transform<'a>(
                 "There was an error in incoming webhook body decoding for shadow processing",
             )?;
 
-        // Create request_details with decoded body for connector processing
-        let updated_request_details = IncomingWebhookRequestDetails {
-            method: request_details.method.clone(),
-            uri: request_details.uri.clone(),
-            headers: request_details.headers,
-            query_params: request_details.query_params.clone(),
-            body: &decoded_body,
-        };
-
-        // Get event type from direct connector
-        let event_type_result = connector
-            .get_webhook_event_type(&updated_request_details)
-            .allow_webhook_event_type_not_found(
-                state
-                    .clone()
-                    .conf
-                    .webhooks
-                    .ignore_error
-                    .event_type
-                    .unwrap_or(true),
-            )
-            .switch()
-            .attach_printable(
-                "Could not find event type in incoming webhook body for shadow processing",
-            );
-
-        match event_type_result {
-            Ok(Some(event_type)) => Ok(WebhookProcessingResult {
-                event_type,
-                source_verified: false,
-                transform_data: None,
-                decoded_body: Some(decoded_body.into()),
-                shadow_ucs_data: None,
-            }),
-            Ok(None) => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-                "Failed to identify event type in incoming webhook body for shadow processing",
-            ),
-            Err(e) => Err(e),
-        }
+        // Reuse existing process_non_ucs_webhook function
+        process_non_ucs_webhook(
+            state,
+            merchant_context,
+            connector,
+            connector_name,
+            decoded_body.into(),
+            request_details,
+        )
+        .await
     }
     .await;
 
@@ -573,10 +543,10 @@ async fn process_shadow_ucs_webhook_transform<'a>(
         ) => {
             // Create ShadowUcsData with UCS results  
             let shadow_ucs_data = ShadowUcsData {
-                ucs_source_verified: Some(ucs_source_verified),
-                ucs_event_type: Some(ucs_event_type),
-                ucs_transform_data: Some(Box::new(ucs_transform_data)),
-                request_details: Some(request_details),
+                ucs_source_verified,
+                ucs_event_type,
+                ucs_transform_data: Box::new(ucs_transform_data),
+                request_details,
                 webhook_details: None,
             };
 
@@ -862,32 +832,28 @@ async fn process_webhook_business_logic(
     // Create shadow_event_object and shadow_webhook_details using shadow UCS data
     let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> = shadow_ucs_data
         .as_ref()
-        .and_then(|shadow_data| {
-            shadow_data.ucs_transform_data.as_ref().and_then(|ucs_transform_data| {
-                shadow_data.request_details.map(|shadow_request_details| {
-                    // Create shadow event object using UCS transform data and shadow request details
-                    let shadow_event_result = ucs_transform_data
-                        .webhook_content
-                        .as_ref()
-                        .map(|webhook_response_content| {
-                            get_ucs_webhook_resource_object(webhook_response_content)
-                        })
-                        .unwrap_or_else(|| {
-                            // Fall back to connector extraction using shadow request details
-                            connector
-                                .get_webhook_resource_object(shadow_request_details)
-                                .switch()
-                                .attach_printable("Could not find resource object in shadow incoming webhook body")
-                        });
-                    
-                    match shadow_event_result {
-                        Ok(shadow_obj) => Some(shadow_obj),
-                        Err(_) => None, // In case of error, assign None
-                    }
+        .map(|shadow_data| {
+            // Create shadow event object using UCS transform data and shadow request details
+            let shadow_event_result = shadow_data.ucs_transform_data
+                .webhook_content
+                .as_ref()
+                .map(|webhook_response_content| {
+                    get_ucs_webhook_resource_object(webhook_response_content)
                 })
-                .flatten()
-            })
-        });
+                .unwrap_or_else(|| {
+                    // Fall back to connector extraction using shadow request details
+                    connector
+                        .get_webhook_resource_object(shadow_data.request_details)
+                        .switch()
+                        .attach_printable("Could not find resource object in shadow incoming webhook body")
+                });
+            
+            match shadow_event_result {
+                Ok(shadow_obj) => Some(shadow_obj),
+                Err(_) => None, // In case of error, assign None
+            }
+        })
+        .flatten();
 
     let shadow_webhook_details: Option<api::IncomingWebhookDetails> = shadow_event_object.as_ref().map(|shadow_obj| {
         let resource_object_result = serde_json::to_vec(shadow_obj)
@@ -1270,9 +1236,10 @@ async fn payments_incoming_webhook_flow(
 
     // Determine shadow UCS call connector action based on shadow UCS data
     let shadow_ucs_call_connector_action = shadow_ucs_data.as_ref().and_then(|shadow_data| {
-        shadow_data.webhook_details.as_ref().and_then(|webhook_details| {
-            shadow_data.ucs_transform_data.as_ref().map(|ucs_transform_data| {
-                match ucs_transform_data.webhook_transformation_status {
+        if shadow_data.ucs_source_verified {
+            // Proceed with the match case of webhook_transformation_status
+            shadow_data.webhook_details.as_ref().map(|webhook_details| {
+                match shadow_data.ucs_transform_data.webhook_transformation_status {
                     unified_connector_service::WebhookTransformationStatus::Complete => {
                         payments::CallConnectorAction::UCSConsumeResponse(webhook_details.resource_object.clone())
                     }
@@ -1281,7 +1248,10 @@ async fn payments_incoming_webhook_flow(
                     }
                 }
             })
-        })
+        } else {
+            // If ucs_source_verified is not true, use Trigger action
+            Some(payments::CallConnectorAction::Trigger)
+        }
     });
     
     let payments_response = match webhook_details.object_reference_id {
@@ -1337,6 +1307,7 @@ async fn payments_incoming_webhook_flow(
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow.clone(),
+                shadow_ucs_call_connector_action,
                 None,
                 HeaderPayload::default(),
             ))
@@ -2028,6 +1999,7 @@ async fn external_authentication_incoming_webhook_flow(
                     services::api::AuthFlow::Merchant,
                     payments::CallConnectorAction::Trigger,
                     None,
+                    None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
                 ))
                 .await?;
@@ -2219,6 +2191,7 @@ async fn frm_incoming_webhook_flow(
                     services::api::AuthFlow::Merchant,
                     payments::CallConnectorAction::Trigger,
                     None,
+                    None,
                     HeaderPayload::default(),
                 ))
                 .await?
@@ -2246,6 +2219,7 @@ async fn frm_incoming_webhook_flow(
                     },
                     services::api::AuthFlow::Merchant,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     None,
                     HeaderPayload::default(),
                 ))
@@ -2403,6 +2377,7 @@ async fn bank_transfer_webhook_flow(
             request,
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
             HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))

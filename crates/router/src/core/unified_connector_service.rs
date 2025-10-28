@@ -146,6 +146,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<ExecutionPath>
 where
     D: OperationSessionGetters<F>,
@@ -222,7 +223,12 @@ where
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
-                (GatewaySystem::Direct, ExecutionPath::Direct)
+                if shadow_ucs_call_connector_action.is_some() {
+                    (GatewaySystem::Direct, ExecutionPath::ShadowUnifiedConnectorService)
+                }
+                else {
+                    (GatewaySystem::Direct, ExecutionPath::Direct)
+                }
             }
             CallConnectorAction::Trigger
             | CallConnectorAction::Avoid
