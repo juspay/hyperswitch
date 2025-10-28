@@ -134,6 +134,9 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
+        ) && matches!(
             item.router_data.auth_type,
             enums::AuthenticationType::ThreeDs
         ) {
@@ -142,6 +145,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             )
             .into());
         }
+
         let source =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(_)
