@@ -20,7 +20,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
+            set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -377,36 +378,36 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .attach_printable("Failed to deserialize UCS response")?;
 
                         // Extract and store access token if present
-                        if let Some(access_token) =
-                    crate::core::unified_connector_service::get_access_token_from_ucs_response(
-                        state,
-                        merchant_context,
-                        &connector_name,
-                        merchant_connector_account.get_mca_id().as_ref(),
-                        creds_identifier.clone(),
-                        payment_get_response.state.as_ref(),
-                    )
-                    .await
-                {
-                    if let Err(error) =
-                        crate::core::unified_connector_service::set_access_token_for_ucs(
+                        if let Some(access_token) = get_access_token_from_ucs_response(
                             state,
                             merchant_context,
                             &connector_name,
-                            access_token,
                             merchant_connector_account.get_mca_id().as_ref(),
-                            creds_identifier,
+                            creds_identifier.clone(),
+                            payment_get_response.state.as_ref(),
                         )
                         .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from psync response"
-                        );
-                    } else {
-                        logger::debug!("Successfully stored access token from UCS psync response");
-                    }
-                }
+                        {
+                            if let Err(error) = set_access_token_for_ucs(
+                                state,
+                                merchant_context,
+                                &connector_name,
+                                access_token,
+                                merchant_connector_account.get_mca_id().as_ref(),
+                                creds_identifier,
+                            )
+                            .await
+                            {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to store UCS access token from psync response"
+                                );
+                            } else {
+                                logger::debug!(
+                                    "Successfully stored access token from UCS psync response"
+                                );
+                            }
+                        }
 
                         let router_data_response =
                             router_data_response.map(|(response, status)| {
