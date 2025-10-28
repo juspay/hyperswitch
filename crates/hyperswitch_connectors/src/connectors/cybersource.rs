@@ -2292,6 +2292,46 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirect_response = request_data.redirect_response.as_ref()?;
+                match redirect_response.params.as_ref() {
+                    Some(param) if !param.peek().is_empty() => {
+                        Some(api::PreProcessingFlowName::Authenticate)
+                    }
+                    Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
+                }
+            }
+        }
+    }
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match (current_flow, pre_processing_flow_name) {
+            (api::CurrentFlowInfo::Authorize { .. }, _) => {
+                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
+                true
+            }
+            (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::Authenticate,
+            )
+            | (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::PostAuthenticate,
+            ) => {
+                (matches!(
+                    preprocessing_flow_response.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && preprocessing_flow_response.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed)
+            }
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2309,6 +2349,8 @@ impl ConnectorSpecifications for Cybersource {
                     None
                 }
             }
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
         }
     }
 }
