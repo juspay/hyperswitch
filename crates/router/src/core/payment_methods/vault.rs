@@ -551,6 +551,10 @@ pub struct TokenizedWalletSensitiveValues {
     pub telephone_number: Option<masking::Secret<String>>,
     pub wallet_id: Option<masking::Secret<String>>,
     pub wallet_type: PaymentMethodType,
+    pub dpan: Option<cards::CardNumber>,
+    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_year: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -570,12 +574,30 @@ impl Vaultable for api::WalletPayout {
                 telephone_number: paypal_data.telephone_number.clone(),
                 wallet_id: paypal_data.paypal_id.clone(),
                 wallet_type: PaymentMethodType::Paypal,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
             },
             Self::Venmo(venmo_data) => TokenizedWalletSensitiveValues {
                 email: None,
                 telephone_number: venmo_data.telephone_number.clone(),
                 wallet_id: None,
                 wallet_type: PaymentMethodType::Venmo,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
+            },
+            Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: None,
+                wallet_type: PaymentMethodType::ApplePay,
+                dpan: Some(apple_pay_decrypt_data.dpan.clone()),
+                expiry_month: Some(apple_pay_decrypt_data.expiry_month.clone()),
+                expiry_year: Some(apple_pay_decrypt_data.expiry_year.clone()),
+                card_holder_name: apple_pay_decrypt_data.card_holder_name.clone(),
             },
         };
 
@@ -620,6 +642,19 @@ impl Vaultable for api::WalletPayout {
             PaymentMethodType::Venmo => Self::Venmo(api_models::payouts::Venmo {
                 telephone_number: value1.telephone_number,
             }),
+            PaymentMethodType::ApplePay => {
+                match (value1.dpan, value1.expiry_month, value1.expiry_year) {
+                    (Some(dpan), Some(expiry_month), Some(expiry_year)) => {
+                        Self::ApplePayDecrypt(api_models::payouts::ApplePayDecrypt {
+                            dpan,
+                            expiry_month,
+                            expiry_year,
+                            card_holder_name: value1.card_holder_name,
+                        })
+                    }
+                    _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                }
+            }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
         };
         let supp_data = SupplementaryVaultData {
@@ -825,6 +860,7 @@ pub enum VaultPayoutMethod {
     Bank(String),
     Wallet(String),
     BankRedirect(String),
+    Passthrough(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -839,6 +875,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
+            Self::Passthrough(passthrough) => {
+                VaultPayoutMethod::Passthrough(passthrough.get_value1(customer_id)?)
             }
         };
 
@@ -858,6 +897,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
+            Self::Passthrough(passthrough) => {
+                VaultPayoutMethod::Passthrough(passthrough.get_value2(customer_id)?)
             }
         };
 
@@ -901,6 +943,11 @@ impl Vaultable for api::PayoutMethodData {
                 let (bank_redirect, supp_data) =
                     api::BankRedirectPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+            (VaultPayoutMethod::Passthrough(mvalue1), VaultPayoutMethod::Passthrough(mvalue2)) => {
+                let (passthrough, supp_data) =
+                    api::PassthroughPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::Passthrough(passthrough), supp_data))
             }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
@@ -972,6 +1019,67 @@ impl Vaultable for api::BankRedirectPayout {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl Vaultable for api::PassthroughPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = TokenizedPassthroughSensitiveValues {
+            psp_token: self.psp_token.clone(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable(
+                "Failed to encode passthrough data - TokenizedPassthroughSensitiveValues",
+            )
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedPassthroughInsensitiveValues {
+            customer_id,
+            token_type: self.token_type,
+        };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode passthrough data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedPassthroughSensitiveValues = value1
+            .parse_struct("TokenizedPassthroughSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value1")?;
+
+        let value2: TokenizedPassthroughInsensitiveValues = value2
+            .parse_struct("TokenizedPassthroughInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value2")?;
+
+        let passthrough = Self {
+            psp_token: value1.psp_token,
+            token_type: value2.token_type,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((passthrough, supp_data))
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Email,
@@ -981,6 +1089,17 @@ pub struct TokenizedBankRedirectSensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedPassthroughSensitiveValues {
+    pub psp_token: masking::Secret<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedPassthroughInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
+    pub token_type: PaymentMethodType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

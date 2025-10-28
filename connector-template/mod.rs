@@ -156,6 +156,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -599,6 +600,7 @@ static {{project-name | upcase}}_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "{{project-name | downcase | pascal_case}}",
     description: "{{project-name | downcase | pascal_case}} connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static {{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

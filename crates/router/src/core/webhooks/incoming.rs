@@ -25,6 +25,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use unified_connector_service_client::payments as payments_grpc;
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
@@ -34,9 +35,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payments::{self, tokenization},
-        refunds, relay,
-        subscription::subscription_handler::SubscriptionHandler,
-        unified_connector_service, utils as core_utils,
+        refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
     db::StorageInterface,
@@ -350,11 +349,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
-                merchant_connector_account
-                    .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: connector_name_or_mca_id.to_string(),
-                    })?
-                    .merchant_connector_id,
             )
             .await;
 
@@ -499,25 +493,50 @@ async fn process_non_ucs_webhook(
     }
 }
 
+/// Extract resource object from UCS WebhookResponseContent
+fn get_ucs_webhook_resource_object(
+    webhook_response_content: &payments_grpc::WebhookResponseContent,
+) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
+    let resource_object = match &webhook_response_content.content {
+        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+            incomplete_transformation_response,
+        )) => {
+            // Deserialize resource object
+            serde_json::from_slice::<serde_json::Value>(
+                &incomplete_transformation_response.resource_object,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize resource object from UCS webhook response")?
+        }
+        _ => {
+            // Convert UCS webhook content to appropriate format
+            serde_json::to_value(webhook_response_content)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize UCS webhook content")?
+        }
+    };
+    Ok(Box::new(resource_object))
+}
+
 /// Extract webhook event object based on transform data availability
 fn extract_webhook_event_object(
-    transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
+    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    match transform_data {
-        Some(transform_data) => match &transform_data.webhook_content {
-            Some(webhook_content) => {
-                let serialized_value = serde_json::to_value(webhook_content)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize UCS webhook content")?;
-                Ok(Box::new(serialized_value))
-            }
-            None => connector
-                .get_webhook_resource_object(request_details)
-                .switch()
-                .attach_printable("Could not find resource object in incoming webhook body"),
-        },
+    match webhook_transform_data {
+        Some(webhook_transform_data) => webhook_transform_data
+            .webhook_content
+            .as_ref()
+            .map(|webhook_response_content| {
+                get_ucs_webhook_resource_object(webhook_response_content)
+            })
+            .unwrap_or_else(|| {
+                connector
+                    .get_webhook_resource_object(request_details)
+                    .switch()
+                    .attach_printable("Could not find resource object in incoming webhook body")
+            }),
         None => connector
             .get_webhook_resource_object(request_details)
             .switch()
@@ -538,7 +557,6 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -641,30 +659,31 @@ async fn process_webhook_business_logic(
 
     logger::info!(source_verified=?source_verified);
 
-    let event_object: Box<dyn masking::ErasedMaskSerialize> =
-        if let Some(transform_data) = webhook_transform_data {
-            // Use UCS transform data if available
-            if let Some(webhook_content) = &transform_data.webhook_content {
-                // Convert UCS webhook content to appropriate format
-                Box::new(
-                    serde_json::to_value(webhook_content)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to serialize UCS webhook content")?,
-                )
-            } else {
-                // Fall back to connector extraction
-                connector
-                    .get_webhook_resource_object(request_details)
-                    .switch()
-                    .attach_printable("Could not find resource object in incoming webhook body")?
-            }
-        } else {
+    let event_object: Box<dyn masking::ErasedMaskSerialize> = match webhook_transform_data {
+        Some(webhook_transform_data) => {
+            // Extract resource_object from UCS webhook content
+            webhook_transform_data
+                .webhook_content
+                .as_ref()
+                .map(|webhook_response_content| {
+                    get_ucs_webhook_resource_object(webhook_response_content)
+                })
+                .unwrap_or_else(|| {
+                    // Fall back to connector extraction
+                    connector
+                        .get_webhook_resource_object(request_details)
+                        .switch()
+                        .attach_printable("Could not find resource object in incoming webhook body")
+                })?
+        }
+        None => {
             // Use traditional connector extraction
             connector
                 .get_webhook_resource_object(request_details)
                 .switch()
                 .attach_printable("Could not find resource object in incoming webhook body")?
-        };
+        }
+    };
 
     let webhook_details = api::IncomingWebhookDetails {
         object_reference_id: object_ref_id.clone(),
@@ -834,20 +853,21 @@ async fn process_webhook_business_logic(
             .await
             .attach_printable("Incoming webhook flow for payouts failed"),
 
-            api::WebhookFlow::Subscription => Box::pin(subscription_incoming_webhook_flow(
-                state.clone(),
-                req_state,
-                merchant_context.clone(),
-                business_profile,
-                webhook_details,
-                source_verified,
-                connector,
-                request_details,
-                event_type,
-                billing_connector_mca_id,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for subscription failed"),
+            api::WebhookFlow::Subscription => {
+                Box::pin(subscriptions::webhooks::incoming_webhook_flow(
+                    state.clone().into(),
+                    merchant_context.clone(),
+                    business_profile,
+                    webhook_details,
+                    source_verified,
+                    connector,
+                    request_details,
+                    event_type,
+                    merchant_connector_account,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for subscription failed")
+            }
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unsupported Flow Type received in incoming webhooks"),
@@ -1013,11 +1033,16 @@ async fn payments_incoming_webhook_flow(
 
         match webhook_transform_data.as_ref() {
             Some(transform_data) => {
-                // Serialize the transform data to pass to UCS handler
-                let transform_data_bytes = serde_json::to_vec(transform_data.as_ref())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize UCS webhook transform data")?;
-                payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes)
+                match transform_data.webhook_transformation_status {
+                    unified_connector_service::WebhookTransformationStatus::Complete => {
+                        // Consume response from UCS
+                        payments::CallConnectorAction::UCSConsumeResponse(resource_object)
+                    }
+                    unified_connector_service::WebhookTransformationStatus::Incomplete => {
+                        // Make a second call to UCS
+                        payments::CallConnectorAction::UCSHandleResponse(resource_object)
+                    }
+                }
             }
             None => payments::CallConnectorAction::HandleResponse(resource_object),
         }
@@ -1223,6 +1248,7 @@ async fn payouts_incoming_webhook_flow(
             is_eligible: payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
         };
 
         let action_req =
@@ -2580,147 +2606,4 @@ fn insert_mandate_details(
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-async fn subscription_incoming_webhook_flow(
-    state: SessionState,
-    _req_state: ReqState,
-    merchant_context: domain::MerchantContext,
-    business_profile: domain::Profile,
-    _webhook_details: api::IncomingWebhookDetails,
-    source_verified: bool,
-    connector_enum: &ConnectorEnum,
-    request_details: &IncomingWebhookRequestDetails<'_>,
-    event_type: webhooks::IncomingWebhookEvent,
-    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
-) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    // Only process invoice_generated events for MIT payments
-    if event_type != webhooks::IncomingWebhookEvent::InvoiceGenerated {
-        return Ok(WebhookResponseTracker::NoEffect);
-    }
-
-    if !source_verified {
-        logger::error!("Webhook source verification failed for subscription webhook flow");
-        return Err(report!(
-            errors::ApiErrorResponse::WebhookAuthenticationFailed
-        ));
-    }
-
-    let connector_name = connector_enum.id().to_string();
-
-    let connector = Connector::from_str(&connector_name)
-        .change_context(errors::ConnectorError::InvalidConnectorName)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name}"))?;
-
-    let mit_payment_data = connector_enum
-        .get_subscription_mit_payment_data(request_details)
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("Failed to extract MIT payment data from subscription webhook")?;
-
-    let profile_id = business_profile.get_id().clone();
-
-    let profile =
-        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
-            .await
-            .attach_printable(
-                "subscriptions: failed to find business profile in get_subscription",
-            )?;
-
-    let handler = SubscriptionHandler::new(&state, &merchant_context);
-
-    let subscription_id = mit_payment_data.subscription_id.clone();
-
-    let subscription_with_handler = handler
-        .find_subscription(subscription_id.clone())
-        .await
-        .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
-
-    let invoice_handler = subscription_with_handler.get_invoice_handler(profile.clone());
-    let invoice = invoice_handler
-        .find_invoice_by_subscription_id_connector_invoice_id(
-            &state,
-            subscription_id,
-            mit_payment_data.invoice_id.clone(),
-        )
-        .await
-        .attach_printable(
-            "subscriptions: failed to get invoice by subscription id and connector invoice id",
-        )?;
-    if let Some(invoice) = invoice {
-        // During CIT payment we would have already created invoice entry with status as PaymentPending or Paid.
-        // So we skip incoming webhook for the already processed invoice
-        if invoice.status != InvoiceStatus::InvoiceCreated {
-            logger::info!("Invoice is already being processed, skipping MIT payment creation");
-            return Ok(WebhookResponseTracker::NoEffect);
-        }
-    }
-
-    let payment_method_id = subscription_with_handler
-        .subscription
-        .payment_method_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "No payment method found for subscription".to_string(),
-        })
-        .attach_printable("No payment method found for subscription")?;
-
-    logger::info!("Payment method ID found: {}", payment_method_id);
-
-    let payment_id = generate_id(consts::ID_LENGTH, "pay");
-    let payment_id = common_utils::id_type::PaymentId::wrap(payment_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_id",
-        },
-    )?;
-
-    // Multiple MIT payments for the same invoice_generated event is avoided by having the unique constraint on (subscription_id, connector_invoice_id) in the invoices table
-    let invoice_entry = invoice_handler
-        .create_invoice_entry(
-            &state,
-            billing_connector_mca_id.clone(),
-            Some(payment_id),
-            mit_payment_data.amount_due,
-            mit_payment_data.currency_code,
-            InvoiceStatus::PaymentPending,
-            connector,
-            None,
-            Some(mit_payment_data.invoice_id.clone()),
-        )
-        .await?;
-
-    // Create a sync job for the invoice with generated payment_id before initiating MIT payment creation.
-    // This ensures that if payment creation call fails, the sync job can still retrieve the payment status
-    invoice_handler
-        .create_invoice_sync_job(
-            &state,
-            &invoice_entry,
-            Some(mit_payment_data.invoice_id.clone()),
-            connector,
-        )
-        .await?;
-
-    let payment_response = invoice_handler
-        .create_mit_payment(
-            &state,
-            mit_payment_data.amount_due,
-            mit_payment_data.currency_code,
-            &payment_method_id.clone(),
-        )
-        .await?;
-
-    let _updated_invoice = invoice_handler
-        .update_invoice(
-            &state,
-            invoice_entry.id.clone(),
-            payment_response.payment_method_id.clone(),
-            Some(payment_response.payment_id.clone()),
-            InvoiceStatus::from(payment_response.status),
-            Some(mit_payment_data.invoice_id.clone()),
-        )
-        .await?;
-
-    Ok(WebhookResponseTracker::NoEffect)
 }

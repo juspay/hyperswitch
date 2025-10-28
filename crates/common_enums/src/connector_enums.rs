@@ -74,6 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -250,6 +251,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
+    #[serde(alias = "bluecode")]
     Calida,
     Boku,
     Braintree,
@@ -377,6 +379,7 @@ impl Connector {
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Worldpay, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
@@ -389,7 +392,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
-        matches!(self, Self::Wise)
+        matches!(self, Self::Wise | Self::Gigadat)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
@@ -423,7 +426,10 @@ impl Connector {
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
-        matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
+        matches!(
+            (self, payment_method),
+            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, PaymentMethod::Card)
+        )
     }
     pub fn supports_file_storage_module(self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
@@ -570,10 +576,6 @@ impl Connector {
             | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
-    }
-
-    pub fn is_pre_processing_required_before_authorize(self) -> bool {
-        matches!(self, Self::Airwallex)
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {

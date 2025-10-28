@@ -55,6 +55,7 @@ pub async fn rust_locker_migration(
         limit: u16::MAX,
         offset: None,
         customer_id: None,
+        time_range: None,
     };
 
     let domain_customers = db

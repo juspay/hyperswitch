@@ -130,6 +130,8 @@ pub enum Flow {
     GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
+    ///List Customers for a merchant with constraints.
+    CustomersListWithConstraints,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
     /// Payment method create collect link flow.
@@ -275,6 +277,8 @@ pub enum Flow {
     CreateAndConfirmSubscription,
     /// Get Subscription flow
     GetSubscription,
+    /// Update Subscription flow
+    UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
     /// Create dynamic routing
@@ -471,6 +475,8 @@ pub enum Flow {
     DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Extend Authorization flow
+    PaymentsExtendAuthorization,
     /// Get action URL for connector onboarding
     GetActionUrl,
     /// Sync connector onboarding status
@@ -674,8 +680,10 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
-    /// Gift card balance check flow
-    GiftCardBalanceCheck,
+    /// Payment Method balance check flow
+    PaymentMethodBalanceCheck,
+    /// Payments Submit Eligibility flow
+    PaymentsSubmitEligibility,
 }
 
 /// Trait for providing generic behaviour to flow metric

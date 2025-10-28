@@ -529,7 +529,7 @@ pub async fn perform_calculate_workflow(
     .await?;
 
     // 2. Get best available token
-    let best_time_to_schedule =
+    let payment_processor_token_response =
         match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
             state,
             &connector_customer_id,
@@ -546,12 +546,14 @@ pub async fn perform_calculate_workflow(
                     connector_customer_id = %connector_customer_id,
                     "Failed to get best PSP token"
                 );
-                None
+                revenue_recovery_workflow::PaymentProcessorTokenResponse::None
             }
         };
 
-    match best_time_to_schedule {
-        Some(scheduled_time) => {
+    match payment_processor_token_response {
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
+            scheduled_time,
+        } => {
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
@@ -602,113 +604,86 @@ pub async fn perform_calculate_workflow(
             );
         }
 
-        None => {
-            let scheduled_token = match storage::revenue_recovery_redis_operation::
-                RedisTokenManager::get_payment_processor_token_with_schedule_time(state, &connector_customer_id)
-                .await {
-                    Ok(scheduled_token_opt) => scheduled_token_opt,
-                    Err(e) => {
-                        logger::error!(
-                            error = ?e,
-                            connector_customer_id = %connector_customer_id,
-                            "Failed to get PSP token status"
-                        );
-                        None
-                    }
-                };
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::NextAvailableTime {
+            next_available_time,
+        } => {
+            // Update scheduled time to next_available_time + Buffer
+            // here next_available_time is the wait time
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "No token but time available, rescheduling for scheduled time "
+            );
 
-            match scheduled_token {
-                Some(scheduled_token) => {
-                    // Update scheduled time to scheduled time + 15 minutes
-                    // here scheduled_time is the wait time 15 minutes is a buffer time that we are adding
-                    logger::info!(
+            update_calculate_job_schedule_time(
+                db,
+                process,
+                time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .job_schedule_buffer_time_in_seconds,
+                ),
+                Some(next_available_time),
+                &connector_customer_id,
+                retry_algorithm_type,
+            )
+            .await?;
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::None => {
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "Hard decline flag is false, rescheduling for scheduled time + 15 mins"
+            );
+
+            update_calculate_job_schedule_time(
+                db,
+                process,
+                time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .job_schedule_buffer_time_in_seconds,
+                ),
+                Some(common_utils::date_time::now()),
+                &connector_customer_id,
+                retry_algorithm_type,
+            )
+            .await?;
+        }
+        revenue_recovery_workflow::PaymentProcessorTokenResponse::HardDecline => {
+            // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "Token/Tokens is/are Hard decline, finishing CALCULATE_WORKFLOW"
+            );
+
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    process.clone(),
+                    business_status::CALCULATE_WORKFLOW_FINISH,
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
                         process_id = %process.id,
-                        connector_customer_id = %connector_customer_id,
-                        "No token but time available, rescheduling for scheduled time + 15 mins"
+                        error = ?e,
+                        "Failed to finish CALCULATE_WORKFLOW"
                     );
+                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                })?;
 
-                    update_calculate_job_schedule_time(
-                        db,
-                        process,
-                        time::Duration::seconds(
-                            state
-                                .conf
-                                .revenue_recovery
-                                .recovery_timestamp
-                                .job_schedule_buffer_time_in_seconds,
-                        ),
-                        scheduled_token.scheduled_at,
-                        &connector_customer_id,
-                    )
-                    .await?;
-                }
-                None => {
-                    let hard_decline_flag = storage::revenue_recovery_redis_operation::
-                        RedisTokenManager::are_all_tokens_hard_declined(
-                            state,
-                            &connector_customer_id
-                        )
-                        .await
-                        .ok()
-                        .unwrap_or(false);
+            event_type = Some(common_enums::EventType::PaymentFailed);
 
-                    match hard_decline_flag {
-                        false => {
-                            logger::info!(
-                                process_id = %process.id,
-                                connector_customer_id = %connector_customer_id,
-                                "Hard decline flag is false, rescheduling for scheduled time + 15 mins"
-                            );
-
-                            update_calculate_job_schedule_time(
-                                db,
-                                process,
-                                time::Duration::seconds(
-                                    state
-                                        .conf
-                                        .revenue_recovery
-                                        .recovery_timestamp
-                                        .job_schedule_buffer_time_in_seconds,
-                                ),
-                                Some(common_utils::date_time::now()),
-                                &connector_customer_id,
-                            )
-                            .await?;
-                        }
-                        true => {
-                            // Finish calculate workflow with CALCULATE_WORKFLOW_FINISH
-                            logger::info!(
-                                process_id = %process.id,
-                                connector_customer_id = %connector_customer_id,
-                                "No token available, finishing CALCULATE_WORKFLOW"
-                            );
-
-                            db.as_scheduler()
-                                .finish_process_with_business_status(
-                                    process.clone(),
-                                    business_status::CALCULATE_WORKFLOW_FINISH,
-                                )
-                                .await
-                                .map_err(|e| {
-                                    logger::error!(
-                                        process_id = %process.id,
-                                        error = ?e,
-                                        "Failed to finish CALCULATE_WORKFLOW"
-                                    );
-                                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                                })?;
-
-                            event_type = Some(common_enums::EventType::PaymentFailed);
-
-                            logger::info!(
-                                process_id = %process.id,
-                                connector_customer_id = %connector_customer_id,
-                                "CALCULATE_WORKFLOW finished successfully"
-                            );
-                        }
-                    }
-                }
-            }
+            logger::info!(
+                process_id = %process.id,
+                connector_customer_id = %connector_customer_id,
+                "CALCULATE_WORKFLOW finished successfully"
+            );
         }
     }
 
@@ -749,6 +724,7 @@ async fn update_calculate_job_schedule_time(
     additional_time: time::Duration,
     base_time: Option<time::PrimitiveDateTime>,
     connector_customer_id: &str,
+    retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let now = common_utils::date_time::now();
 
@@ -759,11 +735,22 @@ async fn update_calculate_job_schedule_time(
         connector_customer_id = %connector_customer_id,
         "Rescheduling Calculate Job at "
     );
+    let mut old_tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+        serde_json::from_value(process.tracking_data.clone())
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+
+    old_tracking_data.revenue_recovery_retry = retry_algorithm_type;
+
+    let tracking_data = serde_json::to_value(old_tracking_data)
+        .change_context(errors::RecoveryError::ValueNotFound)
+        .attach_printable("Failed to serialize the tracking data for process tracker")?;
+
     let pt_update = storage::ProcessTrackerUpdate::Update {
         name: Some("CALCULATE_WORKFLOW".to_string()),
         retry_count: Some(process.clone().retry_count),
         schedule_time: Some(new_schedule_time),
-        tracking_data: Some(process.clone().tracking_data),
+        tracking_data: Some(tracking_data),
         business_status: Some(String::from(business_status::PENDING)),
         status: Some(common_enums::ProcessTrackerStatus::Pending),
         updated_at: Some(common_utils::date_time::now()),
