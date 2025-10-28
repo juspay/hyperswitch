@@ -7365,6 +7365,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
+ "tonic 0.13.1",
  "totp-rs",
  "tracing-futures",
  "ucs_cards",

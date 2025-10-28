@@ -10,7 +10,14 @@ use crate::helpers::ForeignTryFrom;
 /// Unified Connector Service (UCS) related transformers
 pub mod transformers;
 
+/// UCS trait-based architecture for GRPC flows
+pub mod ucs_traits;
+
 pub use transformers::WebhookTransformData;
+pub use ucs_traits::{
+    UcsContext, UcsExecutionContextProvider, UcsFlowExecutor, UcsGrpcExecutor,
+    UcsRequestTransformer, UcsResponseHandler, UcsStateProvider,
+};
 
 /// Type alias for return type used by unified connector service response handlers
 type UnifiedConnectorServiceResult = CustomResult<

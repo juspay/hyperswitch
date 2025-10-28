@@ -104,6 +104,7 @@ strum = { version = "0.26", features = ["derive"] }
 tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
+tonic = "0.13.1"
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
