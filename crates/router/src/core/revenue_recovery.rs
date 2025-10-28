@@ -5,7 +5,10 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums,
-    payments::{self as api_payments, PaymentsGetIntentRequest, PaymentsResponse,RecoveryPaymentsListResponseItem},
+    payments::{
+        self as api_payments, PaymentsGetIntentRequest, PaymentsResponse,
+        RecoveryPaymentsListResponseItem,
+    },
     process_tracker::revenue_recovery,
     webhooks,
 };
