@@ -22,7 +22,6 @@ pub async fn get_cached_access_token_for_ucs(
     connector: &api_types::ConnectorData,
     merchant_context: &domain::MerchantContext,
     payment_method: common_enums::PaymentMethod,
-    payment_id: &str,
     creds_identifier: Option<&str>,
 ) -> RouterResult<Option<types::AccessToken>> {
     if connector
@@ -47,9 +46,8 @@ pub async fn get_cached_access_token_for_ucs(
 
         if let Some(access_token) = cached_access_token {
             router_env::logger::info!(
-                "Cached access token found for UCS flow - merchant_id: {:?}, payment_id: {}, connector: {} with expiry of: {} seconds",
+                "Cached access token found for UCS flow - merchant_id: {:?}, connector: {} with expiry of: {} seconds",
                 merchant_context.get_merchant_account().get_id(),
-                payment_id,
                 connector.connector_name,
                 access_token.expires
             );
@@ -60,9 +58,8 @@ pub async fn get_cached_access_token_for_ucs(
             Ok(Some(access_token))
         } else {
             router_env::logger::info!(
-                "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, payment_id: {}, connector: {}",
+                "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, connector: {}",
                 merchant_context.get_merchant_account().get_id(),
-                payment_id,
                 connector.connector_name
             );
             metrics::ACCESS_TOKEN_CACHE_MISS.add(

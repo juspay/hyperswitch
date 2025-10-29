@@ -353,8 +353,15 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     .attach_printable("Failed to deserialize UCS response")?;
 
                 // Extract and store access token if present
-                if let Some(access_token) =
-                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+                if let Some(access_token) = get_access_token_from_ucs_response(
+                    state,
+                    merchant_context,
+                    &router_data.connector,
+                    merchant_connector_account.get_mca_id().as_ref(),
+                    creds_identifier.clone(),
+                    payment_register_response.state.as_ref(),
+                )
+                .await
                 {
                     if let Err(error) = set_access_token_for_ucs(
                         state,

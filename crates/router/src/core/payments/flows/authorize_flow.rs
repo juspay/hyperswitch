@@ -990,8 +990,15 @@ async fn call_unified_connector_service_authorize(
                 .attach_printable("Failed to deserialize UCS response")?;
 
             // Extract and store access token if present
-            if let Some(access_token) =
-                get_access_token_from_ucs_response(payment_authorize_response.state.as_ref())
+            if let Some(access_token) = get_access_token_from_ucs_response(
+                state,
+                merchant_context,
+                &router_data.connector,
+                merchant_connector_id.as_ref(),
+                creds_identifier.clone(),
+                payment_authorize_response.state.as_ref(),
+            )
+            .await
             {
                 if let Err(error) = set_access_token_for_ucs(
                     state,
@@ -1202,8 +1209,15 @@ async fn call_unified_connector_service_repeat_payment(
                 .attach_printable("Failed to deserialize UCS response")?;
 
             // Extract and store access token if present
-            if let Some(access_token) =
-                get_access_token_from_ucs_response(payment_repeat_response.state.as_ref())
+            if let Some(access_token) = get_access_token_from_ucs_response(
+                state,
+                merchant_context,
+                &router_data.connector,
+                merchant_connector_account.get_mca_id().as_ref(),
+                creds_identifier.clone(),
+                payment_repeat_response.state.as_ref(),
+            )
+            .await
             {
                 if let Err(error) = set_access_token_for_ucs(
                     state,

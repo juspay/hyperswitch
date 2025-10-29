@@ -4295,7 +4295,6 @@ where
         &connector,
         merchant_context,
         router_data.payment_method,
-        &router_data.payment_id,
         payment_data.get_creds_identifier(),
     )
     .await?;
@@ -5031,7 +5030,6 @@ where
                 state,
                 &connector,
                 merchant_context,
-                router_data.payment_method,
                 &router_data.payment_id,
                 payment_data.get_creds_identifier(),
             )
