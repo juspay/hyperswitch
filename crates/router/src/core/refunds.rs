@@ -229,14 +229,15 @@ pub async fn trigger_refund_to_gateway(
         // Access token available or not needed - proceed with execution
 
         // Check which gateway system to use for refunds
-        let execution_path = unified_connector_service::should_call_unified_connector_service(
-            state,
-            merchant_context,
-            &router_data,
-            None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
-            payments::CallConnectorAction::Trigger,
-        )
-        .await?;
+        let (execution_path, _session_state) =
+            unified_connector_service::should_call_unified_connector_service(
+                state,
+                merchant_context,
+                &router_data,
+                None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
+                payments::CallConnectorAction::Trigger,
+            )
+            .await?;
 
         router_env::logger::info!(
             refund_id = refund.refund_id,
@@ -830,14 +831,15 @@ pub async fn sync_refund_with_gateway(
         // Access token available or not needed - proceed with execution
 
         // Check which gateway system to use for refund sync
-        let execution_path = unified_connector_service::should_call_unified_connector_service(
-            state,
-            merchant_context,
-            &router_data,
-            None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
-            payments::CallConnectorAction::Trigger,
-        )
-        .await?;
+        let (execution_path, _session_state) =
+            unified_connector_service::should_call_unified_connector_service(
+                state,
+                merchant_context,
+                &router_data,
+                None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+                payments::CallConnectorAction::Trigger,
+            )
+            .await?;
 
         router_env::logger::info!(
             refund_id = router_data.request.refund_id,

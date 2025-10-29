@@ -9,21 +9,13 @@ use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
-<<<<<<< HEAD
         refunds::{Execute, RSync},
-        ExternalVaultProxy,
-    },
-    router_request_types::{
-        AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
-=======
         unified_authentication_service as uas_flows, ExternalVaultProxy,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, SetupMandateRequestData,
->>>>>>> 4aa9f44d4b1ffb726f60410226c8092d8a8bc11c
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
