@@ -32,14 +32,14 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            Discount, DiscountType, Environment, SantanderAuthRequest, SantanderAuthType,
-            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
-            SantanderBoletoPaymentRequest, SantanderBoletoUpdateRequest, SantanderDebtor,
-            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
-            SantanderPaymentsCancelRequest, SantanderPixCancelRequest,
-            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
-            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderRefundRequest,
-            SantanderRouterData, SantanderValue,
+            Environment, SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
+            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
+            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderGrantType,
+            SantanderMetadataObject, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
+            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
+            SantanderPixRequestCalendar, SantanderRefundRequest, SantanderRouterData,
+            SantanderValue,
         },
         responses::{
             BoletoDocumentKind, FunctionType, Payer, PaymentType, SanatanderAccessTokenResponse,
@@ -225,16 +225,9 @@ impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                key2,
-            } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_id: api_key.to_owned(),
                 client_secret: key1.to_owned(),
-                certificate: api_secret.to_owned(),
-                certificate_key: key2.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -430,7 +423,9 @@ impl
             .as_ref()
             .and_then(|fm| fm.boleto_additional_details.as_ref())
             .and_then(|details| details.due_date.clone())
-            .unwrap_or_else(|| "boleto_due_date".to_string());
+            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata.boleto_additional_details.due_date",
+            })?;
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Environment::from(router_env::env::which()),

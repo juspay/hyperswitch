@@ -8799,7 +8799,6 @@ impl FeatureMetadata {
             revenue_recovery: Some(payment_revenue_recovery_metadata),
             pix_qr_expiry_time: self.pix_qr_expiry_time,
             boleto_additional_details: self.boleto_additional_details,
-            boleto_expiry_details: self.boleto_expiry_details,
         }
     }
 }

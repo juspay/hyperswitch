@@ -54,14 +54,12 @@ pub enum DiscountType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
@@ -72,7 +70,6 @@ pub struct BoletoMetadataObject {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PixMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
@@ -92,8 +89,6 @@ pub struct SantanderRouterData<T> {
 pub struct SantanderAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
-    pub(super) certificate: Secret<String>,
-    pub(super) certificate_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]

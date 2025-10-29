@@ -217,8 +217,8 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                 .url(&types::PaymentsUpdateMetadataType::get_url(
                     self, req, connectors,
                 )?)
-                .add_certificate(Some(auth_details.certificate))
-                .add_certificate_key(Some(auth_details.certificate_key))
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
                 .attach_default_headers()
                 .headers(types::PaymentsUpdateMetadataType::get_headers(
                     self, req, connectors,
@@ -282,25 +282,27 @@ where
                 })?;
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
-        let client_id = match req.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => {
-                let pix_mca_metadata = santander_mca_metadata
-                    .pix
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                Ok::<masking::Secret<std::string::String>, E>(pix_mca_metadata.client_id)
-            }
-            Some(enums::PaymentMethodType::Boleto) => {
-                let boleto_mca_metadata = santander_mca_metadata
-                    .boleto
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                Ok::<masking::Secret<std::string::String>, E>(boleto_mca_metadata.client_id)
-            }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: req.payment_method.to_string(),
-                connector: "Santander",
-            }
-            .into()),
-        }?;
+        let client_id: Result<Secret<String>, error_stack::Report<errors::ConnectorError>> =
+            match req.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => {
+                    let pix_mca_metadata = santander_mca_metadata
+                        .pix
+                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                    Ok(pix_mca_metadata.client_id)
+                }
+                Some(enums::PaymentMethodType::Boleto) => {
+                    let boleto_mca_metadata = santander_mca_metadata
+                        .boleto
+                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                    Ok(boleto_mca_metadata.client_id)
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            };
+        let client_id = client_id?;
 
         let header = vec![
             (
@@ -478,7 +480,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankDebit => Ok(format!(
+            enums::PaymentMethod::BankTransfer => Ok(format!(
                 "{}oauth/token?grant_type=client_credentials",
                 connectors.santander.base_url
             )),
@@ -521,8 +523,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 .attach_default_headers()
                 .headers(RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&RefreshTokenType::get_url(self, req, connectors)?)
-                .add_certificate(Some(auth_details.certificate))
-                .add_certificate_key(Some(auth_details.certificate_key))
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
                 .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
                 .build(),
         );
@@ -675,14 +677,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+        let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
+            match req.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => Ok(Method::Put),
+                Some(enums::PaymentMethodType::Boleto) => Ok(Method::Post),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            };
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(method?)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .add_certificate(Some(auth_details.certificate))
-                .add_certificate_key(Some(auth_details.certificate_key))
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
                 .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
@@ -860,8 +872,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 RequestBuilder::new()
                     .method(Method::Get)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                    .add_certificate(Some(auth_details.certificate))
-                    .add_certificate_key(Some(auth_details.certificate_key))
+                    .add_certificate(Some(auth_details.client_id))
+                    .add_certificate_key(Some(auth_details.client_secret))
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .build(),
@@ -1123,8 +1135,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
             RequestBuilder::new()
                 .method(Method::Patch)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .add_certificate(Some(auth_details.certificate))
-                .add_certificate_key(Some(auth_details.certificate_key))
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .set_body(types::PaymentsVoidType::get_request_body(

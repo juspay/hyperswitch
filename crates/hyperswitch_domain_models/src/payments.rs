@@ -1162,9 +1162,6 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
-            boleto_expiry_details: payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|data| data.boleto_expiry_details.clone()),
         }))
     }
 }

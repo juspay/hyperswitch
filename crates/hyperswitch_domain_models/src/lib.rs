@@ -238,7 +238,6 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             revenue_recovery: payment_revenue_recovery_metadata,
             pix_qr_expiry_time,
             boleto_additional_details,
-            boleto_expiry_details,
         } = from;
 
         Self {
@@ -250,7 +249,6 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()),
             boleto_additional_details: boleto_additional_details.map(|v| v.to_diesel()),
-            boleto_expiry_details,
         }
     }
 
@@ -262,7 +260,6 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             payment_revenue_recovery_metadata,
             pix_qr_expiry_time,
             boleto_additional_details,
-            boleto_expiry_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -274,7 +271,6 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()),
             boleto_additional_details: boleto_additional_details.map(|v| v.to_api()),
-            boleto_expiry_details,
         }
     }
 }

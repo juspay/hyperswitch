@@ -1,4 +1,4 @@
-use common_utils::types::{FloatMajorUnit, StringMajorUnit};
+use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
