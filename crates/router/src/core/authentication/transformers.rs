@@ -167,6 +167,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address,
@@ -206,7 +207,11 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 

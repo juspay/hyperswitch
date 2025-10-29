@@ -22,12 +22,38 @@ use crate::{
 
 impl KvStorePartition for customers::Customer {}
 
+#[cfg(feature = "v2")]
+mod label {
+    use common_utils::id_type;
+
+    pub(super) const MODEL_NAME: &str = "customer_v2";
+    pub(super) const CLUSTER_LABEL: &str = "cust";
+
+    pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
+        format!(
+            "customer_global_id_{}",
+            global_customer_id.get_string_repr()
+        )
+    }
+
+    pub(super) fn get_merchant_scoped_id_label(
+        merchant_id: &id_type::MerchantId,
+        merchant_reference_id: &id_type::CustomerId,
+    ) -> String {
+        format!(
+            "customer_mid_{}_mrefid_{}",
+            merchant_id.get_string_repr(),
+            merchant_reference_id.get_string_repr()
+        )
+    }
+}
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -65,7 +91,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -95,7 +121,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -131,7 +157,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -176,7 +202,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
@@ -213,7 +239,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -263,7 +289,20 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        self.router_store
+            .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
@@ -282,22 +321,32 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+
+        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
             self,
             storage_scheme,
             Op::Insert,
         ))
         .await;
-        new_customer.update_storage_scheme(storage_scheme);
+        new_customer.update_storage_scheme(decided_storage_scheme);
+
+        let mut reverse_lookups = Vec::new();
+
+        if let Some(ref merchant_ref_id) = new_customer.merchant_reference_id {
+            let reverse_lookup_merchant_scoped_id =
+                label::get_merchant_scoped_id_label(&new_customer.merchant_id, merchant_ref_id);
+            reverse_lookups.push(reverse_lookup_merchant_scoped_id);
+        }
+
         self.insert_resource(
             state,
             key_store,
-            storage_scheme,
+            decided_storage_scheme,
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
                 insertable: kv::Insertable::Customer(new_customer.clone()),
-                reverse_lookups: vec![],
+                reverse_lookups,
                 identifier,
                 key,
                 resource_type: "customer",
@@ -306,7 +355,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
@@ -350,7 +399,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
@@ -362,13 +411,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -395,14 +443,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -440,7 +487,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -474,7 +521,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -497,7 +544,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -530,7 +577,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -556,7 +603,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -584,7 +631,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
@@ -626,9 +673,54 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            customers::Customer::list_customers_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            ),
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer_list_constraints =
+            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+        let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
+            limit: customer_list_constraints.limit,
+            offset: customer_list_constraints.offset,
+            customer_id: customer_list_constraints.customer_id.clone(),
+            time_range: customer_list_constraints.time_range,
+        };
+        let customers = self
+            .find_resources(
+                state,
+                key_store,
+                customers::Customer::list_customers_by_merchant_id_and_constraints(
+                    &conn,
+                    merchant_id,
+                    customers_constraints,
+                ),
+            )
+            .await?;
+        let total_count = customers::Customer::get_customer_count_by_merchant_id_and_constraints(
+            &conn,
+            merchant_id,
+            customer_list_constraints,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })?;
+        Ok((customers, total_count))
     }
 
     #[instrument(skip_all)]
@@ -648,7 +740,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
@@ -664,17 +756,16 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             })
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        customer: domain::Customer,
-        merchant_id: &id_type::MerchantId,
+        _customer: domain::Customer,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
         self.call_database(
@@ -685,13 +776,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -713,8 +803,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl domain::CustomerInterface for MockDb {
     type Error = StorageError;
-    #[allow(clippy::panic)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -730,8 +819,7 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -747,14 +835,13 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
+        _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         todo!()
@@ -792,7 +879,42 @@ impl domain::CustomerInterface for MockDb {
         Ok(customers)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let customers = self.customers.lock().await;
+
+        let customers_list = try_join_all(
+            customers
+                .iter()
+                .filter(|customer| customer.merchant_id == *merchant_id)
+                .take(usize::from(constraints.limit))
+                .skip(usize::try_from(constraints.offset.unwrap_or(0)).unwrap_or(0))
+                .map(|customer| async {
+                    customer
+                        .to_owned()
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+        let total_count = customers
+            .iter()
+            .filter(|customer| customer.merchant_id == *merchant_id)
+            .count();
+        Ok((customers_list, total_count))
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -808,7 +930,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         _state: &KeyManagerState,
@@ -821,7 +943,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         _state: &KeyManagerState,
@@ -860,7 +982,7 @@ impl domain::CustomerInterface for MockDb {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: &id_type::CustomerId,
@@ -870,14 +992,13 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         _customer_update: domain::CustomerUpdate,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -886,12 +1007,11 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {

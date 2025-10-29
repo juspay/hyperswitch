@@ -22,9 +22,10 @@ use crate::{
     routes::{app::StorageInterface, SessionState},
     services,
     types::{api, domain, transformers::ForeignFrom},
+    utils::get_payout_attempt_id,
 };
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn initiate_payout_link(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -35,7 +36,7 @@ pub async fn initiate_payout_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -56,7 +57,7 @@ pub async fn initiate_payout_link(
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
-            &format!("{}_{}", payout.payout_id, payout.attempt_count),
+            &get_payout_attempt_id(payout.payout_id.get_string_repr(), payout.attempt_count),
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
@@ -146,13 +147,11 @@ pub async fn initiate_payout_link(
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "Customer [{}] not found for link_id - {}",
-                        payout_link.primary_reference, payout_link.link_id
+                        "Customer [{:?}] not found for link_id - {}",
+                        customer_id, payout_link.link_id
                     ),
                 })
-                .attach_printable_lazy(|| {
-                    format!("customer [{}] not found", payout_link.primary_reference)
-                })?;
+                .attach_printable_lazy(|| format!("customer [{customer_id:?}] not found"))?;
             let address = payout
                 .address_id
                 .as_ref()
@@ -169,7 +168,7 @@ pub async fn initiate_payout_link(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
                     format!(
-                        "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                        "Failed while fetching address [id - {:?}] for payout [id - {:?}]",
                         payout.address_id, payout.payout_id
                     )
                 })?;
@@ -227,7 +226,7 @@ pub async fn initiate_payout_link(
                 ),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
@@ -284,7 +283,7 @@ pub async fn initiate_payout_link(
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: link_data.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
@@ -361,6 +360,7 @@ pub async fn filter_payout_methods(
     let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut bank_redirect_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_method_filters.clone();
     for mca in &filtered_mcas {
         let payout_methods = match &mca.payment_methods_enabled {
@@ -409,9 +409,14 @@ pub async fn filter_payout_methods(
                                 payment_method_list_hm
                                     .insert(payment_method, bank_transfer_hash_set.clone());
                             }
+                            common_enums::PaymentMethod::BankRedirect => {
+                                bank_redirect_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_redirect_hash_set.clone());
+                            }
                             common_enums::PaymentMethod::CardRedirect
                             | common_enums::PaymentMethod::PayLater
-                            | common_enums::PaymentMethod::BankRedirect
                             | common_enums::PaymentMethod::Crypto
                             | common_enums::PaymentMethod::BankDebit
                             | common_enums::PaymentMethod::Reward

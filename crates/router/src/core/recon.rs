@@ -49,8 +49,7 @@ pub async fn send_recon_request(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(format!(
-            "Failed to fetch theme for merchant_id = {:?}",
-            merchant_id
+            "Failed to fetch theme for merchant_id = {merchant_id:?}",
         ))?;
 
         let user_email = user_in_db.email.clone();
@@ -189,8 +188,7 @@ pub async fn recon_merchant_account_update(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(format!(
-            "Failed to fetch theme for merchant_id = {:?}",
-            merchant_id
+            "Failed to fetch theme for merchant_id = {merchant_id:?}",
         ))?;
 
         let email_contents = email_types::ReconActivation {

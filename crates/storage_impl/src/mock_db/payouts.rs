@@ -13,7 +13,7 @@ impl PayoutsInterface for MockDb {
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _payout_id: &str,
+        _payout_id: &common_utils::id_type::PayoutId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -43,7 +43,7 @@ impl PayoutsInterface for MockDb {
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _payout_id: &str,
+        _payout_id: &common_utils::id_type::PayoutId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Option<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -95,7 +95,7 @@ impl PayoutsInterface for MockDb {
     async fn get_total_count_of_filtered_payouts(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _active_payout_ids: &[String],
+        _active_payout_ids: &[common_utils::id_type::PayoutId],
         _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -110,7 +110,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
-    ) -> CustomResult<Vec<String>, StorageError> {
+    ) -> CustomResult<Vec<common_utils::id_type::PayoutId>, StorageError> {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

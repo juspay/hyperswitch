@@ -2,6 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{id_type, types as common_utils_types};
+use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     refunds::RefundListConstraints,
@@ -97,6 +98,8 @@ pub async fn refund_create_core(
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
+    let merchant_connector_details = req.merchant_connector_details.clone();
+
     Box::pin(validate_and_create_refund(
         &state,
         &merchant_context,
@@ -105,6 +108,7 @@ pub async fn refund_create_core(
         amount,
         req,
         global_refund_id,
+        merchant_connector_details,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -114,11 +118,11 @@ pub async fn refund_create_core(
 #[instrument(skip_all)]
 pub async fn trigger_refund_to_gateway(
     state: &SessionState,
-    refund: &storage::Refund,
+    refund: &diesel_refund::Refund,
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-) -> errors::RouterResult<storage::Refund> {
+) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
 
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
@@ -151,6 +155,9 @@ pub async fn trigger_refund_to_gateway(
 
     refunds_validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca));
+
     let mut router_data = core_utils::construct_refund_router_data(
         state,
         connector_enum,
@@ -158,13 +165,17 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        &mca,
+        &merchant_connector_account,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
-            .await?;
+    let add_access_token_result = Box::pin(access_token::add_access_token(
+        state,
+        &connector,
+        &router_data,
+        None,
+    ))
+    .await?;
 
     logger::debug!(refund_router_data=?router_data);
 
@@ -174,8 +185,117 @@ pub async fn trigger_refund_to_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data).await;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await;
+
+    let refund_update = get_refund_update_object(
+        state,
+        &connector,
+        &storage_scheme,
+        merchant_context,
+        &connector_response,
+    )
+    .await;
+
+    let response = match refund_update {
+        Some(refund_update) => state
+            .store
+            .update_refund(
+                refund.to_owned(),
+                refund_update,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while updating refund: refund_id: {}",
+                    refund.id.get_string_repr()
+                )
+            })?,
+        None => refund.to_owned(),
+    };
+    // Implement outgoing webhooks here
+    connector_response.to_refund_failed_response()?;
+    Ok(response)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn internal_trigger_refund_to_gateway(
+    state: &SessionState,
+    refund: &diesel_refund::Refund,
+    merchant_context: &domain::MerchantContext,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
+) -> errors::RouterResult<diesel_refund::Refund> {
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+
+    let routed_through = payment_attempt
+        .connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve connector from payment attempt")?;
+
+    metrics::REFUND_COUNT.add(
+        1,
+        router_env::metric_attributes!(("connector", routed_through.clone())),
+    );
+
+    let connector_enum = merchant_connector_details.connector_name;
+
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_enum.to_string(),
+        api::GetToken::Connector,
+        None,
+    )?;
+
+    refunds_validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
+
+    let mut router_data = core_utils::construct_refund_router_data(
+        state,
+        connector_enum,
+        merchant_context,
+        payment_intent,
+        payment_attempt,
+        refund,
+        &merchant_connector_account,
+    )
+    .await?;
+
+    let add_access_token_result = Box::pin(access_token::add_access_token(
+        state,
+        &connector,
+        &router_data,
+        None,
+    ))
+    .await?;
+
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
+
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await;
 
     let refund_update = get_refund_update_object(
         state,
@@ -256,7 +376,7 @@ async fn get_refund_update_object(
         RouterData<api::Execute, types::RefundsData, types::RefundsResponseData>,
         error_stack::Report<errors::ConnectorError>,
     >,
-) -> Option<storage::RefundUpdate> {
+) -> Option<diesel_refund::RefundUpdate> {
     match router_data_response {
         // This error is related to connector implementation i.e if no implementation for refunds for that specific connector in HS or the connector does not support refund itself.
         Err(err) => get_connector_implementation_error_refund_update(err, *storage_scheme),
@@ -281,8 +401,8 @@ async fn get_refund_update_object(
 fn get_connector_implementation_error_refund_update(
     error: &error_stack::Report<errors::ConnectorError>,
     storage_scheme: enums::MerchantStorageScheme,
-) -> Option<storage::RefundUpdate> {
-    Option::<storage::RefundUpdate>::foreign_from((error.current_context(), storage_scheme))
+) -> Option<diesel_refund::RefundUpdate> {
+    Option::<diesel_refund::RefundUpdate>::foreign_from((error.current_context(), storage_scheme))
 }
 
 async fn get_connector_error_refund_update(
@@ -290,10 +410,10 @@ async fn get_connector_error_refund_update(
     err: ErrorResponse,
     connector: &api::ConnectorData,
     storage_scheme: &enums::MerchantStorageScheme,
-) -> storage::RefundUpdate {
+) -> diesel_refund::RefundUpdate {
     let unified_error_object = get_unified_error_and_message(state, &err, connector).await;
 
-    storage::RefundUpdate::build_error_update_for_unified_error_and_message(
+    diesel_refund::RefundUpdate::build_error_update_for_unified_error_and_message(
         unified_error_object,
         err.reason.or(Some(err.message)),
         Some(err.code),
@@ -348,7 +468,7 @@ pub fn get_refund_update_for_refund_response_data(
     refund_response_data: types::RefundsResponseData,
     storage_scheme: &enums::MerchantStorageScheme,
     merchant_context: &domain::MerchantContext,
-) -> storage::RefundUpdate {
+) -> diesel_refund::RefundUpdate {
     // match on connector integrity checks
     match router_data.integrity_check.clone() {
         Err(err) => {
@@ -367,7 +487,7 @@ pub fn get_refund_update_for_refund_response_data(
                 ),
             );
 
-            storage::RefundUpdate::build_error_update_for_integrity_check_failure(
+            diesel_refund::RefundUpdate::build_error_update_for_integrity_check_failure(
                 err.field_names,
                 connector_refund_id,
                 storage_scheme,
@@ -388,7 +508,7 @@ pub fn get_refund_update_for_refund_response_data(
                 refund_response_data.connector_refund_id,
             );
 
-            storage::RefundUpdate::build_refund_update(
+            diesel_refund::RefundUpdate::build_refund_update(
                 connector_refund_id,
                 refund_response_data.refund_status,
                 storage_scheme,
@@ -410,14 +530,14 @@ where
 }
 
 impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
-    for Option<storage::RefundUpdate>
+    for Option<diesel_refund::RefundUpdate>
 {
     fn foreign_from(
         (from, storage_scheme): (&errors::ConnectorError, enums::MerchantStorageScheme),
     ) -> Self {
         match from {
             errors::ConnectorError::NotImplemented(message) => {
-                Some(storage::RefundUpdate::ErrorUpdate {
+                Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
                     refund_error_message: Some(
                         errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
@@ -431,7 +551,7 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
                 })
             }
             errors::ConnectorError::NotSupported { message, connector } => {
-                Some(storage::RefundUpdate::ErrorUpdate {
+                Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
                     refund_error_message: Some(format!(
                         "{message} is not supported by {connector}"
@@ -482,7 +602,7 @@ pub async fn refund_metadata_update_core(
     let response = db
         .update_refund(
             refund,
-            storage::RefundUpdate::MetadataAndReasonUpdate {
+            diesel_refund::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
                 reason: req.reason,
                 updated_by: merchant_account.storage_scheme.to_string(),
@@ -539,8 +659,8 @@ pub async fn refund_retrieve_core(
     merchant_context: domain::MerchantContext,
     profile_id: Option<id_type::ProfileId>,
     request: refunds::RefundsRetrieveRequest,
-    refund: storage::Refund,
-) -> errors::RouterResult<storage::Refund> {
+    refund: diesel_refund::Refund,
+) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
 
     let key_manager_state = &(&state).into();
@@ -587,20 +707,40 @@ pub async fn refund_retrieve_core(
         refund.unified_message
     };
 
-    let refund = storage::Refund {
+    let refund = diesel_refund::Refund {
         unified_message: unified_translated_message,
         ..refund
     };
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        Box::pin(sync_refund_with_gateway(
-            &state,
-            &merchant_context,
-            &payment_attempt,
-            &payment_intent,
-            &refund,
-        ))
-        .await
+        if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+            let merchant_connector_details = match request.merchant_connector_details {
+                Some(details) => details,
+                None => {
+                    return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "merchant_connector_details"
+                    }));
+                }
+            };
+            Box::pin(internal_sync_refund_with_gateway(
+                &state,
+                &merchant_context,
+                &payment_attempt,
+                &payment_intent,
+                &refund,
+                merchant_connector_details,
+            ))
+            .await
+        } else {
+            Box::pin(sync_refund_with_gateway(
+                &state,
+                &merchant_context,
+                &payment_attempt,
+                &payment_intent,
+                &refund,
+            ))
+            .await
+        }
     } else {
         Ok(refund)
     }?;
@@ -631,8 +771,8 @@ pub async fn sync_refund_with_gateway(
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund: &storage::Refund,
-) -> errors::RouterResult<storage::Refund> {
+    refund: &diesel_refund::Refund,
+) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
 
     let connector_id = refund.connector.to_string();
@@ -659,6 +799,9 @@ pub async fn sync_refund_with_gateway(
 
     let connector_enum = mca.connector_name;
 
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca));
+
     let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
         state,
         connector_enum,
@@ -666,13 +809,17 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        &mca,
+        &merchant_connector_account,
     )
     .await?;
 
-    let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
-            .await?;
+    let add_access_token_result = Box::pin(access_token::add_access_token(
+        state,
+        &connector,
+        &router_data,
+        None,
+    ))
+    .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
@@ -682,10 +829,97 @@ pub async fn sync_refund_with_gateway(
         &payments::CallConnectorAction::Trigger,
     );
 
-    let connector_response =
-        call_connector_service(state, &connector, add_access_token_result, router_data)
-            .await
-            .to_refund_failed_response()?;
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await
+    .to_refund_failed_response()?;
+
+    let connector_response = perform_integrity_check(connector_response);
+
+    let refund_update =
+        build_refund_update_for_rsync(&connector, merchant_context, connector_response);
+
+    let response = state
+        .store
+        .update_refund(
+            refund.to_owned(),
+            refund_update,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to update refund with refund_id: {}",
+                refund.id.get_string_repr()
+            )
+        })?;
+
+    // Implement outgoing webhook here
+    Ok(response)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn internal_sync_refund_with_gateway(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    refund: &diesel_refund::Refund,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
+) -> errors::RouterResult<diesel_refund::Refund> {
+    let connector_enum = merchant_connector_details.connector_name;
+
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_enum.to_string(),
+        api::GetToken::Connector,
+        None,
+    )?;
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
+
+    let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
+        state,
+        connector_enum,
+        merchant_context,
+        payment_intent,
+        payment_attempt,
+        refund,
+        &merchant_connector_account,
+    )
+    .await?;
+
+    let add_access_token_result = Box::pin(access_token::add_access_token(
+        state,
+        &connector,
+        &router_data,
+        None,
+    ))
+    .await?;
+
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
+
+    let connector_response = Box::pin(call_connector_service(
+        state,
+        &connector,
+        add_access_token_result,
+        router_data,
+    ))
+    .await
+    .to_refund_failed_response()?;
 
     let connector_response = perform_integrity_check(connector_response);
 
@@ -716,7 +950,7 @@ pub fn build_refund_update_for_rsync(
     connector: &api::ConnectorData,
     merchant_context: &domain::MerchantContext,
     router_data_response: RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-) -> storage::RefundUpdate {
+) -> diesel_refund::RefundUpdate {
     let merchant_account = merchant_context.get_merchant_account();
     let storage_scheme = &merchant_context.get_merchant_account().storage_scheme;
 
@@ -730,7 +964,7 @@ pub fn build_refund_update_for_rsync(
             let refund_error_message = error_message.reason.or(Some(error_message.message));
             let refund_error_code = Some(error_message.code);
 
-            storage::RefundUpdate::build_error_update_for_refund_failure(
+            diesel_refund::RefundUpdate::build_error_update_for_refund_failure(
                 refund_status,
                 refund_error_message,
                 refund_error_code,
@@ -751,7 +985,7 @@ pub fn build_refund_update_for_rsync(
                     .connector_transaction_id
                     .map(common_utils_types::ConnectorTransactionId::from);
 
-                storage::RefundUpdate::build_error_update_for_integrity_check_failure(
+                diesel_refund::RefundUpdate::build_error_update_for_integrity_check_failure(
                     err.field_names,
                     connector_refund_id,
                     storage_scheme,
@@ -761,7 +995,7 @@ pub fn build_refund_update_for_rsync(
                 let connector_refund_id =
                     common_utils_types::ConnectorTransactionId::from(response.connector_refund_id);
 
-                storage::RefundUpdate::build_refund_update(
+                diesel_refund::RefundUpdate::build_refund_update(
                     connector_refund_id,
                     response.refund_status,
                     storage_scheme,
@@ -833,6 +1067,7 @@ pub async fn validate_and_create_refund(
     refund_amount: common_utils_types::MinorUnit,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
@@ -905,7 +1140,7 @@ pub async fn validate_and_create_refund(
         .attach_printable("No connector populated in payment attempt")?;
     let (connector_transaction_id, processor_transaction_data) =
         common_utils_types::ConnectorTransactionId::form_id_and_data(connector_payment_id);
-    let refund_create_req = storage::RefundNew {
+    let refund_create_req = diesel_refund::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
         external_reference_id: Some(merchant_reference_id.get_string_repr().to_string()),
@@ -955,6 +1190,7 @@ pub async fn validate_and_create_refund(
                 merchant_context,
                 payment_attempt,
                 payment_intent,
+                merchant_connector_details,
             ))
             .await?
         }
@@ -982,7 +1218,7 @@ pub async fn validate_and_create_refund(
             _ => refund.unified_message,
         };
 
-    let refund = storage::Refund {
+    let refund = diesel_refund::Refund {
         unified_message: unified_translated_message,
         ..refund
     };
@@ -990,9 +1226,9 @@ pub async fn validate_and_create_refund(
     api::RefundResponse::foreign_try_from(refund)
 }
 
-impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
+impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(refund: storage::Refund) -> Result<Self, Self::Error> {
+    fn foreign_try_from(refund: diesel_refund::Refund) -> Result<Self, Self::Error> {
         let refund = refund;
 
         let profile_id = refund
@@ -1000,12 +1236,6 @@ impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
             .clone()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Profile id not found")?;
-
-        let merchant_connector_id = refund
-            .connector_id
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Connector id not found")?;
 
         let connector_name = refund.connector;
         let connector = Connector::from_str(&connector_name)
@@ -1029,7 +1259,7 @@ impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
             created_at: refund.created_at,
             updated_at: refund.modified_at,
             connector,
-            merchant_connector_id,
+            merchant_connector_id: refund.connector_id,
             merchant_reference_id: Some(refund.merchant_reference_id),
             error_details: Some(RefundErrorDetails {
                 code: refund.refund_error_code.unwrap_or_default(),
@@ -1046,12 +1276,13 @@ impl ForeignTryFrom<storage::Refund> for api::RefundResponse {
 #[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
     state: &SessionState,
-    refund: storage::Refund,
+    refund: diesel_refund::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-) -> errors::RouterResult<storage::Refund> {
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
@@ -1078,14 +1309,38 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            let update_refund = Box::pin(trigger_refund_to_gateway(
-                                state,
-                                &refund,
-                                merchant_context,
-                                payment_attempt,
-                                payment_intent,
-                            ))
-                            .await;
+                            let update_refund =
+                                if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+                                    let merchant_connector_details =
+                                        match merchant_connector_details {
+                                            Some(details) => details,
+                                            None => {
+                                                return Err(report!(
+                                            errors::ApiErrorResponse::MissingRequiredField {
+                                                field_name: "merchant_connector_details"
+                                            }
+                                        ));
+                                            }
+                                        };
+                                    Box::pin(internal_trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                        merchant_connector_details,
+                                    ))
+                                    .await
+                                } else {
+                                    Box::pin(trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                    ))
+                                    .await
+                                };
 
                             match update_refund {
                                 Ok(updated_refund_data) => {
@@ -1131,9 +1386,9 @@ pub async fn schedule_refund_execution(
 
 #[instrument]
 pub fn refund_to_refund_core_workflow_model(
-    refund: &storage::Refund,
-) -> storage::RefundCoreWorkflow {
-    storage::RefundCoreWorkflow {
+    refund: &diesel_refund::Refund,
+) -> diesel_refund::RefundCoreWorkflow {
+    diesel_refund::RefundCoreWorkflow {
         refund_id: refund.id.clone(),
         connector_transaction_id: refund.connector_transaction_id.clone(),
         merchant_id: refund.merchant_id.clone(),
@@ -1145,7 +1400,7 @@ pub fn refund_to_refund_core_workflow_model(
 #[instrument(skip_all)]
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
-    refund: &storage::Refund,
+    refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
@@ -1182,7 +1437,7 @@ pub async fn add_refund_execute_task(
 #[instrument(skip_all)]
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
-    refund: &storage::Refund,
+    refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";

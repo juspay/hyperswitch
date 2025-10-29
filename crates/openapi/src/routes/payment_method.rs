@@ -42,13 +42,14 @@ pub async fn create_payment_method_api() {}
     get,
     path = "/account/payment_methods",
     params (
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-        ("maximum_amount" = i64, Query, description = "The maximum amount accepted for processing by the particular payment method."),
-        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
+        ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
         (status = 200, description = "Payment Methods retrieved", body = PaymentMethodListResponse),
@@ -69,12 +70,14 @@ pub async fn list_payment_method_api() {}
     path = "/customers/{customer_id}/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
-        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-        ("maximum_amount" = i64, Query, description = "The maximum amount accepted for processing by the particular payment method."),
-        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
+        ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
         (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
@@ -95,14 +98,14 @@ pub async fn list_customer_payment_method_api() {}
     get,
     path = "/customers/payment_methods",
     params (
-        ("client-secret" = String, Path, description = "A secret known only to your client and the authorization server. Used for client side authentication"),
-        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
-        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-        ("maximum_amount" = i64, Query, description = "The maximum amount accepted for processing by the particular payment method."),
-        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
+        ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
         (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
@@ -322,6 +325,26 @@ pub async fn payment_method_update_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
 
+/// Payment Method - Check Network Token Status
+///
+/// Check the status of a network token for a saved payment method
+#[utoipa::path(
+    get,
+    path = "/v2/payment-methods/{payment_method_id}/check-network-token-status",
+    params (
+        ("payment_method_id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Network Token Status Retrieved", body = NetworkTokenStatusCheckResponse),
+        (status = 404, description = "Payment Method Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Check Network Token Status",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn network_token_status_check_api() {}
+
 /// Payment Method - List Customer Saved Payment Methods
 ///
 /// List the payment methods saved for a customer
@@ -350,7 +373,7 @@ pub async fn list_customer_payment_method_api() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/payment-method-session",
+    path = "/v2/payment-method-sessions",
     request_body(
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
@@ -375,7 +398,7 @@ pub fn payment_method_session_create() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/payment-method-session/{id}",
+    path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -396,7 +419,7 @@ pub fn payment_method_session_retrieve() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/payment-method-session/{id}/list-payment-methods",
+    path = "/v2/payment-method-sessions/{id}/list-payment-methods",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -416,7 +439,7 @@ pub fn payment_method_session_list_payment_methods() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     put,
-    path = "/v2/payment-method-session/{id}/update-saved-payment-method",
+    path = "/v2/payment-method-sessions/{id}/update-saved-payment-method",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -450,7 +473,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     delete,
-    path = "/v2/payment-method-session/{id}",
+    path = "/v2/payment-method-sessions/{id}",
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
@@ -517,7 +540,7 @@ pub async fn tokenize_card_using_pm_api() {}
 /// **Confirms a payment method session object with the payment method data**
 #[utoipa::path(
   post,
-  path = "/v2/payment-method-session/{id}/confirm",
+  path = "/v2/payment-method-sessions/{id}/confirm",
   params (("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
       (
         "X-Profile-Id" = String, Header,

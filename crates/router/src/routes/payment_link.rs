@@ -11,21 +11,6 @@ use crate::{
 /// Payments Link - Retrieve
 ///
 /// To retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
-#[utoipa::path(
-    get,
-    path = "/payment_link/{payment_link_id}",
-    params(
-        ("payment_link_id" = String, Path, description = "The identifier for payment link")
-    ),
-    request_body=RetrievePaymentLinkRequest,
-    responses(
-        (status = 200, description = "Gets details regarding payment link", body = RetrievePaymentLinkResponse),
-        (status = 404, description = "No payment link found")
-    ),
-    tag = "Payments",
-    operation_id = "Retrieve a Payment Link",
-    security(("api_key" = []), ("publishable_key" = []))
-)]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
 pub async fn payment_link_retrieve(
     state: web::Data<AppState>,
@@ -133,26 +118,6 @@ pub async fn initiate_secure_payment_link(
 /// Payment Link - List
 ///
 /// To list the payment links
-#[utoipa::path(
-    get,
-    path = "/payment_link/list",
-    params(
-        ("limit" = Option<i64>, Query, description = "The maximum number of payment_link Objects to include in the response"),
-        ("connector" = Option<String>, Query, description = "The connector linked to payment_link"),
-        ("created_time" = Option<PrimitiveDateTime>, Query, description = "The time at which payment_link is created"),
-        ("created_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment_link created time"),
-        ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment_link created time"),
-        ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment_link created time"),
-        ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment_link created time"),
-    ),
-    responses(
-        (status = 200, description = "The payment link list was retrieved successfully"),
-        (status = 401, description = "Unauthorized request")
-    ),
-    tag = "Payment Link",
-    operation_id = "List all Payment links",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
 pub async fn payments_link_list(
     state: web::Data<AppState>,

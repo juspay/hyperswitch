@@ -28,10 +28,12 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Affirm => Self::Affirm,
             enums::PayLaterType::AfterpayClearpay => Self::AfterpayClearpay,
             enums::PayLaterType::Alma => Self::Alma,
+            enums::PayLaterType::Flexiti => Self::Flexiti,
             enums::PayLaterType::Klarna => Self::Klarna,
             enums::PayLaterType::PayBright => Self::PayBright,
             enums::PayLaterType::Walley => Self::Walley,
             enums::PayLaterType::Atome => Self::Atome,
+            enums::PayLaterType::Breadpay => Self::Breadpay,
         }
     }
 }
@@ -39,8 +41,11 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
 impl From<enums::WalletType> for global_enums::PaymentMethodType {
     fn from(value: enums::WalletType) -> Self {
         match value {
+            enums::WalletType::Bluecode => Self::Bluecode,
             enums::WalletType::GooglePay => Self::GooglePay,
             enums::WalletType::AmazonPay => Self::AmazonPay,
+            enums::WalletType::Skrill => Self::Skrill,
+            enums::WalletType::Paysera => Self::Paysera,
             enums::WalletType::ApplePay => Self::ApplePay,
             enums::WalletType::Paypal => Self::Paypal,
             enums::WalletType::AliPay => Self::AliPay,
@@ -72,6 +77,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
             enums::BankDebitType::Sepa => Self::Sepa,
+            enums::BankDebitType::SepaGuarenteedDebit => Self::SepaGuarenteedDebit,
             enums::BankDebitType::Bacs => Self::Bacs,
             enums::BankDebitType::Becs => Self::Becs,
         }
@@ -82,6 +88,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
             enums::UpiType::UpiIntent => Self::UpiIntent,
+            enums::UpiType::UpiQr => Self::UpiQr,
         }
     }
 }
@@ -125,6 +132,9 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
             enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
             enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
+            enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
+            enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
+            enums::BankTransferType::IndonesianBankTransfer => Self::IndonesianBankTransfer,
         }
     }
 }
@@ -134,6 +144,7 @@ impl From<enums::GiftCardType> for global_enums::PaymentMethodType {
         match value {
             enums::GiftCardType::PaySafeCard => Self::PaySafeCard,
             enums::GiftCardType::Givex => Self::Givex,
+            enums::GiftCardType::BhnCardNetwork => Self::BhnCardNetwork,
         }
     }
 }

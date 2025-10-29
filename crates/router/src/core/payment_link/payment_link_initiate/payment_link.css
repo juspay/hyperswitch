@@ -635,6 +635,10 @@ body {
   text-align: center;
 }
 
+#payment-form::-webkit-scrollbar {
+  display: none;
+}
+
 #submit {
   cursor: pointer;
   margin-top: 20px;
@@ -653,7 +657,7 @@ body {
 }
 
 #submit.not-ready {
-  background-color: #C2C2C2 !important;
+  background-color: #C2C2C2;
 }
 
 #submit-spinner {

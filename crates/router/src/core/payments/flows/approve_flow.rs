@@ -23,7 +23,7 @@ impl
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsApproveRouterData> {
@@ -40,6 +40,8 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsApproveRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Approve,
@@ -53,18 +55,10 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -80,7 +74,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),
@@ -92,11 +86,16 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(

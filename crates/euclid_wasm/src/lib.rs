@@ -34,7 +34,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 use api_models::payment_methods::CountryCodeWithName;
-use common_enums::CountryAlpha2;
+#[cfg(feature = "payouts")]
+use common_enums::PayoutStatus;
+use common_enums::{
+    CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus, SubscriptionStatus,
+};
 use strum::IntoEnumIterator;
 
 struct SeedData {
@@ -89,6 +94,22 @@ pub fn get_two_letter_country_code() -> JsResult {
         .collect::<Vec<_>>();
 
     Ok(serde_wasm_bindgen::to_value(&country_code_with_name)?)
+}
+
+/// This function can be used by the frontend to get all the merchant category codes
+/// along with their names.
+#[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
+pub fn get_merchant_category_code_with_name() -> JsResult {
+    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
+        .map(|mcc_value| MerchantCategoryCodeWithName {
+            code: mcc_value,
+            name: mcc_value.to_merchant_category_name(),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(serde_wasm_bindgen::to_value(
+        &merchant_category_codes_with_name,
+    )?)
 }
 
 /// This function can be used by the frontend to provide the WASM with information about
@@ -424,6 +445,7 @@ pub fn get_payout_variant_values(key: &str) -> Result<JsValue, JsValue> {
     let variants: &[&str] = match key {
         dir::PayoutDirKeyKind::BusinessCountry => dir_enums::BusinessCountry::VARIANTS,
         dir::PayoutDirKeyKind::BillingCountry => dir_enums::BillingCountry::VARIANTS,
+        dir::PayoutDirKeyKind::PayoutCurrency => dir_enums::PaymentCurrency::VARIANTS,
         dir::PayoutDirKeyKind::PayoutType => dir_enums::PayoutType::VARIANTS,
         dir::PayoutDirKeyKind::WalletType => dir_enums::PayoutWalletType::VARIANTS,
         dir::PayoutDirKeyKind::BankTransferType => dir_enums::PayoutBankTransferType::VARIANTS,
@@ -455,4 +477,49 @@ pub fn get_payout_description_category() -> JsResult {
     }
 
     Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getValidWebhookStatus)]
+pub fn get_valid_webhook_status(key: &str) -> JsResult {
+    let event_class = EventClass::from_str(key)
+        .map_err(|_| "Invalid webhook event type received".to_string())
+        .err_to_js()?;
+
+    match event_class {
+        EventClass::Payments => {
+            let statuses: Vec<IntentStatus> = IntentStatus::iter()
+                .filter(|intent_status| Into::<Option<EventType>>::into(*intent_status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Refunds => {
+            let statuses: Vec<RefundStatus> = RefundStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Disputes => {
+            let statuses: Vec<DisputeStatus> = DisputeStatus::iter().collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Mandates => {
+            let statuses: Vec<MandateStatus> = MandateStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        #[cfg(feature = "payouts")]
+        EventClass::Payouts => {
+            let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Subscriptions => {
+            let statuses: Vec<SubscriptionStatus> = SubscriptionStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+    }
 }

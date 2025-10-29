@@ -3,6 +3,8 @@ pub mod payment_approve;
 #[cfg(feature = "v1")]
 pub mod payment_cancel;
 #[cfg(feature = "v1")]
+pub mod payment_cancel_post_capture;
+#[cfg(feature = "v1")]
 pub mod payment_capture;
 #[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
@@ -28,29 +30,38 @@ pub mod payment_update;
 #[cfg(feature = "v1")]
 pub mod payment_update_metadata;
 #[cfg(feature = "v1")]
+pub mod payments_extend_authorization;
+#[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
+pub mod payment_attempt_list;
+#[cfg(feature = "v2")]
 pub mod payment_attempt_record;
 #[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
-#[cfg(feature = "v2")]
-pub mod proxy_payments_intent;
-
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
 #[cfg(feature = "v2")]
 pub mod payment_update_intent;
+#[cfg(feature = "v2")]
+pub mod proxy_payments_intent;
+
+#[cfg(feature = "v2")]
+pub mod external_vault_proxy_payment_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
 
 #[cfg(feature = "v2")]
 pub mod payment_capture_v2;
+
+#[cfg(feature = "v2")]
+pub mod payment_cancel_v2;
 
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -59,6 +70,8 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_attempt_list::PaymentGetListAttempts;
 #[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
@@ -69,11 +82,12 @@ pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
-    payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_post_session_tokens::PaymentPostSessionTokens,
-    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
-    payment_status::PaymentStatus, payment_update::PaymentUpdate,
-    payment_update_metadata::PaymentUpdateMetadata,
+    payment_cancel_post_capture::PaymentCancelPostCapture, payment_capture::PaymentCapture,
+    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
+    payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
+    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
+    payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
+    payments_extend_authorization::PaymentExtendAuthorization,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
@@ -83,6 +97,8 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
+#[cfg(feature = "v2")]
+use crate::core::payments;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -292,6 +308,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
     #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &R,
+        payment_data: &mut D,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| "get connector for tunnel not implemented".to_string())
+    }
+
+    #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
         merchant_context: &domain::MerchantContext,
@@ -336,7 +363,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _business_profile: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
-        _do_authorization_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -382,6 +408,37 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+
+    // does not propagate error to not affect the payment flow
+    // must add debugger in case of internal error
+    #[cfg(feature = "v2")]
+    async fn update_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_data: &mut D,
+    ) {
+    }
+
+    /// This function is used to apply the 3DS authentication strategy
+    async fn apply_three_ds_authentication_strategy<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    /// Get connector tokenization action
+    #[cfg(feature = "v2")]
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &D,
+    ) -> RouterResult<(payments::TokenizationAction)> {
+        Ok(payments::TokenizationAction::SkipConnectorTokenization)
     }
 
     // #[cfg(feature = "v2")]

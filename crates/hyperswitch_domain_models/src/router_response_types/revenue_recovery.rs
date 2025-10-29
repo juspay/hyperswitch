@@ -28,10 +28,14 @@ pub struct BillingConnectorPaymentsSyncResponse {
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
     pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
+    /// stripe specific id used to validate duplicate attempts.
+    pub charge_id: Option<String>,
+    /// card information
+    pub card_info: api_models::payments::AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone)]
-pub struct RevenueRecoveryRecordBackResponse {
+pub struct InvoiceRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
 }
 

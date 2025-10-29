@@ -11,7 +11,7 @@ use crate::{enums as storage_enums, schema::payouts};
 )]
 #[diesel(table_name = payouts, primary_key(payout_id), check_for_backend(diesel::pg::Pg))]
 pub struct Payouts {
-    pub payout_id: String,
+    pub payout_id: common_utils::id_type::PayoutId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub address_id: Option<String>,
@@ -37,6 +37,7 @@ pub struct Payouts {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
 }
 
 #[derive(
@@ -52,7 +53,7 @@ pub struct Payouts {
 )]
 #[diesel(table_name = payouts)]
 pub struct PayoutsNew {
-    pub payout_id: String,
+    pub payout_id: common_utils::id_type::PayoutId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub address_id: Option<String>,
@@ -78,6 +79,7 @@ pub struct PayoutsNew {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

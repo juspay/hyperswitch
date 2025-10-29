@@ -129,7 +129,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
         let recurring_details = request.recurring_details.clone();
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -451,6 +451,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .force_3ds_challenge
             .or(payment_intent.force_3ds_challenge);
 
+        payment_intent.payment_channel = request
+            .payment_channel
+            .clone()
+            .or(payment_intent.payment_channel);
+
+        payment_intent.enable_partial_authorization = request
+            .enable_partial_authorization
+            .or(payment_intent.enable_partial_authorization);
+
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &payment_attempt.capture_method,
+        )?;
+        payment_intent.enable_overcapture = request.enable_overcapture;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -475,6 +490,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_token: None,
             payment_method_info,
             force_sync: None,
             all_keys_required: None,
@@ -505,6 +521,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -707,7 +725,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -727,7 +745,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -803,6 +821,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -822,6 +841,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     fingerprint_id: None,
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
+                    network_transaction_id,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.amount.into(),
@@ -941,6 +961,22 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_iframe_redirection_enabled: payment_data
                         .payment_intent
                         .is_iframe_redirection_enabled,
+                    is_confirm_operation: false, // this is not a confirm operation
+                    payment_channel: payment_data.payment_intent.payment_channel,
+                    feature_metadata: payment_data
+                        .payment_intent
+                        .feature_metadata
+                        .clone()
+                        .map(masking::Secret::new),
+                    tax_status: payment_data.payment_intent.tax_status,
+                    discount_amount: payment_data.payment_intent.discount_amount,
+                    order_date: payment_data.payment_intent.order_date,
+                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    duty_amount: payment_data.payment_intent.duty_amount,
+                    enable_partial_authorization: payment_data
+                        .payment_intent
+                        .enable_partial_authorization,
+                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
                 })),
                 key_store,
                 storage_scheme,
@@ -969,6 +1005,9 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
             email: value.email.map(Email::from),
             phone: value.phone.map(|ph| ph.into_inner()),
             phone_country_code: value.phone_country_code,
+            tax_registration_id: value
+                .tax_registration_id
+                .map(|tax_registration_id| tax_registration_id.into_inner()),
         })
     }
 }
@@ -1024,7 +1063,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing
             .clone()

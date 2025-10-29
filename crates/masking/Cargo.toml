@@ -13,6 +13,8 @@ alloc = ["zeroize/alloc"]
 serde = ["dep:serde", "dep:serde_json"]
 time = ["dep:time"]
 cassandra = ["dep:scylla"]
+proto_tonic = ["dep:bytes", "dep:prost"]
+bytes = ["dep:bytes"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -29,6 +31,7 @@ time = { version = "0.3.41", optional = true, features = ["serde-human-readable"
 url = { version = "2.5.4", features = ["serde"] }
 zeroize = { version = "1.8", default-features = false }
 scylla = { git = "https://github.com/juspay/scylla-rust-driver.git",rev = "5700aa2847b25437cdd4fcf34d707aa90dca8b89", optional = true}
+prost = { version = "0.13", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.140"

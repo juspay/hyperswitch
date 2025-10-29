@@ -29,9 +29,12 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -89,9 +92,13 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
-            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            | PayLaterData::FlexitiRedirect { .. }
+            | PayLaterData::AtomeRedirect { .. }
+            | PayLaterData::BreadpayRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -101,12 +108,16 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
     fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
         let (_item, wallet_data) = value;
         match wallet_data {
-            WalletData::ApplePay(_)
+            WalletData::AmazonPay(_)
+            | WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)

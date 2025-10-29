@@ -11,12 +11,20 @@ payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswit
 v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
 revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
+default = ["dummy_connector"]
+dummy_connector = [
+    "hyperswitch_interfaces/dummy_connector",
+    "hyperswitch_domain_models/dummy_connector",
+]
 
 [dependencies]
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bytes = "1.10.1"
+chrono = "0.4"
+crc = "3"
+crypto = "0.2"
 encoding_rs = "0.8.35"
 error-stack = "0.4.1"
 hex = "0.4.3"
@@ -25,11 +33,13 @@ http = "0.2.12"
 iso_currency = "0.4.4"
 isocountry = "0.3.2"
 image = { version = "0.25.6", default-features = false, features = ["png"] }
-josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "5ab54876c29a84f86aef8c169413a46026883efe", features = ["support-empty-payload"]  }
+josekit = "0.8.7"
 lazy_static = "1.5.0"
 mime = "0.3.17"
 num-traits = "0.2.19"
+nanoid = "0.4.0"
 openssl = {version = "0.10.70"}
+pem = "3.0.5"
 qrcode = "0.14.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
@@ -45,6 +55,7 @@ serde_urlencoded = "0.7.1"
 unidecode = "0.3.0"
 serde_with = "3.12.0"
 sha1 = { version = "0.10.6" }
+sha2 = "0.10"
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.41"
 unicode-normalization = "0.1.24"

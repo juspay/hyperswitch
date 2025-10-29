@@ -1,16 +1,13 @@
 use std::str::FromStr;
 
 use actix_web::http::header::HeaderMap;
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
-use api_models::payment_methods::PaymentMethodCreate;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
+#[cfg(feature = "v1")]
+use api_models::payment_methods::{PaymentMethodCreate, PaymentMethodListRequest};
+use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, fp_utils, id_type};
@@ -41,6 +38,7 @@ use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
 use crate::core::metrics;
 use crate::{
+    configs::settings,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -158,6 +156,10 @@ pub enum AuthenticationType {
     WebhookAuth {
         merchant_id: id_type::MerchantId,
     },
+    InternalMerchantIdProfileId {
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+    },
     NoAuth,
 }
 
@@ -187,7 +189,8 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::MerchantJwtWithProfileId { merchant_id, .. }
-            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
+            | Self::WebhookAuth { merchant_id }
+            | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
             | Self::UserJwt { .. }
@@ -1915,16 +1918,15 @@ impl<'a> HeaderMapStruct<'a> {
         self.headers
             .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Missing header key: `{}`", key),
+                message: format!("Missing header key: `{key}`"),
             })
-            .attach_printable(format!("Failed to find header key: {}", key))?
+            .attach_printable(format!("Failed to find header key: {key}"))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
-                "Failed to convert header value to string for header key: {}",
-                key
+                "Failed to convert header value to string for header key: {key}",
             ))
     }
 
@@ -1944,7 +1946,7 @@ impl<'a> HeaderMapStruct<'a> {
             .and_then(|header_value| {
                 T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", key),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })
@@ -1960,6 +1962,10 @@ impl<'a> HeaderMapStruct<'a> {
                     },
                 )
             })
+    }
+
+    pub fn get_header_value_by_key(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).and_then(|value| value.to_str().ok())
     }
 
     pub fn get_auth_string_from_header(&self) -> RouterResult<&str> {
@@ -1988,13 +1994,12 @@ impl<'a> HeaderMapStruct<'a> {
                 field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
-                "Failed to convert header value to string for header key: {}",
-                key
+                "Failed to convert header value to string for header key: {key}",
             ))?
             .map(|value| {
                 T::try_from(std::borrow::Cow::Owned(value.to_owned())).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", key),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })
@@ -2311,6 +2316,96 @@ where
                 merchant_id: auth.merchant_account.get_id().clone(),
             },
         ))
+    }
+}
+
+/// InternalMerchantIdProfileIdAuth authentication which first tries to authenticate using `X-Internal-API-Key`,
+/// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing,
+/// it falls back to the provided authentication mechanism.
+#[cfg(feature = "v1")]
+pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<AuthenticationData, A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
+            .ok();
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
+            .ok();
+        if let (Some(internal_api_key), Some(merchant_id), Some(profile_id)) =
+            (internal_api_key, merchant_id, profile_id)
+        {
+            let config = state.conf();
+            if internal_api_key
+                != *config
+                    .internal_merchant_id_profile_id_auth
+                    .internal_api_key
+                    .peek()
+            {
+                return Err(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Internal API key authentication failed");
+            }
+            let key_manager_state = &(&state.session_state()).into();
+            let key_store = state
+                .store()
+                .get_merchant_key_store_by_merchant_id(
+                    key_manager_state,
+                    &merchant_id,
+                    &state.store().get_master_key().to_vec().into(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let _profile = state
+                .store()
+                .find_business_profile_by_merchant_id_profile_id(
+                    key_manager_state,
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let merchant = state
+                .store()
+                .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let auth = AuthenticationData {
+                merchant_account: merchant,
+                key_store,
+                profile_id: Some(profile_id.clone()),
+                platform_merchant_account: None,
+            };
+            Ok((
+                auth.clone(),
+                AuthenticationType::InternalMerchantIdProfileId {
+                    merchant_id,
+                    profile_id: Some(profile_id),
+                },
+            ))
+        } else {
+            Ok(self
+                .0
+                .authenticate_and_fetch(request_headers, state)
+                .await?)
+        }
     }
 }
 
@@ -2701,7 +2796,27 @@ where
         api_auth
     }
 }
-
+#[cfg(feature = "v2")]
+pub fn api_or_client_or_jwt_auth<'a, T, A>(
+    api_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    client_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    jwt_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    if let Ok(val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
+        if val.trim().starts_with("api-key=") {
+            api_auth
+        } else if is_jwt_auth(headers) {
+            jwt_auth
+        } else {
+            client_auth
+        }
+    } else {
+        api_auth
+    }
+}
 #[derive(Debug)]
 pub struct PublishableKeyAuth;
 
@@ -4147,12 +4262,29 @@ impl ClientSecretFetch for payments::PaymentsRequest {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -4165,10 +4297,7 @@ impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
     }
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -4203,6 +4332,45 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
 impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::GetPlansQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for api_models::authentication::AuthenticationAuthenticateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for api_models::authentication::AuthenticationSyncRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
@@ -4317,6 +4485,66 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     }
 }
 
+pub fn is_internal_api_key_merchant_id_profile_id_auth(
+    headers: &HeaderMap,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> bool {
+    internal_api_key_auth.enabled
+        && headers.contains_key(headers::X_INTERNAL_API_KEY)
+        && headers.contains_key(headers::X_MERCHANT_ID)
+        && headers.contains_key(headers::X_PROFILE_ID)
+}
+
+#[cfg(feature = "v1")]
+pub fn check_internal_api_key_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            api::AuthFlow::Merchant,
+        ))
+    } else {
+        check_client_secret_and_get_auth(headers, payload, api_auth)
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn check_internal_api_key_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            api::AuthFlow::Merchant,
+        ))
+    } else {
+        let (auth, auth_flow) = get_auth_type_and_flow(headers, api_auth)?;
+        Ok((auth, auth_flow))
+    }
+}
+
 pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -4342,8 +4570,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
                 .to_str()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "Failed to convert header value to string for header key: {}",
-                    key
+                    "Failed to convert header value to string for header key: {key}",
                 ))
         })
         .transpose()

@@ -184,6 +184,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             ),
             confirm: None,
             payment_method_data: None,
+            payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
             all_keys_required: None,
@@ -214,6 +215,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: false,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -255,6 +258,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
                     incremental_authorization_allowed: None,
+                    feature_metadata: payment_data
+                        .payment_intent
+                        .feature_metadata
+                        .clone()
+                        .map(masking::Secret::new),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

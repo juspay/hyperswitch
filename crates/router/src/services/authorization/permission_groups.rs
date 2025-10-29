@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Not};
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
 
-use super::permissions::{self, ResourceExt};
+use super::permissions;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -20,21 +20,20 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::AnalyticsView
             | Self::UsersView
-            | Self::MerchantDetailsView
             | Self::AccountView
             | Self::ReconOpsView
-            | Self::ReconReportsView => PermissionScope::Read,
+            | Self::ReconReportsView
+            | Self::ThemeView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
             | Self::WorkflowsManage
             | Self::UsersManage
-            | Self::MerchantDetailsManage
-            | Self::OrganizationManage
             | Self::AccountManage
             | Self::ReconOpsManage
             | Self::ReconReportsManage
-            | Self::InternalManage => PermissionScope::Write,
+            | Self::InternalManage
+            | Self::ThemeManage => PermissionScope::Write,
         }
     }
 
@@ -45,11 +44,9 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::MerchantDetailsView
-            | Self::OrganizationManage
-            | Self::MerchantDetailsManage
-            | Self::AccountView
-            | Self::AccountManage => ParentGroup::Account,
+            Self::AccountView | Self::AccountManage => ParentGroup::Account,
+
+            Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
@@ -92,17 +89,12 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconReportsView => vec![Self::ReconReportsView],
             Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
-            Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
-            Self::MerchantDetailsManage => {
-                vec![Self::MerchantDetailsView, Self::MerchantDetailsManage]
-            }
-
-            Self::OrganizationManage => vec![Self::OrganizationManage],
-
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
             Self::InternalManage => vec![Self::InternalManage],
+            Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
+            Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
         }
     }
 }
@@ -113,6 +105,7 @@ pub trait ParentGroupExt {
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
     ) -> Option<HashMap<ParentGroup, String>>;
+    fn get_available_scopes(&self) -> Vec<PermissionScope>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -127,6 +120,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
+            Self::Theme => THEME.to_vec(),
         }
     }
 
@@ -136,24 +130,19 @@ impl ParentGroupExt for ParentGroup {
     ) -> Option<HashMap<Self, String>> {
         let descriptions_map = Self::iter()
             .filter_map(|parent| {
-                let scopes = groups
-                    .iter()
-                    .filter(|group| group.parent() == parent)
-                    .map(|group| group.scope())
-                    .max()?;
+                if !groups.iter().any(|group| group.parent() == parent) {
+                    return None;
+                }
+                let filtered_resources =
+                    permissions::filter_resources_by_entity_type(parent.resources(), entity_type)?;
 
-                let resources = parent
-                    .resources()
+                let description = filtered_resources
                     .iter()
-                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
                     .map(|res| permissions::get_resource_name(*res, entity_type))
                     .collect::<Option<Vec<_>>>()?
                     .join(", ");
 
-                Some((
-                    parent,
-                    format!("{} {}", permissions::get_scope_name(scopes), resources),
-                ))
+                Some((parent, description))
             })
             .collect::<HashMap<_, _>>();
 
@@ -161,6 +150,13 @@ impl ParentGroupExt for ParentGroup {
             .is_empty()
             .not()
             .then_some(descriptions_map)
+    }
+
+    fn get_available_scopes(&self) -> Vec<PermissionScope> {
+        PermissionGroup::iter()
+            .filter(|group| group.parent() == *self)
+            .map(|group| group.scope())
+            .collect()
     }
 }
 
@@ -210,3 +206,5 @@ pub static RECON_REPORTS: [Resource; 4] = [
     Resource::ReconReports,
     Resource::Account,
 ];
+
+pub static THEME: [Resource; 1] = [Resource::Theme];

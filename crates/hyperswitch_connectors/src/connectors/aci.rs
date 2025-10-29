@@ -6,7 +6,8 @@ use std::sync::LazyLock;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
-    errors::CustomResult,
+    crypto,
+    errors::{CryptoError, CustomResult},
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
@@ -30,8 +31,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,11 +43,13 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response,
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsVoidType,
+        RefundExecuteType, Response,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
+use ring::aead::{self, UnboundKey};
 use transformers as aci;
 
 use crate::{
@@ -93,7 +96,7 @@ impl ConnectorCommon for Aci {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -129,6 +132,7 @@ impl ConnectorCommon for Aci {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -157,32 +161,227 @@ impl api::PaymentToken for Aci {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Aci
 {
-    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Payment method tokenization not supported".to_string(),
+            connector: "ACI",
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Aci {
-    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Payment sessions not supported".to_string(),
+            connector: "ACI",
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Aci {
-    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Access token authentication not supported".to_string(),
+            connector: "ACI",
+        }
+        .into())
+    }
 }
 
 impl api::MandateSetup for Aci {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Aci {
-    // Issue: #173
-    fn build_request(
+    fn get_headers(
+        &self,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
         &self,
         _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/registrations", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = aci::AciMandateRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Setup Mandate flow for Aci".to_string()).into())
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&self.get_url(req, connectors)?)
+                .attach_default_headers()
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: aci::AciMandateResponse = res
+            .response
+            .parse_struct("AciMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Aci {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            PaymentsCaptureType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "v1/payments/",
+            req.request.connector_transaction_id,
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_router_data = aci::AciRouterData::from((amount, req));
+        let connector_req = aci::AciCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: aci::AciCaptureResponse = res
+            .response
+            .parse_struct("AciCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aci {
@@ -312,8 +511,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // encode only for for urlencoded things.
-
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -555,42 +752,261 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Aci {}
 
+/// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
+/// are provided separately as hex strings. This is specifically tailored for ACI webhooks.
+///
+/// # Arguments
+/// * `hex_key`: The encryption key as a hex string (must decode to 32 bytes).
+/// * `hex_iv`: The initialization vector (nonce) as a hex string (must decode to 12 bytes).
+/// * `hex_auth_tag`: The authentication tag as a hex string (must decode to 16 bytes).
+/// * `hex_encrypted_body`: The encrypted payload as a hex string.
+fn decrypt_aci_webhook_payload(
+    hex_key: &str,
+    hex_iv: &str,
+    hex_auth_tag: &str,
+    hex_encrypted_body: &str,
+) -> CustomResult<Vec<u8>, CryptoError> {
+    let key_bytes = hex::decode(hex_key)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex key")?;
+    let iv_bytes = hex::decode(hex_iv)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex IV")?;
+    let auth_tag_bytes = hex::decode(hex_auth_tag)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex auth tag")?;
+    let encrypted_body_bytes = hex::decode(hex_encrypted_body)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex encrypted body")?;
+    if key_bytes.len() != 32 {
+        return Err(CryptoError::InvalidKeyLength)
+            .attach_printable("Key must be 32 bytes for AES-256-GCM");
+    }
+    if iv_bytes.len() != aead::NONCE_LEN {
+        return Err(CryptoError::InvalidIvLength)
+            .attach_printable(format!("IV must be {} bytes for AES-GCM", aead::NONCE_LEN));
+    }
+    if auth_tag_bytes.len() != 16 {
+        return Err(CryptoError::InvalidTagLength)
+            .attach_printable("Auth tag must be 16 bytes for AES-256-GCM");
+    }
+
+    let unbound_key = UnboundKey::new(&aead::AES_256_GCM, &key_bytes)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to create unbound key")?;
+
+    let less_safe_key = aead::LessSafeKey::new(unbound_key);
+
+    let nonce_arr: [u8; aead::NONCE_LEN] = iv_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_| CryptoError::InvalidIvLength)
+        .attach_printable_lazy(|| {
+            format!(
+                "IV length is {} but expected {}",
+                iv_bytes.len(),
+                aead::NONCE_LEN
+            )
+        })?;
+    let nonce = aead::Nonce::assume_unique_for_key(nonce_arr);
+
+    let mut ciphertext_and_tag = encrypted_body_bytes;
+    ciphertext_and_tag.extend_from_slice(&auth_tag_bytes);
+
+    less_safe_key
+        .open_in_place(nonce, aead::Aad::empty(), &mut ciphertext_and_tag)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decrypt payload using LessSafeKey")?;
+
+    let original_ciphertext_len = ciphertext_and_tag.len() - auth_tag_bytes.len();
+    ciphertext_and_tag.truncate(original_ciphertext_len);
+
+    Ok(ciphertext_and_tag)
+}
+
 #[async_trait::async_trait]
 impl IncomingWebhook for Aci {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value_str = request
+            .headers
+            .get("X-Authentication-Tag")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
+            .attach_printable("Missing X-Authentication-Tag header")?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
+            .attach_printable("Invalid X-Authentication-Tag header value (not UTF-8)")?;
+        Ok(header_value_str.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let webhook_secret_str = String::from_utf8(connector_webhook_secrets.secret.to_vec())
+            .map_err(|_| errors::ConnectorError::WebhookVerificationSecretInvalid)
+            .attach_printable("ACI webhook secret is not a valid UTF-8 string")?;
+
+        let iv_hex_str = request
+            .headers
+            .get("X-Initialization-Vector")
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Missing X-Initialization-Vector header")?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Invalid X-Initialization-Vector header value (not UTF-8)")?;
+
+        let auth_tag_hex_str = request
+            .headers
+            .get("X-Authentication-Tag")
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Missing X-Authentication-Tag header")?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Invalid X-Authentication-Tag header value (not UTF-8)")?;
+
+        let encrypted_body_hex = String::from_utf8(request.body.to_vec())
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to read encrypted body as UTF-8 string for verification message",
+            )?;
+
+        decrypt_aci_webhook_payload(
+            &webhook_secret_str,
+            iv_hex_str,
+            auth_tag_hex_str,
+            &encrypted_body_hex,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to decrypt ACI webhook payload for verification")
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let aci_notification: aci::AciWebhookNotification =
+            serde_json::from_slice(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to deserialize ACI webhook notification for ID extraction (expected decrypted payload)")?;
+
+        let id_value_str = aci_notification
+            .payload
+            .get("id")
+            .and_then(|id| id.as_str())
+            .ok_or_else(|| {
+                report!(errors::ConnectorError::WebhookResourceObjectNotFound)
+                    .attach_printable("Missing 'id' in webhook payload for ID extraction")
+            })?;
+
+        let payment_type_str = aci_notification
+            .payload
+            .get("paymentType")
+            .and_then(|pt| pt.as_str());
+
+        if payment_type_str.is_some_and(|pt| pt.to_uppercase() == "RF") {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(id_value_str.to_string()),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    id_value_str.to_string(),
+                ),
+            ))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(IncomingWebhookEvent::EventNotSupported)
+        let aci_notification: aci::AciWebhookNotification =
+            serde_json::from_slice(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+                 .attach_printable("Failed to deserialize ACI webhook notification for event type (expected decrypted payload)")?;
+
+        match aci_notification.event_type {
+            aci::AciWebhookEventType::Payment => {
+                let payment_payload: aci::AciPaymentWebhookPayload =
+                    serde_json::from_value(aci_notification.payload)
+                        .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+                        .attach_printable("Could not deserialize ACI payment webhook payload for event type determination")?;
+
+                let code = &payment_payload.result.code;
+                if aci_result_codes::SUCCESSFUL_CODES.contains(&code.as_str()) {
+                    if payment_payload.payment_type.to_uppercase() == "RF" {
+                        Ok(IncomingWebhookEvent::RefundSuccess)
+                    } else {
+                        Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                    }
+                } else if aci_result_codes::PENDING_CODES.contains(&code.as_str()) {
+                    if payment_payload.payment_type.to_uppercase() == "RF" {
+                        Ok(IncomingWebhookEvent::EventNotSupported)
+                    } else {
+                        Ok(IncomingWebhookEvent::PaymentIntentProcessing)
+                    }
+                } else if aci_result_codes::FAILURE_CODES.contains(&code.as_str()) {
+                    if payment_payload.payment_type.to_uppercase() == "RF" {
+                        Ok(IncomingWebhookEvent::RefundFailure)
+                    } else {
+                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                } else {
+                    Ok(IncomingWebhookEvent::EventNotSupported)
+                }
+            }
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let aci_notification: aci::AciWebhookNotification =
+            serde_json::from_slice(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to deserialize ACI webhook notification for resource object (expected decrypted payload)")?;
+
+        match aci_notification.event_type {
+            aci::AciWebhookEventType::Payment => {
+                let payment_payload: aci::AciPaymentWebhookPayload =
+                    serde_json::from_value(aci_notification.payload)
+                        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+                        .attach_printable("Failed to deserialize ACI payment webhook payload")?;
+                Ok(Box::new(payment_payload))
+            }
+        }
     }
 }
 
 static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+    ];
 
-    let supported_card_network = vec![
+    let supported_card_networks = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
         common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
         common_enums::CardNetwork::DinersClub,
         common_enums::CardNetwork::Discover,
-        common_enums::CardNetwork::JCB,
-        common_enums::CardNetwork::Maestro,
-        common_enums::CardNetwork::Mastercard,
         common_enums::CardNetwork::UnionPay,
-        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Maestro,
     ];
 
     let mut aci_supported_payment_methods = SupportedPaymentMethods::new();
@@ -600,7 +1016,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::MbWay,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -611,7 +1027,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::AliPay,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -627,9 +1043,9 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network.clone(),
+                        supported_card_networks: supported_card_networks.clone(),
                     }
                 }),
             ),
@@ -646,20 +1062,21 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network.clone(),
+                        supported_card_networks: supported_card_networks.clone(),
                     }
                 }),
             ),
         },
     );
+
     aci_supported_payment_methods.add(
         enums::PaymentMethod::BankRedirect,
         enums::PaymentMethodType::Eps,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -669,7 +1086,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Eft,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -679,7 +1096,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Ideal,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -689,7 +1106,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Giropay,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -699,7 +1116,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Sofort,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -709,7 +1126,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Interac,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -719,7 +1136,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Przelewy24,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -729,21 +1146,23 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethodType::Trustly,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
     );
+
     aci_supported_payment_methods.add(
         enums::PaymentMethod::PayLater,
         enums::PaymentMethodType::Klarna,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
         },
     );
+
     aci_supported_payment_methods
 });
 
@@ -751,7 +1170,8 @@ static ACI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "ACI",
     description:
         "ACI Payments delivers secure, real-time electronic payment solutions for businesses, banks, and governments, enabling seamless transactions across channels.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static ACI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

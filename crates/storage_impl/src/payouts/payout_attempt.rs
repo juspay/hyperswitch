@@ -60,7 +60,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let payout_attempt_id = new_payout_attempt.payout_id.clone();
                 let key = PartitionKey::MerchantIdPayoutAttemptId {
                     merchant_id: &merchant_id,
-                    payout_attempt_id: &payout_attempt_id,
+                    payout_attempt_id: payout_attempt_id.get_string_repr(),
                 };
                 let key_str = key.to_string();
                 let created_attempt = PayoutAttempt {
@@ -88,6 +88,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     routing_info: new_payout_attempt.routing_info.clone(),
                     unified_code: new_payout_attempt.unified_code.clone(),
                     unified_message: new_payout_attempt.unified_message.clone(),
+                    merchant_order_reference_id: new_payout_attempt
+                        .merchant_order_reference_id
+                        .clone(),
+                    payout_connector_metadata: new_payout_attempt.payout_connector_metadata.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -149,7 +153,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let key = PartitionKey::MerchantIdPayoutAttemptId {
             merchant_id: &this.merchant_id,
-            payout_attempt_id: &this.payout_id,
+            payout_attempt_id: this.payout_id.get_string_repr(),
         };
         let field = format!("poa_{}", this.payout_attempt_id);
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
@@ -378,6 +382,22 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_order_reference_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        self.router_store
+            .find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+                merchant_id,
+                merchant_order_reference_id,
+                storage_scheme,
+            )
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -504,6 +524,27 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
                 },
             )
     }
+
+    #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_order_reference_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPayoutAttempt::find_by_merchant_id_merchant_order_reference_id(
+            &conn,
+            merchant_id,
+            merchant_order_reference_id,
+        )
+        .await
+        .map(PayoutAttempt::from_storage_model)
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+    }
 }
 
 impl DataModelExt for PayoutAttempt {
@@ -533,6 +574,8 @@ impl DataModelExt for PayoutAttempt {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             additional_payout_method_data: self.additional_payout_method_data,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            payout_connector_metadata: self.payout_connector_metadata,
         }
     }
 
@@ -560,6 +603,8 @@ impl DataModelExt for PayoutAttempt {
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
             additional_payout_method_data: storage_model.additional_payout_method_data,
+            merchant_order_reference_id: storage_model.merchant_order_reference_id,
+            payout_connector_metadata: storage_model.payout_connector_metadata,
         }
     }
 }
@@ -590,6 +635,8 @@ impl DataModelExt for PayoutAttemptNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             additional_payout_method_data: self.additional_payout_method_data,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            payout_connector_metadata: self.payout_connector_metadata,
         }
     }
 
@@ -617,6 +664,8 @@ impl DataModelExt for PayoutAttemptNew {
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
             additional_payout_method_data: storage_model.additional_payout_method_data,
+            merchant_order_reference_id: storage_model.merchant_order_reference_id,
+            payout_connector_metadata: storage_model.payout_connector_metadata,
         }
     }
 }
@@ -632,6 +681,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
@@ -640,6 +690,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }
@@ -688,7 +739,7 @@ async fn add_connector_payout_id_to_reverse_lookup<T: DatabaseStore>(
     connector_payout_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("poa_{}", updated_attempt_attempt_id);
+    let field = format!("poa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "po_conn_payout_{}_{}",

@@ -1,4 +1,5 @@
 pub mod apple_pay_certificates_migration;
+pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
@@ -194,7 +195,7 @@ impl<T> ApiEventMetric for AuthEventMetricsResponse<T> {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
@@ -205,7 +206,7 @@ impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodIntentCreate {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethodCreate)
@@ -237,3 +238,9 @@ impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
 #[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataResponse {}
+
+#[cfg(feature = "tokenization_v2")]
+impl ApiEventMetric for tokenization::DeleteTokenDataRequest {}

@@ -1,9 +1,9 @@
+#[cfg(feature = "v1")]
 use std::str::FromStr;
 
-use api_models::{
-    admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
-    refunds::MinorUnit,
-};
+#[cfg(feature = "v1")]
+use api_models::payment_methods::RequestPaymentMethodTypes;
+use api_models::{admin as admin_api, enums as api_enums, refunds::MinorUnit};
 use euclid::{
     dirval,
     frontend::{ast, dir},
@@ -22,6 +22,8 @@ fn get_dir_value_payment_method(
 ) -> Result<dir::DirValue, KgraphError> {
     match from {
         api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
+        api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+        api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         #[cfg(feature = "v2")]
@@ -32,11 +34,13 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
         api_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
+        api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
         api_enums::PaymentMethodType::AfterpayClearpay => {
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
         api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
+        api_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
         api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
         api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
         api_enums::PaymentMethodType::CryptoCurrency => Ok(dirval!(CryptoType = CryptoCurrency)),
@@ -46,7 +50,9 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
         api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
-
+        api_enums::PaymentMethodType::SepaGuarenteedDebit => {
+            Ok(dirval!(BankDebitType = SepaGuarenteedDebit))
+        }
         api_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
         api_enums::PaymentMethodType::AliPayHk => Ok(dirval!(WalletType = AliPayHk)),
         api_enums::PaymentMethodType::BancontactCard => {
@@ -114,6 +120,7 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::BniVa => Ok(dirval!(BankTransferType = BniVa)),
         api_enums::PaymentMethodType::BriVa => Ok(dirval!(BankTransferType = BriVa)),
+        api_enums::PaymentMethodType::Breadpay => Ok(dirval!(PayLaterType = Breadpay)),
         api_enums::PaymentMethodType::CimbVa => Ok(dirval!(BankTransferType = CimbVa)),
         api_enums::PaymentMethodType::DanamonVa => Ok(dirval!(BankTransferType = DanamonVa)),
         api_enums::PaymentMethodType::Indomaret => Ok(dirval!(VoucherType = Indomaret)),
@@ -124,11 +131,20 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::InstantBankTransfer => {
             Ok(dirval!(BankTransferType = InstantBankTransfer))
         }
+        api_enums::PaymentMethodType::InstantBankTransferFinland => {
+            Ok(dirval!(BankTransferType = InstantBankTransferFinland))
+        }
+        api_enums::PaymentMethodType::InstantBankTransferPoland => {
+            Ok(dirval!(BankTransferType = InstantBankTransferPoland))
+        }
         api_enums::PaymentMethodType::SepaBankTransfer => {
             Ok(dirval!(BankTransferType = SepaBankTransfer))
         }
         api_enums::PaymentMethodType::PermataBankTransfer => {
             Ok(dirval!(BankTransferType = PermataBankTransfer))
+        }
+        api_enums::PaymentMethodType::IndonesianBankTransfer => {
+            Ok(dirval!(BankTransferType = IndonesianBankTransfer))
         }
         api_enums::PaymentMethodType::PaySafeCard => Ok(dirval!(GiftCardType = PaySafeCard)),
         api_enums::PaymentMethodType::SevenEleven => Ok(dirval!(VoucherType = SevenEleven)),
@@ -138,6 +154,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Seicomart => Ok(dirval!(VoucherType = Seicomart)),
         api_enums::PaymentMethodType::PayEasy => Ok(dirval!(VoucherType = PayEasy)),
         api_enums::PaymentMethodType::Givex => Ok(dirval!(GiftCardType = Givex)),
+        api_enums::PaymentMethodType::BhnCardNetwork => Ok(dirval!(GiftCardType = BhnCardNetwork)),
         api_enums::PaymentMethodType::Benefit => Ok(dirval!(CardRedirectType = Benefit)),
         api_enums::PaymentMethodType::Knet => Ok(dirval!(CardRedirectType = Knet)),
         api_enums::PaymentMethodType::OpenBankingUk => {
@@ -149,6 +166,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
         api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
         api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+        api_enums::PaymentMethodType::UpiQr => Ok(dirval!(UpiType = UpiQr)),
         api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
@@ -1146,8 +1164,8 @@ mod tests {
                         accepted_countries: None,
                         minimum_amount: Some(MinorUnit::new(10)),
                         maximum_amount: Some(MinorUnit::new(1000)),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
+                        recurring_enabled: Some(true),
+                        installment_payment_enabled: Some(true),
                     },
                     RequestPaymentMethodTypes {
                         payment_method_type: api_enums::PaymentMethodType::Debit,
@@ -1162,8 +1180,8 @@ mod tests {
                         accepted_countries: None,
                         minimum_amount: Some(MinorUnit::new(10)),
                         maximum_amount: Some(MinorUnit::new(1000)),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
+                        recurring_enabled: Some(true),
+                        installment_payment_enabled: Some(true),
                     },
                 ]),
             }]),

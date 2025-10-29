@@ -226,7 +226,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -243,10 +243,7 @@ async fn get_tracker_for_sync<
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn get_tracker_for_sync<
     'a,
@@ -466,14 +463,16 @@ async fn get_tracker_for_sync<
     let authentication_store = if let Some(ref authentication_id) =
         payment_attempt.authentication_id
     {
-        let authentication =
-            db.find_authentication_by_merchant_id_authentication_id(
-                    &merchant_id,
-                    authentication_id.clone(),
+        let authentication = db
+            .find_authentication_by_merchant_id_authentication_id(&merchant_id, authentication_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Error while fetching authentication record with authentication_id {}",
+                    authentication_id.get_string_repr()
                 )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+            })?;
 
         Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -518,6 +517,7 @@ async fn get_tracker_for_sync<
         token_data: None,
         confirm: Some(request.force_sync),
         payment_method_data: None,
+        payment_method_token: None,
         payment_method_info,
         force_sync: Some(
             request.force_sync
@@ -553,6 +553,8 @@ async fn get_tracker_for_sync<
         vault_operation: None,
         threeds_method_comp_ind: None,
         whole_connector_response: None,
+        is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
+        is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

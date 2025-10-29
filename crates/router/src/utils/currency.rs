@@ -291,7 +291,7 @@ async fn fetch_forex_rates_from_primary_api(
     let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
 
     logger::debug!("forex_log: Primary api call for forex fetch");
-    let forex_url: String = format!("{}{}{}", FOREX_BASE_URL, forex_api_key, FOREX_BASE_CURRENCY);
+    let forex_url: String = format!("{FOREX_BASE_URL}{forex_api_key}{FOREX_BASE_CURRENCY}");
     let forex_request = services::RequestBuilder::new()
         .method(services::Method::Get)
         .url(&forex_url)
@@ -356,8 +356,7 @@ pub async fn fetch_forex_rates_from_fallback_api(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexError> {
     let fallback_forex_api_key = state.conf.forex_api.get_inner().fallback_api_key.peek();
 
-    let fallback_forex_url: String =
-        format!("{}{}", FALLBACK_FOREX_BASE_URL, fallback_forex_api_key,);
+    let fallback_forex_url: String = format!("{FALLBACK_FOREX_BASE_URL}{fallback_forex_api_key}");
     let fallback_forex_request = services::RequestBuilder::new()
         .method(services::Method::Get)
         .url(&fallback_forex_url)

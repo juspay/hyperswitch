@@ -5,12 +5,20 @@ use std::collections::HashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
-    enums, mandates as mandates_api, routing,
-    routing::{self as routing_types, RoutingRetrieveQuery},
+    enums, mandates as mandates_api,
+    open_router::{
+        DecideGatewayResponse, OpenRouterDecideGatewayRequest, UpdateScorePayload,
+        UpdateScoreResponse,
+    },
+    routing,
+    routing::{
+        self as routing_types, RoutingRetrieveQuery, RuleMigrationError, RuleMigrationResponse,
+    },
 };
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
+use common_utils::request::Method;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -20,10 +28,11 @@ use external_services::grpc_client::dynamic_routing::{
     success_rate_client::SuccessBasedDynamicRouting,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use helpers::update_decision_engine_dynamic_routing_setup;
+use helpers::{
+    enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
+};
 use hyperswitch_domain_models::{mandates, payment_address};
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::logger;
+use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -46,7 +55,7 @@ use crate::utils::ValueExt;
 use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
-        errors::{self, CustomResult, RouterResponse, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse},
         metrics, utils as core_utils,
     },
     db::StorageInterface,
@@ -164,7 +173,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         routing_metadata,
     );
 
-    let result = routing_metadata
+    let mut result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
@@ -172,7 +181,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     if let Some(profile_ids) = profile_id_list {
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
         // DE_TODO: need to replace this with batch API call to reduce the number of network calls
-        for profile_id in profile_ids {
+        for profile_id in &profile_ids {
             let list_request = ListRountingAlgorithmsRequest {
                 created_by: profile_id.get_string_repr().to_string(),
             };
@@ -183,14 +192,79 @@ pub async fn retrieve_merchant_routing_dictionary(
                 })
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
+            // filter de_result based on transaction type
+            de_result.retain(|record| record.algorithm_for == Some(transaction_type));
+            // append dynamic routing algorithms to de_result
+            de_result.append(
+                &mut result
+                    .clone()
+                    .into_iter()
+                    .filter(|record: &routing_types::RoutingDictionaryRecord| {
+                        record.kind == routing_types::RoutingAlgorithmKind::Dynamic
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
-        compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
+        compare_and_log_result(
+            de_result.clone(),
+            result.clone(),
+            "list_routing".to_string(),
+        );
+        result = build_list_routing_result(
+            &state,
+            merchant_context,
+            &result,
+            &de_result,
+            profile_ids.clone(),
+        )
+        .await?;
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::RoutingAlgorithm(result),
     ))
+}
+
+async fn build_list_routing_result(
+    state: &SessionState,
+    merchant_context: domain::MerchantContext,
+    hs_results: &[routing_types::RoutingDictionaryRecord],
+    de_results: &[routing_types::RoutingDictionaryRecord],
+    profile_ids: Vec<common_utils::id_type::ProfileId>,
+) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let mut list_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+    for profile_id in profile_ids.iter() {
+        let by_profile =
+            |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
+        let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
+        let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            Some(profile_id),
+            merchant_context.get_merchant_account().get_id(),
+        )
+        .await?
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+        list_result.append(
+            &mut select_routing_result(
+                state,
+                &business_profile,
+                hs_result_for_profile,
+                de_result_for_profile,
+            )
+            .await,
+        );
+    }
+    Ok(list_result)
 }
 
 #[cfg(feature = "v2")]
@@ -277,8 +351,6 @@ pub async fn create_routing_algorithm_under_profile(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
-    use crate::services::logger;
-
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -341,33 +413,84 @@ pub async fn create_routing_algorithm_under_profile(
 
     let mut decision_engine_routing_id: Option<String> = None;
 
-    if let Some(EuclidAlgorithm::Advanced(program)) = request.algorithm.clone() {
-        let internal_program: Program = program.into();
-        let routing_rule = RoutingRule {
-            name: name.clone(),
-            description: Some(description.clone()),
-            created_by: profile_id.get_string_repr().to_string(),
-            algorithm: internal_program,
-            metadata: Some(RoutingMetadata {
-                kind: algorithm.get_kind().foreign_into(),
-                algorithm_for: transaction_type.to_owned(),
-            }),
+    if let Some(euclid_algorithm) = request.algorithm.clone() {
+        let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match euclid_algorithm {
+            EuclidAlgorithm::Advanced(program) => match program.try_into() {
+                Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
+                Err(e) => {
+                    router_env::logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
+                    None
+                }
+            },
+            EuclidAlgorithm::Single(conn) => {
+                Some(StaticRoutingAlgorithm::Single(Box::new(conn.into())))
+            }
+            EuclidAlgorithm::Priority(connectors) => {
+                let converted: Vec<ConnectorInfo> =
+                    connectors.into_iter().map(Into::into).collect();
+                Some(StaticRoutingAlgorithm::Priority(converted))
+            }
+            EuclidAlgorithm::VolumeSplit(splits) => {
+                let converted: Vec<VolumeSplit<ConnectorInfo>> =
+                    splits.into_iter().map(Into::into).collect();
+                Some(StaticRoutingAlgorithm::VolumeSplit(converted))
+            }
+            EuclidAlgorithm::ThreeDsDecisionRule(_) => {
+                router_env::logger::error!(
+                    "decision_engine_euclid: ThreeDsDecisionRules are not yet implemented"
+                );
+                None
+            }
         };
 
-        decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
-            .await
-            .map_err(|e| {
-                // errors are ignored as this is just for diff checking as of now (optional flow).
-                logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-                logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
-            })
-            .ok();
+        if let Some(static_algorithm) = maybe_static_algorithm {
+            let routing_rule = RoutingRule {
+                rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
+                name: name.clone(),
+                description: Some(description.clone()),
+                created_by: profile_id.get_string_repr().to_string(),
+                algorithm: static_algorithm,
+                algorithm_for: transaction_type.into(),
+                metadata: Some(RoutingMetadata {
+                    kind: algorithm.get_kind().foreign_into(),
+                }),
+            };
+
+            match create_de_euclid_routing_algo(&state, &routing_rule).await {
+                Ok(id) => {
+                    decision_engine_routing_id = Some(id);
+                }
+                Err(e)
+                    if matches!(
+                        e.current_context(),
+                        errors::RoutingError::DecisionEngineValidationError(_)
+                    ) =>
+                {
+                    if let errors::RoutingError::DecisionEngineValidationError(msg) =
+                        e.current_context()
+                    {
+                        router_env::logger::error!(
+                            decision_engine_euclid_error = ?msg,
+                            decision_engine_euclid_request = ?routing_rule,
+                            "failed to create rule in decision_engine with validation error"
+                        );
+                    }
+                }
+                Err(e) => {
+                    router_env::logger::error!(
+                        decision_engine_euclid_error = ?e,
+                        decision_engine_euclid_request = ?routing_rule,
+                        "failed to create rule in decision_engine"
+                    );
+                }
+            }
+        }
     }
 
     if decision_engine_routing_id.is_some() {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
     } else {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
     }
 
     let timestamp = common_utils::date_time::now();
@@ -572,8 +695,16 @@ pub async fn link_routing_config(
                 // Call to DE here to update SR configs
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
-                        update_decision_engine_dynamic_routing_setup(
+                    if state.conf.open_router.dynamic_routing_enabled {
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
+                        &state,
+                        business_profile.get_id(),
+                        api_models::open_router::DecisionEngineDynamicAlgorithmType::SuccessRate,
+                    )
+                    .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
@@ -585,6 +716,27 @@ pub async fn link_routing_config(
                         .attach_printable(
                             "Failed to update the success rate routing config in Decision Engine",
                         )?;
+                        } else {
+                            let data: routing_types::SuccessBasedRoutingConfig =
+                            routing_algorithm.algorithm_data
+                                .clone()
+                                .parse_value("SuccessBasedRoutingConfig")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "unable to deserialize SuccessBasedRoutingConfig from routing algorithm data",
+                                )?;
+
+                            enable_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                            &mut dynamic_routing_ref,
+                            Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
@@ -603,19 +755,52 @@ pub async fn link_routing_config(
             );
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
-                        update_decision_engine_dynamic_routing_setup(
+                    if state.conf.open_router.dynamic_routing_enabled {
+                        let existing_config = helpers::get_decision_engine_active_dynamic_routing_algorithm(
                             &state,
                             business_profile.get_id(),
-                            routing_algorithm.algorithm_data.clone(),
-                            routing_types::DynamicRoutingType::EliminationRouting,
-                            &mut dynamic_routing_ref,
+                            api_models::open_router::DecisionEngineDynamicAlgorithmType::Elimination,
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to update the elimination routing config in Decision Engine",
-                        )?;
+                        .await;
+
+                        if let Ok(Some(_config)) = existing_config {
+                            update_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_algorithm.algorithm_data.clone(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to update the elimination routing config in Decision Engine",
+                            )?;
+                        } else {
+                            let data: routing_types::EliminationRoutingConfig =
+                                routing_algorithm.algorithm_data
+                                    .clone()
+                                    .parse_value("EliminationRoutingConfig")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "unable to deserialize EliminationRoutingConfig from routing algorithm data",
+                                    )?;
+
+                            enable_decision_engine_dynamic_routing_setup(
+                                &state,
+                                business_profile.get_id(),
+                                routing_types::DynamicRoutingType::EliminationRouting,
+                                &mut dynamic_routing_ref,
+                                Some(
+                                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(
+                                        data,
+                                    ),
+                                ),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        }
                     }
                 }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
@@ -711,6 +896,23 @@ pub async fn link_routing_config(
             }
         }
     }
+
+    // redact cgraph cache on rule activation
+    helpers::redact_cgraph_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
+    // redact routing cache on rule activation
+    helpers::redact_routing_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),
@@ -924,9 +1126,25 @@ pub async fn unlink_routing_config(
                         db,
                         key_manager_state,
                         merchant_context.get_merchant_key_store(),
-                        business_profile,
+                        business_profile.clone(),
                         routing_algorithm,
                         &transaction_type,
+                    )
+                    .await?;
+
+                    // redact cgraph cache on rule activation
+                    helpers::redact_cgraph_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
+                    )
+                    .await?;
+
+                    // redact routing cache on rule activation
+                    helpers::redact_routing_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
                     )
                     .await?;
 
@@ -1245,7 +1463,23 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            let hs_records: Vec<routing_types::RoutingDictionaryRecord> =
+                vec![record.foreign_into()];
+            let de_records = retrieve_decision_engine_active_rules(
+                &state,
+                &transaction_type,
+                profile_id.clone(),
+                hs_records.clone(),
+            )
+            .await;
+            compare_and_log_result(
+                de_records.clone(),
+                hs_records.clone(),
+                "list_active_routing".to_string(),
+            );
+            active_algorithms.append(
+                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+            );
         }
 
         // Handle dynamic routing algorithms
@@ -1288,7 +1522,9 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            if record.algorithm_for == transaction_type {
+                active_algorithms.push(record.foreign_into());
+            }
         }
     }
 
@@ -1296,6 +1532,32 @@ pub async fn retrieve_linked_routing_config(
     Ok(service_api::ApplicationResponse::Json(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
+}
+
+pub async fn retrieve_decision_engine_active_rules(
+    state: &SessionState,
+    transaction_type: &enums::TransactionType,
+    profile_id: common_utils::id_type::ProfileId,
+    hs_records: Vec<routing_types::RoutingDictionaryRecord>,
+) -> Vec<routing_types::RoutingDictionaryRecord> {
+    let mut de_records =
+        list_de_euclid_active_routing_algorithm(state, profile_id.get_string_repr().to_owned())
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
+            })
+            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
+            .unwrap_or_default();
+    // Use Hs records to list the dynamic algorithms as DE is not supporting dynamic algorithms in HS standard
+    let mut dynamic_algos = hs_records
+        .into_iter()
+        .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
+        .collect::<Vec<_>>();
+    de_records.append(&mut dynamic_algos);
+    de_records
+        .into_iter()
+        .filter(|r| r.algorithm_for == Some(*transaction_type))
+        .collect::<Vec<_>>()
 }
 // List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
@@ -1433,6 +1695,7 @@ pub async fn update_default_routing_config_for_profile(
 
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
@@ -1482,14 +1745,86 @@ pub async fn toggle_specific_dynamic_routing(
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
-            helpers::enable_dynamic_routing_algorithm(
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                None,
+            ))
+            .await
+        }
+        routing::DynamicRoutingFeatures::None => {
+            // disable specific dynamic routing for the requested profile
+            helpers::disable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
             )
+            .await
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn create_specific_dynamic_routing(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    feature_to_enable: routing::DynamicRoutingFeatures,
+    profile_id: common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing::DynamicRoutingType,
+    payload: routing_types::DynamicRoutingPayload,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        1,
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            ("algorithm_type", dynamic_routing_type.to_string())
+        ),
+    );
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        Some(&profile_id),
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    match feature_to_enable {
+        routing::DynamicRoutingFeatures::Metrics
+        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                feature_to_enable,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+                Some(payload),
+            ))
             .await
         }
         routing::DynamicRoutingFeatures::None => {
@@ -1676,7 +2011,7 @@ pub async fn success_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -1685,14 +2020,14 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
-            .success_rate_client
             .as_ref()
-            .async_map(|sr_client| async {
-                sr_client
+            .async_map(|dr_client| async {
+                dr_client
+                    .success_rate_client
                     .invalidate_success_rate_routing_keys(
                         profile_id.get_string_repr().into(),
                         state.get_grpc_headers(),
@@ -1780,7 +2115,7 @@ pub async fn elimination_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
 
     let new_record = record.foreign_into();
 
@@ -1789,14 +2124,14 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
-            .elimination_based_client
             .as_ref()
-            .async_map(|er_client| async {
-                er_client
+            .async_map(|dr_client| async {
+                dr_client
+                    .elimination_based_client
                     .invalidate_elimination_bucket(
                         profile_id.get_string_repr().into(),
                         state.get_grpc_headers(),
@@ -2117,7 +2452,7 @@ pub async fn contract_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -2128,12 +2463,11 @@ pub async fn contract_based_routing_update_configs(
 
     state
         .grpc_client
-        .clone()
         .dynamic_routing
-        .contract_based_client
-        .clone()
-        .async_map(|ct_client| async move {
-            ct_client
+        .as_ref()
+        .async_map(|dr_client| async {
+            dr_client
+                .contract_based_client
                 .invalidate_contracts(
                     profile_id.get_string_repr().into(),
                     state.get_grpc_headers(),
@@ -2284,4 +2618,238 @@ impl RoutableConnectors {
 
         Ok(connector_data)
     }
+}
+
+pub async fn migrate_rules_for_profile(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    query_params: routing_types::RuleMigrationQuery,
+) -> RouterResult<routing_types::RuleMigrationResult> {
+    use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
+
+    let profile_id = query_params.profile_id.clone();
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_key_store,
+        Some(&profile_id),
+        merchant_id,
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    #[cfg(feature = "v1")]
+    let active_payment_routing_ids: Vec<Option<common_utils::id_type::RoutingId>> = vec![
+        business_profile
+            .get_payment_routing_algorithm()
+            .attach_printable("Failed to get payment routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+        business_profile
+            .get_payout_routing_algorithm()
+            .attach_printable("Failed to get payout routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+    ];
+
+    #[cfg(feature = "v2")]
+    let active_payment_routing_ids = [business_profile.routing_algorithm_id.clone()];
+
+    let routing_metadatas = state
+        .store
+        .list_routing_algorithm_metadata_by_profile_id(
+            &profile_id,
+            i64::from(query_params.validated_limit()),
+            i64::from(query_params.offset.unwrap_or_default()),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let mut response_list = Vec::new();
+    let mut error_list = Vec::new();
+
+    let mut push_error = |algorithm_id, msg: String| {
+        error_list.push(RuleMigrationError {
+            profile_id: profile_id.clone(),
+            algorithm_id,
+            error: msg,
+        });
+    };
+
+    for routing_metadata in routing_metadatas {
+        let algorithm_id = routing_metadata.algorithm_id.clone();
+        let algorithm = match db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
+            .await
+        {
+            Ok(algo) => algo,
+            Err(e) => {
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
+                push_error(algorithm_id, format!("Fetch error: {e:?}"));
+                continue;
+            }
+        };
+
+        let parsed_result = algorithm
+            .algorithm_data
+            .parse_value::<EuclidAlgorithm>("EuclidAlgorithm");
+
+        let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match parsed_result {
+            Ok(EuclidAlgorithm::Advanced(program)) => match program.try_into() {
+                Ok(ip) => Some(StaticRoutingAlgorithm::Advanced(ip)),
+                Err(e) => {
+                    router_env::logger::error!(
+                        ?e,
+                        ?algorithm_id,
+                        "Failed to convert advanced program"
+                    );
+                    push_error(algorithm_id.clone(), format!("Conversion error: {e:?}"));
+                    None
+                }
+            },
+            Ok(EuclidAlgorithm::Single(conn)) => {
+                Some(StaticRoutingAlgorithm::Single(Box::new(conn.into())))
+            }
+            Ok(EuclidAlgorithm::Priority(connectors)) => Some(StaticRoutingAlgorithm::Priority(
+                connectors.into_iter().map(Into::into).collect(),
+            )),
+            Ok(EuclidAlgorithm::VolumeSplit(splits)) => Some(StaticRoutingAlgorithm::VolumeSplit(
+                splits.into_iter().map(Into::into).collect(),
+            )),
+            Ok(EuclidAlgorithm::ThreeDsDecisionRule(_)) => {
+                router_env::logger::info!(
+                    ?algorithm_id,
+                    "Skipping 3DS rule migration (not supported yet)"
+                );
+                push_error(algorithm_id.clone(), "3DS migration not implemented".into());
+                None
+            }
+            Err(e) => {
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
+                push_error(algorithm_id.clone(), format!("Parse error: {e:?}"));
+                None
+            }
+        };
+
+        let Some(static_algorithm) = maybe_static_algorithm else {
+            continue;
+        };
+
+        let routing_rule = RoutingRule {
+            rule_id: Some(algorithm.algorithm_id.clone().get_string_repr().to_string()),
+            name: algorithm.name.clone(),
+            description: algorithm.description.clone(),
+            created_by: profile_id.get_string_repr().to_string(),
+            algorithm: static_algorithm,
+            algorithm_for: algorithm.algorithm_for.into(),
+            metadata: Some(RoutingMetadata {
+                kind: algorithm.kind,
+            }),
+        };
+
+        match create_de_euclid_routing_algo(&state, &routing_rule).await {
+            Ok(decision_engine_routing_id) => {
+                let mut is_active_rule = false;
+                if active_payment_routing_ids.contains(&Some(algorithm.algorithm_id.clone())) {
+                    link_de_euclid_routing_algorithm(
+                        &state,
+                        ActivateRoutingConfigRequest {
+                            created_by: profile_id.get_string_repr().to_string(),
+                            routing_algorithm_id: decision_engine_routing_id.clone(),
+                        },
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to link active routing algorithm")?;
+                    is_active_rule = true;
+                }
+                response_list.push(RuleMigrationResponse {
+                    profile_id: profile_id.clone(),
+                    euclid_algorithm_id: algorithm.algorithm_id.clone(),
+                    decision_engine_algorithm_id: decision_engine_routing_id,
+                    is_active_rule,
+                });
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    decision_engine_rule_migration_error = ?err,
+                    algorithm_id = ?algorithm.algorithm_id,
+                    "Failed to insert into decision engine"
+                );
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    format!("Insertion error: {err:?}"),
+                );
+            }
+        }
+    }
+
+    Ok(routing_types::RuleMigrationResult {
+        success: response_list,
+        errors: error_list,
+    })
+}
+
+pub async fn decide_gateway_open_router(
+    state: SessionState,
+    req_body: OpenRouterDecideGatewayRequest,
+) -> RouterResponse<DecideGatewayResponse> {
+    let response = if state.conf.open_router.dynamic_routing_enabled {
+        SRApiClient::send_decision_engine_request(
+            &state,
+            Method::Post,
+            "decide-gateway",
+            Some(req_body),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .response
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to perform decide gateway call with open router")?
+    } else {
+        Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Dynamic routing is not enabled")?
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+pub async fn update_gateway_score_open_router(
+    state: SessionState,
+    req_body: UpdateScorePayload,
+) -> RouterResponse<UpdateScoreResponse> {
+    let response = if state.conf.open_router.dynamic_routing_enabled {
+        SRApiClient::send_decision_engine_request(
+            &state,
+            Method::Post,
+            "update-gateway-score",
+            Some(req_body),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .response
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to perform update gateway score call with open router")?
+    } else {
+        Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Dynamic routing is not enabled")?
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }

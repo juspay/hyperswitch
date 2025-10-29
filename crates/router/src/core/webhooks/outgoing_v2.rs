@@ -48,7 +48,9 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
-        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
+        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to generate idempotent event ID")?;
     let webhook_url_result = business_profile
         .get_webhook_url_from_profile()
         .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
@@ -396,12 +398,7 @@ async fn build_and_send_request(
 
     state
         .api_client
-        .send_request(
-            state,
-            request,
-            Some(types::OUTGOING_WEBHOOK_TIMEOUT_SECS),
-            false,
-        )
+        .send_request(state, request, None, false)
         .await
 }
 
@@ -660,6 +657,16 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
             } => Self::Mandate {
                 payment_method_id,
                 mandate_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
+            } => Self::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
                 content: serde_json::Value::Null,
             },
         }

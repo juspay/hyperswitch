@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::validation::validate_domain_against_allowed_domains;
+use common_utils::{
+    id_type::{self, GenerateId},
+    validation::validate_domain_against_allowed_domains,
+};
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_methods::PaymentMethod;
@@ -11,11 +14,7 @@ use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
@@ -33,8 +32,8 @@ use crate::{
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
-    payout_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    payout_id: &id_type::PayoutId,
+    merchant_id: &id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
@@ -54,7 +53,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn validate_create_request(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -73,18 +72,23 @@ pub async fn validate_create_request(
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
-    String,
+    id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
-    common_utils::id_type::ProfileId,
+    id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+    if req.payout_method_id.is_some() && req.confirm != Some(true) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Confirm must be true for recurring payouts".to_string(),
+        }));
+    }
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     if let Some(payout_link) = &req.payout_link {
@@ -105,7 +109,11 @@ pub async fn validate_create_request(
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
-    let payout_id = core_utils::get_or_generate_uuid("payout_id", req.payout_id.as_ref())?;
+    let payout_id = match req.payout_id.as_ref() {
+        Some(provided_payout_id) => provided_payout_id.clone(),
+        None => id_type::PayoutId::generate(),
+    };
+
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
         &payout_id,
@@ -115,13 +123,11 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {} against merchant_id: {:?}",
-            payout_id.to_owned(),
-            merchant_id
+            "Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}"
         )
     })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id: payout_id.to_owned()
+            payout_id: payout_id.clone()
         })),
         None => Ok(()),
     }?;
@@ -222,33 +228,48 @@ pub async fn validate_create_request(
             .await
         }
         (_, Some(_), Some(payment_method)) => {
-            match get_pm_list_context(
-                state,
-                payment_method
-                    .payment_method
-                    .as_ref()
-                    .get_required_value("payment_method_id")?,
-                merchant_context.get_merchant_key_store(),
-                payment_method,
-                None,
-                false,
-                merchant_context,
-            )
-            .await?
+            // Check if we have a stored transfer_method_id first
+            if payment_method
+                .get_common_mandate_reference()
+                .ok()
+                .and_then(|common_mandate_ref| common_mandate_ref.payouts)
+                .map(|payouts_mandate_ref| !payouts_mandate_ref.0.is_empty())
+                .unwrap_or(false)
             {
-                Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                    (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
-                        api_models::payouts::CardPayout {
-                            card_number: card.card_number.get_required_value("card_number")?,
-                            card_holder_name: card.card_holder_name,
-                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
-                            expiry_year: card.expiry_year.get_required_value("expiry_month")?,
-                        },
-                    ))),
-                    (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
-                    _ => Ok(None),
-                },
-                None => Ok(None),
+                Ok(None)
+            } else {
+                // No transfer_method_id available, proceed with vault fetch for raw card details
+                match get_pm_list_context(
+                    state,
+                    payment_method
+                        .payment_method
+                        .as_ref()
+                        .get_required_value("payment_method_id")?,
+                    merchant_context.get_merchant_key_store(),
+                    payment_method,
+                    None,
+                    false,
+                    true,
+                    merchant_context,
+                )
+                .await?
+                {
+                    Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
+                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
+                            api_models::payouts::CardPayout {
+                                card_number: card.card_number.get_required_value("card_number")?,
+                                card_holder_name: card.card_holder_name,
+                                expiry_month: card
+                                    .expiry_month
+                                    .get_required_value("expiry_month")?,
+                                expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                            },
+                        ))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        _ => Ok(None),
+                    },
+                    None => Ok(None),
+                }
             }
         }
         _ => Ok(None),
@@ -291,10 +312,7 @@ pub(super) fn validate_payout_list_request(
         req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "limit should be in between 1 and {}",
-                    PAYOUTS_LIST_MAX_LIMIT_GET
-                ),
+                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
             })
         },
     )?;
@@ -309,10 +327,7 @@ pub(super) fn validate_payout_list_request_for_joins(
 
     utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be in between 1 and {}",
-                PAYOUTS_LIST_MAX_LIMIT_POST
-            ),
+            message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })
     })?;
     Ok(())
@@ -345,8 +360,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden when requested through {}",
-                        link_id, requestor
+                        "Access to payout_link [{link_id}] is forbidden when requested through {requestor}",
+
                     )
                 }),
                 None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -354,8 +369,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
-                        link_id
+                        "Access to payout_link [{link_id}] is forbidden when sec-fetch-dest is not present in request headers",
+
                     )
                 }),
             }?;
@@ -373,8 +388,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                     })
                     .attach_printable_lazy(|| {
                         format!(
-                            "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
-                            link_id
+                            "Access to payout_link [{link_id}] is forbidden when origin or referer is not present in request headers",
+
                         )
                     })?;
 
@@ -385,11 +400,11 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("Invalid URL found in request headers {}", origin_or_referer)
+                        format!("Invalid URL found in request headers {origin_or_referer}")
                     })?;
 
                 url.host_str()
-                    .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+                    .and_then(|host| url.port().map(|port| format!("{host}:{port}")))
                     .or_else(|| url.host_str().map(String::from))
                     .ok_or_else(|| {
                         report!(errors::ApiErrorResponse::AccessForbidden {
@@ -397,7 +412,7 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("host or port not found in request headers {:?}", url)
+                        format!("host or port not found in request headers {url:?}")
                     })?
             };
 
@@ -412,8 +427,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden from requestor - {}",
-                        link_id, domain_in_req
+                        "Access to payout_link [{link_id}] is forbidden from requestor - {domain_in_req}",
+
                     )
                 })
             }

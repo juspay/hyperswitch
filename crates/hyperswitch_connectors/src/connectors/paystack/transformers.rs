@@ -147,6 +147,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                 )
             }
@@ -257,6 +258,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -357,6 +359,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaystackRefundsResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -400,6 +403,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaystackRefundsResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })

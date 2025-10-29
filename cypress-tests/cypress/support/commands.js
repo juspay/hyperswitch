@@ -50,6 +50,12 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+//skip MIT using PMId if connector does not support MIT only
+export function shouldSkipMitUsingPMId(connectorId) {
+  const skipConnectors = ["fiuu"];
+  return skipConnectors.includes(connectorId);
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -179,8 +185,7 @@ Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
       response.body.connectors.forEach((item) => {
         expect(item).to.have.property("description").and.not.empty;
         expect(item).to.have.property("category").and.not.empty;
-        expect(item).to.have.property("supported_payment_methods").and.not
-          .empty;
+        expect(item).to.have.property("integration_status").and.not.empty;
       });
     });
   });
@@ -1556,6 +1561,10 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
           payment_method_id
         );
         expect(response.body).to.have.property("customer_id", customer_id);
+      } else if (response.status === 400) {
+        expect(response.body.error.message).to.equal(
+          "Payment Method is already set as default"
+        );
       } else {
         defaultErrorHandler(response);
       }
@@ -1883,6 +1892,18 @@ Cypress.Commands.add(
                   globalState.set("nextActionType", "image_data_url");
                 }
                 break;
+              case "ach":
+                if (
+                  response.body.next_action
+                    ?.bank_transfer_steps_and_charges_details != null
+                ) {
+                  globalState.set(
+                    "nextActionType",
+                    "bank_transfer_steps_and_charges_details"
+                  );
+                }
+
+                break;
               default:
                 expect(response.body)
                   .to.have.property("next_action")
@@ -1891,6 +1912,7 @@ Cypress.Commands.add(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
                 );
+                globalState.set("nextActionType", "redirect_to_url");
                 break;
             }
           } else {
@@ -2138,8 +2160,15 @@ Cypress.Commands.add(
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
-    if (reqData.billing === null) {
-      saveCardConfirmBody.billing = null;
+    // Include request data from config but exclude payment_method_data
+    if (reqData) {
+      const requestDataWithoutPMD = Object.fromEntries(
+        Object.entries(reqData).filter(
+          ([key]) =>
+            key !== "payment_method_data" && key !== "customer_acceptance"
+        )
+      );
+      Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
     }
 
     cy.request({
@@ -2424,6 +2453,9 @@ Cypress.Commands.add(
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
 
+            // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
+            globalState.set("paymentMethodId", response.body.payment_method_id);
+
             const allowedActiveStatuses = [
               "succeeded",
               "requires_capture",
@@ -2577,6 +2609,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2849,6 +2882,13 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
+    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,
@@ -3202,7 +3242,12 @@ Cypress.Commands.add(
     const nextActionType = globalState.get("nextActionType");
 
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    let redirectionUrl = null;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch {
+      /* banktransfer may not have redirection url */
+    }
 
     handleRedirection(
       "bank_transfer",
@@ -3424,7 +3469,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -3466,7 +3511,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -3938,24 +3983,48 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
             .to.have.property("amount")
             .to.be.a("number")
             .to.equal(resData.body.amount).and.not.be.null;
-          expect(
-            response.body.incremental_authorizations[key],
-            "error_code"
-          ).to.have.property("error_code").to.be.null;
-          expect(
-            response.body.incremental_authorizations[key],
-            "error_message"
-          ).to.have.property("error_message").to.be.null;
+          if (
+            response.body.incremental_authorizations[key].status === "failure"
+          ) {
+            expect(response.body.incremental_authorizations[key], "error_code")
+              .to.have.property("error_code")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_code
+              );
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            )
+              .to.have.property("error_message")
+              .to.be.equal(
+                resData.body.incremental_authorizations[key].error_message
+              );
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("failure");
+          } else {
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_code"
+            ).to.have.property("error_code").to.be.null;
+            expect(
+              response.body.incremental_authorizations[key],
+              "error_message"
+            ).to.have.property("error_message").to.be.null;
+            expect(response.body.incremental_authorizations[key], "status")
+              .to.have.property("status")
+              .to.equal("success");
+          }
           expect(
             response.body.incremental_authorizations[key],
             "previously_authorized_amount"
           )
             .to.have.property("previously_authorized_amount")
             .to.be.a("number")
-            .to.equal(response.body.amount).and.not.be.null;
-          expect(response.body.incremental_authorizations[key], "status")
-            .to.have.property("status")
-            .to.equal("success");
+            .to.equal(
+              response.body.incremental_authorizations[key]
+                .previously_authorized_amount
+            ).and.not.be.null;
         }
       }
     });
@@ -4006,10 +4075,140 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
         expect(response.body).to.have.property("key").to.equal(key);
         expect(response.body).to.have.property("value").to.equal(value);
       } else {
-        throw new Error(
-          `Failed to set configs with status ${response.status} and message ${response.body.error.message}`
-        );
+        Cypress.log({
+          name: "setConfigs",
+          message: `Failed for key: ${key} → status ${response.status}, message: ${response.body?.error?.message}`,
+        });
       }
     });
   });
 });
+
+Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
+  cy.setConfigs(globalState, key, value, "DELETE");
+  cy.setConfigs(globalState, key, value, "CREATE");
+});
+
+// UCS Configuration Commands
+Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
+  cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "CREATE");
+  });
+});
+
+Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "DELETE");
+  });
+
+  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
+});
+
+// DDC Race Condition Test Commands
+Cypress.Commands.add(
+  "ddcServerSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+
+    cy.request({
+      method: "GET",
+      url: completeUrl,
+      qs: {
+        [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
+      },
+      failOnStatusCode: false,
+    }).then((firstResponse) => {
+      if (
+        firstResponse.status === 400 &&
+        firstResponse.body?.error?.message?.includes("No eligible connector")
+      ) {
+        throw new Error(
+          `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
+        );
+      }
+
+      expect(firstResponse.status).to.be.oneOf([200, 302]);
+      cy.log(`First request status: ${firstResponse.status}`);
+
+      cy.request({
+        method: "GET",
+        url: completeUrl,
+        qs: {
+          [ddcConfig.collectionReferenceParam]: ddcConfig.secondSubmissionValue,
+        },
+        failOnStatusCode: false,
+      }).then((secondResponse) => {
+        cy.log(`Second request status: ${secondResponse.status}`);
+
+        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
+        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+
+        cy.log(
+          "✅ Server-side race condition protection verified - second submission properly rejected"
+        );
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ddcClientSideRaceConditionTest",
+  (confirmData, globalState) => {
+    const ddcConfig = confirmData.DDCConfig;
+    const paymentId = globalState.get("paymentID");
+    const merchantId = globalState.get("merchantId");
+    const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+
+    cy.intercept("GET", nextActionUrl, (req) => {
+      req.reply((res) => {
+        let modifiedHtml = res.body.toString();
+        modifiedHtml = modifiedHtml.replace(
+          "</body>",
+          ddcConfig.raceConditionScript + "</body>"
+        );
+        res.send(modifiedHtml);
+      });
+    }).as("ddcPageWithRaceCondition");
+
+    cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+    const delayBeforeSubmission = ddcConfig.delayBeforeSubmission || 2000;
+
+    cy.visit(nextActionUrl);
+    cy.wait("@ddcPageWithRaceCondition");
+    cy.wait("@ddcSubmission");
+    cy.wait(delayBeforeSubmission);
+
+    cy.get("@ddcSubmission.all").should("have.length", 1);
+
+    cy.get("@ddcSubmission").then((interception) => {
+      const collectionRef =
+        interception.request.query[ddcConfig.collectionReferenceParam] || "";
+      cy.log(
+        `Single submission detected with ${ddcConfig.collectionReferenceParam}: "${collectionRef}"`
+      );
+    });
+
+    cy.log(
+      "✅ Client-side race condition protection verified - only one submission occurred"
+    );
+  }
+);

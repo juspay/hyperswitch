@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use external_services::grpc_client;
+use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -30,6 +32,8 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -49,6 +53,8 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
     }
@@ -60,7 +66,7 @@ impl
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
@@ -71,16 +77,6 @@ impl
         >,
     > {
         todo!()
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -100,7 +96,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -149,11 +145,16 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn add_payment_method_token<'a>(
@@ -214,6 +215,114 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
+    }
+
+    async fn call_preprocessing_through_unified_connector_service<'a>(
+        self,
+        state: &SessionState,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        lineage_ids: &grpc_client::LineageIds,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        merchant_context: &domain::MerchantContext,
+        connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
+    ) -> RouterResult<(Self, bool)> {
+        let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
+            request_data: &self.request,
+        };
+        let optional_preprocessing_flow = connector_data
+            .connector
+            .get_preprocessing_flow_if_needed(current_flow);
+        match optional_preprocessing_flow {
+            Some(preprocessing_flow) => {
+                let updated_router_data = handle_preprocessing_through_unified_connector_service(
+                    self,
+                    state,
+                    header_payload,
+                    lineage_ids,
+                    merchant_connector_account.clone(),
+                    merchant_context,
+                    connector_data,
+                    unified_connector_service_execution_mode,
+                    merchant_order_reference_id.clone(),
+                    preprocessing_flow,
+                )
+                .await?;
+                let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
+                    response: &updated_router_data.response,
+                    attempt_status: updated_router_data.status,
+                };
+                let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
+                    request_data: &updated_router_data.request,
+                };
+                let should_continue = connector_data
+                    .connector
+                    .decide_should_continue_after_preprocessing(
+                        current_flow,
+                        preprocessing_flow,
+                        pre_processing_flow_response,
+                    );
+                Ok((updated_router_data, should_continue))
+            }
+            None => Ok((self, true)),
+        }
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
+    ) -> RouterResult<()> {
+        // Call UCS for Authorize flow
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn handle_preprocessing_through_unified_connector_service(
+    router_data: types::RouterData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    _state: &SessionState,
+    _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    _lineage_ids: &grpc_client::LineageIds,
+    #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    _merchant_context: &domain::MerchantContext,
+    _connector_data: &api::ConnectorData,
+    _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+    _merchant_order_reference_id: Option<String>,
+    preprocessing_flow_name: api_interface::PreProcessingFlowName,
+) -> RouterResult<
+    types::RouterData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+> {
+    match preprocessing_flow_name {
+        api_interface::PreProcessingFlowName::Authenticate => {
+            // Call UCS for Authenticate flow
+            Ok(router_data)
+        }
+        api_interface::PreProcessingFlowName::PostAuthenticate => {
+            // Call UCS for PostAuthenticate flow
+            Ok(router_data)
+        }
     }
 }
 

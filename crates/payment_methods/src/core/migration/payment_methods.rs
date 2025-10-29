@@ -1,36 +1,42 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use api_models::enums as api_enums;
-use api_models::{enums, payment_methods as pm_api};
+#[cfg(feature = "v1")]
+use api_models::enums;
+use api_models::payment_methods as pm_api;
+#[cfg(feature = "v1")]
 use common_utils::{
     consts,
     crypto::Encryptable,
-    errors::CustomResult,
     ext_traits::{AsyncExt, ConfigExt},
-    generate_id, id_type,
+    generate_id,
 };
+use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors, ext_traits::OptionExt,
-    merchant_context, payment_methods as domain_pm,
+    api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
 };
-use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
+use masking::PeekInterface;
+#[cfg(feature = "v1")]
+use masking::Secret;
+#[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
+#[cfg(feature = "v1")]
 use serde_json::json;
 use storage_impl::cards_info;
 
+#[cfg(feature = "v1")]
 use crate::{
-    controller::{create_encrypted_data, PaymentMethodsController},
+    controller::create_encrypted_data,
     core::migration,
-    helpers::{ForeignFrom, ForeignTryFrom, StorageErrorExt},
-    state,
+    helpers::{ForeignFrom, StorageErrorExt},
 };
+use crate::{controller::PaymentMethodsController, helpers::ForeignTryFrom, state};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn migrate_payment_method(
     state: &state::PaymentMethodsState,
     req: pm_api::PaymentMethodMigrate,
@@ -45,8 +51,12 @@ pub async fn migrate_payment_method(
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
-    let card_bin_details =
-        populate_bin_details_for_masked_card(card_details, &*state.store).await?;
+    let card_bin_details = populate_bin_details_for_masked_card(
+        card_details,
+        &*state.store,
+        req.payment_method_type.as_ref(),
+    )
+    .await?;
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
@@ -154,34 +164,46 @@ pub async fn migrate_payment_method(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
-    controller: &dyn PaymentMethodsController,
+    _merchant_context: &merchant_context::MerchantContext,
+    _controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn state::PaymentMethodsStorageInterface,
+    payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
-    migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
+    if let Some(
+            // Cards
+            enums::PaymentMethodType::Credit
+            | enums::PaymentMethodType::Debit
+
+            // Wallets
+            | enums::PaymentMethodType::ApplePay
+            | enums::PaymentMethodType::GooglePay,
+        ) = payment_method_type {
+        migration::validate_card_expiry(
+            &card_details.card_exp_month,
+            &card_details.card_exp_year,
+        )?;
+    }
+
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
         card_number.peek(),
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Invalid card number".to_string(),
+        message: "Invalid masked card number".to_string(),
     })?;
 
     let card_bin_details = if card_details.card_issuer.is_some()
@@ -203,10 +225,7 @@ pub async fn populate_bin_details_for_masked_card(
     Ok(card_bin_details)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,
@@ -223,7 +242,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
@@ -281,7 +300,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,
@@ -298,7 +317,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
@@ -361,10 +380,7 @@ impl
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn get_client_secret_or_add_payment_method_for_migration(
     state: &state::PaymentMethodsState,
@@ -432,6 +448,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 None,
                 None,
+                Default::default(),
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -467,11 +484,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         ))
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn skip_locker_call_and_migrate_payment_method(
     state: &state::PaymentMethodsState,
@@ -603,6 +616,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                vault_source_details: Default::default(),
             },
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -640,11 +654,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 }
 
 // need to discuss regarding the migration APIs for v2
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn skip_locker_call_and_migrate_payment_method(
     _state: state::PaymentMethodsState,
     _req: &pm_api::PaymentMethodMigrate,
@@ -673,10 +683,7 @@ pub fn get_card_bin_and_last4_digits_for_masked_card(
 
     Ok((card_isin, last4_digits))
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn save_migration_payment_method(
     req: pm_api::PaymentMethodCreate,

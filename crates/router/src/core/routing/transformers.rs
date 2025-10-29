@@ -180,7 +180,7 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
         Self {
             payment_info: PaymentInfo {
                 payment_id: attempt.payment_id.clone(),
-                amount: attempt.net_amount.get_order_amount(),
+                amount: attempt.net_amount.get_total_amount(),
                 currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
                 card_isin: card_isin.map(|value| value.peek().clone()),

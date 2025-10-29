@@ -5,7 +5,7 @@ use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPayout<'a> {
-    pub payout_id: &'a String,
+    pub payout_id: &'a id_type::PayoutId,
     pub payout_attempt_id: &'a String,
     pub merchant_id: &'a id_type::MerchantId,
     pub customer_id: Option<&'a id_type::CustomerId>,
@@ -38,6 +38,7 @@ pub struct KafkaPayout<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
+    pub organization_id: Option<&'a id_type::OrganizationId>,
 }
 
 impl<'a> KafkaPayout<'a> {
@@ -73,6 +74,7 @@ impl<'a> KafkaPayout<'a> {
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label.as_ref(),
             merchant_connector_id: payout_attempt.merchant_connector_id.as_ref(),
+            organization_id: payouts.organization_id.as_ref(),
         }
     }
 }

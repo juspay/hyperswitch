@@ -65,12 +65,12 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _merchant_id: &id_type::MerchantId,
         _active_attempt_ids: &[String],
-        _connector: Option<api_models::enums::Connector>,
-        _payment_method_type: Option<common_enums::PaymentMethod>,
-        _payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        _authentication_type: Option<common_enums::AuthenticationType>,
-        _merchanat_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        _card_network: Option<storage_enums::CardNetwork>,
+        _connector: Option<Vec<api_models::enums::Connector>>,
+        _payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        _payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        _authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        _merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        _card_network: Option<Vec<storage_enums::CardNetwork>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -235,6 +235,14 @@ impl PaymentAttemptInterface for MockDb {
             processor_merchant_id: payment_attempt.processor_merchant_id,
             created_by: payment_attempt.created_by,
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+            routing_approach: payment_attempt.routing_approach,
+            connector_request_reference_id: payment_attempt.connector_request_reference_id,
+            debit_routing_savings: None,
+            network_transaction_id: payment_attempt.network_transaction_id,
+            is_overcapture_enabled: None,
+            network_details: payment_attempt.network_details,
+            is_stored_credential: payment_attempt.is_stored_credential,
+            authorized_amount: payment_attempt.authorized_amount,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

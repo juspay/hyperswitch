@@ -65,4 +65,13 @@ impl PayoutAttemptInterface for MockDb {
     > {
         Err(StorageError::MockDbError)?
     }
+
+    async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _merchant_order_reference_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PayoutAttempt, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
 }

@@ -13,7 +13,7 @@ use common_utils::{
 };
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, IntentStatus, PaymentMethod,
-    RefundStatus,
+    RefundStatus, RoutingApproach,
 };
 use error_stack::ResultExt;
 use sqlx::{
@@ -103,6 +103,7 @@ db_type!(AuthenticationStatus);
 db_type!(TransactionStatus);
 db_type!(AuthenticationConnectors);
 db_type!(DecoupledAuthenticationType);
+db_type!(RoutingApproach);
 
 impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
@@ -111,7 +112,7 @@ where
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<sqlx::encode::IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
         <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
@@ -730,6 +731,26 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -761,6 +782,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             card_issuer,
             error_reason,
             first_attempt,
+            routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             total,
             count,
             start_bucket,
@@ -833,6 +858,27 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -875,6 +921,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             total,
             count,
             error_message,
+            routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             start_bucket,
             end_bucket,
         })
@@ -949,6 +999,26 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             status,
@@ -965,6 +1035,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_issuer,
             error_reason,
             first_attempt,
+            routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
         })
     }
 }
@@ -1415,7 +1489,7 @@ where
             Self::Count { field: _, alias } => {
                 format!(
                     "count(*){}",
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Sum { field, alias } => {
@@ -1424,7 +1498,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to sum aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Min { field, alias } => {
@@ -1433,7 +1507,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to min aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Max { field, alias } => {
@@ -1442,7 +1516,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to max aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Percentile {
@@ -1456,7 +1530,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::DistinctCount { field, alias } => {
@@ -1465,7 +1539,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to distinct count aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })
@@ -1501,7 +1575,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::RowNumber {
@@ -1524,7 +1598,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })

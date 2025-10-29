@@ -46,6 +46,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         .attach_printable("profile_id is not set in payment_intent")?
         .clone();
 
+    let connector_id = connector.clone();
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_context.get_merchant_account().get_id(),
@@ -62,10 +64,9 @@ pub async fn construct_fulfillment_router_data<'a>(
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let payment_method = utils::OptionExt::get_required_value(
-        payment_attempt.payment_method,
-        "payment_method_type",
-    )?;
+    let payment_method =
+        utils::OptionExt::get_required_value(payment_attempt.payment_method, "payment_method")?;
+
     let router_data = RouterData {
         flow: std::marker::PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -75,6 +76,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -107,8 +109,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -128,7 +132,11 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }

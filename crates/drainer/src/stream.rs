@@ -110,4 +110,27 @@ impl Store {
         // adding 1 because we are deleting the given id too
         Ok(trim_result? + 1)
     }
+
+    pub async fn delete_from_stream(
+        &self,
+        stream_name: &str,
+        entry_id: &str,
+    ) -> errors::DrainerResult<()> {
+        let (_trim_result, execution_time) =
+            common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
+                self.redis_conn
+                    .stream_delete_entries(&stream_name.into(), entry_id)
+                    .await
+                    .map_err(errors::DrainerError::from)?;
+                Ok(())
+            })
+            .await;
+
+        metrics::REDIS_STREAM_DEL_TIME.record(
+            execution_time,
+            router_env::metric_attributes!(("stream", stream_name.to_owned())),
+        );
+
+        Ok(())
+    }
 }

@@ -41,13 +41,14 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::AnalyticsView => Some("View Analytics"),
         PermissionGroup::UsersView => Some("View Users"),
         PermissionGroup::UsersManage => Some("Manage and invite Users to the Team"),
-        PermissionGroup::MerchantDetailsView | PermissionGroup::AccountView => Some("View Merchant Details"),
-        PermissionGroup::MerchantDetailsManage | PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        PermissionGroup::OrganizationManage => Some("Manage organization level tasks like create new Merchant accounts, Organization level roles, etc"),
+        PermissionGroup::AccountView => Some("View Merchant Details"),
+        PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
         PermissionGroup::ReconReportsView => Some("View reconciliation reports and analytics"),
         PermissionGroup::ReconReportsManage => Some("Manage reconciliation reports"),
         PermissionGroup::ReconOpsView => Some("View and access all reconciliation operations including reports and analytics"),
         PermissionGroup::ReconOpsManage => Some("Manage all reconciliation operations including reports and analytics"),
+        PermissionGroup::ThemeView => Some("View Themes"),
+        PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
     }
 }
@@ -62,6 +63,7 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
         ParentGroup::ReconOps => Some("View, manage reconciliation operations like upload and process files, run reconciliation etc"),
         ParentGroup::ReconReports => Some("View, manage reconciliation reports and analytics"),
+        ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
     }
 }

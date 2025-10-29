@@ -85,7 +85,7 @@ impl ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultRespon
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/v2/payment-methods-session",
+            "{}/v2/payment-method-sessions",
             self.base_url(connectors)
         ))
     }
@@ -243,6 +243,7 @@ impl ConnectorCommon for HyperswitchVault {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -488,4 +489,11 @@ impl webhooks::IncomingWebhook for HyperswitchVault {
     }
 }
 
-impl ConnectorSpecifications for HyperswitchVault {}
+impl ConnectorSpecifications for HyperswitchVault {
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
+    }
+}

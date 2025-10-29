@@ -126,6 +126,7 @@ impl ConnectorCommon for Zsl {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -472,7 +473,8 @@ lazy_static! {
         display_name: "ZSL",
         description:
             "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
     static ref ZSL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

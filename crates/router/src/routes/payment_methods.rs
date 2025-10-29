@@ -2,10 +2,7 @@ use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    all(not(feature = "customer_v2"), not(feature = "payment_methods_v2"))
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
@@ -13,15 +10,18 @@ use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
+    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use crate::core::{customers, payment_methods::tokenize};
 use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
-        payment_methods::{self as payment_methods_routes, cards},
+        payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
@@ -30,19 +30,8 @@ use crate::{
         storage::payment_method::PaymentTokenData,
     },
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
-use crate::{
-    core::{customers, payment_methods::tokenize},
-    types::api::customers::CustomerRequest,
-};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
@@ -76,7 +65,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
@@ -112,7 +101,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_intent_api(
     state: web::Data<AppState>,
@@ -147,21 +136,21 @@ pub async fn create_payment_method_intent_api(
 }
 
 /// This struct is used internally only
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodIntentConfirmInternal {
     pub id: id_type::GlobalPaymentMethodId,
     pub request: payment_methods::PaymentMethodIntentConfirm,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentMethodIntentConfirmInternal> for payment_methods::PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         item.request
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for PaymentMethodIntentConfirmInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::PaymentMethod {
@@ -172,7 +161,7 @@ impl common_utils::events::ApiEventMetric for PaymentMethodIntentConfirmInternal
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -210,7 +199,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
@@ -243,7 +232,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
@@ -335,10 +324,7 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,
@@ -346,10 +332,10 @@ pub async fn migrate_payment_methods(
     MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-    let (merchant_id, records, merchant_connector_id) =
-        match migration::get_payment_method_records(form) {
-            Ok((merchant_id, records, merchant_connector_id)) => {
-                (merchant_id, records, merchant_connector_id)
+    let (merchant_id, records, merchant_connector_ids) =
+        match form.validate_and_get_payment_method_records() {
+            Ok((merchant_id, records, merchant_connector_ids)) => {
+                (merchant_id, records, merchant_connector_ids)
             }
             Err(e) => return api::log_and_return_error_response(e.into()),
         };
@@ -360,7 +346,7 @@ pub async fn migrate_payment_methods(
         records,
         |state, _, req, _| {
             let merchant_id = merchant_id.clone();
-            let merchant_connector_id = merchant_connector_id.clone();
+            let merchant_connector_ids = merchant_connector_ids.clone();
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
@@ -369,15 +355,43 @@ pub async fn migrate_payment_methods(
                     domain::Context(merchant_account.clone(), key_store.clone()),
                 ));
 
-                customers::migrate_customers(
-                    state.clone(),
-                    req.iter()
-                        .map(|e| CustomerRequest::from((e.clone(), merchant_id.clone())))
-                        .collect(),
-                    merchant_context.clone(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let mut mca_cache = std::collections::HashMap::new();
+                let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
+                    &req,
+                    merchant_id.clone(),
+                ))
+                .map_err(|e| errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string(),
+                })?;
+
+                for record in &customers {
+                    if let Some(connector_customer_details) = &record.connector_customer_details {
+                        for connector_customer in connector_customer_details {
+                            if !mca_cache.contains_key(&connector_customer.merchant_connector_id) {
+                                let mca = state
+                        .store
+                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            &(&state).into(),
+                            &merchant_id,
+                            &connector_customer.merchant_connector_id,
+                            merchant_context.get_merchant_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: connector_customer.merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )?;
+                                mca_cache
+                                    .insert(connector_customer.merchant_connector_id.clone(), mca);
+                            }
+                        }
+                    }
+                }
+
+                customers::migrate_customers(state.clone(), customers, merchant_context.clone())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let controller = cards::PmCards {
                     state: &state,
                     merchant_context: &merchant_context,
@@ -387,7 +401,7 @@ pub async fn migrate_payment_methods(
                     req,
                     &merchant_id,
                     &merchant_context,
-                    merchant_connector_id,
+                    merchant_connector_ids,
                     &controller,
                 ))
                 .await
@@ -399,10 +413,47 @@ pub async fn migrate_payment_methods(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchUpdate))]
+pub async fn update_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<update_migration::PaymentMethodsUpdateForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchUpdate;
+    let (merchant_id, records) = match form.validate_and_get_payment_method_records() {
+        Ok((merchant_id, records)) => (merchant_id, records),
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
+                Box::pin(update_migration::update_payment_methods(
+                    &state,
+                    req,
+                    &merchant_id,
+                    &merchant_context,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(
     state: web::Data<AppState>,
@@ -478,34 +529,10 @@ pub async fn list_payment_method_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
-#[utoipa::path(
-    get,
-    path = "/customers/{customer_id}/payment_methods",
-    params (
-        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
-        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
-    ),
-    responses(
-        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
-        (status = 400, description = "Invalid Data"),
-        (status = 404, description = "Payment Methods does not exist in records")
-    ),
-    tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
@@ -545,35 +572,10 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
-#[utoipa::path(
-    get,
-    path = "/customers/payment_methods",
-    params (
-        ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
-        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
-        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
-    ),
-    responses(
-        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
-        (status = 400, description = "Invalid Data"),
-        (status = 404, description = "Payment Methods does not exist in records")
-    ),
-    tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer",
-    security(("publishable_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api_client(
     state: web::Data<AppState>,
@@ -650,7 +652,7 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<id_type::GlobalCustomerId>,
     req: HttpRequest,
-    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<api_models::payment_methods::ListMethodsForPaymentMethodsRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
@@ -765,7 +767,7 @@ pub async fn get_total_payment_method_count(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 /// Generate a form link for collecting payment methods for a customer
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
 pub async fn render_pm_collect_link(
@@ -796,10 +798,7 @@ pub async fn render_pm_collect_link(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
@@ -837,10 +836,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -876,10 +872,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
@@ -960,6 +953,47 @@ pub async fn list_countries_currencies_for_connector_payment_method(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::ListCountriesCurrenciesRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListCountriesCurrencies;
+    let payload = query_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            cards::list_countries_currencies_for_connector_payment_method(
+                state,
+                req,
+                Some(auth.profile.get_id().clone()),
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileConnectorRead,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileConnectorRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
 pub async fn default_payment_method_set_api(
@@ -1003,6 +1037,7 @@ pub async fn default_payment_method_set_api(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -1038,10 +1073,7 @@ impl ParentPaymentMethodToken {
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> Self {
         Self {
-            key_for_token: format!(
-                "pm_token_{}_{}_hyperswitch",
-                parent_pm_token, payment_method
-            ),
+            key_for_token: format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch"),
         }
     }
 
@@ -1049,10 +1081,7 @@ impl ParentPaymentMethodToken {
     pub fn return_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> String {
-        format!(
-            "pm_token_{}_{}_hyperswitch",
-            parent_pm_token, payment_method
-        )
+        format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch")
     }
 
     pub async fn insert(
@@ -1110,10 +1139,7 @@ impl ParentPaymentMethodToken {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
 pub async fn tokenize_card_api(
     state: web::Data<AppState>,
@@ -1147,10 +1173,7 @@ pub async fn tokenize_card_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardUsingPaymentMethodId))]
 pub async fn tokenize_card_using_pm_api(
     state: web::Data<AppState>,
@@ -1196,10 +1219,7 @@ pub async fn tokenize_card_using_pm_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,
@@ -1348,7 +1368,7 @@ pub async fn payment_methods_session_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn payment_method_session_list_payment_methods(
     state: web::Data<AppState>,
@@ -1403,7 +1423,7 @@ impl<T: serde::Serialize> common_utils::events::ApiEventMetric
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionConfirm))]
 pub async fn payment_method_session_confirm(
     state: web::Data<AppState>,
@@ -1448,7 +1468,7 @@ pub async fn payment_method_session_confirm(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
 pub async fn payment_method_session_update_saved_payment_method(
     state: web::Data<AppState>,
@@ -1494,7 +1514,7 @@ pub async fn payment_method_session_update_saved_payment_method(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
 pub async fn payment_method_session_delete_saved_payment_method(
     state: web::Data<AppState>,
@@ -1535,6 +1555,40 @@ pub async fn payment_method_session_delete_saved_payment_method(
                 payment_method_session_id,
             ),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenStatusCheck))]
+pub async fn network_token_status_check_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenStatusCheck;
+    let payment_method_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_id,
+        |state, auth: auth::AuthenticationData, payment_method_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payment_methods_routes::check_network_token_status(
+                state,
+                merchant_context,
+                payment_method_id,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

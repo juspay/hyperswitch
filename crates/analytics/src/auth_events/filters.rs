@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
@@ -17,7 +18,7 @@ pub trait AuthEventFilterAnalytics: LoadRow<AuthEventFilterRow> {}
 
 pub async fn get_auth_events_filter_for_dimension<T>(
     dimension: AuthEventDimensions,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<AuthEventFilterRow>>
@@ -38,11 +39,9 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    query_builder
-        .add_filter_clause("merchant_id", merchant_id)
-        .switch()?;
-
     query_builder.set_distinct();
+
+    auth.set_filter_clause(&mut query_builder).switch()?;
 
     query_builder
         .execute_query::<AuthEventFilterRow, _>(pool)

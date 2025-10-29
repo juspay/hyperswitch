@@ -36,6 +36,32 @@ use crate::{
     utils,
 };
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ProfileAcquirerConfigs {
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+impl From<ProfileAcquirerConfigs>
+    for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>
+{
+    fn from(item: ProfileAcquirerConfigs) -> Self {
+        item.acquirer_config_map.map(|config_map_val| {
+            let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
+            vec.sort_by_key(|k| k.0.clone());
+            vec.into_iter()
+                .map(|(profile_acquirer_id, acquirer_config)| {
+                    api_models::profile_acquirer::ProfileAcquirerResponse::from((
+                        profile_acquirer_id,
+                        &item.profile_id,
+                        &acquirer_config,
+                    ))
+                })
+                .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
+        })
+    }
+}
+
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {
         Self {
@@ -49,6 +75,7 @@ impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResp
             metadata: org.metadata,
             modified_at: org.modified_at,
             created_at: org.created_at,
+            organization_type: org.organization_type,
         }
     }
 }
@@ -145,10 +172,12 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
         let card_testing_guard_config = item
             .card_testing_guard_config
             .or(Some(CardTestingGuardConfig::default()));
+        let (is_external_vault_enabled, external_vault_connector_details) =
+            item.external_vault_details.into();
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            profile_id,
+            profile_id: profile_id.clone(),
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -197,6 +226,22 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
+            acquirer_configs: ProfileAcquirerConfigs {
+                acquirer_config_map: item.acquirer_config_map.clone(),
+                profile_id: profile_id.clone(),
+            }
+            .into(),
+            is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
+            merchant_category_code: item.merchant_category_code,
+            merchant_country_code: item.merchant_country_code,
+            dispute_polling_interval: item.dispute_polling_interval,
+            is_manual_retry_enabled: item.is_manual_retry_enabled,
+            always_enable_overcapture: item.always_enable_overcapture,
+            is_external_vault_enabled,
+            external_vault_connector_details: external_vault_connector_details
+                .map(ForeignFrom::foreign_from),
+            billing_processor_id: item.billing_processor_id,
+            is_l2_l3_enabled: Some(item.is_l2_l3_enabled),
         })
     }
 }
@@ -278,9 +323,15 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_business_country: item.merchant_business_country,
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             is_external_vault_enabled: item.is_external_vault_enabled,
+            is_l2_l3_enabled: None,
             external_vault_connector_details: item
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            merchant_category_code: item.merchant_category_code,
+            merchant_country_code: item.merchant_country_code,
+            split_txns_enabled: item.split_txns_enabled,
+            revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
+            billing_processor_id: item.billing_processor_id,
         })
     }
 }
@@ -448,5 +499,20 @@ pub async fn create_profile_from_merchant_account(
         is_pre_network_tokenization_enabled: request
             .is_pre_network_tokenization_enabled
             .unwrap_or_default(),
+        merchant_category_code: request.merchant_category_code,
+        merchant_country_code: request.merchant_country_code,
+        dispute_polling_interval: request.dispute_polling_interval,
+        is_manual_retry_enabled: request.is_manual_retry_enabled,
+        always_enable_overcapture: request.always_enable_overcapture,
+        external_vault_details: domain::ExternalVaultDetails::try_from((
+            request.is_external_vault_enabled,
+            request
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
+        ))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error while generating external_vault_details")?,
+        billing_processor_id: request.billing_processor_id,
+        is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
     }))
 }

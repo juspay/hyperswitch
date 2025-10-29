@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -72,6 +75,7 @@ pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
 
 pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
 pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/update";
+pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
@@ -330,18 +334,14 @@ pub enum RoutingDecisionData {
 #[cfg(feature = "v1")]
 pub struct DebitRoutingDecisionData {
     pub card_network: common_enums::enums::CardNetwork,
-    pub debit_routing_result: open_router::DebitRoutingOutput,
+    pub debit_routing_result: Option<open_router::DebitRoutingOutput>,
 }
 #[cfg(feature = "v1")]
 impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -350,7 +350,7 @@ impl RoutingDecisionData {
 
     pub fn get_debit_routing_decision_data(
         network: common_enums::enums::CardNetwork,
-        debit_routing_result: open_router::DebitRoutingOutput,
+        debit_routing_result: Option<open_router::DebitRoutingOutput>,
     ) -> Self {
         Self::DebitRouting(DebitRoutingDecisionData {
             card_network: network,
@@ -363,14 +363,12 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
-        payment_data.set_co_badged_card_data(&self.debit_routing_result);
+        self.debit_routing_result
+            .as_ref()
+            .map(|data| payment_data.set_co_badged_card_data(data));
     }
 }
 #[derive(Clone, Debug)]
@@ -395,9 +393,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                        connector_choice,
-                        mca_id,
+                        "connector with name '{connector_choice}' and merchant connector account id '{mca_id:?}' not found for the given profile",
                     )
                 }
             );
@@ -407,8 +403,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' not found for the given profile",
-                        connector_choice,
+                        "connector with name '{connector_choice}' not found for the given profile",
                     )
                 }
             );
@@ -850,14 +845,14 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 ) -> RouterResult<()> {
     if let Some(success_based_algo_ref) = dynamic_routing_algo_ref.success_based_algorithm {
         if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .success_rate_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "success_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .success_rate_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
@@ -1091,78 +1086,110 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     .attach_printable("Unable to push dynamic routing stats to db")?;
             };
 
-            let label_with_status = routing_types::UpdateLabelWithStatusEventRequest {
+            let label_with_status = routing_utils::UpdateLabelWithStatusEventRequest {
                 label: routable_connector.clone().to_string(),
                 status: payment_status_attribute == common_enums::AttemptStatus::Charged,
             };
-            let event_request = routing_types::UpdateSuccessRateWindowEventRequest {
+            let event_request = routing_utils::UpdateSuccessRateWindowEventRequest {
                 id: payment_attempt.profile_id.get_string_repr().to_string(),
                 params: success_based_routing_config_params.clone(),
                 labels_with_status: vec![label_with_status.clone()],
                 global_labels_with_status: vec![label_with_status],
-                config: success_based_routing_configs.config.as_ref().map(|conf| {
-                    routing_types::UpdateSuccessRateWindowConfig {
-                        max_aggregates_size: conf.max_aggregates_size,
-                        current_block_threshold: conf.current_block_threshold.clone(),
-                    }
-                }),
+                config: success_based_routing_configs
+                    .config
+                    .as_ref()
+                    .map(routing_utils::UpdateSuccessRateWindowConfig::from),
             };
 
-            let serialized_request = serde_json::to_value(&event_request)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to serialize success_based_routing_config_params")?;
-
-            let mut routing_event = routing_events::RoutingEvent::new(
+            let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                "".to_string(),
-                "Intelligent-router UpdateSuccessRateWindow",
-                serialized_request,
-                "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
-                routing_events::ApiMethod::Grpc,
+                state.request_id,
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
-                state.request_id,
-                routing_events::RoutingEngine::IntelligentRouter,
+                "IntelligentRouter: UpdateSuccessRateWindow".to_string(),
+                Some(event_request.clone()),
+                true,
+                false,
             );
 
-            let update_response = client
-                .update_success_rate(
-                    profile_id.get_string_repr().into(),
-                    success_based_routing_configs,
-                    success_based_routing_config_params,
-                    vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                        routable_connector.clone(),
-                        payment_status_attribute == common_enums::AttemptStatus::Charged,
-                    )],
-                    state.get_grpc_headers(),
+            let closure = || async {
+                let update_response_result = client
+                    .update_success_rate(
+                        profile_id.get_string_repr().into(),
+                        success_based_routing_configs,
+                        success_based_routing_config_params,
+                        vec![routing_types::RoutableConnectorChoiceWithStatus::new(
+                            routable_connector.clone(),
+                            payment_status_attribute == common_enums::AttemptStatus::Charged,
+                        )],
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::RoutingError::SuccessRateCalculationError)
+                    .attach_printable(
+                        "unable to update success based routing window in dynamic routing service",
+                    );
+
+                match update_response_result {
+                    Ok(update_response) => {
+                        let updated_resp =
+                            routing_utils::UpdateSuccessRateWindowEventResponse::try_from(
+                                &update_response,
+                            )
+                            .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateSuccessRateWindowEventResponse from UpdateSuccessRateWindowResponse".to_string(), status_code: 500 })?;
+                        Ok(Some(updated_resp))
+                    }
+                    Err(err) => {
+                        logger::error!(
+                            "unable to update connector score in dynamic routing service: {:?}",
+                            err.current_context()
+                        );
+
+                        Err(err)
+                    }
+                }
+            };
+
+            let events_response = routing_events_wrapper
+                .construct_event_builder(
+                    "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
+                    routing_events::RoutingEngine::IntelligentRouter,
+                    routing_events::ApiMethod::Grpc,
                 )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SR-Intelligent-Router: Failed to update success rate in Intelligent-Router",
+                )?
+                .trigger_event(state, closure)
                 .await
-                .inspect_err(|e| {
-                    routing_event
-                        .set_error(serde_json::json!({"error": e.current_context().to_string()}));
-                    state.event_handler().log_event(&routing_event);
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SR-Intelligent-Router: Failed to update success rate in Intelligent-Router",
+                )?;
+
+            let _response: routing_utils::UpdateSuccessRateWindowEventResponse = events_response
+                .response
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "UpdateSuccessRateWindowEventResponse not found in RoutingEventResponse",
+                )?;
+
+            let mut routing_event = events_response
+                .event
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message:
+                        "SR-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                            .to_string(),
+                    status_code: 500,
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "unable to update success based routing window in dynamic routing service",
+                    "SR-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse",
                 )?;
 
-            let event_response = routing_types::UpdateSuccessRateWindowEventResponse {
-                status: match update_response.status {
-                    0 => routing_types::UpdationStatusEventResponse::WindowUpdationSucceeded,
-                    1 => routing_types::UpdationStatusEventResponse::WindowUpdationFailed,
-                    _ => {
-                        return Err(errors::ApiErrorResponse::InternalServerError)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("unknown status code from dynamic routing service")
-                    }
-                },
-            };
-
-            routing_event.set_response_body(&event_response);
             routing_event.set_status_code(200);
-            routing_event.set_payment_connector(routable_connector);
+            routing_event.set_payment_connector(routable_connector); // we can do this inside the event wrap by implementing an interface on the req type
             state.event_handler().log_event(&routing_event);
 
             Ok(())
@@ -1187,14 +1214,14 @@ pub async fn update_window_for_elimination_routing(
 ) -> RouterResult<()> {
     if let Some(elimination_algo_ref) = dynamic_algo_ref.elimination_routing_algorithm {
         if elimination_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .elimination_based_client
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "elimination_rate gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .elimination_based_client;
 
             let elimination_routing_config = fetch_dynamic_routing_configs::<
                 routing_types::EliminationRoutingConfig,
@@ -1246,45 +1273,35 @@ pub async fn update_window_for_elimination_routing(
                     gsm_error_category.to_string(),
                 )];
 
-            let event_request = routing_types::UpdateEliminationBucketEventRequest {
+            let event_request = routing_utils::UpdateEliminationBucketEventRequest {
                 id: profile_id.get_string_repr().to_string(),
                 params: elimination_routing_config_params.clone(),
                 labels_with_bucket_name: labels_with_bucket_name
                     .iter()
-                    .map(
-                        |conn_choice| routing_types::LabelWithBucketNameEventRequest {
-                            label: conn_choice.routable_connector_choice.to_string(),
-                            bucket_name: conn_choice.bucket_name.clone(),
-                        },
-                    )
+                    .map(|conn_choice| {
+                        routing_utils::LabelWithBucketNameEventRequest::from(conn_choice)
+                    })
                     .collect(),
                 config: elimination_routing_config
                     .elimination_analyser_config
-                    .map(|conf| routing_types::EliminationRoutingEventBucketConfig {
-                        bucket_leak_interval_in_secs: conf.bucket_leak_interval_in_secs,
-                        bucket_size: conf.bucket_size,
-                    }),
+                    .as_ref()
+                    .map(routing_utils::EliminationRoutingEventBucketConfig::from),
             };
 
-            let serialized_request = serde_json::to_value(&event_request)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to serialize success_based_routing_config_params")?;
-
-            let mut routing_event = routing_events::RoutingEvent::new(
+            let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                "".to_string(),
-                "Intelligent-router UpdateEliminationBucket",
-                serialized_request,
-                "EliminationAnalyser.UpdateEliminationBucket".to_string(),
-                routing_events::ApiMethod::Grpc,
+                state.request_id,
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
-                state.request_id,
-                routing_events::RoutingEngine::IntelligentRouter,
+                "IntelligentRouter: UpdateEliminationBucket".to_string(),
+                Some(event_request.clone()),
+                true,
+                false,
             );
 
-            let update_response = client
+            let closure = || async {
+                let update_response_result = client
                 .update_elimination_bucket_config(
                     profile_id.get_string_repr().to_string(),
                     elimination_routing_config_params,
@@ -1293,29 +1310,58 @@ pub async fn update_window_for_elimination_routing(
                     state.get_grpc_headers(),
                 )
                 .await
-                .inspect_err(|e| {
-                    routing_event
-                        .set_error(serde_json::json!({"error": e.current_context().to_string()}));
-                    state.event_handler().log_event(&routing_event);
-                })
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(errors::RoutingError::EliminationRoutingCalculationError)
                 .attach_printable(
                     "unable to update elimination based routing buckets in dynamic routing service",
+                );
+
+                match update_response_result {
+                    Ok(resp) => {
+                        let updated_resp =
+                            routing_utils::UpdateEliminationBucketEventResponse::try_from(&resp)
+                            .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateEliminationBucketEventResponse from UpdateEliminationBucketResponse".to_string(), status_code: 500 })?;
+
+                        Ok(Some(updated_resp))
+                    }
+                    Err(err) => {
+                        logger::error!(
+                            "unable to update elimination  score in dynamic routing service: {:?}",
+                            err.current_context()
+                        );
+
+                        Err(err)
+                    }
+                }
+            };
+
+            let events_response = routing_events_wrapper.construct_event_builder( "EliminationAnalyser.UpdateEliminationBucket".to_string(),
+            routing_events::RoutingEngine::IntelligentRouter,
+            routing_events::ApiMethod::Grpc)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Elimination-Intelligent-Router: Failed to update elimination bucket in Intelligent-Router")?
+            .trigger_event(state, closure)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Elimination-Intelligent-Router: Failed to update elimination bucket in Intelligent-Router")?;
+
+            let _response: routing_utils::UpdateEliminationBucketEventResponse = events_response
+                .response
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "UpdateEliminationBucketEventResponse not found in RoutingEventResponse",
                 )?;
 
-            let event_response = routing_types::UpdateEliminationBucketEventResponse {
-                    status: match update_response.status {
-                        0 => routing_types::EliminationUpdationStatusEventResponse::BucketUpdationSucceeded,
-                        1 => routing_types::EliminationUpdationStatusEventResponse::BucketUpdationFailed,
-                        _ => {
-                            return Err(errors::ApiErrorResponse::InternalServerError)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("unknown status code from dynamic routing service")
-                        }
-                    },
-                };
+            let mut routing_event = events_response
+                .event
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message:
+                        "Elimination-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                            .to_string(),
+                    status_code: 500,
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Elimination-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse")?;
 
-            routing_event.set_response_body(&event_response);
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                 choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
@@ -1348,14 +1394,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
     if let Some(contract_routing_algo_ref) = dynamic_routing_algo_ref.contract_based_routing {
         if contract_routing_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None
         {
-            let client = state
+            let client = &state
                 .grpc_client
                 .dynamic_routing
-                .contract_based_client
-                .clone()
+                .as_ref()
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "contract_routing gRPC client not found".to_string(),
-                })?;
+                    message: "dynamic routing gRPC client not found".to_string(),
+                })?
+                .contract_based_client;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
@@ -1423,36 +1469,30 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
             if payment_status_attribute == common_enums::AttemptStatus::Charged {
-                let event_request = routing_types::UpdateContractRequestEventRequest {
+                let event_request = routing_utils::UpdateContractRequestEventRequest {
                     id: profile_id.get_string_repr().to_string(),
                     params: "".to_string(),
-                    labels_information: vec![routing_types::ContractLabelInformationEventRequest {
-                        label: request_label_info.label.clone(),
-                        target_count: request_label_info.target_count,
-                        target_time: request_label_info.target_time,
-                        current_count: 1,
-                    }],
+                    labels_information: vec![
+                        routing_utils::ContractLabelInformationEventRequest::from(
+                            &request_label_info,
+                        ),
+                    ],
                 };
 
-                let serialized_request = serde_json::to_value(&event_request)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to serialize success_based_routing_config_params")?;
-
-                let mut routing_event = routing_events::RoutingEvent::new(
+                let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                     state.tenant.tenant_id.clone(),
-                    "".to_string(),
-                    "Intelligent-router UpdateContract",
-                    serialized_request,
-                    "ContractScoreCalculator.UpdateContract".to_string(),
-                    routing_events::ApiMethod::Grpc,
+                    state.request_id,
                     payment_attempt.payment_id.get_string_repr().to_string(),
                     profile_id.to_owned(),
                     payment_attempt.merchant_id.to_owned(),
-                    state.request_id,
-                    routing_events::RoutingEngine::IntelligentRouter,
+                    "IntelligentRouter: UpdateContractScore".to_string(),
+                    Some(event_request.clone()),
+                    true,
+                    false,
                 );
 
-                let update_response = client
+                let closure = || async {
+                    let update_response_result = client
                     .update_contracts(
                         profile_id.get_string_repr().into(),
                         vec![request_label_info],
@@ -1462,30 +1502,60 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         state.get_grpc_headers(),
                     )
                     .await
-                    .inspect_err(|e| {
-                        routing_event.set_error(
-                            serde_json::json!({"error": e.current_context().to_string()}),
-                        );
-                        state.event_handler().log_event(&routing_event);
-                    })
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "unable to update contract based routing window in dynamic routing service",
+                    );
+
+                    match update_response_result {
+                        Ok(resp) => {
+                            let updated_resp =
+                                routing_utils::UpdateContractEventResponse::try_from(&resp)
+                                .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateContractEventResponse from UpdateContractResponse".to_string(), status_code: 500 })?;
+                            Ok(Some(updated_resp))
+                        }
+                        Err(err) => {
+                            logger::error!(
+                                "unable to update elimination  score in dynamic routing service: {:?}",
+                                err.current_context()
+                            );
+
+                            // have to refactor errors
+                            Err(error_stack::report!(
+                                errors::RoutingError::ContractScoreUpdationError
+                            ))
+                        }
+                    }
+                };
+
+                let events_response = routing_events_wrapper.construct_event_builder( "ContractScoreCalculator.UpdateContract".to_string(),
+                routing_events::RoutingEngine::IntelligentRouter,
+                routing_events::ApiMethod::Grpc)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to construct RoutingEventsBuilder")?
+                .trigger_event(state, closure)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to update contract scores in Intelligent-Router")?;
+
+                let _response: routing_utils::UpdateContractEventResponse = events_response
+                    .response
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "UpdateContractEventResponse not found in RoutingEventResponse",
                     )?;
 
-                let event_response = routing_types::UpdateContractEventResponse {
-                        status: match update_response.status {
-                            0 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationSucceeded,
-                            1 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationFailed,
-                            _ => {
-                                return Err(errors::ApiErrorResponse::InternalServerError)
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("unknown status code from dynamic routing service")
-                            }
-                        },
-                    };
+                let mut routing_event = events_response
+                    .event
+                    .ok_or(errors::RoutingError::RoutingEventsError {
+                        message:
+                            "ContractRouting-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                                .to_string(),
+                        status_code: 500,
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("ContractRouting-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse")?;
 
-                routing_event.set_response_body(&event_response);
                 routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                     choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                     connector: common_enums::RoutableConnectors::from_str(
@@ -1532,8 +1602,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 .split_once(':')
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                    first_contract_based_connector
+                    "unable to split connector_name and mca_id from the first connector {first_contract_based_connector:?} obtained from dynamic routing service",
+
                 ))?
                 .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
@@ -1621,9 +1691,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         common_enums::AttemptStatus::Charged
         | common_enums::AttemptStatus::Authorized
         | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable => {
-            common_enums::AttemptStatus::Charged
-        }
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::PartiallyAuthorized => common_enums::AttemptStatus::Charged,
         common_enums::AttemptStatus::Failure
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::AuthenticationFailed
@@ -1635,17 +1704,18 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::VoidFailed
         | common_enums::AttemptStatus::AutoRefunded
         | common_enums::AttemptStatus::Unresolved
         | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::IntegrityFailure
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => {
-            common_enums::AttemptStatus::Pending
-        }
+        | common_enums::AttemptStatus::DeviceDataCollectionPending
+        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1658,12 +1728,16 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::RouterDeclined => Self::JuspayDeclined,
             common_enums::AttemptStatus::AuthenticationPending => Self::PendingVbv,
             common_enums::AttemptStatus::AuthenticationSuccessful => Self::VBVSuccessful,
-            common_enums::AttemptStatus::Authorized => Self::Authorized,
+            common_enums::AttemptStatus::Authorized
+            | common_enums::AttemptStatus::PartiallyAuthorized => Self::Authorized,
             common_enums::AttemptStatus::AuthorizationFailed => Self::AuthorizationFailed,
             common_enums::AttemptStatus::Charged => Self::Charged,
             common_enums::AttemptStatus::Authorizing => Self::Authorizing,
             common_enums::AttemptStatus::CodInitiated => Self::CODInitiated,
-            common_enums::AttemptStatus::Voided => Self::Voided,
+            common_enums::AttemptStatus::Voided | common_enums::AttemptStatus::Expired => {
+                Self::Voided
+            }
+            common_enums::AttemptStatus::VoidedPostCharge => Self::VoidedPostCharge,
             common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
             common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,
@@ -1672,7 +1746,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
             common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending => Self::Pending,
+            common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
             common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
@@ -1851,7 +1926,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // Call to DE here
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         disable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),
@@ -1904,6 +1979,7 @@ pub async fn enable_dynamic_routing_algorithm(
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let mut dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
@@ -1919,6 +1995,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
+                payload,
             )
             .await
         }
@@ -1931,6 +2008,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
+                payload,
             )
             .await
         }
@@ -1943,6 +2021,7 @@ pub async fn enable_dynamic_routing_algorithm(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
@@ -1952,10 +2031,24 @@ pub async fn enable_specific_routing_algorithm<A>(
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     algo_type: Option<A>,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
     A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
 {
+    //Check for payload
+    if let Some(payload) = payload {
+        return create_specific_dynamic_routing_setup(
+            state,
+            key_store,
+            business_profile,
+            feature_to_enable,
+            dynamic_routing_algo_ref,
+            dynamic_routing_type,
+            payload,
+        )
+        .await;
+    }
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
         return default_specific_dynamic_routing_setup(
@@ -2037,13 +2130,15 @@ pub async fn default_specific_dynamic_routing_setup(
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
+
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config = if state.conf.open_router.enabled {
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::SuccessBasedRoutingConfig::default()
-            };
+            let default_success_based_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::SuccessBasedRoutingConfig::default()
+                };
 
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
@@ -2060,11 +2155,13 @@ pub async fn default_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config = if state.conf.open_router.enabled {
-                routing_types::EliminationRoutingConfig::open_router_config_default()
-            } else {
-                routing_types::EliminationRoutingConfig::default()
-            };
+            let default_elimination_routing_config =
+                if state.conf.open_router.dynamic_routing_enabled {
+                    routing_types::EliminationRoutingConfig::open_router_config_default()
+                } else {
+                    routing_types::EliminationRoutingConfig::default()
+                };
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -2090,12 +2187,13 @@ pub async fn default_specific_dynamic_routing_setup(
 
     // Call to DE here
     // Need to map out the cases if this call should always be made or not
-    if state.conf.open_router.enabled {
+    if state.conf.open_router.dynamic_routing_enabled {
         enable_decision_engine_dynamic_routing_setup(
             state,
             business_profile.get_id(),
             dynamic_routing_type,
             &mut dynamic_routing_algo_ref,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2113,6 +2211,109 @@ pub async fn default_specific_dynamic_routing_setup(
         feature_to_enable,
         dynamic_routing_type,
     );
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        dynamic_routing_algo_ref,
+    )
+    .await?;
+
+    let new_record = record.foreign_into();
+
+    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+    );
+    Ok(ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn create_specific_dynamic_routing_setup(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
+    mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    dynamic_routing_type: routing_types::DynamicRoutingType,
+    payload: routing_types::DynamicRoutingPayload,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let profile_id = business_profile.get_id().clone();
+    let merchant_id = business_profile.merchant_id.clone();
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+
+    let algo = match dynamic_routing_type {
+        routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            let success_config = match &payload {
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Success Rate Based Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
+            routing_algorithm::RoutingAlgorithm {
+                algorithm_id: algorithm_id.clone(),
+                profile_id: profile_id.clone(),
+                merchant_id,
+                name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                description: None,
+                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+                algorithm_data: serde_json::json!(success_config),
+                created_at: timestamp,
+                modified_at: timestamp,
+                algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
+            }
+        }
+        routing_types::DynamicRoutingType::EliminationRouting => {
+            let elimination_config = match &payload {
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                _ => {
+                    return Err((errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payload type for Elimination Routing".to_string(),
+                    })
+                    .into())
+                }
+            };
+
+            routing_algorithm::RoutingAlgorithm {
+                algorithm_id: algorithm_id.clone(),
+                profile_id: profile_id.clone(),
+                merchant_id,
+                name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                description: None,
+                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+                algorithm_data: serde_json::json!(elimination_config),
+                created_at: timestamp,
+                modified_at: timestamp,
+                algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
+            }
+        }
+
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        }
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
         key_manager_state,
@@ -2212,20 +2413,30 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let default_engine_config_request = match dynamic_routing_type {
+    let decision_engine_config_request = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config =
-                routing_types::SuccessBasedRoutingConfig::open_router_config_default();
+            let success_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::SuccessBasedRoutingConfig::open_router_config_default,
+                );
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
-                    default_success_based_routing_config
+                    success_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2235,12 +2446,21 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_based_routing_config =
-                routing_types::EliminationRoutingConfig::open_router_config_default();
+            let elimination_based_routing_config = payload
+                .and_then(|p| match p {
+                    routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                        Some(config)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(
+                    routing_types::EliminationRoutingConfig::open_router_config_default,
+                );
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
-                    default_elimination_based_routing_config
+                    elimination_based_routing_config
                         .get_decision_engine_configs()
                         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
@@ -2261,11 +2481,12 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
-        Some(default_engine_config_request),
+        Some(decision_engine_config_request),
+        None,
         None,
     )
     .await
@@ -2338,11 +2559,12 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
         Some(decision_engine_request),
+        None,
         None,
     )
     .await
@@ -2350,6 +2572,37 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     .attach_printable("Unable to update decision engine dynamic routing")?;
 
     Ok(())
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn get_decision_engine_active_dynamic_routing_algorithm(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_type: open_router::DecisionEngineDynamicAlgorithmType,
+) -> RouterResult<Option<open_router::DecisionEngineConfigSetupRequest>> {
+    logger::debug!(
+        "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
+        dynamic_routing_type
+    );
+    let request = open_router::GetDecisionEngineConfigRequest {
+        merchant_id: profile_id.get_string_repr().to_owned(),
+        algorithm: dynamic_routing_type,
+    };
+    let response: Option<open_router::DecisionEngineConfigSetupRequest> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_RULE_GET_ENDPOINT,
+            Some(request),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get active dynamic algorithm from decision engine")?
+        .response;
+
+    Ok(response)
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -2387,11 +2640,12 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_DELETE_ENDPOINT,
         Some(decision_engine_request),
+        None,
         None,
     )
     .await
@@ -2437,11 +2691,12 @@ pub async fn create_decision_engine_merchant(
         gateway_success_rate_based_decider_input: None,
     };
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
         Some(merchant_account_req),
+        None,
         None,
     )
     .await
@@ -2462,16 +2717,76 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Delete,
         &path,
+        None::<id_type::ProfileId>,
         None,
         None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to delete merchant account on decision engine")?;
+
+    Ok(())
+}
+
+pub async fn redact_cgraph_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let cgraph_payouts_key = format!(
+        "cgraph_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let cgraph_payments_key = format!(
+        "cgraph_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let config_payouts_key = cache::CacheKind::CGraph(cgraph_payouts_key.clone().into());
+    let config_payments_key = cache::CacheKind::CGraph(cgraph_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [config_payouts_key, config_payments_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the cgraph cache")?;
+
+    Ok(())
+}
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
 
     Ok(())
 }

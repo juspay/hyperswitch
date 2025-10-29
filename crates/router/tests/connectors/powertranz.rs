@@ -13,7 +13,7 @@ impl utils::Connector for PowertranzTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Powertranz;
         utils::construct_connector_data_old(
-            Box::new(&Powertranz),
+            Box::new(Powertranz::new()),
             types::Connector::Powertranz,
             types::api::GetToken::Connector,
             None,
@@ -411,7 +411,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.unwrap_err().message, "Invalid amount",);
+    assert_eq!(response.response.unwrap_err().message, "Invalid amount");
 }
 
 // Connector dependent test cases goes here

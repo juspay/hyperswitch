@@ -163,7 +163,7 @@ impl From<String> for MaskedUpiVpaId {
                 .take(unmasked_char_count)
                 .collect::<String>()
                 + &"*".repeat(user_identifier.len() - unmasked_char_count);
-            format!("{}@{}", masked_user_identifier, bank_or_psp)
+            format!("{masked_user_identifier}@{bank_or_psp}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
             masked_value
@@ -191,7 +191,7 @@ impl From<String> for MaskedEmail {
                 .take(unmasked_char_count)
                 .collect::<String>()
                 + &"*".repeat(user_identifier.len() - unmasked_char_count);
-            format!("{}@{}", masked_user_identifier, domain)
+            format!("{masked_user_identifier}@{domain}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
             masked_value
@@ -231,6 +231,21 @@ impl From<String> for MaskedPhoneNumber {
     }
 }
 impl From<Secret<String>> for MaskedPhoneNumber {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked Psp token
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedPspToken(Secret<String>);
+impl From<String> for MaskedPspToken {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedPspToken {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }

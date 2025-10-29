@@ -159,6 +159,7 @@ impl ConnectorCommon for Novalnet {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -238,7 +239,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/payment", endpoint))
+        Ok(format!("{endpoint}/payment"))
     }
 
     fn get_request_body(
@@ -315,8 +316,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
         match req.request.is_auto_capture()? {
-            true => Ok(format!("{}/payment", endpoint)),
-            false => Ok(format!("{}/authorize", endpoint)),
+            true => Ok(format!("{endpoint}/payment")),
+            false => Ok(format!("{endpoint}/authorize")),
         }
     }
 
@@ -405,7 +406,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/details", endpoint))
+        Ok(format!("{endpoint}/transaction/details"))
     }
 
     fn get_request_body(
@@ -482,7 +483,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/capture", endpoint))
+        Ok(format!("{endpoint}/transaction/capture"))
     }
 
     fn get_request_body(
@@ -568,7 +569,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/refund", endpoint))
+        Ok(format!("{endpoint}/transaction/refund"))
     }
 
     fn get_request_body(
@@ -653,7 +654,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/details", endpoint))
+        Ok(format!("{endpoint}/transaction/details"))
     }
 
     fn get_request_body(
@@ -730,7 +731,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/cancel", endpoint))
+        Ok(format!("{endpoint}/transaction/cancel"))
     }
 
     fn get_request_body(
@@ -909,9 +910,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         let optional_transaction_status = match notif.transaction {
-            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                Some(data.status)
-            }
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 Some(data.status)
@@ -1081,13 +1080,36 @@ static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
+        novalnet_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        novalnet_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::SepaGuarenteedDebit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
         novalnet_supported_payment_methods
     });
 
 static NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Novalnet",
     description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 4] = [

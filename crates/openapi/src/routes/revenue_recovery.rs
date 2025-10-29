@@ -4,7 +4,7 @@
 /// Retrieve the Revenue Recovery Payment Info
 #[utoipa::path(
     get,
-    path = "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}",
+    path = "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}",
     params(
         ("recovery_recovery_id" = String, Path, description = "The payment intent id"),
     ),

@@ -1,5 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
+use common_utils::types::TenantConfig;
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -9,16 +10,22 @@ use hyperswitch_domain_models::{
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod business_profile;
 pub mod callback_mapper;
 pub mod cards_info;
 pub mod config;
+pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
 pub mod errors;
+pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;
 pub mod mandate;
+pub mod merchant_account;
+pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
@@ -28,12 +35,11 @@ pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
+pub mod subscription;
 pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use diesel_models::tokenization::Tokenization;
 pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -66,7 +72,7 @@ where
     );
     async fn new(
         config: Self::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         test_transaction: bool,
     ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
@@ -112,7 +118,7 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
         db_conf: T::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
@@ -256,7 +262,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
     ) -> error_stack::Result<Self, StorageError> {
@@ -380,7 +386,17 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v2")]
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pa_{}", self.id.get_string_repr())]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentAttempt"
+    }
+}
+
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -394,7 +410,7 @@ impl UniqueConstraints for diesel_models::Refund {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]
@@ -419,7 +435,7 @@ impl UniqueConstraints for diesel_models::Payouts {
         vec![format!(
             "po_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payout_id
+            self.payout_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {
@@ -441,10 +457,7 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
@@ -454,7 +467,7 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]
@@ -477,7 +490,7 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -491,7 +504,7 @@ impl UniqueConstraints for diesel_models::Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("customer_{}", self.id.get_string_repr())]

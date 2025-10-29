@@ -67,6 +67,7 @@ pub mod headers {
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_INTERNAL_API_KEY: &str = "X-Internal-Api-Key";
     pub const X_ORGANIZATION_ID: &str = "X-Organization-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
@@ -92,6 +93,14 @@ pub mod headers {
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
+    // Header value for X_CONNECTOR_HTTP_STATUS_CODE differs by version.
+    // Constant name is kept the same for consistency across versions.
+    #[cfg(feature = "v1")]
+    pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "connector_http_status_code";
+    #[cfg(feature = "v2")]
+    pub const X_CONNECTOR_HTTP_STATUS_CODE: &str = "x-connector-http-status-code";
+
+    pub const X_REFERENCE_ID: &str = "X-Reference-Id";
 }
 
 pub mod pii {
@@ -116,7 +125,7 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
-    #[cfg(all(feature = "dummy_connector", feature = "v1"))]
+    #[cfg(feature = "dummy_connector")]
     {
         use routes::DummyConnector;
         server_app = server_app.service(DummyConnector::server(state.clone()));
@@ -132,7 +141,8 @@ pub fn mk_app(
             {
                 server_app = server_app
                     .service(routes::ProfileNew::server(state.clone()))
-                    .service(routes::Forex::server(state.clone()));
+                    .service(routes::Forex::server(state.clone()))
+                    .service(routes::ProfileAcquirer::server(state.clone()));
             }
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
@@ -167,7 +177,8 @@ pub fn mk_app(
         {
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
-                .service(routes::Mandates::server(state.clone()));
+                .service(routes::Mandates::server(state.clone()))
+                .service(routes::Authentication::server(state.clone()));
         }
     }
 
@@ -175,11 +186,7 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
     }
-    #[cfg(all(
-        feature = "oltp",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "oltp", feature = "v1"))]
     {
         server_app = server_app.service(routes::Poll::server(state.clone()))
     }
@@ -191,7 +198,13 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Routing::server(state.clone()));
+            .service(routes::Routing::server(state.clone()))
+            .service(routes::Chat::server(state.clone()));
+
+        #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
+        {
+            server_app = server_app.service(routes::Verify::server(state.clone()));
+        }
 
         #[cfg(feature = "v1")]
         {
@@ -199,11 +212,11 @@ pub fn mk_app(
                 .service(routes::Files::server(state.clone()))
                 .service(routes::Disputes::server(state.clone()))
                 .service(routes::Blocklist::server(state.clone()))
+                .service(routes::Subscription::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
                 .service(routes::ConnectorOnboarding::server(state.clone()))
-                .service(routes::Verify::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
                 .service(routes::FeatureMatrix::server(state.clone()));
@@ -211,7 +224,12 @@ pub fn mk_app(
 
         #[cfg(feature = "v2")]
         {
-            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
+            server_app = server_app
+                .service(routes::UserDeprecated::server(state.clone()))
+                .service(routes::ProcessTrackerDeprecated::server(state.clone()))
+                .service(routes::ProcessTracker::server(state.clone()))
+                .service(routes::Gsm::server(state.clone()))
+                .service(routes::RecoveryDataBackfill::server(state.clone()));
         }
     }
 
@@ -222,18 +240,14 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(all(
-        feature = "stripe",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "stripe", feature = "v1"))]
     {
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))
             .service(routes::Cards::server(state.clone()));
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(all(feature = "oltp", feature = "v2"))]
     {
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }

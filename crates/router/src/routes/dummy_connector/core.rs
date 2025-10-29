@@ -9,7 +9,7 @@ use crate::{
     utils::OptionExt,
 };
 
-#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+#[cfg(feature = "dummy_connector")]
 pub async fn payment(
     state: SessionState,
     req: types::DummyConnectorPaymentRequest,

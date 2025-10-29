@@ -182,6 +182,7 @@ impl ConnectorCommon for Itaubank {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -305,6 +306,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -817,7 +819,8 @@ static ITAUBANK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static ITAUBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Itaubank",
         description: "Itau Bank is a leading Brazilian financial institution offering a wide range of banking services, including retail banking, loans, and investment solutions.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static ITAUBANK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

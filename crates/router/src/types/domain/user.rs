@@ -1343,7 +1343,7 @@ impl RecoveryCodes {
                 let code_part_2 =
                     Alphanumeric.sample_string(&mut rand, consts::user::RECOVERY_CODE_LENGTH / 2);
 
-                Secret::new(format!("{}-{}", code_part_1, code_part_2))
+                Secret::new(format!("{code_part_1}-{code_part_2}"))
             })
             .collect::<Vec<_>>();
 

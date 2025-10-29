@@ -39,15 +39,15 @@ impl ExtractedPayload {
             .get(HEADER_MERCHANT_ID)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
+                message: format!("`{HEADER_MERCHANT_ID}` header is invalid or not present"),
             })
             .map_err(error_stack::Report::from)
             .and_then(|merchant_id| {
                 MerchantId::try_from(Cow::from(merchant_id.to_string())).change_context(
                     ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "`{}` header is invalid or not present",
-                            HEADER_MERCHANT_ID
+                            "`{HEADER_MERCHANT_ID}` header is invalid or not present",
+
                         ),
                     },
                 )
@@ -57,11 +57,11 @@ impl ExtractedPayload {
             .get(HEADER_AUTH_TYPE)
             .and_then(|inner| inner.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
+                message: format!("`{HEADER_AUTH_TYPE}` header not present"),
             })?
             .parse::<PayloadType>()
             .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header not present", HEADER_AUTH_TYPE),
+                message: format!("`{HEADER_AUTH_TYPE}` header not present"),
             })?;
 
         let key_id = headers
@@ -70,7 +70,7 @@ impl ExtractedPayload {
             .map(|key_id| ApiKeyId::try_from(Cow::from(key_id.to_string())))
             .transpose()
             .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header is invalid or not present", HEADER_KEY_ID),
+                message: format!("`{HEADER_KEY_ID}` header is invalid or not present"),
             })?;
 
         Ok(Self {
@@ -112,7 +112,7 @@ impl ExtractedPayload {
 #[inline]
 fn append_option(prefix: &str, data: &Option<String>) -> String {
     match data {
-        Some(inner) => format!("{}:{}", prefix, inner),
+        Some(inner) => format!("{prefix}:{inner}"),
         None => prefix.to_string(),
     }
 }

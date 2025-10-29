@@ -221,6 +221,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     };
     logger::info!(event_type=?event_type);
 
+    // if it is a setup webhook event, return ok status
+    if event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     let is_webhook_event_supported = !matches!(
         event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
@@ -360,6 +369,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::ExternalAuthentication => todo!(),
                     api::WebhookFlow::FraudCheck => todo!(),
+                    api::WebhookFlow::Setup => WebhookResponseTracker::NoEffect,
 
                     #[cfg(feature = "payouts")]
                     api::WebhookFlow::Payout => todo!(),
@@ -371,7 +381,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             state.clone(),
                             merchant_context,
                             profile,
-                            webhook_details,
                             source_verified,
                             &connector,
                             merchant_connector_account,
@@ -456,30 +465,37 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await?;
 
-            let (payment_data, _req, customer, connector_http_status_code, external_latency) =
-                Box::pin(payments::payments_operation_core::<
-                    api::PSync,
-                    _,
-                    _,
-                    _,
-                    PaymentStatusData<api::PSync>,
-                >(
-                    &state,
-                    req_state,
-                    merchant_context.clone(),
-                    &profile,
-                    payments::operations::PaymentGet,
-                    api::PaymentsRetrieveRequest {
-                        force_sync: true,
-                        expand_attempts: false,
-                        param: None,
-                        all_keys_required: None,
-                    },
-                    get_trackers_response,
-                    consume_or_trigger_flow,
-                    HeaderPayload::default(),
-                ))
-                .await?;
+            let (
+                payment_data,
+                _req,
+                customer,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            ) = Box::pin(payments::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                PaymentStatusData<api::PSync>,
+            >(
+                &state,
+                req_state,
+                merchant_context.clone(),
+                &profile,
+                payments::operations::PaymentGet,
+                api::PaymentsRetrieveRequest {
+                    force_sync: true,
+                    expand_attempts: false,
+                    param: None,
+                    return_raw_connector_response: None,
+                    merchant_connector_details: None,
+                },
+                get_trackers_response,
+                consume_or_trigger_flow,
+                HeaderPayload::default(),
+            ))
+            .await?;
 
             let response = payment_data.generate_response(
                 &state,
@@ -488,6 +504,7 @@ async fn payments_incoming_webhook_flow(
                 None,
                 &merchant_context,
                 &profile,
+                Some(connector_response_data),
             );
 
             lock_action
@@ -534,7 +551,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -678,6 +695,7 @@ where
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
+            merchant_connector_details: None,
         },
     })
 }

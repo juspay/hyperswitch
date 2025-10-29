@@ -1,4 +1,4 @@
-use common_utils::errors::ErrorSwitch;
+use common_utils::{errors::ErrorSwitch, id_type};
 use hyperswitch_domain_models::errors::api_error_response as errors;
 
 use crate::core::errors::CustomersErrorResponse;
@@ -133,7 +133,7 @@ pub enum StripeErrorCode {
     EventNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
-    DuplicatePayout { payout_id: String },
+    DuplicatePayout { payout_id: id_type::PayoutId },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -209,9 +209,7 @@ pub enum StripeErrorCode {
     PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
-    DuplicatePayment {
-        payment_id: common_utils::id_type::PaymentId,
-    },
+    DuplicatePayment { payment_id: id_type::PaymentId },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {
@@ -285,6 +283,10 @@ pub enum StripeErrorCode {
     PlatformBadRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
     PlatformUnauthorizedRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Profile Acquirer not found")]
+    ProfileAcquirerNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "Subscription Error", message = "Subscription operation: {operation} failed with connector")]
+    SubscriptionError { operation: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -598,6 +600,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::AddressNotFound => Self::AddressNotFound,
             errors::ApiErrorResponse::NotImplemented { .. } => Self::Unauthorized,
             errors::ApiErrorResponse::FlowNotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::MandatePaymentDataMismatch { .. } => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::MaxFieldLengthViolated { .. } => Self::PlatformBadRequest,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,
@@ -688,6 +692,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
             errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
+            errors::ApiErrorResponse::ProfileAcquirerNotFound { .. } => {
+                Self::ProfileAcquirerNotFound
+            }
+            errors::ApiErrorResponse::TokenizationRecordNotFound { id } => Self::ResourceMissing {
+                object: "tokenization record".to_owned(),
+                id,
+            },
+            errors::ApiErrorResponse::SubscriptionError { operation } => {
+                Self::SubscriptionError { operation }
+            }
         }
     }
 }
@@ -772,7 +786,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::WebhookProcessingError
             | Self::InvalidTenant
             | Self::ExternalVaultFailed
-            | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::AmountConversionFailed { .. }
+            | Self::SubscriptionError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
@@ -782,6 +797,7 @@ impl actix_web::ResponseError for StripeErrorCode {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
             Self::LockTimeout => StatusCode::LOCKED,
+            Self::ProfileAcquirerNotFound => StatusCode::NOT_FOUND,
         }
     }
 
@@ -845,6 +861,9 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
         match self {
             Self::CustomerRedacted => SC::CustomerRedacted,
             Self::InternalServerError => SC::InternalServerError,
+            Self::InvalidRequestData { message } => SC::InvalidRequestData {
+                message: message.clone(),
+            },
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
             Self::CustomerAlreadyExists => SC::DuplicateCustomer,

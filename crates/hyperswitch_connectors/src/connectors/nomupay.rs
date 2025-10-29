@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -53,7 +55,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use josekit::{
-    jws::{JwsHeader, ES256},
+    jws::{self, JwsHeader, ES256},
     jwt::{self, JwtPayload},
     Map, Value,
 };
@@ -142,15 +144,19 @@ fn get_signature(
                 .signer_from_pem(&private_key)
                 .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
 
-            let nomupay_jwt = jwt::encode_with_signer(&payload, &header, &signer)
-                .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
+            let nomupay_jwt = match method {
+                "GET" => jws::serialize_compact(b"", &header, &signer)
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
+                _ => jwt::encode_with_signer(&payload, &header, &signer)
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
+            };
 
             let jws_blocks: Vec<&str> = nomupay_jwt.split('.').collect();
 
             let jws_detached = jws_blocks
                 .first()
                 .zip(jws_blocks.get(2))
-                .map(|(first, third)| format!("{}..{}", first, third))
+                .map(|(first, third)| format!("{first}..{third}"))
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "JWS blocks not sufficient for detached payload",
                 })?;
@@ -288,6 +294,7 @@ impl ConnectorCommon for Nomupay {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             (None, None, Some(nomupay_inner_error), _, _) => {
                 match (
@@ -304,6 +311,7 @@ impl ConnectorCommon for Nomupay {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     (_, Some(validation_errors)) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -323,6 +331,7 @@ impl ConnectorCommon for Nomupay {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     (None, None) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -334,6 +343,7 @@ impl ConnectorCommon for Nomupay {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                 }
             }
@@ -350,6 +360,7 @@ impl ConnectorCommon for Nomupay {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             _ => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -361,6 +372,7 @@ impl ConnectorCommon for Nomupay {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -755,4 +767,23 @@ impl webhooks::IncomingWebhook for Nomupay {
     }
 }
 
-impl ConnectorSpecifications for Nomupay {}
+static NOMUPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Nomupay",
+    description: "Nomupay payouts connector for disbursements to recipients' bank accounts and alternative payment methods in Southeast Asia and the Pacific Islands",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Nomupay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NOMUPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

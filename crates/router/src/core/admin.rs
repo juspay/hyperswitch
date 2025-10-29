@@ -20,14 +20,17 @@ use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
-use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
+use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        connector_validation::ConnectorAuthTypeAndMetadataValidation,
+        disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
@@ -36,6 +39,7 @@ use crate::{
         routing, utils as core_utils,
     },
     db::{AccountsStorageInterface, StorageInterface},
+    logger,
     routes::{metrics, SessionState},
     services::{
         self,
@@ -674,7 +678,7 @@ impl CreateProfile {
             )
             .await
             .map_err(|profile_insert_error| {
-                crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+                logger::warn!("Profile already exists {profile_insert_error:?}");
             })
             .map(|business_profile| business_profiles_vector.push(business_profile))
             .ok();
@@ -713,17 +717,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-            // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Merchant account creation is not allowed for a platform organization"
-                        .to_string(),
-                }
-                .into())
-            }
-        };
+        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
+        let merchant_account_type = MerchantAccountType::Standard;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -919,7 +914,7 @@ pub async fn create_profile_from_business_labels(
         .await
         .map_err(|profile_insert_error| {
             // If there is any duplicate error, we need not take any action
-            crate::logger::warn!("Profile already exists {profile_insert_error:?}");
+            logger::warn!("Profile already exists {profile_insert_error:?}");
         });
 
         // If a profile is created, then unset the default profile
@@ -1226,25 +1221,6 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
-    // Call to DE here
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.enabled && is_deleted {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1264,7 +1240,7 @@ pub async fn merchant_account_delete(
         Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                logger::error!("requires_cvv config not found in db: {err:?}");
                 Ok(())
             } else {
                 Err(err
@@ -1321,571 +1297,6 @@ async fn validate_merchant_id(
     db.find_merchant_account_by_merchant_id(&state.into(), merchant_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-}
-
-struct ConnectorAuthTypeAndMetadataValidation<'a> {
-    connector_name: &'a api_models::enums::Connector,
-    auth_type: &'a types::ConnectorAuthType,
-    connector_meta_data: &'a Option<pii::SecretSerdeValue>,
-}
-
-impl ConnectorAuthTypeAndMetadataValidation<'_> {
-    pub fn validate_auth_and_metadata_type(
-        &self,
-    ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-        let connector_auth_type_validation = ConnectorAuthTypeValidation {
-            auth_type: self.auth_type,
-        };
-        connector_auth_type_validation.validate_connector_auth_type()?;
-        self.validate_auth_and_metadata_type_with_connector()
-            .map_err(|err| match *err.current_context() {
-                errors::ConnectorError::InvalidConnectorName => {
-                    err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "The connector name is invalid".to_string(),
-                    })
-                }
-                errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("The {} is invalid", field_name),
-                    }),
-                errors::ConnectorError::FailedToObtainAuthType => {
-                    err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "The auth type is invalid for the connector".to_string(),
-                    })
-                }
-                _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The request body is invalid".to_string(),
-                }),
-            })
-    }
-
-    fn validate_auth_and_metadata_type_with_connector(
-        &self,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        use crate::connector::*;
-
-        match self.connector_name {
-            api_enums::Connector::Vgs => {
-                vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Adyenplatform => {
-                adyenplatform::transformers::AdyenplatformAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyBillingConnector
-            | api_enums::Connector::DummyConnector1
-            | api_enums::Connector::DummyConnector2
-            | api_enums::Connector::DummyConnector3
-            | api_enums::Connector::DummyConnector4
-            | api_enums::Connector::DummyConnector5
-            | api_enums::Connector::DummyConnector6
-            | api_enums::Connector::DummyConnector7 => {
-                dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Aci => {
-                aci::transformers::AciAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Adyen => {
-                adyen::transformers::AdyenAuthType::try_from(self.auth_type)?;
-                adyen::transformers::AdyenConnectorMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Airwallex => {
-                airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Archipel => {
-                archipel::transformers::ArchipelAuthType::try_from(self.auth_type)?;
-                archipel::transformers::ArchipelConfigData::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Authorizedotnet => {
-                authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Bankofamerica => {
-                bankofamerica::transformers::BankOfAmericaAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Barclaycard => {
-                barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Billwerk => {
-                billwerk::transformers::BillwerkAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Bitpay => {
-                bitpay::transformers::BitpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Bambora => {
-                bambora::transformers::BamboraAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Bamboraapac => {
-                bamboraapac::transformers::BamboraapacAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Boku => {
-                boku::transformers::BokuAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Bluesnap => {
-                bluesnap::transformers::BluesnapAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Braintree => {
-                braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
-                braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Cashtocode => {
-                cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Chargebee => {
-                chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
-                chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Checkout => {
-                checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Coinbase => {
-                coinbase::transformers::CoinbaseAuthType::try_from(self.auth_type)?;
-                coinbase::transformers::CoinbaseConnectorMeta::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Coingate => {
-                coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
-                coingate::transformers::CoingateConnectorMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Cryptopay => {
-                cryptopay::transformers::CryptopayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::CtpMastercard => Ok(()),
-            api_enums::Connector::CtpVisa => Ok(()),
-            api_enums::Connector::Cybersource => {
-                cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
-                cybersource::transformers::CybersourceConnectorMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Datatrans => {
-                datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Deutschebank => {
-                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Digitalvirgo => {
-                digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Dlocal => {
-                dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Ebanx => {
-                ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Elavon => {
-                elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Facilitapay => {
-                facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Fiserv => {
-                fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
-                fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Fiservemea => {
-                fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Fiuu => {
-                fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Forte => {
-                forte::transformers::ForteAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Getnet => {
-                getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Globalpay => {
-                globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
-                globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Globepay => {
-                globepay::transformers::GlobepayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Gocardless => {
-                gocardless::transformers::GocardlessAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Gpayments => {
-                gpayments::transformers::GpaymentsAuthType::try_from(self.auth_type)?;
-                gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Hipay => {
-                hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Helcim => {
-                helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::HyperswitchVault => {
-                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
-                    self.auth_type,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Iatapay => {
-                iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Inespay => {
-                inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Itaubank => {
-                itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Jpmorgan => {
-                jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Juspaythreedsserver => Ok(()),
-            api_enums::Connector::Klarna => {
-                klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
-                klarna::transformers::KlarnaConnectorMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Mifinity => {
-                mifinity::transformers::MifinityAuthType::try_from(self.auth_type)?;
-                mifinity::transformers::MifinityConnectorMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Mollie => {
-                mollie::transformers::MollieAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Moneris => {
-                moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Multisafepay => {
-                multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Netcetera => {
-                netcetera::transformers::NetceteraAuthType::try_from(self.auth_type)?;
-                netcetera::transformers::NetceteraMetaData::try_from(self.connector_meta_data)?;
-                Ok(())
-            }
-            api_enums::Connector::Nexinets => {
-                nexinets::transformers::NexinetsAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Nexixpay => {
-                nexixpay::transformers::NexixpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Nmi => {
-                nmi::transformers::NmiAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Nomupay => {
-                nomupay::transformers::NomupayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Noon => {
-                noon::transformers::NoonAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            // api_enums::Connector::Nordea => {
-            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
-            api_enums::Connector::Novalnet => {
-                novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Nuvei => {
-                nuvei::transformers::NuveiAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Opennode => {
-                opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Paybox => {
-                paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Payme => {
-                payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Paypal => {
-                paypal::transformers::PaypalAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Payone => {
-                payone::transformers::PayoneAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Paystack => {
-                paystack::transformers::PaystackAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Payu => {
-                payu::transformers::PayuAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Placetopay => {
-                placetopay::transformers::PlacetopayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Powertranz => {
-                powertranz::transformers::PowertranzAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Prophetpay => {
-                prophetpay::transformers::ProphetpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Rapyd => {
-                rapyd::transformers::RapydAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Razorpay => {
-                razorpay::transformers::RazorpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Recurly => {
-                recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Redsys => {
-                redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Shift4 => {
-                shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Square => {
-                square::transformers::SquareAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Stax => {
-                stax::transformers::StaxAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Taxjar => {
-                taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Stripe => {
-                stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Stripebilling => {
-                stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Trustpay => {
-                trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Tokenio => {
-                tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Tsys => {
-                tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Volt => {
-                volt::transformers::VoltAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Wellsfargo => {
-                wellsfargo::transformers::WellsfargoAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Wise => {
-                wise::transformers::WiseAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Worldline => {
-                worldline::transformers::WorldlineAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Worldpay => {
-                worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Worldpayvantiv => {
-                worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
-                worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
-                Ok(())
-            }
-            api_enums::Connector::Worldpayxml => {
-                worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Xendit => {
-                xendit::transformers::XenditAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Zen => {
-                zen::transformers::ZenAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Zsl => {
-                zsl::transformers::ZslAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Signifyd => {
-                signifyd::transformers::SignifydAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Riskified => {
-                riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Plaid => {
-                PlaidAuthType::foreign_try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::Threedsecureio => {
-                threedsecureio::transformers::ThreedsecureioAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-        }
-    }
-}
-
-struct ConnectorAuthTypeValidation<'a> {
-    auth_type: &'a types::ConnectorAuthType,
-}
-
-impl ConnectorAuthTypeValidation<'_> {
-    fn validate_connector_auth_type(
-        &self,
-    ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-        let validate_non_empty_field = |field_value: &str, field_name: &str| {
-            if field_value.trim().is_empty() {
-                Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: format!("connector_account_details.{}", field_name),
-                    expected_format: "a non empty String".to_string(),
-                }
-                .into())
-            } else {
-                Ok(())
-            }
-        };
-        match self.auth_type {
-            hyperswitch_domain_models::router_data::ConnectorAuthType::TemporaryAuth => Ok(()),
-            hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
-                validate_non_empty_field(api_key.peek(), "api_key")
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => {
-                validate_non_empty_field(api_key.peek(), "api_key")?;
-                validate_non_empty_field(key1.peek(), "key1")
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => {
-                validate_non_empty_field(api_key.peek(), "api_key")?;
-                validate_non_empty_field(key1.peek(), "key1")?;
-                validate_non_empty_field(api_secret.peek(), "api_secret")
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                key2,
-            } => {
-                validate_non_empty_field(api_key.peek(), "api_key")?;
-                validate_non_empty_field(key1.peek(), "key1")?;
-                validate_non_empty_field(api_secret.peek(), "api_secret")?;
-                validate_non_empty_field(key2.peek(), "key2")
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::CurrencyAuthKey {
-                auth_key_map,
-            } => {
-                if auth_key_map.is_empty() {
-                    Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
-                        expected_format: "a non empty map".to_string(),
-                    }
-                    .into())
-                } else {
-                    Ok(())
-                }
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
-                certificate,
-                private_key,
-            } => {
-                client::create_identity_from_certificate_and_key(
-                    certificate.to_owned(),
-                    private_key.to_owned(),
-                )
-                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name:
-                        "connector_account_details.certificate or connector_account_details.private_key"
-                            .to_string(),
-                    expected_format:
-                        "a valid base64 encoded string of PEM encoded Certificate and Private Key"
-                            .to_string(),
-                })?;
-                Ok(())
-            }
-            hyperswitch_domain_models::router_data::ConnectorAuthType::NoKey => Ok(()),
-        }
-    }
 }
 
 struct ConnectorStatusAndDisabledValidation<'a> {
@@ -2657,7 +2068,7 @@ trait MerchantConnectorAccountCreateBridge {
     ) -> RouterResult<domain::Profile>;
 }
 
-#[cfg(all(feature = "v2", feature = "olap",))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -3167,6 +2578,12 @@ pub async fn create_connector(
             },
         )?;
 
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
+
+    #[cfg(feature = "v1")]
+    disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
+
     #[cfg(feature = "v1")]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
@@ -3456,7 +2873,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             key_manager_state,
-            mca,
+            mca.clone(),
             payment_connector.into(),
             &key_store,
         )
@@ -3469,10 +2886,41 @@ pub async fn update_connector(
         )
         .attach_printable_lazy(|| {
             format!(
-                "Failed while updating MerchantConnectorAccount: id: {:?}",
-                merchant_connector_id
+                "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
+
             )
         })?;
+
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // redact routing cache on connector updation
+    #[cfg(feature = "v1")]
+    let merchant_config = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    #[cfg(feature = "v1")]
+    if req.disabled.unwrap_or(false) {
+        merchant_config
+            .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    } else {
+        merchant_config
+            .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    }
 
     let response = updated_mca.foreign_try_into()?;
 
@@ -3543,6 +2991,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
@@ -3939,6 +3389,14 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
 
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -4052,6 +3510,20 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_pre_network_tokenization_enabled: self
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
+            merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
+            dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
+            always_enable_overcapture: self.always_enable_overcapture,
+            external_vault_details: domain::ExternalVaultDetails::try_from((
+                self.is_external_vault_enabled,
+                self.external_vault_connector_details
+                    .map(ForeignFrom::foreign_from),
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating external vault details")?,
+            billing_processor_id: self.billing_processor_id,
+            is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
         }))
     }
 
@@ -4200,6 +3672,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             external_vault_connector_details: self
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 }
@@ -4480,6 +3956,14 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             self.dynamic_routing_algorithm
         };
 
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant country code".to_string(),
+            })?;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4515,6 +3999,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                always_request_extended_authorization: self.always_request_extended_authorization,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: dynamic_routing_algo_ref,
@@ -4528,11 +4013,22 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge, //
+                force_3ds_challenge: self.force_3ds_challenge,
                 is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
+                merchant_category_code: self.merchant_category_code,
+                merchant_country_code: self.merchant_country_code,
+                dispute_polling_interval: self.dispute_polling_interval,
+                is_manual_retry_enabled: self.is_manual_retry_enabled,
+                always_enable_overcapture: self.always_enable_overcapture,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
+                billing_processor_id: self.billing_processor_id,
+                is_l2_l3_enabled: self.is_l2_l3_enabled,
             },
         )))
     }
@@ -4625,6 +4121,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
+        let revenue_recovery_retry_algorithm_type = self.revenue_recovery_retry_algorithm_type;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4672,6 +4170,11 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 external_vault_connector_details: self
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
+                merchant_category_code: self.merchant_category_code,
+                merchant_country_code: self.merchant_country_code,
+                revenue_recovery_retry_algorithm_type,
+                split_txns_enabled: self.split_txns_enabled,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }

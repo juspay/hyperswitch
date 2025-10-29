@@ -212,7 +212,7 @@ fn get_status(response_code: ForteResponseCode, action: ForteAction) -> enums::A
         ForteResponseCode::A01 => match action {
             ForteAction::Authorize => enums::AttemptStatus::Authorized,
             ForteAction::Sale => enums::AttemptStatus::Pending,
-            ForteAction::Verify => enums::AttemptStatus::Charged,
+            ForteAction::Verify | ForteAction::Capture => enums::AttemptStatus::Charged,
         },
         ForteResponseCode::A05 | ForteResponseCode::A06 => enums::AttemptStatus::Authorizing,
         _ => enums::AttemptStatus::Failure,
@@ -221,10 +221,10 @@ fn get_status(response_code: ForteResponseCode, action: ForteAction) -> enums::A
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardResponse {
-    pub name_on_card: Secret<String>,
+    pub name_on_card: Option<Secret<String>>,
     pub last_4_account_number: String,
     pub masked_account_number: String,
-    pub card_type: String,
+    pub card_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -266,6 +266,7 @@ pub enum ForteAction {
     Sale,
     Authorize,
     Verify,
+    Capture,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -316,19 +317,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsRespo
 }
 
 //PsyncResponse
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsSyncResponse {
     pub transaction_id: String,
+    pub organization_id: Secret<String>,
     pub location_id: Secret<String>,
+    pub original_transaction_id: Option<String>,
     pub status: FortePaymentStatus,
     pub action: ForteAction,
-    pub authorization_amount: Option<FloatMajorUnit>,
     pub authorization_code: String,
-    pub entered_by: String,
+    pub authorization_amount: Option<FloatMajorUnit>,
     pub billing_address: Option<BillingAddress>,
+    pub entered_by: String,
+    pub received_date: String,
+    pub origination_date: Option<String>,
     pub card: Option<CardResponse>,
+    pub attempt_number: i64,
     pub response: ResponseStatus,
+    pub links: ForteLink,
+    pub biller_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ForteLink {
+    pub disputes: String,
+    pub settlements: String,
+    #[serde(rename = "self")]
+    pub self_url: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>>

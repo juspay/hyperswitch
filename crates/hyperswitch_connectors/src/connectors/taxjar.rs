@@ -23,7 +23,8 @@ use hyperswitch_domain_models::{
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        TaxCalculationResponseData,
     },
     types::PaymentsTaxCalculationRouterData,
 };
@@ -147,6 +148,7 @@ impl ConnectorCommon for Taxjar {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -299,4 +301,23 @@ impl webhooks::IncomingWebhook for Taxjar {
     }
 }
 
-impl ConnectorSpecifications for Taxjar {}
+static TAXJAR_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Taxjar",
+    description: "TaxJar is a cloud-based platform that automates sales tax calculations, reporting, and filing for businesses across multiple channels",
+    connector_type: common_enums::HyperswitchConnectorCategory::TaxCalculationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Taxjar {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&TAXJAR_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

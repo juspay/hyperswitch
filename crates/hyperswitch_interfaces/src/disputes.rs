@@ -1,5 +1,6 @@
 //! Disputes interface
 use common_utils::types::StringMinorUnit;
+use hyperswitch_domain_models::router_response_types::DisputeSyncResponse;
 use time::PrimitiveDateTime;
 
 /// struct DisputePayload
@@ -25,4 +26,21 @@ pub struct DisputePayload {
     pub created_at: Option<PrimitiveDateTime>,
     /// updated_at
     pub updated_at: Option<PrimitiveDateTime>,
+}
+
+impl From<DisputeSyncResponse> for DisputePayload {
+    fn from(dispute_sync_data: DisputeSyncResponse) -> Self {
+        Self {
+            amount: dispute_sync_data.amount,
+            currency: dispute_sync_data.currency,
+            dispute_stage: dispute_sync_data.dispute_stage,
+            connector_status: dispute_sync_data.connector_status,
+            connector_dispute_id: dispute_sync_data.connector_dispute_id,
+            connector_reason: dispute_sync_data.connector_reason,
+            connector_reason_code: dispute_sync_data.connector_reason_code,
+            challenge_required_by: dispute_sync_data.challenge_required_by,
+            created_at: dispute_sync_data.created_at,
+            updated_at: dispute_sync_data.updated_at,
+        }
+    }
 }

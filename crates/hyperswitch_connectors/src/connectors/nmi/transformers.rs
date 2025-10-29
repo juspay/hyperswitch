@@ -1,8 +1,6 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
-use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, RefundStatus,
-};
+use common_enums::{AttemptStatus, AuthenticationType, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -242,6 +240,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 AttemptStatus::Failure,
             ),
@@ -351,6 +350,7 @@ pub struct NmiCompleteResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
+    customer_vault_id: Option<Secret<String>>,
 }
 
 impl
@@ -377,17 +377,27 @@ impl
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transactionid),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                if let Some(CaptureMethod::Automatic) = item.data.request.capture_method {
-                    AttemptStatus::CaptureInitiated
+                if item.data.request.is_auto_capture()? {
+                    AttemptStatus::Charged
                 } else {
-                    AttemptStatus::Authorizing
+                    AttemptStatus::Authorized
                 },
             ),
             Response::Declined | Response::Error => (
@@ -414,7 +424,20 @@ fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> Erro
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct NmiValidateRequest {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+    security_key: Secret<String>,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    cvv: Secret<String>,
+    orderid: String,
+    customer_vault: CustomerAction,
 }
 
 #[derive(Debug, Serialize)]
@@ -429,6 +452,8 @@ pub struct NmiPaymentsRequest {
     #[serde(flatten)]
     merchant_defined_field: Option<NmiMerchantDefinedField>,
     orderid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_vault: Option<CustomerAction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -462,6 +487,12 @@ pub enum PaymentMethod {
     CardThreeDs(Box<CardThreeDsData>),
     GPay(Box<GooglePayData>),
     ApplePay(Box<ApplePayData>),
+    MandatePayment(Box<MandatePayment>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct MandatePayment {
+    customer_vault_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -503,25 +534,70 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
         };
         let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         let amount = item.amount;
-        let payment_method = PaymentMethod::try_from((
-            &item.router_data.request.payment_method_data,
-            Some(item.router_data),
-        ))?;
 
-        Ok(Self {
-            transaction_type,
-            security_key: auth_type.api_key,
-            amount,
-            currency: item.router_data.request.currency,
-            payment_method,
-            merchant_defined_field: item
-                .router_data
-                .request
-                .metadata
-                .as_ref()
-                .map(NmiMerchantDefinedField::new),
-            orderid: item.router_data.connector_request_reference_id.clone(),
-        })
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+        {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_id,
+            )) => Ok(Self {
+                transaction_type,
+                security_key: auth_type.api_key,
+                amount,
+                currency: item.router_data.request.currency,
+                payment_method: PaymentMethod::MandatePayment(Box::new(MandatePayment {
+                    customer_vault_id: Secret::new(
+                        connector_mandate_id
+                            .get_connector_mandate_id()
+                            .ok_or(ConnectorError::MissingConnectorMandateID)?,
+                    ),
+                })),
+                merchant_defined_field: item
+                    .router_data
+                    .request
+                    .metadata
+                    .as_ref()
+                    .map(NmiMerchantDefinedField::new),
+                orderid: item.router_data.connector_request_reference_id.clone(),
+                customer_vault: None,
+            }),
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("nmi"),
+                ))?
+            }
+            None => {
+                let payment_method = PaymentMethod::try_from((
+                    &item.router_data.request.payment_method_data,
+                    Some(item.router_data),
+                ))?;
+
+                Ok(Self {
+                    transaction_type,
+                    security_key: auth_type.api_key,
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method,
+                    merchant_defined_field: item
+                        .router_data
+                        .request
+                        .metadata
+                        .as_ref()
+                        .map(NmiMerchantDefinedField::new),
+                    orderid: item.router_data.connector_request_reference_id.clone(),
+                    customer_vault: item
+                        .router_data
+                        .request
+                        .is_mandate_payment()
+                        .then_some(CustomerAction::AddCustomer),
+                })
+            }
+        }
     }
 }
 
@@ -540,12 +616,15 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 None => Ok(Self::try_from(card)?),
             },
             PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
-                WalletData::ApplePay(ref applepay_data) => Ok(Self::from(applepay_data)),
+                WalletData::GooglePay(ref googlepay_data) => Ok(Self::try_from(googlepay_data)?),
+                WalletData::ApplePay(ref applepay_data) => Ok(Self::try_from(applepay_data)?),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -561,6 +640,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -641,38 +721,71 @@ impl TryFrom<&Card> for PaymentMethod {
     }
 }
 
-impl From<&GooglePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &GooglePayWalletData) -> Self {
+impl TryFrom<&GooglePayWalletData> for PaymentMethod {
+    type Error = Report<ConnectorError>;
+    fn try_from(wallet_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
         let gpay_data = GooglePayData {
-            googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
+            googlepay_payment_data: Secret::new(
+                wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                    })?
+                    .clone(),
+            ),
         };
-        Self::GPay(Box::new(gpay_data))
+        Ok(Self::GPay(Box::new(gpay_data)))
     }
 }
 
-impl From<&ApplePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &ApplePayWalletData) -> Self {
+impl TryFrom<&ApplePayWalletData> for PaymentMethod {
+    type Error = Error;
+    fn try_from(apple_pay_wallet_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        let apple_pay_encrypted_data = apple_pay_wallet_data
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
+
         let apple_pay_data = ApplePayData {
-            applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
+            applepay_payment_data: Secret::new(apple_pay_encrypted_data.clone()),
         };
-        Self::ApplePay(Box::new(apple_pay_data))
+        Ok(Self::ApplePay(Box::new(apple_pay_data)))
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for NmiPaymentsRequest {
+impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let payment_method = PaymentMethod::try_from((&item.request.payment_method_data, None))?;
-        Ok(Self {
-            transaction_type: TransactionType::Validate,
-            security_key: auth_type.api_key,
-            amount: FloatMajorUnit::zero(),
-            currency: item.request.currency,
-            payment_method,
-            merchant_defined_field: None,
-            orderid: item.connector_request_reference_id.clone(),
-        })
+        match item.request.amount {
+            Some(amount) if amount > 0 => Err(ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "NMI".to_string(),
+            }
+            .into()),
+            _ => {
+                if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
+                    let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+                    Ok(Self {
+                        transaction_type: TransactionType::Validate,
+                        security_key: auth_type.api_key,
+                        ccnumber: card_details.card_number.clone(),
+                        ccexp: card_details
+                            .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                        cvv: card_details.card_cvc.clone(),
+                        orderid: item.connector_request_reference_id.clone(),
+                        customer_vault: CustomerAction::AddCustomer,
+                    })
+                } else {
+                    Err(ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("Nmi"),
+                    )
+                    .into())
+                }
+            }
+        }
     }
 }
 
@@ -743,7 +856,7 @@ impl
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                AttemptStatus::CaptureInitiated,
+                AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
                 Err(get_standard_error_response(item.response, item.http_code)),
@@ -784,10 +897,10 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         match &item.request.cancellation_reason {
             Some(cancellation_reason) => {
-                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{}\"", cancellation_reason))
+                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{cancellation_reason}\"", ))
                     .map_err(|_| ConnectorError::NotSupported {
-                        message: format!("Json deserialise error: unknown variant `{}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason", cancellation_reason), 
-                        connector: "nmi" 
+                        message: format!("Json deserialise error: unknown variant `{cancellation_reason}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason"),
+                        connector: "nmi"
                     })?;
                 Ok(Self {
                     transaction_type: TransactionType::Void,
@@ -824,6 +937,7 @@ pub struct StandardResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
+    pub customer_vault_id: Option<Secret<String>>,
 }
 
 impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsResponseData>>
@@ -840,7 +954,17 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                         item.response.transactionid.clone(),
                     ),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -872,6 +996,7 @@ fn get_standard_error_response(response: StandardResponse, http_code: u16) -> Er
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -894,15 +1019,25 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                         item.response.transactionid.clone(),
                     ),
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: match item.response.customer_vault_id {
+                        Some(vault_id) => Box::new(Some(
+                            hyperswitch_domain_models::router_response_types::MandateReference {
+                                connector_mandate_id: Some(vault_id.expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
+                        None => Box::new(None),
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
-                if let Some(CaptureMethod::Automatic) = item.data.request.capture_method {
-                    AttemptStatus::CaptureInitiated
+                if item.data.request.is_auto_capture()? {
+                    AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
                 },
@@ -1091,7 +1226,7 @@ impl TryFrom<RefundsResponseRouterData<Capture, StandardResponse>> for RefundsRo
 impl From<Response> for RefundStatus {
     fn from(item: Response) -> Self {
         match item {
-            Response::Approved => Self::Pending,
+            Response::Approved => Self::Success,
             Response::Declined | Response::Error => Self::Failure,
         }
     }

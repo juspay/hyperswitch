@@ -281,6 +281,15 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::RefundWorkflowRouter => {
                     Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
                 }
+                storage::ProcessTrackerRunner::ProcessDisputeWorkflow => {
+                    Ok(Box::new(workflows::process_dispute::ProcessDisputeWorkflow))
+                }
+                storage::ProcessTrackerRunner::DisputeListWorkflow => {
+                    Ok(Box::new(workflows::dispute_list::DisputeListWorkflow))
+                }
+                storage::ProcessTrackerRunner::InvoiceSyncflow => {
+                    Ok(Box::new(workflows::invoice_sync::InvoiceSyncWorkflow))
+                }
                 storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow => Ok(Box::new(
                     workflows::tokenized_data::DeleteTokenizeDataWorkflow,
                 )),

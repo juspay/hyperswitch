@@ -1,17 +1,19 @@
 use api_models::payments;
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{
     consts, pii,
     types::{SemanticVersion, StringMajorUnit},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, BankDebitData, GooglePayWalletData, PaymentMethodData, WalletData,
     },
     router_data::{
-        AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData,
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         payments::Authorize,
@@ -38,7 +40,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
         RouterData as OtherRouterData,
     },
@@ -126,8 +128,12 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
                     Some(payment_method_token) => match payment_method_token {
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiration_month = decrypt_data.get_expiry_month()?;
-                            let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
+                            let expiration_month = decrypt_data.get_expiry_month().change_context(
+                                errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "expiration_month",
+                                },
+                            )?;
+                            let expiration_year = decrypt_data.get_four_digit_expiry_year();
                             (
                                 PaymentInformation::ApplePay(Box::new(
                                     ApplePayPaymentInformation {
@@ -157,27 +163,43 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                             Err(unimplemented_payment_method!("Google Pay", "Wellsfargo"))?
                         }
                     },
-                    None => (
-                        PaymentInformation::ApplePayToken(Box::new(
-                            ApplePayTokenPaymentInformation {
-                                fluid_data: FluidData {
-                                    value: Secret::from(apple_pay_data.payment_data),
-                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                    None => {
+                        let apple_pay_encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "Apple pay encrypted data",
+                            })?;
+                        (
+                            PaymentInformation::ApplePayToken(Box::new(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::ApplePay,
+                                    },
                                 },
-                                tokenized_card: ApplePayTokenizedCard {
-                                    transaction_type: TransactionType::ApplePay,
-                                },
-                            },
-                        )),
-                        Some(PaymentSolution::ApplePay),
-                    ),
+                            )),
+                            Some(PaymentSolution::ApplePay),
+                        )
+                    }
                 },
                 WalletData::GooglePay(google_pay_data) => (
                     PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                         fluid_data: FluidData {
                             value: Secret::from(
-                                consts::BASE64_ENGINE
-                                    .encode(google_pay_data.tokenization_data.token),
+                                consts::BASE64_ENGINE.encode(
+                                    google_pay_data
+                                        .tokenization_data
+                                        .get_encrypted_google_pay_token()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "gpay wallet_token",
+                                            },
+                                        )?,
+                                ),
                             ),
                             descriptor: None,
                         },
@@ -188,10 +210,13 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
@@ -203,6 +228,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -368,7 +394,7 @@ pub struct CardPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCard {
-    number: Secret<String>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Secret<String>,
@@ -988,8 +1014,12 @@ impl
             Some(apple_pay_wallet_data.payment_method.network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
-        let expiration_month = apple_pay_data.get_expiry_month()?;
-        let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
+        let expiration_month = apple_pay_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
         let payment_information =
             PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
                 tokenized_card: TokenizedCard {
@@ -1056,7 +1086,14 @@ impl
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 fluid_data: FluidData {
                     value: Secret::from(
-                        consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
+                        consts::BASE64_ENGINE.encode(
+                            google_pay_data
+                                .tokenization_data
+                                .get_encrypted_google_pay_token()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay wallet_token",
+                                })?,
+                        ),
                     ),
                     descriptor: None,
                 },
@@ -1133,9 +1170,12 @@ impl
             ))),
             BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
-            | BankDebitData::BecsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
-            )),
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
+                ))
+            }
         }?;
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
@@ -1198,10 +1238,21 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                                         ))?;
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
+
+                                    let apple_pay_encrypted_data = apple_pay_data
+                                        .payment_data
+                                        .get_encrypted_apple_pay_payment_data_mandatory()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "Apple pay encrypted data",
+                                            },
+                                        )?;
                                     let payment_information = PaymentInformation::ApplePayToken(
                                         Box::new(ApplePayTokenPaymentInformation {
                                             fluid_data: FluidData {
-                                                value: Secret::from(apple_pay_data.payment_data),
+                                                value: Secret::from(
+                                                    apple_pay_encrypted_data.to_string(),
+                                                ),
                                                 descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                             },
                                             tokenized_card: ApplePayTokenizedCard {
@@ -1251,10 +1302,13 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
                         | WalletData::AmazonPayRedirect(_)
+                        | WalletData::Paysera(_)
+                        | WalletData::Skrill(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
                         | WalletData::GcashRedirect(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::ApplePayRedirect(_)
                         | WalletData::ApplePayThirdPartySdk(_)
                         | WalletData::DanaRedirect {}
@@ -1266,6 +1320,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::PaypalSdk(_)
                         | WalletData::Paze(_)
                         | WalletData::SamsungPay(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::TouchNGoRedirect(_)
@@ -2386,6 +2441,7 @@ pub fn get_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 pub fn get_error_reason(
@@ -2395,18 +2451,16 @@ pub fn get_error_reason(
 ) -> Option<String> {
     match (error_info, detailed_error_info, avs_error_info) {
         (Some(message), Some(details), Some(avs_message)) => Some(format!(
-            "{}, detailed_error_information: {}, avs_message: {}",
-            message, details, avs_message
+            "{message}, detailed_error_information: {details}, avs_message: {avs_message}",
         )),
-        (Some(message), Some(details), None) => Some(format!(
-            "{}, detailed_error_information: {}",
-            message, details
-        )),
+        (Some(message), Some(details), None) => {
+            Some(format!("{message}, detailed_error_information: {details}"))
+        }
         (Some(message), None, Some(avs_message)) => {
-            Some(format!("{}, avs_message: {}", message, avs_message))
+            Some(format!("{message}, avs_message: {avs_message}"))
         }
         (None, Some(details), Some(avs_message)) => {
-            Some(format!("{}, avs_message: {}", details, avs_message))
+            Some(format!("{details}, avs_message: {avs_message}"))
         }
         (Some(message), None, None) => Some(message),
         (None, Some(details), None) => Some(details),

@@ -29,10 +29,13 @@ if (jsonData?.refund_id) {
   );
 }
 
-// Response body should have value "succeeded" for "status"
-pm.test("[POST]::/refunds - Content check if value for 'status' matches 'succeeded'", 
+// Response body should have value "failed" for "status" and error message should contain "[/refund/{{connector_transaction_id}}] Cannot find any remitted transaction with given order id"
+pm.test("[POST]::/refunds - Content check if value for 'status' matches 'failed'", 
 function () {
-    pm.expect(jsonData.status).to.eql("succeeded");
+    pm.expect(jsonData.status).to.eql("failed");
+    pm.expect(jsonData.error_message).to.include(
+      "[/refund/"
+    ) + pm.collectionVariables.get("connector_transaction_id") + "] Cannot find any remitted transaction with given order id";
 });
 
 // Response body should have value "500" for "amount"

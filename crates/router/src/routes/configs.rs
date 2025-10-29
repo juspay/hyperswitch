@@ -8,6 +8,11 @@ use crate::{
     types::api as api_types,
 };
 
+#[cfg(feature = "v1")]
+const ADMIN_API_AUTH: auth::AdminApiAuth = auth::AdminApiAuth;
+#[cfg(feature = "v2")]
+const ADMIN_API_AUTH: auth::V2AdminApiAuth = auth::V2AdminApiAuth;
+
 #[instrument(skip_all, fields(flow = ?Flow::CreateConfigKey))]
 pub async fn config_key_create(
     state: web::Data<AppState>,
@@ -23,7 +28,7 @@ pub async fn config_key_create(
         &req,
         payload,
         |state, _, data, _| configs::set_config(state, data),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -43,7 +48,7 @@ pub async fn config_key_retrieve(
         &req,
         &key,
         |state, _, key, _| configs::read_config(state, key),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -66,7 +71,7 @@ pub async fn config_key_update(
         &req,
         &payload,
         |state, _, payload, _| configs::update_config(state, payload),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -87,7 +92,7 @@ pub async fn config_key_delete(
         &req,
         key,
         |state, _, key, _| configs::config_delete(state, key),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     )
     .await

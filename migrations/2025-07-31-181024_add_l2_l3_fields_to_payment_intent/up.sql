@@ -1,0 +1,8 @@
+-- Your SQL goes here
+
+ALTER TABLE payment_intent
+ADD COLUMN IF NOT EXISTS tax_status VARCHAR ,
+ADD COLUMN IF NOT EXISTS discount_amount BIGINT,
+ADD COLUMN IF NOT EXISTS shipping_amount_tax BIGINT,
+ADD COLUMN IF NOT EXISTS duty_amount BIGINT,
+ADD COLUMN IF NOT EXISTS order_date TIMESTAMP;

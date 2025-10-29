@@ -22,7 +22,7 @@ pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
@@ -107,7 +107,7 @@ impl std::fmt::Display for AnalyticsProvider {
             Self::CombinedSqlx(_, _) => "CombinedSqlx",
         };
 
-        write!(f, "{}", analytics_provider)
+        write!(f, "{analytics_provider}")
     }
 }
 
@@ -912,7 +912,7 @@ impl AnalyticsProvider {
         &self,
         metric: &AuthEventMetrics,
         dimensions: &[AuthEventDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
@@ -921,20 +921,13 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
-                        merchant_id,
+                        auth,
                         dimensions,
                         filters,
                         granularity,
@@ -976,10 +969,7 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(
-        config: &AnalyticsConfig,
-        tenant: &dyn storage_impl::config::TenantConfig,
-    ) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant: &dyn TenantConfig) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx, .. } => {
                 Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)

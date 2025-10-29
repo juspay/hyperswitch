@@ -79,8 +79,10 @@ pub enum ApiErrorResponse {
     DuplicatePayment {
         payment_id: common_utils::id_type::PaymentId,
     },
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
-    DuplicatePayout { payout_id: String },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id:?}' already exists in our records")]
+    DuplicatePayout {
+        payout_id: common_utils::id_type::PayoutId,
+    },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
@@ -101,6 +103,11 @@ pub enum ApiErrorResponse {
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     ProfileNotFound { id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'.")]
+    ProfileAcquirerNotFound {
+        profile_acquirer_id: String,
+        profile_id: String,
+    },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
     PollNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
@@ -285,6 +292,15 @@ pub enum ApiErrorResponse {
     InvalidPlatformOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
     ExternalVaultFailed,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_46", message = "Field {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_47", message = "Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}")]
+    MaxFieldLengthViolated {
+        connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
+    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -303,6 +319,10 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Tokenization record not found for the given token_id {id}")]
+    TokenizationRecordNotFound { id: String },
+    #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "Subscription operation: {operation} failed with connector")]
+    SubscriptionError { operation: String },
 }
 
 #[derive(Clone)]
@@ -376,7 +396,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             },
             Self::HealthCheckError { message,component } => {
-                AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
+                AER::InternalServerError(ApiError::new("HE",0,format!("{component} health check failed with error: {message}"),None))
             },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
@@ -389,7 +409,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id:?} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
+                AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id:?}' already exists in our records"), None))
             }
             Self::DuplicateConfig => {
                 AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
@@ -420,6 +440,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
+            }
+            Self::ProfileAcquirerNotFound { profile_acquirer_id, profile_id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'."), None))
             }
             Self::PollNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
@@ -643,7 +666,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExternalVaultFailed => {
                 AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
-
+            Self::MandatePaymentDataMismatch { fields} => {
+                AER::BadRequest(ApiError::new("IR", 46, format!("Field {fields} doesn't match with the ones used during mandate creation"), Some(Extra {fields: Some(fields.to_owned()), ..Default::default()}))) //FIXME: error message
+            }
+            Self::MaxFieldLengthViolated { connector, field_name,  max_length, received_length} => {
+                AER::BadRequest(ApiError::new("IR", 47, format!("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}"), Some(Extra {connector: Some(connector.to_string()), ..Default::default()})))
+            }
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }
@@ -669,7 +697,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             } => AER::InternalServerError(ApiError::new(
                 "IE",
                 0,
-                format!("{} as data mismatched for {}", reason, field_names),
+                format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
                     ..Default::default()
@@ -680,6 +708,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidPlatformOperation => {
                 AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
+            }
+            Self::TokenizationRecordNotFound{ id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Tokenization record not found for the given token_id '{id}' "), None))
+            }
+            Self::SubscriptionError { operation } => {
+                AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
         }
     }
@@ -710,6 +744,7 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }

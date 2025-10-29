@@ -9,18 +9,23 @@ use common_utils::{
     },
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_methods as payment_methods_domain;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
+        utils::{
+            self,
+            customer_validation::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT},
+        },
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -41,6 +46,7 @@ pub async fn create_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_data: customers::CustomerRequest,
+    connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -69,6 +75,7 @@ pub async fn create_customer(
 
     let domain_customer = customer_data
         .create_domain_model_from_request(
+            &connector_customer_details,
             db,
             &merchant_reference_id,
             &merchant_context,
@@ -94,6 +101,9 @@ pub async fn create_customer(
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -107,11 +117,14 @@ trait CustomerCreateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -151,6 +164,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: self.name.clone(),
                         email: self.email.clone().map(|a| a.expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -171,6 +185,17 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
+        let connector_customer = connector_customer_details.as_ref().map(|details_vec| {
+            let mut map = serde_json::Map::new();
+            for details in details_vec {
+                let merchant_connector_id =
+                    details.merchant_connector_id.get_string_repr().to_string();
+                let connector_customer_id = details.connector_customer_id.clone();
+                map.insert(merchant_connector_id, connector_customer_id.into());
+            }
+            pii::SecretSerdeValue::new(serde_json::Value::Object(map))
+        });
+
         Ok(domain::Customer {
             customer_id: merchant_reference_id
                 .to_owned()
@@ -188,13 +213,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            connector_customer: None,
+            connector_customer,
             address_id: address_from_db.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
             version: common_types::consts::API_VERSION,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -209,11 +235,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -263,6 +292,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                         name: Some(self.name.clone()),
                         email: Some(self.email.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -283,6 +313,19 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
+        let connector_customer = connector_customer_details.as_ref().map(|details_vec| {
+            let map: std::collections::HashMap<_, _> = details_vec
+                .iter()
+                .map(|details| {
+                    (
+                        details.merchant_connector_id.clone(),
+                        details.connector_customer_id.to_string(),
+                    )
+                })
+                .collect();
+            common_types::customers::ConnectorCustomerMap::new(map)
+        });
+
         Ok(domain::Customer {
             id: id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
             merchant_reference_id: merchant_reference_id.to_owned(),
@@ -299,7 +342,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            connector_customer: None,
+            connector_customer,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
@@ -308,6 +351,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         })
     }
 
@@ -321,7 +365,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
@@ -333,7 +377,7 @@ struct AddressStructForDbEntry<'a> {
     state: &'a SessionState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl AddressStructForDbEntry<'_> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
@@ -379,7 +423,7 @@ struct MerchantReferenceIdForCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl<'a> MerchantReferenceIdForCustomer<'a> {
     async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
         &self,
@@ -423,7 +467,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl<'a> MerchantReferenceIdForCustomer<'a> {
     async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
         &self,
@@ -470,7 +514,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2",), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -510,7 +554,7 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -524,7 +568,6 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -551,6 +594,8 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -563,13 +608,13 @@ pub async fn list_customers(
         .await
         .switch()?;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     let customers = domain_customers
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
         .collect();
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     let customers = domain_customers
         .into_iter()
         .map(customers::CustomerResponse::foreign_from)
@@ -578,11 +623,62 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[instrument(skip(state))]
+pub async fn list_customers_with_count(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
+    key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequestWithConstraints,
+) -> errors::CustomerResponse<customers::CustomerListResponse> {
+    let db = state.store.as_ref();
+    let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
+        .change_context(errors::CustomersErrorResponse::InvalidRequestData {
+            message: format!(
+            "limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
+        ),
+        })?;
+
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request.limit.unwrap_or(limit),
+        offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: request.time_range,
+    };
+
+    let domain_customers = db
+        .list_customers_by_merchant_id_with_count(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
+        .await
+        .switch()?;
+
+    #[cfg(feature = "v1")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(feature = "v2")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            total_count: domain_customers.1,
+        },
+    ))
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -600,11 +696,7 @@ pub async fn delete_customer(
     .await
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -618,7 +710,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_customer_by_global_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
             )
@@ -724,13 +815,13 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_shipping_address: None,
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
+                tax_registration_id: Some(redacted_encrypted_value),
             }));
 
         db.update_customer_by_global_id(
             key_manager_state,
             self,
             customer_orig,
-            merchant_context.get_merchant_account().get_id(),
             updated_customer,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -761,11 +852,7 @@ trait CustomerDeleteBridge {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -784,11 +871,7 @@ pub async fn delete_customer(
         .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::CustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -938,6 +1021,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 .storage_scheme
                 .to_string(),
             email: Some(redacted_encrypted_email),
+            origin_zip: Some(redacted_encrypted_value.clone()),
         };
 
         match db
@@ -979,9 +1063,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             phone: Box::new(Some(redacted_encrypted_value.clone())),
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
-            metadata: None,
+            metadata: Box::new(None),
             connector_customer: Box::new(None),
             address_id: None,
+            tax_registration_id: Some(redacted_encrypted_value.clone()),
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1017,7 +1102,7 @@ pub async fn update_customer(
     let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: &update_customer.customer_id,
         merchant_account: merchant_context.get_merchant_account(),
@@ -1025,7 +1110,7 @@ pub async fn update_customer(
         key_manager_state,
     };
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         id: &update_customer.id,
         merchant_account: merchant_context.get_merchant_account(),
@@ -1040,6 +1125,7 @@ pub async fn update_customer(
     let updated_customer = update_customer
         .request
         .create_domain_model_from_request(
+            &None,
             db,
             &merchant_context,
             key_manager_state,
@@ -1055,6 +1141,9 @@ pub async fn update_customer(
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1068,7 +1157,7 @@ trait CustomerUpdateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 struct AddressStructForDbUpdate<'a> {
     update_customer: &'a customers::CustomerUpdateRequest,
     merchant_account: &'a domain::MerchantAccount,
@@ -1078,7 +1167,7 @@ struct AddressStructForDbUpdate<'a> {
     domain_customer: &'a domain::Customer,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl AddressStructForDbUpdate<'_> {
     async fn update_address_if_sent(
         &self,
@@ -1162,7 +1251,7 @@ impl AddressStructForDbUpdate<'_> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug)]
 struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: &'a id_type::CustomerId,
@@ -1171,7 +1260,7 @@ struct VerifyIdForUpdateCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 struct VerifyIdForUpdateCustomer<'a> {
     id: &'a id_type::GlobalCustomerId,
@@ -1180,7 +1269,7 @@ struct VerifyIdForUpdateCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
@@ -1201,7 +1290,7 @@ impl VerifyIdForUpdateCustomer<'_> {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
@@ -1211,7 +1300,6 @@ impl VerifyIdForUpdateCustomer<'_> {
             .find_customer_by_global_id(
                 self.key_manager_state,
                 self.id,
-                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -1222,11 +1310,14 @@ impl VerifyIdForUpdateCustomer<'_> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        _connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1264,6 +1355,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1300,8 +1392,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     }),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
-                    metadata: self.metadata.clone(),
+                    metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
@@ -1326,11 +1419,14 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1383,6 +1479,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                             .as_ref()
                             .map(|a| a.clone().expose().switch_strategy()),
                         phone: self.phone.clone(),
+                        tax_registration_id: self.tax_registration_id.clone(),
                     },
                 ),
             ),
@@ -1407,7 +1504,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
-                merchant_context.get_merchant_account().get_id(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
@@ -1419,6 +1515,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                         encryptable
                     })),
                     phone: Box::new(encryptable_customer.phone),
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),
@@ -1448,11 +1545,18 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
 pub async fn migrate_customers(
     state: SessionState,
-    customers: Vec<customers::CustomerRequest>,
+    customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     merchant_context: domain::MerchantContext,
 ) -> errors::CustomerResponse<()> {
-    for customer in customers {
-        match create_customer(state.clone(), merchant_context.clone(), customer).await {
+    for customer_migration in customers_migration {
+        match create_customer(
+            state.clone(),
+            merchant_context.clone(),
+            customer_migration.customer,
+            customer_migration.connector_customer_details,
+        )
+        .await
+        {
             Ok(_) => (),
             Err(e) => match e.current_context() {
                 errors::CustomersErrorResponse::CustomerAlreadyExists => (),

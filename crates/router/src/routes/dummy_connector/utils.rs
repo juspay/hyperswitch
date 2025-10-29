@@ -11,7 +11,10 @@ use super::{
     consts, errors,
     types::{self, GetPaymentMethodDetails},
 };
-use crate::{configs::settings, routes::SessionState};
+use crate::{
+    configs::settings,
+    routes::{dummy_connector::types::DummyConnectors, SessionState},
+};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -219,7 +222,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
         payment_attempt: types::DummyConnectorPaymentAttempt,
         redirect_url: String,
     ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-        match self.get_flow_from_card_number()? {
+        match self.get_flow_from_card_number(payment_attempt.payment_request.connector.clone())? {
             types::DummyConnectorCardFlow::NoThreeDS(status, error) => {
                 if let Some(error) = error {
                     Err(error)?;
@@ -291,6 +294,7 @@ impl types::DummyConnectorUpiCollect {
 impl types::DummyConnectorCard {
     pub fn get_flow_from_card_number(
         self,
+        connector: DummyConnectors,
     ) -> types::DummyConnectorResult<types::DummyConnectorCardFlow> {
         let card_number = self.number.peek();
         match card_number.as_str() {
@@ -309,12 +313,21 @@ impl types::DummyConnectorCard {
                     }),
                 ))
             }
-            "4000000000009995" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
-                types::DummyConnectorStatus::Failed,
-                Some(errors::DummyConnectorErrors::PaymentDeclined {
-                    message: "Insufficient funds",
-                }),
-            )),
+            "4000000000009995" => {
+                if connector == DummyConnectors::StripeTest {
+                    Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                        types::DummyConnectorStatus::Succeeded,
+                        None,
+                    ))
+                } else {
+                    Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                        types::DummyConnectorStatus::Failed,
+                        Some(errors::DummyConnectorErrors::PaymentDeclined {
+                            message: "Internal Server Error from Connector, Please try again later",
+                        }),
+                    ))
+                }
+            }
             "4000000000009987" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
                 types::DummyConnectorStatus::Failed,
                 Some(errors::DummyConnectorErrors::PaymentDeclined {

@@ -1,6 +1,6 @@
 use api_models::analytics::{payments::PaymentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums::{AttemptStatus, AuthenticationType, Currency};
+use diesel_models::enums::{AttemptStatus, AuthenticationType, Currency, RoutingApproach};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -65,4 +65,8 @@ pub struct PaymentFilterRow {
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
     pub first_attempt: Option<bool>,
+    pub routing_approach: Option<DBEnumWrapper<RoutingApproach>>,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
+    pub is_debit_routed: Option<bool>,
 }

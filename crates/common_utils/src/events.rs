@@ -12,7 +12,7 @@ pub trait ApiEventMetric {
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
     Payout {
-        payout_id: String,
+        payout_id: id_type::PayoutId,
     },
     #[cfg(feature = "v1")]
     Payment {
@@ -44,13 +44,13 @@ pub enum ApiEventsType {
         payment_method_type: Option<common_enums::PaymentMethod>,
         payment_method_subtype: Option<common_enums::PaymentMethodType>,
     },
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     PaymentMethodCreate,
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     Customer {
         customer_id: Option<id_type::GlobalCustomerId>,
     },
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     Customer {
         customer_id: id_type::CustomerId,
     },
@@ -75,12 +75,18 @@ pub enum ApiEventsType {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
     },
+    #[cfg(feature = "v1")]
+    NetworkTokenWebhook {
+        payment_method_id: Option<String>,
+    },
     #[cfg(feature = "v2")]
     Webhooks {
         connector: id_type::MerchantConnectorAccountId,
         payment_id: Option<id_type::GlobalPaymentId>,
     },
     Routing,
+    Subscription,
+    Invoice,
     ResourceListAPI,
     #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
@@ -126,7 +132,14 @@ pub enum ApiEventsType {
         token_id: Option<id_type::GlobalTokenId>,
     },
     ProcessTracker,
+    Authentication {
+        authentication_id: id_type::AuthenticationId,
+    },
+    ProfileAcquirer {
+        profile_acquirer_id: id_type::ProfileAcquirerId,
+    },
     ThreeDsDecisionRule,
+    Chat,
 }
 
 impl ApiEventMetric for serde_json::Value {}

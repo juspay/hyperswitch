@@ -8,7 +8,7 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::customers, domain},
 };
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
     state: web::Data<AppState>,
@@ -25,7 +25,7 @@ pub async fn customers_create(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            create_customer(state, merchant_context, req)
+            create_customer(state, merchant_context, req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -41,7 +41,7 @@ pub async fn customers_create(
     ))
     .await
 }
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
     state: web::Data<AppState>,
@@ -58,7 +58,7 @@ pub async fn customers_create(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            create_customer(state, merchant_context, req)
+            create_customer(state, merchant_context, req, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -75,7 +75,7 @@ pub async fn customers_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
@@ -115,7 +115,7 @@ pub async fn customers_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
@@ -162,7 +162,7 @@ pub async fn customers_retrieve(
     ))
     .await
 }
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(
     state: web::Data<AppState>,
@@ -200,7 +200,7 @@ pub async fn customers_list(
     ))
     .await
 }
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(
     state: web::Data<AppState>,
@@ -239,7 +239,84 @@ pub async fn customers_list(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
+pub async fn customers_list_with_count(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequestWithConstraints>,
+) -> HttpResponse {
+    let flow = Flow::CustomersListWithConstraints;
+    let payload = query.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| {
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersListWithConstraints))]
+pub async fn customers_list_with_count(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequestWithConstraints>,
+) -> HttpResponse {
+    let flow = Flow::CustomersListWithConstraints;
+    let payload = query.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| {
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
     state: web::Data<AppState>,
@@ -281,7 +358,7 @@ pub async fn customers_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
     state: web::Data<AppState>,
@@ -320,7 +397,7 @@ pub async fn customers_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
@@ -356,7 +433,7 @@ pub async fn customers_delete(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
@@ -392,7 +469,7 @@ pub async fn customers_delete(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,

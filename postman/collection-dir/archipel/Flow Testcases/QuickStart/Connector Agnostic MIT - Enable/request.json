@@ -1,0 +1,76 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    },
+    {
+      "key": "x-merchant-id",
+      "value": "{{merchant_id}}"
+    },
+    {
+      "key": "x-profile-id",
+      "value": "{{profile_id}}"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "is_connector_agnostic_mit_enabled": true
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/account/:account_id/business_profile/:profile_id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "business_profile",
+      ":profile_id"
+    ],
+    "variable": [
+      {
+        "key": "account_id",
+        "value": "{{merchant_id}}",
+        "description": "(Required) The unique identifier for the merchant account"
+      },
+      {
+        "key": "profile_id",
+        "value": "{{profile_id}}",
+        "description": "(Required) The unique identifier for the business profile"
+      }
+    ]
+  }
+}

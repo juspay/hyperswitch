@@ -15,6 +15,7 @@ use crate::{
 
 mod avg_ticket_size;
 mod connector_success_rate;
+mod debit_routing;
 mod payment_count;
 mod payment_processed_amount;
 mod payment_success_count;
@@ -24,6 +25,7 @@ mod success_rate;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
+use debit_routing::DebitRouting;
 use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
@@ -50,6 +52,10 @@ pub struct PaymentMetricRow {
     pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
+    pub routing_approach: Option<DBEnumWrapper<storage_enums::RoutingApproach>>,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
+    pub is_debit_routed: Option<bool>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -129,6 +135,11 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::DebitRouting => {
+                DebitRouting
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
             Self::SessionizedPaymentSuccessRate => {
                 sessionized_metrics::PaymentSuccessRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
@@ -171,6 +182,11 @@ where
             }
             Self::FailureReasons => {
                 sessionized_metrics::FailureReasons
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedDebitRouting => {
+                sessionized_metrics::DebitRouting
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

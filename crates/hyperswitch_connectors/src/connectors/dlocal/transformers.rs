@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method};
+use common_utils::{pii::Email, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api::CurrencyUnit, errors};
+use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -60,16 +60,14 @@ pub enum PaymentMethodFlow {
 
 #[derive(Debug, Serialize)]
 pub struct DlocalRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for DlocalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (&CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -79,7 +77,7 @@ impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub country: String,
     pub payment_method_id: PaymentMethodId,

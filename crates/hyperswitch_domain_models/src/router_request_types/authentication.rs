@@ -13,6 +13,7 @@ use crate::{
 pub struct ChallengeParams {
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
@@ -36,6 +37,13 @@ impl AuthNFlowType {
     pub fn get_challenge_request(&self) -> Option<String> {
         if let Self::Challenge(challenge_params) = self {
             challenge_params.challenge_request.clone()
+        } else {
+            None
+        }
+    }
+    pub fn get_challenge_request_key(&self) -> Option<String> {
+        if let Self::Challenge(challenge_params) = self {
+            challenge_params.challenge_request_key.clone()
         } else {
             None
         }
@@ -67,6 +75,15 @@ impl AuthNFlowType {
             Self::Frictionless => common_enums::DecoupledAuthenticationType::Frictionless,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageExtensionAttribute {
+    pub id: String,
+    pub name: String,
+    pub criticality_indicator: bool,
+    pub data: serde_json::Value,
 }
 
 #[derive(Clone, Default, Debug)]

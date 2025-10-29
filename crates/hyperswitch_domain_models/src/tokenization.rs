@@ -1,16 +1,12 @@
 use common_enums;
 use common_utils::{
-    self,
+    self, date_time,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
-    types::{keymanager, MinorUnit},
+    types::keymanager,
 };
-use diesel_models::tokenization;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-
-use crate::{merchant_key_store::MerchantKeyStore, types};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -23,6 +19,12 @@ pub struct Tokenization {
     pub updated_at: PrimitiveDateTime,
     pub flag: common_enums::TokenizationFlag,
     pub version: common_enums::ApiVersion,
+}
+
+impl Tokenization {
+    pub fn is_disabled(&self) -> bool {
+        self.flag == common_enums::TokenizationFlag::Disabled
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -52,6 +54,14 @@ impl From<Tokenization> for TokenizationResponse {
             flag: value.flag,
         }
     }
+}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum TokenizationUpdate {
+    DeleteTokenizationRecordUpdate {
+        flag: Option<common_enums::enums::TokenizationFlag>,
+    },
 }
 
 #[async_trait::async_trait]
@@ -101,5 +111,17 @@ impl super::behaviour::Conversion for Tokenization {
             version: self.version,
             flag: self.flag,
         })
+    }
+}
+
+impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdateInternal {
+    fn from(value: TokenizationUpdate) -> Self {
+        let now = date_time::now();
+        match value {
+            TokenizationUpdate::DeleteTokenizationRecordUpdate { flag } => Self {
+                updated_at: now,
+                flag,
+            },
+        }
     }
 }

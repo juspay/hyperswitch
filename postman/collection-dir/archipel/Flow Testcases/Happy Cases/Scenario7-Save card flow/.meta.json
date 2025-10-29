@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Payments - Retrieve",
+    "List payment methods for a Customer",
+    "Save card payments - Create",
+    "Save card payments - Confirm",
+    "Save card payments - Retrieve"
+  ]
+}

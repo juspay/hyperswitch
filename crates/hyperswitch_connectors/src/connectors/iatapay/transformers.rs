@@ -150,7 +150,7 @@ impl
                     }),
                     None,
                 ),
-                UpiData::UpiIntent(_) => (
+                UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (
                     common_enums::CountryAlpha2::IN,
                     None,
                     Some(PreferredCheckoutMethod::Qr),
@@ -223,7 +223,7 @@ impl
             amount: item.amount,
             currency: item.router_data.request.currency,
             country,
-            locale: format!("en-{}", country),
+            locale: format!("en-{country}"),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
             notification_url: item.router_data.request.get_webhook_url()?,
@@ -346,6 +346,7 @@ fn get_iatpay_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -533,6 +534,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -572,6 +574,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {

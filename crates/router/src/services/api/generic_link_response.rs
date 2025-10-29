@@ -64,13 +64,13 @@ fn build_html_template(
     // Insert dynamic context in CSS
     let css_dynamic_context = "{{ color_scheme }}";
     let css_template = styles.to_string();
-    let final_css = format!("{}\n{}", css_dynamic_context, css_template);
+    let final_css = format!("{css_dynamic_context}\n{css_template}");
     let _ = tera.add_raw_template("document_styles", &final_css);
     context.insert("color_scheme", &link_data.css_data);
 
     let css_style_tag = tera
         .render("document_styles", &context)
-        .map(|css| format!("<style>{}</style>", css))
+        .map(|css| format!("<style>{css}</style>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render CSS template")?;
 
@@ -95,13 +95,13 @@ pub fn build_payout_link_html(
     let script = include_str!("../../core/generic_link/payout_link/initiate/script.js");
     let js_template = script.to_string();
     let js_dynamic_context = "{{ script_data }}";
-    let final_js = format!("{}\n{}", js_dynamic_context, js_template);
+    let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("document_scripts", &final_js);
     context.insert("script_data", &link_data.js_data);
     context::insert_locales_in_context_for_payout_link(&mut context, locale);
     let js_script_tag = tera
         .render("document_scripts", &context)
-        .map(|js| format!("<script>{}</script>", js))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render JS template")?;
     context.insert("js_script_tag", &js_script_tag);
@@ -134,12 +134,12 @@ pub fn build_pm_collect_link_html(
     let script = include_str!("../../core/generic_link/payment_method_collect/initiate/script.js");
     let js_template = script.to_string();
     let js_dynamic_context = "{{ script_data }}";
-    let final_js = format!("{}\n{}", js_dynamic_context, js_template);
+    let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("document_scripts", &final_js);
     context.insert("script_data", &link_data.js_data);
     let js_script_tag = tera
         .render("document_scripts", &context)
-        .map(|js| format!("<script>{}</script>", js))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render JS template")?;
     context.insert("js_script_tag", &js_script_tag);
@@ -168,13 +168,13 @@ pub fn build_payout_link_status_html(
     let css_dynamic_context = "{{ color_scheme }}";
     let css_template =
         include_str!("../../core/generic_link/payout_link/status/styles.css").to_string();
-    let final_css = format!("{}\n{}", css_dynamic_context, css_template);
+    let final_css = format!("{css_dynamic_context}\n{css_template}");
     let _ = tera.add_raw_template("payout_link_status_styles", &final_css);
     context.insert("color_scheme", &link_data.css_data);
 
     let css_style_tag = tera
         .render("payout_link_status_styles", &context)
-        .map(|css| format!("<style>{}</style>", css))
+        .map(|css| format!("<style>{css}</style>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payout link status CSS template")?;
 
@@ -182,13 +182,13 @@ pub fn build_payout_link_status_html(
     let js_dynamic_context = "{{ script_data }}";
     let js_template =
         include_str!("../../core/generic_link/payout_link/status/script.js").to_string();
-    let final_js = format!("{}\n{}", js_dynamic_context, js_template);
+    let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("payout_link_status_script", &final_js);
     context.insert("script_data", &link_data.js_data);
     context::insert_locales_in_context_for_payout_link_status(&mut context, locale);
     let js_script_tag = tera
         .render("payout_link_status_script", &context)
-        .map(|js| format!("<script>{}</script>", js))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payout link status JS template")?;
 
@@ -215,13 +215,13 @@ pub fn build_pm_collect_link_status_html(
     let css_template =
         include_str!("../../core/generic_link/payment_method_collect/status/styles.css")
             .to_string();
-    let final_css = format!("{}\n{}", css_dynamic_context, css_template);
+    let final_css = format!("{css_dynamic_context}\n{css_template}");
     let _ = tera.add_raw_template("pm_collect_link_status_styles", &final_css);
     context.insert("color_scheme", &link_data.css_data);
 
     let css_style_tag = tera
         .render("pm_collect_link_status_styles", &context)
-        .map(|css| format!("<style>{}</style>", css))
+        .map(|css| format!("<style>{css}</style>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payment method collect link status CSS template")?;
 
@@ -229,13 +229,13 @@ pub fn build_pm_collect_link_status_html(
     let js_dynamic_context = "{{ collect_link_status_context }}";
     let js_template =
         include_str!("../../core/generic_link/payment_method_collect/status/script.js").to_string();
-    let final_js = format!("{}\n{}", js_dynamic_context, js_template);
+    let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("pm_collect_link_status_script", &final_js);
     context.insert("collect_link_status_context", &link_data.js_data);
 
     let js_script_tag = tera
         .render("pm_collect_link_status_script", &context)
-        .map(|js| format!("<script>{}</script>", js))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payment method collect link status JS template")?;
 

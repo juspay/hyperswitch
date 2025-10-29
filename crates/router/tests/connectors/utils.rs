@@ -1,11 +1,10 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use common_utils::pii::Email;
+use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
+use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
 use masking::Secret;
-#[cfg(feature = "payouts")]
-use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -119,7 +118,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::ConnectorCustomerData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
-        let integration = self.get_data().connector.get_connector_integration();
+        let integration: BoxedConnectorIntegrationInterface<_, PaymentFlowData, _, _> =
+            self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::ConnectorCustomerData {
                 ..(payment_data.unwrap_or(CustomerType::default().0))
@@ -454,8 +454,7 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
-                payout_id: core_utils::get_or_generate_uuid("payout_id", None)
-                    .map_or("payout_3154763247".to_string(), |p| p),
+                payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,
@@ -473,10 +472,14 @@ pub trait ConnectorActions: Connector {
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
+                    tax_registration_id: Some("1232343243".to_string().into()),
                 }),
                 vendor_details: None,
                 priority: None,
                 connector_transfer_method_id: None,
+                webhook_url: None,
+                browser_info: None,
+                payout_connector_metadata: None,
             },
             payment_info,
         )
@@ -508,6 +511,7 @@ pub trait ConnectorActions: Connector {
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
             payment_method: enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             payment_method_status: None,
@@ -556,7 +560,11 @@ pub trait ConnectorActions: Connector {
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
             authentication_id: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
         }
     }
 
@@ -572,13 +580,14 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -997,6 +1006,13 @@ impl Default for PaymentAuthorizeType {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: None,
+            order_id: None,
+            locale: None,
+            payment_channel: None,
+            enable_partial_authorization: None,
+            enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
         };
         Self(data)
     }
@@ -1041,6 +1057,7 @@ impl Default for BrowserInfoType {
             os_type: Some("IOS or ANDROID".to_string()),
             os_version: Some("IOS 14.5".to_string()),
             accept_language: Some("en".to_string()),
+            referer: None,
         };
         Self(data)
     }
@@ -1108,6 +1125,10 @@ impl Default for CustomerType {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            customer_acceptance: None,
+            setup_future_usage: None,
+            customer_id: None,
+            billing_address: None,
         };
         Self(data)
     }
@@ -1121,6 +1142,10 @@ impl Default for TokenType {
             amount: Some(100),
             currency: enums::Currency::USD,
             split_payments: None,
+            mandate_id: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
         };
         Self(data)
     }
@@ -1138,12 +1163,13 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
         Err(_) => None,
     }
 }

@@ -1,3 +1,9 @@
+#[cfg(feature = "payouts")]
+mod payout_requests;
+#[cfg(feature = "payouts")]
+mod payout_response;
+#[cfg(feature = "payouts")]
+pub mod payout_transformers;
 mod requests;
 mod response;
 pub mod transformers;
@@ -38,6 +44,11 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
@@ -50,6 +61,10 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Mask;
+#[cfg(feature = "payouts")]
+use payout_requests::WorldpayPayoutRequest;
+#[cfg(feature = "payouts")]
+use payout_response::WorldpayPayoutResponse;
 use requests::{
     WorldpayCompleteAuthorizationRequest, WorldpayPartialRequest, WorldpayPaymentsRequest,
 };
@@ -60,6 +75,8 @@ use response::{
 };
 use ring::hmac;
 
+#[cfg(feature = "payouts")]
+use self::payout_transformers as worldpay_payout;
 use self::transformers as worldpay;
 use crate::{
     constants::headers,
@@ -69,6 +86,9 @@ use crate::{
         PaymentMethodDataType, RefundsRequestData,
     },
 };
+
+#[cfg(feature = "payouts")]
+const WORLDPAY_PAYOUT_CONTENT_TYPE: &str = "application/vnd.worldpay.payouts-v4+json";
 
 #[derive(Clone)]
 pub struct Worldpay {
@@ -164,6 +184,7 @@ impl ConnectorCommon for Worldpay {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -233,15 +254,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .set_body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -339,15 +357,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .build(),
         ))
     }
@@ -448,15 +463,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .build(),
         ))
     }
@@ -487,6 +499,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -588,8 +601,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -598,7 +609,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -716,8 +726,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -728,7 +736,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -813,7 +820,16 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
         let stage = match req.status {
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
-            _ => "3dsChallenges".to_string(),
+            enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
+            _ => {
+                return Err(
+                    errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                        "Invalid payment status for complete authorize: {:?}",
+                        req.status
+                    ))
+                    .into(),
+                );
+            }
         };
         Ok(format!(
             "{}api/payments/{connector_payment_id}/{stage}",
@@ -835,8 +851,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::PaymentsCompleteAuthorizeType::get_url(
@@ -845,7 +859,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
-            .add_ca_certificate_pem(auth.ca_certificate)
             .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
                 self, req, connectors,
             )?)
@@ -949,8 +962,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -958,7 +969,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .add_ca_certificate_pem(auth.ca_certificate)
             .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
@@ -1049,15 +1059,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpay 
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .add_ca_certificate_pem(auth.ca_certificate)
                 .build(),
         ))
     }
@@ -1081,6 +1088,124 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpay 
             }),
             ..data.clone()
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl api::Payouts for Worldpay {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Worldpay {}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Worldpay {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}payouts/basicDisbursement",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = worldpay_payout::WorldpayPayoutAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let headers = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.api_key.into_masked(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                WORLDPAY_PAYOUT_CONTENT_TYPE.to_string().into(),
+            ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                WORLDPAY_PAYOUT_CONTENT_TYPE.to_string().into(),
+            ),
+            (headers::WP_API_VERSION.to_string(), "2024-06-01".into()),
+        ];
+
+        Ok(headers)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = worldpay_payout::WorldpayPayoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.minor_amount,
+            req,
+        ))?;
+        let auth = worldpay_payout::WorldpayPayoutAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_req =
+            WorldpayPayoutRequest::try_from((&connector_router_data, &auth.entity_id))?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: WorldpayPayoutResponse = res
+            .response
+            .parse_struct("WorldpayPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -1361,7 +1486,8 @@ static WORLDPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay",
     description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

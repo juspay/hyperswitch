@@ -178,14 +178,14 @@ where
 
 fn get_request_details_from_value(json_value: &serde_json::Value, parent_key: &str) -> String {
     match json_value {
-        serde_json::Value::Null => format!("{}: null", parent_key),
-        serde_json::Value::Bool(b) => format!("{}: {}", parent_key, b),
+        serde_json::Value::Null => format!("{parent_key}: null"),
+        serde_json::Value::Bool(b) => format!("{parent_key}: {b}"),
         serde_json::Value::Number(num) => format!("{}: {}", parent_key, num.to_string().len()),
         serde_json::Value::String(s) => format!("{}: {}", parent_key, s.len()),
         serde_json::Value::Array(arr) => {
             let mut result = String::new();
             for (index, value) in arr.iter().enumerate() {
-                let child_key = format!("{}[{}]", parent_key, index);
+                let child_key = format!("{parent_key}[{index}]");
                 result.push_str(&get_request_details_from_value(value, &child_key));
                 if index < arr.len() - 1 {
                     result.push_str(", ");
@@ -196,7 +196,7 @@ fn get_request_details_from_value(json_value: &serde_json::Value, parent_key: &s
         serde_json::Value::Object(obj) => {
             let mut result = String::new();
             for (index, (key, value)) in obj.iter().enumerate() {
-                let child_key = format!("{}[{}]", parent_key, key);
+                let child_key = format!("{parent_key}[{key}]");
                 result.push_str(&get_request_details_from_value(value, &child_key));
                 if index < obj.len() - 1 {
                     result.push_str(", ");
@@ -376,8 +376,7 @@ where
             let locale_param =
                 serde_qs::from_str::<LocaleQueryParam>(query_params).map_err(|error| {
                     actix_web::error::ErrorBadRequest(format!(
-                        "Could not convert query params to locale query parmas: {:?}",
-                        error
+                        "Could not convert query params to locale query parmas: {error:?}",
                     ))
                 })?;
             let accept_language_header = req.headers().get(http::header::ACCEPT_LANGUAGE);

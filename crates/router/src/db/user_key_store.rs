@@ -173,8 +173,7 @@ impl UserKeyStoreInterface for MockDb {
             .find(|user_key_store| user_key_store.user_id == user_id)
             .cloned()
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No user_key_store is found for user_id={}",
-                user_id
+                "No user_key_store is found for user_id={user_id}",
             )))?
             .convert(state, key, keymanager::Identifier::User(user_id.to_owned()))
             .await

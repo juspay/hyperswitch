@@ -74,6 +74,10 @@ pub struct OrganizationResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: time::PrimitiveDateTime,
     pub created_at: time::PrimitiveDateTime,
+
+    /// Organization Type of the organization
+    #[schema(value_type = Option<OrganizationType>, example = "standard")]
+    pub organization_type: Option<OrganizationType>,
 }
 
 #[cfg(feature = "v2")]
@@ -95,4 +99,8 @@ pub struct OrganizationResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: time::PrimitiveDateTime,
     pub created_at: time::PrimitiveDateTime,
+
+    /// Organization Type of the organization
+    #[schema(value_type = Option<OrganizationType>, example = "standard")]
+    pub organization_type: Option<OrganizationType>,
 }

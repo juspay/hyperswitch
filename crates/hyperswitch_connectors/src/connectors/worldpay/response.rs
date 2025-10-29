@@ -18,11 +18,11 @@ pub struct WorldpayPaymentsResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayPaymentResponseFields {
-    AuthorizedResponse(Box<AuthorizedResponse>),
-    DDCResponse(DDCResponse),
-    FraudHighRisk(FraudHighRiskResponse),
     RefusedResponse(RefusedResponse),
+    DDCResponse(DDCResponse),
     ThreeDsChallenged(ThreeDsChallengedResponse),
+    FraudHighRisk(FraudHighRiskResponse),
+    AuthorizedResponse(Box<AuthorizedResponse>),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -258,11 +258,6 @@ pub struct EventLinks {
     pub events: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct PaymentLink {
-    pub href: String,
-}
-
 pub fn get_resource_id<T, F>(
     response: WorldpayPaymentsResponse,
     connector_transaction_id: Option<String>,
@@ -416,7 +411,7 @@ impl WorldpayErrorResponse {
     pub fn default(status_code: u16) -> Self {
         match status_code {
             code @ 404 => Self {
-                error_name: format!("{} Not found", code),
+                error_name: format!("{code} Not found"),
                 message: "Resource not found".to_string(),
                 validation_errors: None,
             },
@@ -453,20 +448,6 @@ pub struct WorldpayWebhookEventType {
     pub event_id: String,
     pub event_timestamp: String,
     pub event_details: EventDetails,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum WorldpayWebhookStatus {
-    SentForSettlement,
-    Authorized,
-    SentForAuthorization,
-    Cancelled,
-    Error,
-    Expired,
-    Refused,
-    SentForRefund,
-    RefundFailed,
 }
 
 /// Worldpay's unique reference ID for a request

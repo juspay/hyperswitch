@@ -224,7 +224,7 @@ impl std::fmt::Display for RoutableConnectorChoice {
         if let Some(mca_id) = &self.merchant_connector_id {
             return write!(f, "{}:{}", base, mca_id.get_string_repr());
         }
-        write!(f, "{}", base)
+        write!(f, "{base}")
     }
 }
 
@@ -836,6 +836,33 @@ impl DynamicRoutingAlgorithmRef {
         };
     }
 
+    pub fn update_feature(
+        &mut self,
+        enabled_feature: DynamicRoutingFeatures,
+        dynamic_routing_type: DynamicRoutingType,
+    ) {
+        match dynamic_routing_type {
+            DynamicRoutingType::SuccessRateBasedRouting => {
+                self.success_based_algorithm = Some(SuccessBasedAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    enabled_feature,
+                })
+            }
+            DynamicRoutingType::EliminationRouting => {
+                self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    enabled_feature,
+                })
+            }
+            DynamicRoutingType::ContractBasedRouting => {
+                self.contract_based_routing = Some(ContractRoutingAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    enabled_feature,
+                })
+            }
+        };
+    }
+
     pub fn disable_algorithm_id(&mut self, dynamic_routing_type: DynamicRoutingType) {
         match dynamic_routing_type {
             DynamicRoutingType::SuccessRateBasedRouting => {
@@ -868,6 +895,11 @@ impl DynamicRoutingAlgorithmRef {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleDynamicRoutingQuery {
+    pub enable: DynamicRoutingFeatures,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CreateDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
@@ -905,6 +937,20 @@ pub struct ToggleDynamicRoutingWrapper {
 pub struct ToggleDynamicRoutingPath {
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateDynamicRoutingWrapper {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub feature_to_enable: DynamicRoutingFeatures,
+    pub payload: DynamicRoutingPayload,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum DynamicRoutingPayload {
+    SuccessBasedRoutingPayload(SuccessBasedRoutingConfig),
+    EliminationRoutingPayload(EliminationRoutingConfig),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1016,6 +1062,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
                 exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
             decision_engine_configs: None,
         }
@@ -1044,6 +1091,7 @@ pub struct SuccessBasedRoutingConfigBody {
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
     pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1172,6 +1220,9 @@ impl SuccessBasedRoutingConfigBody {
         self.specificity_level = new.specificity_level;
         if let Some(exploration_percent) = new.exploration_percent {
             self.exploration_percent = Some(exploration_percent);
+        }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
         }
     }
 }
@@ -1379,157 +1430,182 @@ impl std::fmt::Display for RoutingApproach {
         }
     }
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct BucketInformationEventResponse {
-    pub is_eliminated: bool,
-    pub bucket_name: Vec<String>,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationInformationEventResponse {
-    pub entity: Option<BucketInformationEventResponse>,
-    pub global: Option<BucketInformationEventResponse>,
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithStatusEliminationEventResponse {
-    pub label: String,
-    pub elimination_information: Option<EliminationInformationEventResponse>,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationEventResponse {
-    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+    pub is_active_rule: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ScoreDataEventResponse {
-    pub score: f64,
-    pub label: String,
-    pub current_count: u64,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalContractScoreEventResponse {
-    pub labels_with_score: Vec<ScoreDataEventResponse>,
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+        is_active_rule: bool,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
+            is_active_rule,
+        }
+    }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateConfigEventRequest {
-    pub entity_min_aggregates_size: u32,
-    pub entity_default_success_rate: f64,
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
+}
+//TODO: temporary change will be refactored afterwards
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+pub struct RoutingEvaluateRequest {
+    pub created_by: String,
+    #[schema(value_type = Object)]
+    ///Parameters that can be used in the routing evaluate request.
+    ///eg: {"parameters": {
+    ///    "payment_method": {"type": "enum_variant", "value": "card"},
+    ///    "payment_method_type": {"type": "enum_variant", "value": "credit"},
+    ///    "amount": {"type": "number", "value": 10},
+    ///    "currency": {"type": "str_value", "value": "INR"},
+    ///    "authentication_type": {"type": "enum_variant", "value": "three_ds"},
+    /// "card_bin": {"type": "str_value", "value": "424242"},
+    ///    "capture_method": {"type": "enum_variant", "value": "scheduled"},
+    ///    "business_country": {"type": "str_value", "value": "IN"},
+    ///    "billing_country": {"type": "str_value", "value": "IN"},
+    ///    "business_label": {"type": "str_value", "value": "business_label"},
+    ///    "setup_future_usage": {"type": "enum_variant", "value": "off_session"},
+    ///    "card_network": {"type": "enum_variant", "value": "visa"},
+    ///    "payment_type": {"type": "enum_variant", "value": "recurring_mandate"},
+    ///    "mandate_type": {"type": "enum_variant", "value": "single_use"},
+    ///    "mandate_acceptance_type": {"type": "enum_variant", "value": "online"},
+    ///    "metadata":{"type": "metadata_variant", "value": {"key": "key1", "value": "value1"}}
+    ///  }}
+    pub parameters: std::collections::HashMap<String, Option<ValueType>>,
+    pub fallback_output: Vec<DeRoutableConnectorChoice>,
+}
+impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct RoutingEvaluateResponse {
+    pub status: String,
+    pub output: serde_json::Value,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub evaluated_output: Vec<RoutableConnectorChoice>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub eligible_connectors: Vec<RoutableConnectorChoice>,
+}
+impl common_utils::events::ApiEventMetric for RoutingEvaluateResponse {}
+
+fn deserialize_connector_choices<'de, D>(
+    deserializer: D,
+) -> Result<Vec<RoutableConnectorChoice>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
+    Ok(infos
+        .into_iter()
+        .map(RoutableConnectorChoice::from)
+        .collect())
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateEventRequest {
-    pub entity_id: String,
-    pub entity_params: String,
-    pub entity_labels: Vec<String>,
-    pub global_labels: Vec<String>,
-    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
+impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
+    fn from(choice: DeRoutableConnectorChoice) -> Self {
+        Self {
+            choice_kind: RoutableChoiceKind::FullStruct,
+            connector: choice.gateway_name,
+            merchant_connector_id: choice.gateway_id,
+        }
+    }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowConfig {
-    pub max_aggregates_size: Option<u32>,
-    pub current_block_threshold: Option<CurrentBlockThreshold>,
+/// Routable Connector chosen for a payment
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DeRoutableConnectorChoice {
+    pub gateway_name: RoutableConnectors,
+    #[schema(value_type = String)]
+    pub gateway_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateLabelWithStatusEventRequest {
-    pub label: String,
-    pub status: bool,
+/// Represents a value in the DSL
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum ValueType {
+    /// Represents a number literal
+    Number(u64),
+    /// Represents an enum variant
+    EnumVariant(String),
+    /// Represents a Metadata variant
+    MetadataVariant(MetadataValue),
+    /// Represents a arbitrary String value
+    StrValue(String),
+    /// Represents a global reference, which is a reference to a global variable
+    GlobalRef(String),
+    /// Represents an array of numbers. This is basically used for
+    /// "one of the given numbers" operations
+    /// eg: payment.method.amount = (1, 2, 3)
+    NumberArray(Vec<u64>),
+    /// Similar to NumberArray but for enum variants
+    /// eg: payment.method.cardtype = (debit, credit)
+    EnumVariantArray(Vec<String>),
+    /// Like a number array but can include comparisons. Useful for
+    /// conditions like "500 < amount < 1000"
+    /// eg: payment.amount = (> 500, < 1000)
+    NumberComparisonArray(Vec<NumberComparison>),
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
-    pub config: Option<UpdateSuccessRateWindowConfig>,
-    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+pub struct MetadataValue {
+    pub key: String,
+    pub value: String,
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Represents a number comparison for "NumberComparisonArrayValue"
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventResponse {
-    pub status: UpdationStatusEventResponse,
+pub struct NumberComparison {
+    pub comparison_type: ComparisonType,
+    pub number: u64,
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Conditional comparison type
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum UpdationStatusEventResponse {
-    WindowUpdationSucceeded,
-    WindowUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithBucketNameEventRequest {
-    pub label: String,
-    pub bucket_name: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
-    pub config: Option<EliminationRoutingEventBucketConfig>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventResponse {
-    pub status: EliminationUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EliminationUpdationStatusEventResponse {
-    BucketUpdationSucceeded,
-    BucketUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ContractLabelInformationEventRequest {
-    pub label: String,
-    pub target_count: u64,
-    pub target_time: u64,
-    pub current_count: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractRequestEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_information: Vec<ContractLabelInformationEventRequest>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractEventResponse {
-    pub status: ContractUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ContractUpdationStatusEventResponse {
-    ContractUpdationSucceeded,
-    ContractUpdationFailed,
+pub enum ComparisonType {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
 }

@@ -21,7 +21,8 @@ pub mod diesel_exports {
         DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRevenueRecoveryAlgorithmType as RevenueRecoveryAlgorithmType, DbRoleScope as RoleScope,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbScaExemptionType as ScaExemptionType,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbRoutingApproach as RoutingApproach,
+        DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
         DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
@@ -58,28 +59,6 @@ pub enum RoutingAlgorithmKind {
     Advanced,
     Dynamic,
     ThreeDsDecisionRule,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventObjectType {
-    PaymentDetails,
-    RefundDetails,
-    DisputeDetails,
-    MandateDetails,
-    PayoutDetails,
 }
 
 // Refund

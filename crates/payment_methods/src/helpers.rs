@@ -1,13 +1,12 @@
 use api_models::{enums as api_enums, payment_methods as api};
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::AsyncExt;
 pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain};
+#[cfg(feature = "v1")]
 use router_env::logger;
 
 use crate::state;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
     db: Box<dyn state::PaymentMethodsStorageInterface>,
@@ -65,7 +64,7 @@ pub async fn populate_bin_details_for_payment_method_create(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn populate_bin_details_for_payment_method_create(
     _card_details: api_models::payment_methods::CardDetail,
     _db: &dyn state::PaymentMethodsStorageInterface,
@@ -99,10 +98,15 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::PayBright
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley
+                | api_enums::PaymentMethodType::Breadpay
+                | api_enums::PaymentMethodType::Flexiti
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::AmazonPay
+                | api_enums::PaymentMethodType::Bluecode
+                | api_enums::PaymentMethodType::Paysera
+                | api_enums::PaymentMethodType::Skrill
                 | api_enums::PaymentMethodType::ApplePay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
@@ -166,11 +170,15 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::MandiriVa
                 | api_enums::PaymentMethodType::LocalBankTransfer
                 | api_enums::PaymentMethodType::InstantBankTransfer
+                | api_enums::PaymentMethodType::InstantBankTransferFinland
+                | api_enums::PaymentMethodType::InstantBankTransferPoland
+                | api_enums::PaymentMethodType::IndonesianBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
                 | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::SepaGuarenteedDebit
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Becs
         ),
@@ -191,7 +199,9 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Upi => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::UpiCollect | api_enums::PaymentMethodType::UpiIntent
+            api_enums::PaymentMethodType::UpiCollect
+                | api_enums::PaymentMethodType::UpiIntent
+                | api_enums::PaymentMethodType::UpiQr
         ),
         api_enums::PaymentMethod::Voucher => matches!(
             payment_method_type,
@@ -246,10 +256,7 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse
 {
@@ -263,8 +270,8 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
             card: card_details,
-            recurring_enabled: false,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
             payment_experience: None,
             metadata: item.metadata,
             created: Some(item.created_at),
@@ -276,12 +283,12 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse
 {
     fn foreign_from(
-        (card_details, item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
+        (_card_details, _item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
     ) -> Self {
         todo!()
     }

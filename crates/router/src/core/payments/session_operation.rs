@@ -4,7 +4,7 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
+    mandates::MandateData,
     payment_address::PaymentAddress,
     payments::{HeaderPayload, PaymentIntentData},
     router_data::{PaymentMethodToken, RouterData},

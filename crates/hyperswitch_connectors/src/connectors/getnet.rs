@@ -163,6 +163,7 @@ impl ConnectorCommon for Getnet {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -325,8 +326,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}/merchants/{}/payments/{}",
-            endpoint, merchant_id, transaction_id
+            "{endpoint}/merchants/{merchant_id}/payments/{transaction_id}",
         ))
     }
 
@@ -649,8 +649,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
         let transaction_id = req.request.connector_transaction_id.clone();
 
         Ok(format!(
-            "{}/merchants/{}/payments/{}",
-            endpoint, merchant_id, transaction_id
+            "{endpoint}/merchants/{merchant_id}/payments/{transaction_id}",
         ))
     }
 
@@ -865,7 +864,8 @@ static GETNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static GETNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Getnet",
     description: "Getnet is a high-tech global payment platform that helps businesses accept payments securely while providing the best frictionless experience for customers everywhere.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static GETNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

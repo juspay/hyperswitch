@@ -74,7 +74,7 @@ pub enum EventMetadata {
         payment_id: common_utils::id_type::GlobalPaymentId,
     },
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
     },
     #[cfg(feature = "v1")]
     Refund {
@@ -101,6 +101,11 @@ pub enum EventMetadata {
     Mandate {
         payment_method_id: String,
         mandate_id: String,
+    },
+    Subscription {
+        subscription_id: common_utils::id_type::SubscriptionId,
+        invoice_id: Option<common_utils::id_type::InvoiceId>,
+        payment_id: Option<common_utils::id_type::PaymentId>,
     },
 }
 

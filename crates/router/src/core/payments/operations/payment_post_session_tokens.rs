@@ -145,6 +145,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             ),
             confirm: None,
             payment_method_data: None,
+            payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
             all_keys_required: None,
@@ -175,6 +176,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: false,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

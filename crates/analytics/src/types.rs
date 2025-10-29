@@ -21,6 +21,7 @@ pub enum AnalyticsDomain {
     SdkEvents,
     ApiEvents,
     Dispute,
+    Routing,
 }
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]

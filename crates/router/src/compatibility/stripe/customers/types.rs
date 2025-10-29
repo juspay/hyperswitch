@@ -1,12 +1,9 @@
 use std::{convert::From, default::Default};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use api_models::payment_methods as api_types;
 use api_models::payments;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
     id_type,
@@ -15,7 +12,7 @@ use common_utils::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::logger;
 use crate::types::{api, api::enums as api_enums};
 
@@ -119,11 +116,12 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
             first_name: None,
             line3: None,
             last_name: None,
+            origin_zip: None,
         }
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
@@ -139,7 +137,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CustomerUpdateRequest> for api::CustomerUpdateRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
@@ -154,7 +152,7 @@ impl From<CustomerUpdateRequest> for api::CustomerUpdateRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<api::CustomerResponse> for CreateCustomerResponse {
     fn from(cust: api::CustomerResponse) -> Self {
         let cust = cust.into_inner();
@@ -182,7 +180,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
@@ -215,10 +213,7 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
     fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
@@ -233,10 +228,7 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
         let card = item.card.map(From::from);
@@ -249,10 +241,7 @@ impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<api_types::CardDetailFromLocker> for CardDetails {
     fn from(item: api_types::CardDetailFromLocker) -> Self {
         Self {

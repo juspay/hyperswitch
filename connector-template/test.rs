@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
 use masking::Secret;
 use router::{
     types::{self, api, storage::enums,
@@ -12,13 +13,13 @@ impl ConnectorActions for {{project-name | downcase | pascal_case}}Test {}
 impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::{{project-name | downcase | pascal_case}};
-        api::ConnectorData {
-            connector: Box::new({{project-name | downcase | pascal_case}}::new()),
-            connector_name: types::Connector::{{project-name | downcase | pascal_case}},
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
-    }
+        utils::construct_connector_data_old(
+            Box::new({{project-name | downcase | pascal_case}}::new()),
+            types::Connector::Plaid,
+            api::GetToken::Connector,
+            None,
+        )
+    }    
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
@@ -287,7 +288,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: PaymentMethodData::Card(Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -309,7 +310,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: api::PaymentMethodData::Card(api::Card {
+                payment_method_data: PaymentMethodData::Card(Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -331,7 +332,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: api::PaymentMethodData::Card(api::Card {
+                payment_method_data: PaymentMethodData::Card(Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

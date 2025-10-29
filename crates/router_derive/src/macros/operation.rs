@@ -19,6 +19,8 @@ pub enum Derives {
     AuthorizeData,
     SyncData,
     CancelData,
+    CancelPostCapture,
+    CancelPostCaptureData,
     CaptureData,
     CompleteAuthorizeData,
     RejectData,
@@ -29,6 +31,8 @@ pub enum Derives {
     SessionData,
     IncrementalAuthorization,
     IncrementalAuthorizationData,
+    ExtendAuthorization,
+    ExtendAuthorizationData,
     SdkSessionUpdate,
     SdkSessionUpdateData,
     PostSessionTokens,
@@ -128,6 +132,18 @@ impl Conversion {
             }
             Derives::UpdateMetadataData => {
                 syn::Ident::new("PaymentsUpdateMetadataData", Span::call_site())
+            }
+            Derives::CancelPostCapture => {
+                syn::Ident::new("PaymentsCancelPostCaptureRequest", Span::call_site())
+            }
+            Derives::CancelPostCaptureData => {
+                syn::Ident::new("PaymentsCancelPostCaptureData", Span::call_site())
+            }
+            Derives::ExtendAuthorization => {
+                syn::Ident::new("PaymentsExtendAuthorizationRequest", Span::call_site())
+            }
+            Derives::ExtendAuthorizationData => {
+                syn::Ident::new("PaymentsExtendAuthorizationData", Span::call_site())
             }
         }
     }
@@ -452,6 +468,8 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     SdkPaymentsSessionUpdateData,
                     PaymentsPostSessionTokensData,
                     PaymentsUpdateMetadataData,
+                    PaymentsCancelPostCaptureData,
+                    PaymentsExtendAuthorizationData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -466,7 +484,9 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsDynamicTaxCalculationRequest,
                         PaymentsIncrementalAuthorizationRequest,
                         PaymentsPostSessionTokensRequest,
-                        PaymentsUpdateMetadataRequest
+                        PaymentsUpdateMetadataRequest,
+                        PaymentsCancelPostCaptureRequest,
+                        PaymentsExtendAuthorizationRequest,
                     }
                 };
                 #trait_derive

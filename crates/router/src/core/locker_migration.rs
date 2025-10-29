@@ -1,46 +1,23 @@
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use api_models::enums as api_enums;
 use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use diesel_models::enums as storage_enums;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use error_stack::FutureExt;
 use error_stack::ResultExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use futures::TryFutureExt;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use super::errors::StorageErrorExt;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use super::payment_methods::cards;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::services::logger;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::types::api;
+#[cfg(feature = "v1")]
+use super::{errors::StorageErrorExt, payment_methods::cards};
 use crate::{errors, routes::SessionState, services, types::domain};
+#[cfg(feature = "v1")]
+use crate::{services::logger, types::api};
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn rust_locker_migration(
     _state: SessionState,
     _merchant_id: &id_type::MerchantId,
@@ -48,11 +25,7 @@ pub async fn rust_locker_migration(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
@@ -81,6 +54,8 @@ pub async fn rust_locker_migration(
     let constraints = CustomerListConstraints {
         limit: u16::MAX,
         offset: None,
+        customer_id: None,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -130,10 +105,7 @@ pub async fn rust_locker_migration(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<domain::PaymentMethod>,
@@ -234,7 +206,7 @@ pub async fn call_to_locker(
     Ok(cards_moved)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn call_to_locker(
     _state: &SessionState,
     _payment_methods: Vec<domain::PaymentMethod>,

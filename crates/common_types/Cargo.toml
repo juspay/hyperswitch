@@ -17,10 +17,14 @@ diesel = "2.2.10"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+error-stack = "0.4.1"
 
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils"}
+cards = { version = "0.1.0", path = "../cards"}
 euclid = { version = "0.1.0", path = "../euclid" }
+masking = { version = "0.1.0", path = "../masking" }
 
 [lints]
 workspace = true

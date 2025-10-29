@@ -171,8 +171,7 @@ impl UserAuthenticationMethodInterface for MockDb {
             Ok(user_authentication_method.to_owned())
         } else {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No user authentication method found for id = {}",
-                id
+                "No user authentication method found for id = {id}",
             ))
             .into());
         }
@@ -191,8 +190,7 @@ impl UserAuthenticationMethodInterface for MockDb {
             .collect();
         if user_authentication_methods_list.is_empty() {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No user authentication method found for auth_id = {}",
-                auth_id
+                "No user authentication method found for auth_id = {auth_id}",
             ))
             .into());
         }
@@ -213,8 +211,7 @@ impl UserAuthenticationMethodInterface for MockDb {
             .collect();
         if user_authentication_methods_list.is_empty() {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No user authentication method found for owner_id = {}",
-                owner_id
+                "No user authentication method found for owner_id = {owner_id}",
             ))
             .into());
         }

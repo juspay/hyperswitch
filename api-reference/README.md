@@ -1,6 +1,6 @@
 # Api Reference
 
-We use the [openapi specification](https://swagger.io/specification) for the api reference. The openapi file is generated from the code base [openapi_spec.json](openapi_spec.json).
+We use the [openapi specification](https://swagger.io/specification) for the api reference. The openapi file is generated from the code base [openapi_spec_v1.json](v1/openapi_spec_v1.json).
 
 ## How to generate the file
 
@@ -14,7 +14,7 @@ cargo r -p openapi --features v1
 
 In order to render the openapi spec file, we use a tool called [mintlify](https://mintlify.com/). Local setup instructions can be found [here](https://mintlify.com/docs/development#development). Once the cli is installed, Run the following command to render the openapi spec
 
-- Navigate to the directory where `mint.json` exists
+- Navigate to the directory where `docs.json` exists
 
 ```bash
 cd api-reference
@@ -23,14 +23,14 @@ cd api-reference
 - Run the cli
 
 ```bash
-mintlify dev
+mint dev
 ```
 
 ## Add new routes to openapi
 
 If you have added new routes to the openapi. Then in order for them to be displayed on the mintlify, run the following commands
 
-- Switch to the directory where api reference ( mint.json ) exists
+- Switch to the directory where api reference ( docs.json ) exists
 
 ```bash
 cd api-reference
@@ -39,7 +39,9 @@ cd api-reference
 - Run the following command to generate the route files
 
 ```bash
-npx @mintlify/scraping@latest openapi-file openapi_spec.json  -o api-reference
+npx @mintlify/scraping@latest openapi-file v1/openapi_spec_v1.json  -o v1
 ```
 
 This will generate files in [api-reference](api-reference) folder. These routes should be added to the [mint.json](mint.json) file under navigation, under respective group.
+
+NOTE: For working with V2 API reference, replace every occurrence of `v1` with `v2` in above commands

@@ -1,8 +1,0 @@
-{
-  "childrenOrder": [
-    "Payments - Create mandate",
-    "Payments - Confirm mandate",
-    "Payments - Create recurring",
-    "Payments - Retrieve recurring"
-  ]
-}

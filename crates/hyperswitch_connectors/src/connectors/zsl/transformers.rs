@@ -163,6 +163,9 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::MandiriVaBankTransfer { .. }
                 | BankTransferData::Pix { .. }
                 | BankTransferData::Pse {}
+                | BankTransferData::InstantBankTransferFinland {}
+                | BankTransferData::InstantBankTransferPoland {}
+                | BankTransferData::IndonesianBankTransfer { .. }
                 | BankTransferData::InstantBankTransfer {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message(
@@ -355,6 +358,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -374,6 +378,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -455,6 +460,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })

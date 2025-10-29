@@ -2,9 +2,11 @@ use std::{collections::HashSet, fmt::Debug};
 
 use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
-use common_utils::id_type;
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, id_type, types::keymanager::KeyManagerState,
+};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::{
     payments::{OperationSessionGetters, OperationSessionSetters},
@@ -22,6 +24,7 @@ use crate::{
         api::{self, ConnectorCallType},
         domain,
     },
+    utils::id_type::MerchantConnectorAccountId,
 };
 
 pub struct DebitRoutingResult {
@@ -65,7 +68,6 @@ where
                     logger::info!("Performing debit routing for PreDetermined connector");
                     handle_pre_determined_connector(
                         state,
-                        &debit_routing_config,
                         debit_routing_supported_connectors,
                         &connector_data,
                         payment_data,
@@ -77,7 +79,6 @@ where
                     logger::info!("Performing debit routing for Retryable connector");
                     handle_retryable_connector(
                         state,
-                        &debit_routing_config,
                         debit_routing_supported_connectors,
                         connector_data,
                         payment_data,
@@ -122,7 +123,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
+    if business_profile.is_debit_routing_enabled && state.conf.open_router.dynamic_routing_enabled {
         logger::info!("Debit routing is enabled for the profile");
 
         let debit_routing_config = &state.conf.debit_routing_config;
@@ -156,33 +157,76 @@ where
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => {
             logger::info!("Checking if debit routing is required");
-            let payment_intent = payment_data.get_payment_intent();
-            let payment_attempt = payment_data.get_payment_attempt();
 
-            request_validation(payment_intent, payment_attempt, debit_routing_config)
+            request_validation(payment_data, debit_routing_config)
         }
         _ => false,
     }
 }
 
-pub fn request_validation(
-    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+fn request_validation<F: Clone, D>(
+    payment_data: &D,
     debit_routing_config: &settings::DebitRoutingConfig,
-) -> bool {
-    logger::debug!("Validating request for debit routing");
-    let is_currency_supported = payment_intent.currency.map(|currency| {
-        debit_routing_config
-            .supported_currencies
-            .contains(&currency)
-    });
+) -> bool
+where
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let payment_intent = payment_data.get_payment_intent();
+    let payment_attempt = payment_data.get_payment_attempt();
+
+    let is_currency_supported = is_currency_supported(payment_intent, debit_routing_config);
+
+    let is_valid_payment_method = validate_payment_method_for_debit_routing(payment_data);
 
     payment_intent.setup_future_usage != Some(enums::FutureUsage::OffSession)
         && payment_intent.amount.is_greater_than(0)
-        && is_currency_supported == Some(true)
-        && payment_attempt.authentication_type != Some(enums::AuthenticationType::ThreeDs)
-        && payment_attempt.payment_method == Some(enums::PaymentMethod::Card)
-        && payment_attempt.payment_method_type == Some(enums::PaymentMethodType::Debit)
+        && is_currency_supported
+        && payment_attempt.authentication_type == Some(enums::AuthenticationType::NoThreeDs)
+        && is_valid_payment_method
+}
+
+fn is_currency_supported(
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    debit_routing_config: &settings::DebitRoutingConfig,
+) -> bool {
+    payment_intent
+        .currency
+        .map(|currency| {
+            debit_routing_config
+                .supported_currencies
+                .contains(&currency)
+        })
+        .unwrap_or(false)
+}
+
+fn validate_payment_method_for_debit_routing<F: Clone, D>(payment_data: &D) -> bool
+where
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    match payment_attempt.payment_method {
+        Some(enums::PaymentMethod::Card) => {
+            payment_attempt.payment_method_type == Some(enums::PaymentMethodType::Debit)
+        }
+        Some(enums::PaymentMethod::Wallet) => {
+            payment_attempt.payment_method_type == Some(enums::PaymentMethodType::ApplePay)
+                && payment_data
+                    .get_payment_method_data()
+                    .and_then(|data| data.get_wallet_data())
+                    .and_then(|data| data.get_apple_pay_wallet_data())
+                    .and_then(|data| data.get_payment_method_type())
+                    == Some(enums::PaymentMethodType::Debit)
+                && matches!(
+                    payment_data.get_payment_method_token().cloned(),
+                    Some(
+                        hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                            _
+                        )
+                    )
+                )
+        }
+        _ => false,
+    }
 }
 
 pub async fn check_for_debit_routing_connector_in_profile<
@@ -234,7 +278,6 @@ pub async fn check_for_debit_routing_connector_in_profile<
 
 async fn handle_pre_determined_connector<F, D>(
     state: &SessionState,
-    debit_routing_config: &settings::DebitRoutingConfig,
     debit_routing_supported_connectors: HashSet<api_enums::Connector>,
     connector_data: &api::ConnectorRoutingData,
     payment_data: &mut D,
@@ -244,6 +287,11 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let db = state.store.as_ref();
+    let key_manager_state = &(state).into();
+    let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
+    let profile_id = payment_data.get_payment_attempt().profile_id.clone();
+
     if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
         logger::debug!("Chosen connector is supported for debit routing");
 
@@ -251,19 +299,50 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
 
         logger::debug!(
-            "Sorted co-badged networks: {:?}",
-            debit_routing_output.co_badged_card_networks
+            "Sorted co-badged networks info: {:?}",
+            debit_routing_output.co_badged_card_networks_info
         );
 
-        let valid_connectors = build_connector_routing_data(
-            connector_data,
-            debit_routing_config,
-            &debit_routing_output.co_badged_card_networks,
-        );
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .map_err(|error| {
+                logger::error!(
+                    "Failed to get merchant key store by merchant_id  {:?}",
+                    error
+                )
+            })
+            .ok()?;
 
-        if !valid_connectors.is_empty() {
+        let connector_routing_data = build_connector_routing_data(
+            state,
+            &profile_id,
+            &key_store,
+            vec![connector_data.clone()],
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
+        )
+        .await
+        .map_err(|error| {
+            logger::error!(
+                "Failed to build connector routing data for debit routing {:?}",
+                error
+            )
+        })
+        .ok()?;
+
+        if !connector_routing_data.is_empty() {
             return Some(DebitRoutingResult {
-                debit_routing_connector_call_type: ConnectorCallType::Retryable(valid_connectors),
+                debit_routing_connector_call_type: ConnectorCallType::Retryable(
+                    connector_routing_data,
+                ),
                 debit_routing_output,
             });
         }
@@ -273,18 +352,20 @@ where
 }
 
 pub async fn get_debit_routing_output<
-    F: Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+    F: Clone + Send,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 >(
     state: &SessionState,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
 ) -> Option<open_router::DebitRoutingOutput> {
     logger::debug!("Fetching sorted card networks");
-    let payment_attempt = payment_data.get_payment_attempt();
 
-    let (saved_co_badged_card_data, saved_card_type, card_isin) =
-        extract_saved_card_info(payment_data);
+    let card_info = extract_card_info(payment_data);
+
+    let saved_co_badged_card_data = card_info.co_badged_card_data;
+    let saved_card_type = card_info.card_type;
+    let card_isin = card_info.card_isin;
 
     match (
         saved_co_badged_card_data
@@ -315,16 +396,16 @@ pub async fn get_debit_routing_output<
             }
 
             let co_badged_card_request = open_router::CoBadgedCardRequest {
-                merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
+                merchant_category_code: enums::DecisionEngineMerchantCategoryCode::Mcc0001,
                 acquirer_country,
                 co_badged_card_data,
             };
 
             routing::perform_open_routing_for_debit_routing(
                 state,
-                payment_attempt,
                 co_badged_card_request,
                 card_isin,
+                payment_data,
             )
             .await
             .map_err(|error| {
@@ -335,86 +416,135 @@ pub async fn get_debit_routing_output<
     }
 }
 
-fn extract_saved_card_info<F, D>(
-    payment_data: &D,
-) -> (
-    Option<api_models::payment_methods::CoBadgedCardData>,
-    Option<String>,
-    Option<Secret<String>>,
-)
-where
-    D: OperationSessionGetters<F>,
-{
-    let payment_method_data_optional = payment_data.get_payment_method_data();
-    match payment_data
-        .get_payment_method_info()
-        .and_then(|info| info.get_payment_methods_data())
-    {
-        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) => {
-            match (&card.co_badged_card_data, &card.card_isin) {
-                (Some(co_badged), _) => {
-                    logger::debug!("Co-badged card data found in saved payment method");
-                    (Some(co_badged.clone()), card.card_type, None)
-                }
-                (None, Some(card_isin)) => {
-                    logger::debug!("No co-badged data; using saved card ISIN");
-                    (None, None, Some(Secret::new(card_isin.clone())))
-                }
-                _ => (None, None, None),
-            }
+#[derive(Debug, Clone)]
+struct ExtractedCardInfo {
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    card_type: Option<String>,
+    card_isin: Option<Secret<String>>,
+}
+
+impl ExtractedCardInfo {
+    fn new(
+        co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+        card_type: Option<String>,
+        card_isin: Option<Secret<String>>,
+    ) -> Self {
+        Self {
+            co_badged_card_data,
+            card_type,
+            card_isin,
         }
-        _ => match payment_method_data_optional {
-            Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
-                logger::debug!("Using card data from payment request");
-                (
-                    None,
-                    None,
-                    Some(Secret::new(card.card_number.get_card_isin())),
-                )
-            }
-            _ => (None, None, None),
-        },
+    }
+
+    fn empty() -> Self {
+        Self::new(None, None, None)
     }
 }
 
-fn check_connector_support_for_network(
-    debit_routing_config: &settings::DebitRoutingConfig,
-    connector_name: api_enums::Connector,
-    network: &enums::CardNetwork,
-) -> Option<enums::CardNetwork> {
-    debit_routing_config
-        .connector_supported_debit_networks
-        .get(&connector_name)
-        .and_then(|supported_networks| {
-            (supported_networks.contains(network) || network.is_global_network())
-                .then(|| network.clone())
-        })
+fn extract_card_info<F, D>(payment_data: &D) -> ExtractedCardInfo
+where
+    D: OperationSessionGetters<F>,
+{
+    extract_from_saved_payment_method(payment_data)
+        .unwrap_or_else(|| extract_from_payment_method_data(payment_data))
 }
 
-fn build_connector_routing_data(
-    connector_data: &api::ConnectorRoutingData,
-    debit_routing_config: &settings::DebitRoutingConfig,
-    fee_sorted_debit_networks: &[enums::CardNetwork],
-) -> Vec<api::ConnectorRoutingData> {
-    fee_sorted_debit_networks
-        .iter()
-        .filter_map(|network| {
-            check_connector_support_for_network(
-                debit_routing_config,
-                connector_data.connector_data.connector_name,
-                network,
+fn extract_from_saved_payment_method<F, D>(payment_data: &D) -> Option<ExtractedCardInfo>
+where
+    D: OperationSessionGetters<F>,
+{
+    let payment_methods_data = payment_data
+        .get_payment_method_info()?
+        .get_payment_methods_data()?;
+
+    if let hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card) =
+        payment_methods_data
+    {
+        return Some(extract_card_info_from_saved_card(&card));
+    }
+
+    None
+}
+
+fn extract_card_info_from_saved_card(
+    card: &hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod,
+) -> ExtractedCardInfo {
+    match (&card.co_badged_card_data, &card.card_isin) {
+        (Some(co_badged), _) => {
+            logger::debug!("Co-badged card data found in saved payment method");
+            ExtractedCardInfo::new(Some(co_badged.clone()), card.card_type.clone(), None)
+        }
+        (None, Some(card_isin)) => {
+            logger::debug!("No co-badged data; using saved card ISIN");
+            ExtractedCardInfo::new(None, None, Some(Secret::new(card_isin.clone())))
+        }
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_from_payment_method_data<F, D>(payment_data: &D) -> ExtractedCardInfo
+where
+    D: OperationSessionGetters<F>,
+{
+    match payment_data.get_payment_method_data() {
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
+            logger::debug!("Using card data from payment request");
+            ExtractedCardInfo::new(
+                None,
+                None,
+                Some(Secret::new(card.card_number.get_extended_card_bin())),
             )
-            .map(|valid_network| api::ConnectorRoutingData {
-                connector_data: connector_data.connector_data.clone(),
-                network: Some(valid_network),
-            })
-        })
-        .collect()
+        }
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+            wallet_data,
+        )) => extract_from_wallet_data(wallet_data, payment_data),
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_from_wallet_data<F, D>(
+    wallet_data: &hyperswitch_domain_models::payment_method_data::WalletData,
+    payment_data: &D,
+) -> ExtractedCardInfo
+where
+    D: OperationSessionGetters<F>,
+{
+    match wallet_data {
+        hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_) => {
+            logger::debug!("Using Apple Pay data from payment request");
+            let apple_pay_isin = extract_apple_pay_isin(payment_data);
+            ExtractedCardInfo::new(None, None, apple_pay_isin)
+        }
+        _ => ExtractedCardInfo::empty(),
+    }
+}
+
+fn extract_apple_pay_isin<F, D>(payment_data: &D) -> Option<Secret<String>>
+where
+    D: OperationSessionGetters<F>,
+{
+    payment_data.get_payment_method_token().and_then(|token| {
+        if let hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+            apple_pay_decrypt_data,
+        ) = token
+        {
+            logger::debug!("Using Apple Pay decrypt data from payment method token");
+            Some(Secret::new(
+                apple_pay_decrypt_data
+                    .application_primary_account_number
+                    .peek()
+                    .chars()
+                    .take(8)
+                    .collect::<String>(),
+            ))
+        } else {
+            None
+        }
+    })
 }
 
 async fn handle_retryable_connector<F, D>(
     state: &SessionState,
-    debit_routing_config: &settings::DebitRoutingConfig,
     debit_routing_supported_connectors: HashSet<api_enums::Connector>,
     connector_data_list: Vec<api::ConnectorRoutingData>,
     payment_data: &mut D,
@@ -424,6 +554,10 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let key_manager_state = &(state).into();
+    let db = state.store.as_ref();
+    let profile_id = payment_data.get_payment_attempt().profile_id.clone();
+    let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
     let is_any_debit_routing_connector_supported =
         connector_data_list.iter().any(|connector_data| {
             debit_routing_supported_connectors
@@ -433,32 +567,216 @@ where
     if is_any_debit_routing_connector_supported {
         let debit_routing_output =
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
-
-        logger::debug!(
-            "Sorted co-badged networks: {:?}",
-            debit_routing_output.co_badged_card_networks
-        );
-
-        let supported_connectors: Vec<_> = connector_data_list
-            .iter()
-            .flat_map(|connector_data| {
-                build_connector_routing_data(
-                    connector_data,
-                    debit_routing_config,
-                    &debit_routing_output.co_badged_card_networks,
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .map_err(|error| {
+                logger::error!(
+                    "Failed to get merchant key store by merchant_id  {:?}",
+                    error
                 )
             })
-            .collect();
+            .ok()?;
 
-        if !supported_connectors.is_empty() {
+        let connector_routing_data = build_connector_routing_data(
+            state,
+            &profile_id,
+            &key_store,
+            connector_data_list.clone(),
+            debit_routing_output
+                .co_badged_card_networks_info
+                .clone()
+                .get_card_networks(),
+        )
+        .await
+        .map_err(|error| {
+            logger::error!(
+                "Failed to build connector routing data for debit routing {:?}",
+                error
+            )
+        })
+        .ok()?;
+
+        if !connector_routing_data.is_empty() {
             return Some(DebitRoutingResult {
                 debit_routing_connector_call_type: ConnectorCallType::Retryable(
-                    supported_connectors,
+                    connector_routing_data,
                 ),
                 debit_routing_output,
             });
-        }
+        };
     }
 
     None
+}
+
+async fn build_connector_routing_data(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+    eligible_connector_data_list: Vec<api::ConnectorRoutingData>,
+    fee_sorted_debit_networks: Vec<common_enums::CardNetwork>,
+) -> CustomResult<Vec<api::ConnectorRoutingData>, errors::ApiErrorResponse> {
+    let key_manager_state = &state.into();
+    let debit_routing_config = &state.conf.debit_routing_config;
+
+    let mcas_for_profile =
+        fetch_merchant_connector_accounts(state, key_manager_state, profile_id, key_store).await?;
+
+    let mut connector_routing_data = Vec::new();
+    let mut has_us_local_network = false;
+
+    for connector_data in eligible_connector_data_list {
+        if let Some(routing_data) = process_connector_for_networks(
+            &connector_data,
+            &mcas_for_profile,
+            &fee_sorted_debit_networks,
+            debit_routing_config,
+            &mut has_us_local_network,
+        )? {
+            connector_routing_data.extend(routing_data);
+        }
+    }
+
+    validate_us_local_network_requirement(has_us_local_network)?;
+    Ok(connector_routing_data)
+}
+
+/// Fetches merchant connector accounts for the given profile
+async fn fetch_merchant_connector_accounts(
+    state: &SessionState,
+    key_manager_state: &KeyManagerState,
+    profile_id: &id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
+    state
+        .store
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile_id,
+            key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch merchant connector accounts")
+}
+
+/// Processes a single connector to find matching networks
+fn process_connector_for_networks(
+    connector_data: &api::ConnectorRoutingData,
+    mcas_for_profile: &[domain::MerchantConnectorAccount],
+    fee_sorted_debit_networks: &[common_enums::CardNetwork],
+    debit_routing_config: &settings::DebitRoutingConfig,
+    has_us_local_network: &mut bool,
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
+    let Some(merchant_connector_id) = &connector_data.connector_data.merchant_connector_id else {
+        logger::warn!("Skipping connector with missing merchant_connector_id");
+        return Ok(None);
+    };
+
+    let Some(account) = find_merchant_connector_account(mcas_for_profile, merchant_connector_id)
+    else {
+        logger::warn!(
+            "No MCA found for merchant_connector_id: {:?}",
+            merchant_connector_id
+        );
+        return Ok(None);
+    };
+
+    let merchant_debit_networks = extract_debit_networks(&account)?;
+    let matching_networks = find_matching_networks(
+        &merchant_debit_networks,
+        fee_sorted_debit_networks,
+        connector_data,
+        debit_routing_config,
+        has_us_local_network,
+    );
+
+    Ok(Some(matching_networks))
+}
+
+/// Finds a merchant connector account by ID
+fn find_merchant_connector_account(
+    mcas: &[domain::MerchantConnectorAccount],
+    merchant_connector_id: &MerchantConnectorAccountId,
+) -> Option<domain::MerchantConnectorAccount> {
+    mcas.iter()
+        .find(|mca| mca.merchant_connector_id == *merchant_connector_id)
+        .cloned()
+}
+
+/// Finds networks that match between merchant and fee-sorted networks
+fn find_matching_networks(
+    merchant_debit_networks: &HashSet<common_enums::CardNetwork>,
+    fee_sorted_debit_networks: &[common_enums::CardNetwork],
+    connector_routing_data: &api::ConnectorRoutingData,
+    debit_routing_config: &settings::DebitRoutingConfig,
+    has_us_local_network: &mut bool,
+) -> Vec<api::ConnectorRoutingData> {
+    let is_routing_enabled = debit_routing_config
+        .supported_connectors
+        .contains(&connector_routing_data.connector_data.connector_name.clone());
+
+    fee_sorted_debit_networks
+        .iter()
+        .filter(|network| merchant_debit_networks.contains(network))
+        .filter(|network| is_routing_enabled || network.is_signature_network())
+        .map(|network| {
+            if network.is_us_local_network() {
+                *has_us_local_network = true;
+            }
+
+            api::ConnectorRoutingData {
+                connector_data: connector_routing_data.connector_data.clone(),
+                network: Some(network.clone()),
+                action_type: connector_routing_data.action_type.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Validates that at least one US local network is present
+fn validate_us_local_network_requirement(
+    has_us_local_network: bool,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if !has_us_local_network {
+        return Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("At least one US local network is required in routing");
+    }
+    Ok(())
+}
+
+fn extract_debit_networks(
+    account: &domain::MerchantConnectorAccount,
+) -> CustomResult<HashSet<common_enums::CardNetwork>, errors::ApiErrorResponse> {
+    let mut networks = HashSet::new();
+
+    if let Some(values) = &account.payment_methods_enabled {
+        for val in values {
+            let payment_methods_enabled: api_models::admin::PaymentMethodsEnabled =
+                val.to_owned().parse_value("PaymentMethodsEnabled")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse enabled payment methods for a merchant connector account in debit routing flow")?;
+
+            if let Some(types) = payment_methods_enabled.payment_method_types {
+                for method_type in types {
+                    if method_type.payment_method_type
+                        == api_models::enums::PaymentMethodType::Debit
+                    {
+                        if let Some(card_networks) = method_type.card_networks {
+                            networks.extend(card_networks);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(networks)
 }

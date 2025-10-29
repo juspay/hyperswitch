@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::CustomResult,
@@ -17,9 +18,7 @@ use hyperswitch_domain_models::{
         BankRedirectData, Card, CardDetailsForNetworkTransactionId, GooglePayWalletData,
         PaymentMethodData, RealTimePaymentData, WalletData,
     },
-    router_data::{
-        ApplePayPredecryptData, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData,
-    },
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{
@@ -47,10 +46,7 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
-    utils::{
-        self, ApplePayDecrypt, PaymentsAuthorizeRequestData, QrImage, RefundsRequestData,
-        RouterData as _,
-    },
+    utils::{self, PaymentsAuthorizeRequestData, QrImage, RefundsRequestData, RouterData as _},
 };
 
 pub struct FiuuRouterData<T> {
@@ -192,7 +188,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::UobBank => Ok(Self::UOVBMYKL),
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
-                message: format!("Invalid BankName for FPX Refund: {:?}", bank),
+                message: format!("Invalid BankName for FPX Refund: {bank:?}"),
                 connector: "Fiuu",
             })?,
         }
@@ -397,7 +393,7 @@ pub struct FiuuApplePayData {
     txn_channel: TxnChannel,
     cc_month: Secret<String>,
     cc_year: Secret<String>,
-    cc_token: Secret<String>,
+    cc_token: CardNumber,
     eci: Option<String>,
     token_cryptogram: Secret<String>,
     token_type: FiuuTokenType,
@@ -565,6 +561,9 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::AliPayRedirect(_)
                     | WalletData::AliPayHkRedirect(_)
                     | WalletData::AmazonPayRedirect(_)
+                    | WalletData::Paysera(_)
+                    | WalletData::Skrill(_)
+                    | WalletData::BluecodeRedirect {}
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
                     | WalletData::GoPayRedirect(_)
@@ -577,6 +576,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::MbWayRedirect(_)
                     | WalletData::MobilePayRedirect(_)
                     | WalletData::PaypalRedirect(_)
+                    | WalletData::AmazonPay(_)
                     | WalletData::PaypalSdk(_)
                     | WalletData::Paze(_)
                     | WalletData::SamsungPay(_)
@@ -708,8 +708,22 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
                 .map(|details| details.card_holder_authenticated),
             card_details: data.info.card_details.clone(),
             card_network: data.info.card_network.clone(),
-            token: data.tokenization_data.token.clone().into(),
-            tokenization_data_type: data.tokenization_data.token_type.clone().into(),
+            token: data
+                .tokenization_data
+                .get_encrypted_google_pay_token()
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "gpay wallet_token",
+                })?
+                .clone()
+                .into(),
+            tokenization_data_type: data
+                .tokenization_data
+                .get_encrypted_token_type()
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "gpay wallet token type",
+                })?
+                .clone()
+                .into(),
             pm_type: data.pm_type.clone(),
             token_type: FiuuTokenType::GooglePay,
             // non_3ds field Applicable to card processing via specific processor using specific currency for pre-approved partner only.
@@ -724,8 +738,12 @@ impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
     fn try_from(decrypt_data: Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
         Ok(Self::FiuuApplePayData(Box::new(FiuuApplePayData {
             txn_channel: TxnChannel::Creditan,
-            cc_month: decrypt_data.get_expiry_month()?,
-            cc_year: decrypt_data.get_four_digit_expiry_year()?,
+            cc_month: decrypt_data.get_expiry_month().change_context(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "expiration_month",
+                },
+            )?,
+            cc_year: decrypt_data.get_four_digit_expiry_year(),
             cc_token: decrypt_data.application_primary_account_number,
             eci: decrypt_data.payment_data.eci_indicator,
             token_cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
@@ -886,6 +904,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -959,6 +978,7 @@ impl<F>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -1008,6 +1028,7 @@ impl<F>
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
+                                connector_metadata: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1144,6 +1165,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -1171,6 +1193,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1372,6 +1395,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     None
@@ -1439,6 +1463,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     None
@@ -1609,6 +1634,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             None
@@ -1724,6 +1750,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             None
@@ -1822,6 +1849,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),

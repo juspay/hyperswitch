@@ -1,6 +1,17 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
+use common_enums::{self, enums};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
+use error_stack::ResultExt;
+use external_services::grpc_client;
+use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::unified_connector_service::{
+    get_payments_response_from_ucs_webhook_content,
+    handle_unified_connector_service_response_for_payment_get,
+};
+use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -8,10 +19,13 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
+        unified_connector_service::{
+            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
+        },
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
-    types::{self, api, domain},
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -27,7 +41,9 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -43,18 +59,10 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -69,9 +77,9 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -87,16 +95,6 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]
@@ -110,8 +108,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
-        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        _header_payload: domain_payments::HeaderPayload,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -134,7 +132,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         pending_connector_capture_id_list,
                         call_connector_action,
                         connector_integration,
-                        all_keys_required,
+                        return_raw_connector_response,
                     )
                     .await?;
                 // Initiating Integrity checks
@@ -156,7 +154,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     &self,
                     call_connector_action,
                     connector_request,
-                    all_keys_required,
+                    return_raw_connector_response,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -178,11 +176,16 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(
@@ -224,6 +227,176 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
         Ok((request, true))
     }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        header_payload: &domain_payments::HeaderPayload,
+        lineage_ids: grpc_client::LineageIds,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
+        call_connector_action: common_enums::CallConnectorAction,
+    ) -> RouterResult<()> {
+        match call_connector_action {
+            common_enums::CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
+                let webhook_content: payments_grpc::WebhookResponseContent =
+                    serde_json::from_slice(&transform_data_bytes)
+                        .change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize UCS webhook transform data")?;
+
+                let payment_get_response =
+                    get_payments_response_from_ucs_webhook_content(webhook_content)
+                        .change_context(ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable(
+                            "Failed to construct payments response from UCS webhook content",
+                        )?;
+
+                let (router_data_response, status_code) =
+                    handle_unified_connector_service_response_for_payment_get(
+                        payment_get_response.clone(),
+                    )
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to deserialize UCS response")?;
+
+                let router_data_response = router_data_response.map(|(response, status)| {
+                    self.status = status;
+                    response
+                });
+                self.response = router_data_response;
+                self.amount_captured = payment_get_response.captured_amount;
+                self.minor_amount_captured = payment_get_response
+                    .minor_captured_amount
+                    .map(MinorUnit::new);
+                self.raw_connector_response = payment_get_response
+                    .raw_connector_response
+                    .clone()
+                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                self.connector_http_status_code = Some(status_code);
+            }
+            common_enums::CallConnectorAction::UCSHandleResponse(_)
+            | common_enums::CallConnectorAction::Trigger => {
+                let connector_name = self.connector.clone();
+                let connector_enum =
+                    common_enums::connector_enums::Connector::from_str(&connector_name)
+                        .change_context(ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
+                let is_ucs_psync_disabled = state
+                    .conf
+                    .grpc_client
+                    .unified_connector_service
+                    .as_ref()
+                    .is_some_and(|config| {
+                        config
+                            .ucs_psync_disabled_connectors
+                            .contains(&connector_enum)
+                    });
+
+                if is_ucs_psync_disabled {
+                    logger::info!(
+                        "UCS PSync call disabled for connector: {}, skipping UCS call",
+                        connector_name
+                    );
+                    return Ok(());
+                }
+
+                let client = state
+                    .grpc_client
+                    .unified_connector_service_client
+                    .clone()
+                    .ok_or(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+                let payment_get_request =
+                    payments_grpc::PaymentServiceGetRequest::foreign_try_from((
+                        &*self,
+                        call_connector_action,
+                    ))
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to construct Payment Get Request")?;
+
+                let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+                    merchant_connector_account,
+                    merchant_context,
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct request metadata")?;
+                let merchant_reference_id = header_payload
+                    .x_reference_id
+                    .clone()
+                    .or(merchant_order_reference_id)
+                    .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
+                    .transpose()
+                    .inspect_err(
+                        |err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"),
+                    )
+                    .ok()
+                    .flatten()
+                    .map(ucs_types::UcsReferenceId::Payment);
+                let header_payload = state
+                    .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+                    .external_vault_proxy_metadata(None)
+                    .merchant_reference_id(merchant_reference_id)
+                    .lineage_ids(lineage_ids);
+                let updated_router_data = Box::pin(ucs_logging_wrapper(
+                    self.clone(),
+                    state,
+                    payment_get_request,
+                    header_payload,
+                    |mut router_data, payment_get_request, grpc_headers| async move {
+                        let response = client
+                            .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
+                            .await
+                            .change_context(ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get payment")?;
+
+                        let payment_get_response = response.into_inner();
+
+                        let (router_data_response, status_code) =
+                            handle_unified_connector_service_response_for_payment_get(
+                                payment_get_response.clone(),
+                            )
+                            .change_context(ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to deserialize UCS response")?;
+
+                        let router_data_response =
+                            router_data_response.map(|(response, status)| {
+                                router_data.status = status;
+                                response
+                            });
+                        router_data.response = router_data_response;
+                        router_data.amount_captured = payment_get_response.captured_amount;
+                        router_data.minor_amount_captured = payment_get_response
+                            .minor_captured_amount
+                            .map(MinorUnit::new);
+                        router_data.raw_connector_response = payment_get_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                        router_data.connector_http_status_code = Some(status_code);
+
+                        Ok((router_data, payment_get_response))
+                    },
+                ))
+                .await?;
+
+                // Copy back the updated data
+                *self = updated_router_data;
+            }
+            common_enums::CallConnectorAction::HandleResponse(_)
+            | common_enums::CallConnectorAction::Avoid
+            | common_enums::CallConnectorAction::StatusUpdate { .. } => {
+                Err(ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid CallConnectorAction for payment sync via UCS Gateway system",
+                )?
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -241,7 +414,7 @@ where
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>;
 }
 
@@ -259,7 +432,7 @@ impl RouterDataPSync
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -270,7 +443,7 @@ impl RouterDataPSync
                 self,
                 call_connector_action.clone(),
                 None,
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
             .to_payment_failed_response()?;
@@ -289,7 +462,7 @@ impl RouterDataPSync
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,
-                    all_keys_required,
+                    return_raw_connector_response,
                 )
                 .await
                 .to_payment_failed_response()?;

@@ -10,6 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
@@ -29,8 +30,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as OtherRouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
+        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -93,6 +95,8 @@ pub enum TrustpayBankTransferPaymentMethod {
     SepaCreditTransfer,
     #[serde(rename = "Wire")]
     InstantBankTransfer,
+    InstantBankTransferFI,
+    InstantBankTransferPL,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -143,12 +147,13 @@ pub struct BankPaymentInformation {
     pub debtor: Option<DebtorInformation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct BankPaymentInformationResponse {
     pub status: TrustpayBankRedirectPaymentStatus,
     pub status_reason_information: Option<StatusReasonInformation>,
     pub references: ReferencesResponse,
+    pub amount: WebhookAmount,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -224,6 +229,26 @@ pub enum TrustpayPaymentsRequest {
     CardsPaymentRequest(Box<PaymentRequestCards>),
     BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
     BankTransferPaymentRequest(Box<PaymentRequestBankTransfer>),
+    NetworkTokenPaymentRequest(Box<PaymentRequestNetworkToken>),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct PaymentRequestNetworkToken {
+    pub amount: StringMajorUnit,
+    pub currency: enums::Currency,
+    pub pan: NetworkTokenNumber,
+    #[serde(rename = "exp")]
+    pub expiry_date: Secret<String>,
+    #[serde(rename = "RedirectUrl")]
+    pub redirect_url: String,
+    #[serde(rename = "threeDSecureEnrollmentStatus")]
+    pub enrollment_status: char,
+    #[serde(rename = "threeDSecureEci")]
+    pub eci: String,
+    #[serde(rename = "threeDSecureAuthenticationStatus")]
+    pub authentication_status: char,
+    #[serde(rename = "threeDSecureVerificationId")]
+    pub verification_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -282,6 +307,8 @@ impl TryFrom<&BankTransferData> for TrustpayBankTransferPaymentMethod {
         match value {
             BankTransferData::SepaBankTransfer { .. } => Ok(Self::SepaCreditTransfer),
             BankTransferData::InstantBankTransfer {} => Ok(Self::InstantBankTransfer),
+            BankTransferData::InstantBankTransferFinland {} => Ok(Self::InstantBankTransferFI),
+            BankTransferData::InstantBankTransferPoland {} => Ok(Self::InstantBankTransferPL),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
             )
@@ -399,7 +426,9 @@ fn get_bank_transfer_debtor_info(
         .and_then(|address| address.last_name.clone());
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
-        | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
+        | TrustpayBankTransferPaymentMethod::InstantBankTransfer
+        | TrustpayBankTransferPaymentMethod::InstantBankTransferFI
+        | TrustpayBankTransferPaymentMethod::InstantBankTransferPL => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
             email: item.request.get_email()?,
         }),
@@ -500,6 +529,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             os_version: None,
             device_model: None,
             accept_language: Some(browser_info.accept_language.unwrap_or("en".to_string())),
+            referer: None,
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();
@@ -532,6 +562,28 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                     auth,
                 )
             }
+            PaymentMethodData::NetworkToken(ref token_data) => {
+                Ok(Self::NetworkTokenPaymentRequest(Box::new(
+                    PaymentRequestNetworkToken {
+                        amount: item.amount.to_owned(),
+                        currency: item.router_data.request.currency,
+                        pan: token_data.get_network_token(),
+                        expiry_date: token_data
+                            .get_token_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                        redirect_url: item.router_data.request.get_router_return_url()?,
+                        enrollment_status: 'Y', // Set to 'Y' as network provider not providing this value in response
+                        eci: token_data.eci.clone().ok_or_else(|| {
+                            errors::ConnectorError::MissingRequiredField { field_name: "eci" }
+                        })?,
+                        authentication_status: 'Y', // Set to 'Y' since presence of token_cryptogram is already validated
+                        verification_id: token_data.get_cryptogram().ok_or_else(|| {
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "verification_id",
+                            }
+                        })?,
+                    },
+                )))
+            }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -546,7 +598,6 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
@@ -827,6 +878,7 @@ fn handle_cards_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -900,6 +952,7 @@ fn handle_bank_redirects_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -955,6 +1008,7 @@ fn handle_bank_redirects_sync_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1012,6 +1066,7 @@ pub fn handle_webhook_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1124,6 +1179,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -1479,7 +1535,7 @@ impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
     fn from(value: SdkSecretInfo) -> Self {
         Self {
             display: value.display,
-            payment: value.payment,
+            payment: Some(value.payment),
         }
     }
 }
@@ -1598,6 +1654,7 @@ fn handle_cards_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1634,6 +1691,7 @@ fn handle_webhooks_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1665,6 +1723,7 @@ fn handle_bank_redirects_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1704,6 +1763,7 @@ fn handle_bank_redirects_refund_sync_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -1730,6 +1790,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {
@@ -1896,7 +1957,7 @@ impl TryFrom<WebhookStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
-    pub merchant_reference: String,
+    pub merchant_reference: Option<String>,
     pub payment_id: Option<String>,
     pub payment_request_id: Option<String>,
 }
