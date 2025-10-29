@@ -249,11 +249,12 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
+payout_function = "report_download_config_payout_function" # Config to download payout report
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
 host = "https://localhost:9200"
-enabled = false
+enabled = true
 
 [opensearch.auth]
 auth = "basic"
@@ -266,6 +267,7 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+payouts = "hyperswitch-payout-events"
 sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
 sessionizer_payment_intents = "sessionizer-payment-intent-events"
 sessionizer_refunds = "sessionizer-refund-events"
