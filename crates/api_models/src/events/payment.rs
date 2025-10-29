@@ -216,6 +216,13 @@ impl ApiEventMetric for payments::PaymentMethodBalanceCheckResponse {
 }
 
 #[cfg(feature = "v2")]
+impl ApiEventMetric for payments::ApplyPaymentMethodDataResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
