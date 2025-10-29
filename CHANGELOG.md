@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.29.0
+
+### Features
+
+- **router:** Add /apply-payment-method-data endpoint (v2) ([#9868](https://github.com/juspay/hyperswitch/pull/9868)) ([`0637095`](https://github.com/juspay/hyperswitch/commit/0637095f60035b9057a590971425db67feddf4a2))
+
+### Bug Fixes
+
+- **connector:** [Finix] Add authentication_type check only for cards ([#10010](https://github.com/juspay/hyperswitch/pull/10010)) ([`d98f11d`](https://github.com/juspay/hyperswitch/commit/d98f11d647a7c421a62cef4831772d685570ed67))
+
+### Refactors
+
+- **connector:** Finix pass idempotency key ([#9979](https://github.com/juspay/hyperswitch/pull/9979)) ([`44fbcc9`](https://github.com/juspay/hyperswitch/commit/44fbcc9c7d9d0ff2c985dc3f3adf5fd0dbd4468b))
+
+**Full Changelog:** [`2025.10.28.0...2025.10.29.0`](https://github.com/juspay/hyperswitch/compare/2025.10.28.0...2025.10.29.0)
+
+- - -
+
 ## 2025.10.28.0
 
 ### Features
