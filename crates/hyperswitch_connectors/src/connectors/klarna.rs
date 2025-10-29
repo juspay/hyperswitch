@@ -380,16 +380,39 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                 let response = klarna::KlarnaCaptureResponse {
                     capture_id: Some(capture_id.to_owned()),
+                    captured_amount: None,
+                    purchase_currency: None,
                 };
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
+
+                let capture_amount = response
+                    .captured_amount
+                    .or(Some(data.request.minor_amount_to_capture));
+                let currency = response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string());
+
+                let response_integrity_object = connector_utils::get_capture_integrity_object(
+                    self.amount_converter,
+                    capture_amount,
+                    currency,
+                )?;
+
+                let new_router_data = RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
             }
             None => Err(errors::ConnectorError::ResponseDeserializationFailed)
                 .attach_printable("Expected headers, but received no headers in response")?,
@@ -476,10 +499,40 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Kla
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let (order_amount, currency) = match &response {
+            klarna::KlarnaPsyncResponse::KlarnaSDKPsyncResponse(sdk_response) => (
+                sdk_response.order_amount.unwrap_or(MinorUnit::from(0)),
+                sdk_response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string()),
+            ),
+            klarna::KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(checkout_response) => (
+                checkout_response.order_amount.unwrap_or(MinorUnit::from(0)),
+                checkout_response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string()),
+            ),
+        };
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            order_amount,
+            currency,
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -1126,12 +1179,44 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let (order_amount, currency) = match &response {
+            klarna::KlarnaAuthResponse::KlarnaPaymentsAuthResponse(payment_response) => (
+                payment_response.order_amount.unwrap_or(data.request.minor_amount),
+                payment_response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string()),
+            ),
+            klarna::KlarnaAuthResponse::KlarnaCheckoutAuthResponse(checkout_response) => (
+                checkout_response
+                    .order_amount
+                    .unwrap_or(data.request.minor_amount),
+                checkout_response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string()),
+            ),
+        };
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            order_amount,
+            currency,
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -1290,14 +1375,37 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Klarna 
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                 let response = klarna::KlarnaRefundResponse {
                     refund_id: refund_id.to_owned(),
+                    refunded_amount: None,
+                    purchase_currency: None,
                 };
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
+
+                let refund_amount = response
+                    .refunded_amount
+                    .or(Some(data.request.minor_refund_amount));
+                let currency = response
+                    .purchase_currency
+                    .as_ref()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| data.request.currency.to_string());
+
+                let response_integrity_object = connector_utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    refund_amount.unwrap_or_else(|| MinorUnit::from(0)),
+                    currency,
+                )?;
+
+                let new_router_data = RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
+                });
+
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
                 })
             }
             None => Err(errors::ConnectorError::ResponseDeserializationFailed)
@@ -1368,10 +1476,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Klarna {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let refund_amount = response
+            .refunded_amount
+            .unwrap_or_else(|| MinorUnit::from(0));
+        let currency = response
+            .purchase_currency
+            .as_ref()
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| data.request.currency.to_string());
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            currency,
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
