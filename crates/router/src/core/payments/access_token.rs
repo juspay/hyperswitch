@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorSpecifications};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use crate::{
     consts,
@@ -79,15 +79,11 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
-        let old_access_token = if connector.connector.id() == "santander" {
-            None
-        } else {
-            store
-                .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("DB error when accessing the access token")?
-        };
+        let old_access_token = store
+            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("DB error when accessing the access token")?;
 
         let res = match old_access_token {
             Some(access_token) => {
