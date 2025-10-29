@@ -912,7 +912,7 @@ describe("Corner cases", () => {
       ]["InvalidPublishableKey"];
 
       const originalKey = globalState.get("publishableKey");
-       //set invalid publishable key
+      //set invalid publishable key
       cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
