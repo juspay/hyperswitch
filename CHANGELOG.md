@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.27.0-hotfix1
+
+### Refactors
+
+- **connector:** [Payouts] Add bankredirect required fields for payout ([#10041](https://github.com/juspay/hyperswitch/pull/10041)) ([`32db688`](https://github.com/juspay/hyperswitch/commit/32db68833bba32210e5084bda5bc7b3e85d1e356))
+
+**Full Changelog:** [`2025.10.27.0...2025.10.27.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.27.0...2025.10.27.0-hotfix1)
+
+- - -
+
 ## 2025.10.27.0
 
 ### Features
