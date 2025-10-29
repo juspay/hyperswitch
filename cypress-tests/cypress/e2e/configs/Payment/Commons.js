@@ -1633,19 +1633,6 @@ export const connectorDetails = {
         },
       },
     },
-    InvalidPaymentID: {
-      Request: {},
-      Response: {
-        status: 404,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment does not exist in our records",
-            code: "HE_02",
-          },
-        },
-      },
-    },
     DDCRaceConditionServerSide: getCustomExchange({
       Request: {
         payment_method: "card",
