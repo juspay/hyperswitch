@@ -186,12 +186,21 @@ impl ConnectorValidation for Payjustnow {
 
     fn validate_psync_reference_id(
         &self,
-        _data: &PaymentsSyncData,
+        data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
+        if data.encoded_data.is_some()
+            || data
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .is_ok()
+        {
+            return Ok(());
+        }
+
+        Err(errors::ConnectorError::MissingConnectorTransactionID.into())
     }
 }
 

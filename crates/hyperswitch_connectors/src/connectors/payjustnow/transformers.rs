@@ -19,6 +19,8 @@ use crate::{
     utils::RouterData as _,
 };
 
+const NO_REFUND_REASON: &str = "No reason provided";
+
 //TODO: Fill the struct with respective fields
 pub struct PayjustnowRouterData<T> {
     pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -63,8 +65,6 @@ pub struct OrderItem {
     sku: String,
     quantity: u32,
     price_cents: MinorUnit,
-    // image_url: String,
-    // category: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,8 +105,6 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
                             sku: order.product_id.clone().unwrap_or_default(),
                             quantity: u32::from(order.quantity),
                             price_cents: order.amount,
-                            // image_url: order.product_img_link.clone().unwrap_or_default(),
-                            // category: order.category.clone().unwrap_or_default(),
                         })
                     })
                     .collect::<Result<Vec<OrderItem>, errors::ConnectorError>>()
@@ -139,8 +137,7 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
             postal_code: item.router_data.get_optional_shipping_zip(),
         });
 
-        let confirm_redirect_url = "https://www.google.com/".to_string();
-        let cancel_redirect_url = "https://www.google.com/".to_string();
+        let router_return_url = item.router_data.request.get_router_return_url()?;
 
         let payjustnow_request = PayjustnowRequest {
             request_id: Some(item.router_data.payment_id.clone()),
@@ -150,8 +147,8 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
             customer,
             billing_address,
             shipping_address,
-            confirm_redirect_url,
-            cancel_redirect_url,
+            confirm_redirect_url: router_return_url.clone(),
+            cancel_redirect_url: router_return_url,
         };
 
         Ok(Self {
@@ -358,7 +355,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for PayjustnowRefundRequest {
                 .request
                 .reason
                 .clone()
-                .unwrap_or("No reason provided".to_string()),
+                .unwrap_or(NO_REFUND_REASON.to_string()),
         })
     }
 }
