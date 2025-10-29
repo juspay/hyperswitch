@@ -420,10 +420,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
             .parse_struct("hipay HipaySyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        // Only compute integrity when the sync response contains amount/currency.
         let response_integrity_object = match &response {
-            hipay::HipaySyncResponse::Response {
-                amount, currency, ..
-            } => {
+            hipay::HipaySyncResponse::Response { amount, currency, .. } => {
                 let sync_amount = amount.clone().unwrap_or_else(|| {
                     self.amount_converter
                         .convert(data.request.amount, data.request.currency)
@@ -432,16 +431,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
                     .clone()
                     .unwrap_or_else(|| data.request.currency.to_string());
 
-                utils::get_sync_integrity_object(self.amount_converter, sync_amount, sync_currency)
+                Some(utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    sync_amount,
+                    sync_currency,
+                ))
             }
-            hipay::HipaySyncResponse::Error { .. } => {
-                // For error responses, use request data
-                let sync_amount = self
-                    .amount_converter
-                    .convert(data.request.amount, data.request.currency);
-                let sync_currency = data.request.currency.to_string();
-                utils::get_sync_integrity_object(self.amount_converter, sync_amount, sync_currency)
-            }
+            hipay::HipaySyncResponse::Error { .. } => None,
         };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -454,8 +450,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
         });
 
         new_router_data.and_then(|mut router_data| {
-            let integrity_object = response_integrity_object?;
-            router_data.request.integrity_object = Some(integrity_object);
+            if let Some(integrity_result) = response_integrity_object {
+                let integrity_object = integrity_result?;
+                router_data.request.integrity_object = Some(integrity_object);
+            }
             Ok(router_data)
         })
     }
