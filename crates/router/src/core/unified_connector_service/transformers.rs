@@ -598,7 +598,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_account_metadata: HashMap::new(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -674,6 +673,7 @@ impl
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -864,8 +864,8 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type: None,
-            merchant_account_metadata: HashMap::new(),
             access_token: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
