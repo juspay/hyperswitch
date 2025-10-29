@@ -9,6 +9,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
 
+use crate::payments;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
     pub bin_number: Option<Secret<String>>,
@@ -21,6 +23,8 @@ pub struct RevenueRecoveryBackfillRequest {
     pub clean_bank_name: Option<String>,
     pub country_name: Option<String>,
     pub daily_retry_history: Option<String>,
+    pub is_active: Option<String>,
+    pub account_update_history: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +50,15 @@ pub struct CsvParsingError {
     pub error: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountUpdateHistoryRecord {
+    pub old_token: String,
+    pub new_token: String,
+    pub updated_at: PrimitiveDateTime,
+    pub old_token_info: Option<payments::AdditionalCardInfo>,
+    pub new_token_info: Option<payments::AdditionalCardInfo>,
+}
+
 /// Comprehensive card
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComprehensiveCardData {
@@ -56,6 +69,8 @@ pub struct ComprehensiveCardData {
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
     pub daily_retry_history: Option<HashMap<Date, i32>>,
+    pub is_active: Option<bool>,
+    pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
 
 impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {

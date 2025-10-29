@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::revenue_recovery_data_backfill::{self, RedisKeyType};
+use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecord, RedisKeyType};
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -28,15 +28,6 @@ pub struct PaymentProcessorTokenDetails {
     pub card_type: Option<String>,
 }
 
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct AccountUpdateHistoryRecord {
-    pub old_token : String,
-    pub new_token : String,
-    pub updated_at : PrimitiveDateTime,
-    pub old_token_info : Option<api_models::payments::AdditionalCardInfo>,
-    pub new_token_info : Option<api_models::payments::AdditionalCardInfo>,
-}
-
 /// Represents the status and retry history of a payment processor token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentProcessorTokenStatus {
@@ -59,8 +50,6 @@ pub struct PaymentProcessorTokenStatus {
     /// Update history of the token
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
-
-
 
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
@@ -215,11 +204,25 @@ impl RedisTokenManager {
         }
     }
 
-    /// Get all payment processor tokens for a connector customer
     #[instrument(skip_all)]
     pub async fn get_connector_customer_payment_processor_tokens(
         state: &SessionState,
         connector_customer_id: &str,
+    ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
+        Self::get_connector_customer_payment_processor_tokens_internal(
+            state,
+            connector_customer_id,
+            false, // Default: filter out inactive tokens
+        )
+        .await
+    }
+
+    /// Get all payment processor tokens for a connector customer
+    #[instrument(skip_all)]
+    pub async fn get_connector_customer_payment_processor_tokens_internal(
+        state: &SessionState,
+        connector_customer_id: &str,
+        include_in_active: bool,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
         let redis_conn =
             state
@@ -243,7 +246,13 @@ impl RedisTokenManager {
                 .into_iter()
                 .filter_map(|(token_id, token_data)| {
                     match serde_json::from_str::<PaymentProcessorTokenStatus>(&token_data) {
-                        Ok(token_status) => Some((token_id, token_status)),
+                        Ok(token_status) => {
+                            if include_in_active || token_status.is_active.unwrap_or(true) {
+                                Some((token_id, token_status))
+                            } else {
+                                None
+                            }
+                        }
                         Err(err) => {
                             tracing::warn!(
                                 connector_customer_id = %connector_customer_id,
@@ -649,6 +658,8 @@ impl RedisTokenManager {
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 )),
+                is_active: status.is_active,
+                account_update_history: status.account_update_history.clone(),
             };
             updated_tokens_map.insert(token_id, updated_status);
         }
@@ -1025,6 +1036,27 @@ impl RedisTokenManager {
             OffsetDateTime::now_utc().date(),
             OffsetDateTime::now_utc().time(),
         ));
+
+        // Update account_update_history if provided
+        if let Some(history) = &card_data.account_update_history {
+            // Convert api_models::AccountUpdateHistoryRecord to storage::AccountUpdateHistoryRecord
+            let converted_history: Vec<AccountUpdateHistoryRecord> = history
+                .iter()
+                .map(|api_record| AccountUpdateHistoryRecord {
+                    old_token: api_record.old_token.clone(),
+                    new_token: api_record.new_token.clone(),
+                    updated_at: api_record.updated_at,
+                    old_token_info: api_record.old_token_info.clone(),
+                    new_token_info: api_record.new_token_info.clone(),
+                })
+                .collect();
+            existing_token.account_update_history = Some(converted_history);
+        }
+
+        // Update is_active if provided
+        card_data.is_active.map(|is_active| {
+            existing_token.is_active = Some(is_active);
+        });
 
         // Save the updated token map back to Redis
         Self::update_or_add_connector_customer_payment_processor_tokens(
