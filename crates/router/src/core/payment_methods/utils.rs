@@ -14,9 +14,11 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use masking::ExposeInterface;
+#[cfg(feature = "v1")]
+use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, routes::SessionState};
+use crate::{configs::settings, db::StorageInterface, routes::SessionState};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
@@ -809,6 +811,41 @@ fn compile_accepted_currency_for_mca(
             .make_all_aggregator(&agg_nodes, None, None::<()>, Some(domain_id))
             .map_err(KgraphError::GraphConstructionError)?,
     ))
+}
+
+pub async fn get_merchant_config_for_eligibility_check(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &merchant_id.get_should_perform_eligibility_check_key(),
+            Some("false".to_string()),
+        )
+        .await;
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
+pub async fn get_sdk_next_action_for_payment_method_list(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> api_models::payments::SdkNextAction {
+    let should_perform_eligibility_check =
+        get_merchant_config_for_eligibility_check(db, merchant_id).await;
+    let next_action_call = if should_perform_eligibility_check {
+        api_models::payments::NextActionCall::EligibilityCheck
+    } else {
+        api_models::payments::NextActionCall::Confirm
+    };
+    api_models::payments::SdkNextAction {
+        next_action: next_action_call,
+    }
 }
 
 #[cfg(feature = "v2")]
