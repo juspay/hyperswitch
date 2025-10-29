@@ -517,6 +517,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
 pub struct CreateOrderRequestData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
@@ -526,6 +528,8 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,
+            payment_method_data: Some(data.payment_method_data),
+            order_details: data.order_details,
         })
     }
 }
@@ -537,6 +541,8 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,
+            payment_method_data: None,
+            order_details: data.order_details,
         })
     }
 }
@@ -612,20 +618,19 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreAuthenticateData {
-    pub payment_method_data: Option<PaymentMethodData>,
-    pub amount: Option<i64>,
+    pub payment_method_data: PaymentMethodData,
+    pub amount: i64,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
-    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
-
+    pub customer_name: Option<Secret<String>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
-    pub minor_amount: Option<MinorUnit>,
+    pub minor_amount: MinorUnit,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -633,17 +638,17 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: Some(data.payment_method_data),
-            amount: Some(data.amount),
-            minor_amount: Some(data.minor_amount),
+            payment_method_data: data.payment_method_data,
+            customer_name: data.customer_name,
+            metadata: data.metadata.map(Secret::new),
+            amount: data.amount,
+            minor_amount: data.minor_amount,
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
-            redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
@@ -655,35 +660,25 @@ pub struct PaymentsAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
-    pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
-
-    // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
 }
 
-impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
-    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: Some(data.payment_method_data),
+            payment_method_data: data.payment_method_data,
             amount: Some(data.amount),
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
-            payment_method_type: data.payment_method_type,
-            router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
-            redirect_response: None,
-            enrolled_for_3ds: data.enrolled_for_3ds,
+            redirect_response: data.redirect_response,
         })
     }
 }

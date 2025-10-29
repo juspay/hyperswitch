@@ -4,6 +4,113 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.29.0
+
+### Features
+
+- **router:** Add /apply-payment-method-data endpoint (v2) ([#9868](https://github.com/juspay/hyperswitch/pull/9868)) ([`0637095`](https://github.com/juspay/hyperswitch/commit/0637095f60035b9057a590971425db67feddf4a2))
+
+### Bug Fixes
+
+- **connector:** [Finix] Add authentication_type check only for cards ([#10010](https://github.com/juspay/hyperswitch/pull/10010)) ([`d98f11d`](https://github.com/juspay/hyperswitch/commit/d98f11d647a7c421a62cef4831772d685570ed67))
+
+### Refactors
+
+- **connector:** Finix pass idempotency key ([#9979](https://github.com/juspay/hyperswitch/pull/9979)) ([`44fbcc9`](https://github.com/juspay/hyperswitch/commit/44fbcc9c7d9d0ff2c985dc3f3adf5fd0dbd4468b))
+
+**Full Changelog:** [`2025.10.28.0...2025.10.29.0`](https://github.com/juspay/hyperswitch/compare/2025.10.28.0...2025.10.29.0)
+
+- - -
+
+## 2025.10.28.0
+
+### Features
+
+- **core:**
+  - Added two step payment webhooks processing for Hyperswitch <> UCS Integration ([#9374](https://github.com/juspay/hyperswitch/pull/9374)) ([`faed8d3`](https://github.com/juspay/hyperswitch/commit/faed8d352c347339e2e1cb6bdfcaa6e4be07c31a))
+  - Hyperswitch <|> UCS Void flow integration ([#9714](https://github.com/juspay/hyperswitch/pull/9714)) ([`10587a0`](https://github.com/juspay/hyperswitch/commit/10587a0c96b14bba05d4ffb76e8ecdd64b211968))
+  - Added Capture flow support for Hyperswitch <> UCS Integration ([#9735](https://github.com/juspay/hyperswitch/pull/9735)) ([`b354d63`](https://github.com/juspay/hyperswitch/commit/b354d63bd58f3fe52a5d0fb47e2d98bfe48f75f7))
+- **payouts:** Add payout through psp token ([#9831](https://github.com/juspay/hyperswitch/pull/9831)) ([`f41a77f`](https://github.com/juspay/hyperswitch/commit/f41a77f3d1c299ee75ac4907919844a9c57b3dda))
+- Add outgoing webhooks for subscriptions ([#9859](https://github.com/juspay/hyperswitch/pull/9859)) ([`62035c4`](https://github.com/juspay/hyperswitch/commit/62035c4aeb014a72251a95a802d24cfa14b3e288))
+
+### Bug Fixes
+
+- **payments:** Update preprocessing steps and handle session token in payment flow ([#9947](https://github.com/juspay/hyperswitch/pull/9947)) ([`1c037fc`](https://github.com/juspay/hyperswitch/commit/1c037fc717dfbac885edf470b78542d595bb9425))
+- **subscriptions:** Save both payment connector and billing connector customer id ([#9982](https://github.com/juspay/hyperswitch/pull/9982)) ([`26ab385`](https://github.com/juspay/hyperswitch/commit/26ab3850dda7b99da703fdb98e63f7c2e4ad47c3))
+
+### Miscellaneous Tasks
+
+- **connector:** [tesouro] enable hyperswitch decrypted flow for google pay ([#9970](https://github.com/juspay/hyperswitch/pull/9970)) ([`6ff2116`](https://github.com/juspay/hyperswitch/commit/6ff2116461737c8e43bae1b07ec453703f29dd00))
+
+**Full Changelog:** [`2025.10.27.0...2025.10.28.0`](https://github.com/juspay/hyperswitch/compare/2025.10.27.0...2025.10.28.0)
+
+- - -
+
+## 2025.10.27.0
+
+### Features
+
+- **webhooks:** Adding event search option in the webhooks page ([#9907](https://github.com/juspay/hyperswitch/pull/9907)) ([`b0d5a1b`](https://github.com/juspay/hyperswitch/commit/b0d5a1b0463048e4d90b60dcb9674d24e2c0179c))
+
+### Bug Fixes
+
+- **connector:** [NOVALNET] Add Sepa Direct Debit Required Fields ([#9967](https://github.com/juspay/hyperswitch/pull/9967)) ([`910887d`](https://github.com/juspay/hyperswitch/commit/910887d35cda9137acace7ac1791969952f8ba59))
+- **revenue-recovery:** Stop retries on hard-decline and apply wait on retry-limit reached ([#9742](https://github.com/juspay/hyperswitch/pull/9742)) ([`d62eed7`](https://github.com/juspay/hyperswitch/commit/d62eed7c805262aab8edc0e2031829c171406977))
+
+### Refactors
+
+- **payouts:** Add bankredirect for payout links ([#9943](https://github.com/juspay/hyperswitch/pull/9943)) ([`5b42bf8`](https://github.com/juspay/hyperswitch/commit/5b42bf8c98771bf1b3a1694d5e194232e13a03b2))
+
+### Miscellaneous Tasks
+
+- Introduce placeholders for complete authorize and preprocessing through ucs ([#9915](https://github.com/juspay/hyperswitch/pull/9915)) ([`3872559`](https://github.com/juspay/hyperswitch/commit/38725599d9a12c0f9ae82aedeb2e6d3d33ddb7cb))
+- Update volume mount for Postgres 18 ([#9973](https://github.com/juspay/hyperswitch/pull/9973)) ([`7b70d24`](https://github.com/juspay/hyperswitch/commit/7b70d2454e88009554669c4a12b9052deb95b4ea))
+
+**Full Changelog:** [`2025.10.24.0...2025.10.27.0`](https://github.com/juspay/hyperswitch/compare/2025.10.24.0...2025.10.27.0)
+
+- - -
+
+## 2025.10.24.0
+
+### Features
+
+- **connector:** [PAYJUSTNOW] add Connector Template Code ([#9958](https://github.com/juspay/hyperswitch/pull/9958)) ([`6024a53`](https://github.com/juspay/hyperswitch/commit/6024a53a3555ea3e785d601bec60785972a09ffe))
+- **payouts:** Add organization_id to payouts ([#9938](https://github.com/juspay/hyperswitch/pull/9938)) ([`175d0f5`](https://github.com/juspay/hyperswitch/commit/175d0f5baf19102ecc1d2491ba4c73c88f280508))
+
+### Bug Fixes
+
+- **ci:** Add rustfmt component to rust-toolchain installation ([#9807](https://github.com/juspay/hyperswitch/pull/9807)) ([`4b0c96d`](https://github.com/juspay/hyperswitch/commit/4b0c96dd4097d138206014dcd53f62023ceffb5d))
+- **connector:**
+  - [NOVALNET] Address Deserilization Failure due to missing enum variant in Redirection params ([#9832](https://github.com/juspay/hyperswitch/pull/9832)) ([`c3f550b`](https://github.com/juspay/hyperswitch/commit/c3f550b26ef3bc230a47178ee08d7649c2b02655))
+  - [ADYEN] Populate brand only when cobadged cards ([#9743](https://github.com/juspay/hyperswitch/pull/9743)) ([`3d3dfc0`](https://github.com/juspay/hyperswitch/commit/3d3dfc05e3a26a96e2f89cc70a7c268aa23e805e))
+- **connectors:**
+  - [Paypal] add a separate extended authorization status to fix the deserialization error ([#9953](https://github.com/juspay/hyperswitch/pull/9953)) ([`433e2c4`](https://github.com/juspay/hyperswitch/commit/433e2c40ec83ddc9e769f174a19849e7fa8b2f48))
+  - [Stripe] update overcapture handling and add CLF currency to db ([#9880](https://github.com/juspay/hyperswitch/pull/9880)) ([`16ee54a`](https://github.com/juspay/hyperswitch/commit/16ee54ad09e932f45927e0f5463e1d6648a54ae7))
+  - [nuvei] chargeback webhooks ([#9956](https://github.com/juspay/hyperswitch/pull/9956)) ([`fe8c484`](https://github.com/juspay/hyperswitch/commit/fe8c484114be6c9fbf78cfa6dc6d73ef289dc472))
+
+### Documentation
+
+- **subscriptions:** Add subscription endpoint in api-ref docs ([#9954](https://github.com/juspay/hyperswitch/pull/9954)) ([`ed57cd0`](https://github.com/juspay/hyperswitch/commit/ed57cd0f2e9f589a2891c344e789c8ee151b3a50))
+
+**Full Changelog:** [`2025.10.23.0...2025.10.24.0`](https://github.com/juspay/hyperswitch/compare/2025.10.23.0...2025.10.24.0)
+
+- - -
+
+## 2025.10.23.0
+
+### Features
+
+- **connector:** Finix mandates implementation cards + Googlepay + Applepay ([#9847](https://github.com/juspay/hyperswitch/pull/9847)) ([`622a81e`](https://github.com/juspay/hyperswitch/commit/622a81e19dc3e8de050de2e64d14e86a884cc770))
+- **core:** Bumped UCS Client dependency to bring latest changes ([#9873](https://github.com/juspay/hyperswitch/pull/9873)) ([`63c2fee`](https://github.com/juspay/hyperswitch/commit/63c2fee330a3ec0c3a46789ef32f169ddcc99f98))
+
+### Refactors
+
+- **connector:** [Gigadat] fix cargo hack check in main ([#9939](https://github.com/juspay/hyperswitch/pull/9939)) ([`8721bee`](https://github.com/juspay/hyperswitch/commit/8721beeda4012f3b364d4dc72225d2bac79cc945))
+
+**Full Changelog:** [`2025.10.22.0...2025.10.23.0`](https://github.com/juspay/hyperswitch/compare/2025.10.22.0...2025.10.23.0)
+
+- - -
+
 ## 2025.10.22.0
 
 ### Features

@@ -1380,6 +1380,8 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 32]
         priority -> Nullable<Varchar>,
+        #[max_length = 32]
+        organization_id -> Nullable<Varchar>,
     }
 }
 

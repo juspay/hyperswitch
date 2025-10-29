@@ -234,6 +234,18 @@
                   {
                     "group": "Schemas",
                     "pages": ["v1/schemas/outgoing--webhook"]
+                  },
+                  {
+                    "group": "Subscriptions",
+                    "pages": [
+                      "v1/subscriptions/create",
+                      "v1/subscriptions/confirm",
+                      "v1/subscriptions/create-and-confirm",
+                      "v1/subscriptions/update",
+                      "v1/subscriptions/get",
+                      "v1/subscriptions/get-plans",
+                      "v1/subscriptions/estimate"
+                    ]
                   }
                 ]
               }
@@ -269,7 +281,9 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check"
+                      "v2/payments/payments--gift-card-balance-check",
+                      "v2/payments/payments--apply-pm-data"
+
                     ]
                   },
                   {

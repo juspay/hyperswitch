@@ -2126,34 +2126,145 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
         .unwrap_or(false)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct RolloutConfig {
+    pub rollout_percent: f64,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+impl Default for RolloutConfig {
+    fn default() -> Self {
+        Self {
+            rollout_percent: 0.0,
+            http_url: None,
+            https_url: None,
+        }
+    }
+}
+
+// Re-export ProxyOverride from hyperswitch_interfaces
+pub use hyperswitch_interfaces::types::ProxyOverride;
+
+#[derive(Debug, Clone)]
+pub struct RolloutExecutionResult {
+    pub should_execute: bool,
+    pub proxy_override: Option<ProxyOverride>,
+}
+
+/// Validates a proxy URL, filtering out invalid ones and logging warnings
+fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
+    url.and_then(|url_str| {
+        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
+            logger::warn!(
+                invalid_url = %url_str,
+                url_type = url_type,
+                "Invalid proxy URL in rollout config, ignoring"
+            );
+            None
+        } else {
+            Some(url_str)
+        }
+    })
+}
+
+/// Creates proxy override with validated URLs and logging
+fn create_proxy_override(
+    http_url: Option<String>,
+    https_url: Option<String>,
+) -> Option<ProxyOverride> {
+    let validated_http = validate_proxy_url(http_url, "HTTP");
+    let validated_https = validate_proxy_url(https_url, "HTTPS");
+
+    if validated_http.is_some() || validated_https.is_some() {
+        if let Some(ref http_url) = validated_http {
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+        }
+        if let Some(ref https_url) = validated_https {
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+        }
+        Some(ProxyOverride {
+            http_url: validated_http,
+            https_url: validated_https,
+        })
+    } else {
+        None
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<bool> {
+) -> RouterResult<RolloutExecutionResult> {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
-            Ok(rollout_percent) => {
-                if !(0.0..=1.0).contains(&rollout_percent) {
-                    logger::warn!(
-                        rollout_percent,
-                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+            {
+                Ok(config) => Ok(config),
+                Err(err) => {
+                    logger::debug!(
+                        error = ?err,
+                        config = %rollout_config.config,
+                        "Config not in JSON format, trying legacy float format"
                     );
-                    return Ok(false);
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>()
+                        .map(|percent| RolloutConfig {
+                            rollout_percent: percent,
+                            http_url: None,
+                            https_url: None,
+                        })
+                        .map_err(|err| {
+                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
+                            err
+                        })
                 }
+            };
 
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                Ok(sampled_value < rollout_percent)
+            match config_result {
+                Ok(config) => {
+                    if !(0.0..=1.0).contains(&config.rollout_percent) {
+                        logger::warn!(
+                            rollout_percent = config.rollout_percent,
+                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                        );
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+
+                        return Ok(RolloutExecutionResult {
+                            should_execute: false,
+                            proxy_override,
+                        });
+                    }
+
+                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                    let should_execute = sampled_value < config.rollout_percent;
+
+                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
+
+                    Ok(RolloutExecutionResult {
+                        should_execute,
+                        proxy_override,
+                    })
+                }
+                Err(err) => {
+                    logger::error!(error = ?err, "Failed to parse rollout config");
+                    Ok(RolloutExecutionResult {
+                        should_execute: false,
+                        proxy_override: None,
+                    })
+                }
             }
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse rollout percent");
-                Ok(false)
-            }
-        },
+        }
         Err(err) => {
             logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(false)
+            Ok(RolloutExecutionResult {
+                should_execute: false,
+                proxy_override: None,
+            })
         }
     }
 }
@@ -7867,6 +7978,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
+    call_connector_action: CallConnectorAction,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -7874,7 +7986,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
     MerchantConnectorAccountType,
@@ -7918,6 +8030,28 @@ where
         GatewaySystem::UnifiedConnectorService,
     )?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    // Extract merchant_order_reference_id from payment data for UCS audit trail
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
+    let (mut router_data, should_continue) = router_data
+        .call_preprocessing_through_unified_connector_service(
+            state,
+            &header_payload,
+            &lineage_ids,
+            merchant_connector_account.clone(),
+            merchant_context,
+            connector_data,
+            ExecutionMode::Primary, // UCS is called in primary mode
+            merchant_order_reference_id.clone(),
+        )
+        .await?;
+
     // Update trackers
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -7934,30 +8068,22 @@ where
         )
         .await?;
 
-    // Call UCS
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    // Extract merchant_order_reference_id from payment data for UCS audit trail
-    let merchant_order_reference_id = payment_data
-        .get_payment_intent()
-        .merchant_order_reference_id
-        .clone();
-
-    router_data
-        .call_unified_connector_service(
-            state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account.clone(),
-            merchant_context,
-            connector_data,
-            ExecutionMode::Primary, // UCS is called in primary mode
-            merchant_order_reference_id,
-        )
-        .await?;
+    // Based on the preprocessing response, decide whether to continue with UCS call
+    if should_continue {
+        router_data
+            .call_unified_connector_service(
+                state,
+                &header_payload,
+                lineage_ids,
+                merchant_connector_account.clone(),
+                merchant_context,
+                connector_data,
+                ExecutionMode::Primary, // UCS is called in primary mode
+                merchant_order_reference_id,
+                call_connector_action,
+            )
+            .await?;
+    }
 
     Ok((router_data, merchant_connector_account))
 }
@@ -8112,7 +8238,7 @@ where
         operation,
         payment_data,
         customer,
-        call_connector_action,
+        call_connector_action.clone(),
         validate_result,
         schedule_time,
         header_payload,
@@ -8139,6 +8265,7 @@ where
             &connector,
             unified_connector_service_merchant_context,
             unified_connector_service_merchant_order_reference_id,
+            call_connector_action,
         )
         .await
     });
@@ -8160,6 +8287,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     connector_data: &api::ConnectorData,
     merchant_context: domain::MerchantContext,
     merchant_order_reference_id: Option<String>,
+    call_connector_action: CallConnectorAction,
 ) where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
@@ -8178,6 +8306,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
+            call_connector_action,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
