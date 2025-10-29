@@ -27,8 +27,8 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, ConnectorState, Identifier,
-    PaymentServiceTransformRequest, PaymentServiceTransformResponse,
+    self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
+    PaymentServiceTransformResponse,
 };
 use url::Url;
 

@@ -8537,9 +8537,7 @@ where
     let unified_connector_service_connector_label =
         get_connector_label_for_customer(&merchant_connector_account, payment_data);
 
-    let creds_identifier = payment_data
-        .get_creds_identifier()
-        .map(str::to_owned);
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();

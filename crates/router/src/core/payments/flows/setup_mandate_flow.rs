@@ -304,7 +304,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(&*self)
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Setup Mandate Request")?;
-        
+
         let merchant_connector_id = merchant_connector_account.get_mca_id();
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(

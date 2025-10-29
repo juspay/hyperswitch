@@ -26,7 +26,8 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            self, build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
+            self, build_unified_connector_service_auth_metadata,
+            get_access_token_from_ucs_response,
             handle_unified_connector_service_response_for_payment_authorize,
             handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
             ucs_logging_wrapper,
@@ -939,15 +940,13 @@ async fn call_unified_connector_service_authorize(
         payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*router_data)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
-    
+
     let merchant_connector_id = merchant_connector_account.get_mca_id();
 
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        merchant_context,
-    )
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to construct request metadata")?;
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
 
     let merchant_reference_id = header_payload
         .x_reference_id
@@ -1172,12 +1171,10 @@ async fn call_unified_connector_service_repeat_payment(
 
     let merchant_connector_id = merchant_connector_account.get_mca_id();
 
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        merchant_context,
-    )
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to construct request metadata")?;
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
         .x_reference_id
         .clone()

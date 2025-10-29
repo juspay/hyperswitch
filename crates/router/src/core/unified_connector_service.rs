@@ -62,8 +62,8 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
-        transformers::{ForeignFrom, ForeignTryFrom}, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
-        UcsSetupMandateResponseData,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
     },
 };
 
