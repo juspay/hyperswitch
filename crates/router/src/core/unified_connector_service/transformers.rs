@@ -366,6 +366,71 @@ impl
     }
 }
 
+impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceCaptureRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            transaction_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    connector_transaction_id,
+                )),
+            }),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            access_token: None,
+            amount_to_capture: router_data
+                .request
+                .minor_amount_to_capture
+                .get_amount_as_i64(),
+            currency: currency.into(),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            connector_metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+            browser_info,
+            multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
+                |multiple_capture_request_data| payments_grpc::MultipleCaptureRequestData {
+                    capture_sequence: multiple_capture_request_data.capture_sequence.into(),
+                    capture_reference: multiple_capture_request_data.capture_reference.clone(),
+                },
+            ),
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
