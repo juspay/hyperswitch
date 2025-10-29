@@ -4280,7 +4280,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4310,7 +4310,7 @@ where
             // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
             ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     operation,
@@ -4332,7 +4332,7 @@ where
             // Process through Direct with Shadow UCS
             ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     connector,
@@ -4429,8 +4429,9 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
+        + Send
+        + Sync,
 {
     let add_access_token_result = router_data
         .add_access_token(
@@ -4827,7 +4828,7 @@ where
         .await?;
 
     // do order creation
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4972,7 +4973,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution_path = should_call_unified_connector_service(
+        let (execution, updated_state) = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
@@ -4980,7 +4981,7 @@ where
             call_connector_action.clone(),
         )
         .await?;
-        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
+        if matches!(execution, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5058,7 +5059,7 @@ where
 
             Ok(router_data)
         } else {
-            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
+            if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
@@ -5072,8 +5073,15 @@ where
                 );
             }
 
+
+            let session_state = if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
+                &updated_state
+            } else {
+                state
+            };
+
             call_connector_service(
-                state,
+                session_state,
                 req_state,
                 merchant_context,
                 connector,

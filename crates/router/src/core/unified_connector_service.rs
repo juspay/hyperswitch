@@ -51,7 +51,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                self, is_ucs_enabled, should_execute_based_on_rollout,
+                MerchantConnectorAccountType, ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -149,6 +150,25 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
+/// Gets the rollout percentage for a given config key
+async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+    let db = state.store.as_ref();
+
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                Ok(config) => Some(config.rollout_percent),
+                Err(_) => {
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>().ok()
+                }
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
@@ -184,13 +204,13 @@ async fn determine_connector_integration_type(
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = ucs_config.ucs_only_connectors.contains(&connector);
-            let is_rollout_enabled = should_execute_based_on_rollout(state, config_key).await?;
+            let rollout_result = should_execute_based_on_rollout(state, config_key).await?;
 
-            if is_ucs_only || is_rollout_enabled {
+            if is_ucs_only || rollout_result.should_execute {
                 router_env::logger::debug!(
                     connector = ?connector,
                     ucs_only_list = is_ucs_only,
-                    rollout_enabled = is_rollout_enabled,
+                    rollout_enabled = rollout_result.should_execute,
                     "Using UcsConnector"
                 );
                 Ok(ConnectorIntegrationType::UcsConnector)
@@ -218,7 +238,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<ExecutionPath>
+) -> RouterResult<(ExecutionPath, SessionState)>
 where
     D: OperationSessionGetters<F>,
 {
@@ -257,15 +277,36 @@ where
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
     let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
+    // Check both rollout keys to determine priority based on shadow percentage
+    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+
+    // Get shadow percentage to determine priority
+    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
+        .await
+        .unwrap_or(0.0);
+
     let shadow_rollout_availability =
-        if should_execute_based_on_rollout(state, &shadow_rollout_key).await? {
+        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
+            // Shadow is present and percentage is non-zero, use shadow
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage,
+                "Shadow rollout is present with non-zero percentage, using shadow"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else if rollout_result.should_execute {
+            // Either shadow is 0.0 or not present, use rollout if available
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage,
+                "Shadow rollout is 0.0 or not present, using rollout"
+            );
             ShadowRolloutAvailability::IsAvailable
         } else {
             ShadowRolloutAvailability::NotAvailable
         };
 
     // Single decision point using pattern matching
-    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (_gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
@@ -309,17 +350,58 @@ where
         }
     };
 
-    router_env::logger::info!(
-        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
-        gateway_system,
-        execution_path,
-        merchant_id,
-        connector_name,
-        payment_method,
-        flow_name
-    );
+    router_env::logger::info!( "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}", execution_path, merchant_id, connector_name, payment_method, flow_name );
 
-    Ok(execution_path)
+    // Handle proxy configuration for Shadow UCS flows
+    let session_state = match execution_path {
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
+            match &rollout_result.proxy_override {
+                Some(proxy_override) => {
+                    router_env::logger::debug!(
+                        proxy_override = ?proxy_override,
+                        "Creating updated session state with proxy configuration for Shadow UCS"
+                    );
+                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
+                }
+                None => {
+                    router_env::logger::debug!(
+                        "No proxy override available for Shadow UCS, using original state"
+                    );
+                    state.clone()
+                }
+            }
+        }
+        _ => {
+            // For Direct and UCS flows, use original state
+            state.clone()
+        }
+    };
+
+    Ok((execution_path, session_state))
+}
+
+/// Creates a new SessionState with proxy configuration updated from the override
+fn create_updated_session_state_with_proxy(
+    state: SessionState,
+    proxy_override: &ProxyOverride,
+) -> SessionState {
+    let mut updated_state = state;
+
+    // Create updated configuration with proxy overrides
+    let mut updated_conf = (*updated_state.conf).clone();
+
+    // Update proxy URLs with overrides, falling back to existing values
+    if let Some(ref http_url) = proxy_override.http_url {
+        updated_conf.proxy.http_url = Some(http_url.clone());
+    }
+    if let Some(ref https_url) = proxy_override.https_url {
+        updated_conf.proxy.https_url = Some(https_url.clone());
+    }
+
+    updated_state.conf = std::sync::Arc::new(updated_conf);
+
+    updated_state
 }
 
 fn decide_execution_path(
@@ -404,12 +486,23 @@ fn decide_execution_path(
             ExecutionPath::ShadowUnifiedConnectorService,
         )),
 
-        // Case 9: UcsConnector with no previous gateway (regardless of shadow rollout)
+        // Case 9a: UcsConnector with no previous gateway and shadow rollout enabled
+        // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
+        (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
+            Ok((
+                GatewaySystem::UnifiedConnectorService,
+                ExecutionPath::ShadowUnifiedConnectorService,
+            ))
+        }
+
+        // Case 9b: UcsConnector with no previous gateway and no shadow rollout
         // Fresh payment for a UCS-enabled connector - use UCS as primary
-        (ConnectorIntegrationType::UcsConnector, None, _) => Ok((
-            GatewaySystem::UnifiedConnectorService,
-            ExecutionPath::UnifiedConnectorService,
-        )),
+        (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::NotAvailable) => {
+            Ok((
+                GatewaySystem::UnifiedConnectorService,
+                ExecutionPath::UnifiedConnectorService,
+            ))
+        }
 
         // Case 10: UcsConnector previously used UCS (regardless of shadow rollout)
         // Continue using UCS for consistency in the payment flow
@@ -519,9 +612,9 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         connector_name
     );
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    let rollout_result = should_execute_based_on_rollout(state, &config_key).await?;
 
-    Ok(should_execute)
+    Ok(rollout_result.should_execute)
 }
 
 pub fn build_unified_connector_service_payment_method(
