@@ -355,29 +355,51 @@ pub struct AuthenticationRetrieveEligibilityCheckResponse {
     #[serde(skip)]
     pub authentication_id: id_type::AuthenticationId,
     /// The data for this authentication eligibility check.
-    pub eligibility_check_data: AuthenticationEligibilityCheckData,
+    pub eligibility_check_data: AuthenticationEligibilityCheckResponseData,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum AuthenticationEligibilityCheckData {
     ClickToPay(ClickToPayEligibilityCheckData),
+}
+
+impl AuthenticationEligibilityCheckData {
+    pub fn get_click_to_pay_data(&self) -> Option<&ClickToPayEligibilityCheckData> {
+        match self {
+            Self::ClickToPay(data) => Some(data),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationEligibilityCheckResponseData {
+    ClickToPayEnrollmentStatus(ClickToPayEligibilityCheckResponseData),
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ClickToPayEligibilityCheckData {
     // Visa specific eligibility check data
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub visa: Option<VisaEligibilityCheckData>,
     // MasterCard specific eligibility check data
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub mastercard: Option<MasterCardEligibilityCheckData>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayEligibilityCheckResponseData {
+    // Visa specific eligibility check data
+    pub visa: Option<bool>,
+    // MasterCard specific eligibility check data
+    pub mastercard: Option<bool>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VisaEligibilityCheckData {
     // Indicates whether the consumer is enrolled in Visa Secure program
@@ -392,7 +414,7 @@ pub struct VisaEligibilityCheckData {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MasterCardEligibilityCheckData {
     // Indicates whether the consumer is enrolled in MasterCard Identity Check program

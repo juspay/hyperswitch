@@ -14,8 +14,10 @@ use api_models::authentication::{
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSdkNextAction,
-        AuthenticationSessionTokenRequest,
+        AuthenticationCreateRequest, AuthenticationEligibilityCheckData,
+        AuthenticationEligibilityCheckResponseData, AuthenticationResponse,
+        AuthenticationSdkNextAction, AuthenticationSessionTokenRequest,
+        ClickToPayEligibilityCheckResponseData,
     },
     payments::{self, CustomerDetails},
 };
@@ -1516,7 +1518,7 @@ pub async fn authentication_retrieve_eligibility_check_core(
             .get_string_repr(),
         req.authentication_id.get_string_repr()
     );
-    let eligibility_check_data = redis
+    let eligibility_check_data: AuthenticationEligibilityCheckData = redis
         .get_key::<String>(&key.as_str().into())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
@@ -1527,7 +1529,21 @@ pub async fn authentication_retrieve_eligibility_check_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         AuthenticationRetrieveEligibilityCheckResponse {
             authentication_id: req.authentication_id,
-            eligibility_check_data,
+            eligibility_check_data:
+                AuthenticationEligibilityCheckResponseData::ClickToPayEnrollmentStatus(
+                    ClickToPayEligibilityCheckResponseData {
+                        visa: eligibility_check_data
+                            .get_click_to_pay_data()
+                            .and_then(|data| data.visa.clone().map(|visa| visa.consumer_present)),
+                        mastercard: eligibility_check_data.get_click_to_pay_data().and_then(
+                            |data| {
+                                data.mastercard
+                                    .clone()
+                                    .map(|mastercard| mastercard.consumer_present)
+                            },
+                        ),
+                    },
+                ),
         },
     ))
 }
