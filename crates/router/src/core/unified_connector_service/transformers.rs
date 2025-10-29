@@ -1812,7 +1812,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                     connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
-                    incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    incremental_authorization_allowed: None,
                     charges: None,
                 },
                 status,
