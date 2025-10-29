@@ -4932,7 +4932,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsCaptureRouterData>> for AdyenCaptureReque
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.amount.to_owned(),
+                value: item.router_data.request.minor_amount_to_capture,
             },
         })
     }
@@ -4984,7 +4984,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 incremental_authorization_allowed: None,
                 charges,
             }),
-            amount_captured: Some(0),
+            amount_captured: Some(item.response.amount.value.get_amount_as_i64()),
             ..item.data
         })
     }
