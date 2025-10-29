@@ -4261,7 +4261,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4288,22 +4288,6 @@ where
         call_connector_action.clone(),
     )
     .await?;
-
-    // Check for cached access token in Redis (no generation for UCS flows)
-    let cached_access_token = access_token::get_cached_access_token_for_ucs(
-        state,
-        &connector,
-        merchant_context,
-        router_data.payment_method,
-        &router_data.payment_id,
-        payment_data.get_creds_identifier(),
-    )
-    .await?;
-
-    // Set cached access token in router_data if available
-    if let Some(access_token) = cached_access_token {
-        router_data.access_token = Some(access_token);
-    }
 
     record_time_taken_with(|| async {
         match execution_path {
@@ -5024,22 +5008,6 @@ where
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
             let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
-
-            // Check for cached access token in Redis (no generation for UCS flows)
-            let cached_access_token = access_token::get_cached_access_token_for_ucs(
-                state,
-                &connector,
-                merchant_context,
-                router_data.payment_method,
-                &router_data.payment_id,
-                payment_data.get_creds_identifier(),
-            )
-            .await?;
-
-            // Set cached access token in router_data if available
-            if let Some(access_token) = cached_access_token {
-                router_data.access_token = Some(access_token);
-            }
 
             router_data
                 .call_unified_connector_service(
@@ -10615,6 +10583,7 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
         connector_transaction_id,
+        amount_capturable,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -10646,6 +10615,17 @@ pub async fn payments_manual_update(
         .attach_printable(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
+
+    if let Some(amount_capturable) = amount_capturable {
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
 
     let payment_intent = state
         .store
@@ -10687,6 +10667,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
+        amount_capturable,
     };
     let updated_payment_attempt = state
         .store
@@ -10728,6 +10709,7 @@ pub async fn payments_manual_update(
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+            amount_capturable: Some(updated_payment_attempt.amount_capturable),
         },
     ))
 }

@@ -65,36 +65,12 @@ use crate::{
 
 pub mod transformers;
 
-pub async fn get_access_token_from_ucs_response(
-    session_state: &SessionState,
-    merchant_context: &MerchantContext,
-    connector_name: &str,
-    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
-    creds_identifier: Option<String>,
-    ucs_state: Option<&unified_connector_service_client::payments::ConnectorState>,
+pub fn get_access_token_from_ucs_response(
+    state: Option<&unified_connector_service_client::payments::ConnectorState>,
 ) -> Option<AccessToken> {
-    let ucs_access_token = ucs_state
+    state
         .and_then(|state| state.access_token.as_ref())
-        .map(transformers::convert_grpc_access_token_to_domain)?;
-
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-
-    let merchant_connector_id_or_connector_name = merchant_connector_id
-        .map(|mca_id| mca_id.get_string_repr().to_string())
-        .or(creds_identifier.map(|id| id.to_string()))
-        .unwrap_or(connector_name.to_string());
-
-    if let Ok(Some(cached_token)) = session_state
-        .store
-        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
-        .await
-    {
-        if cached_token.token.peek() == ucs_access_token.token.peek() {
-            return None;
-        }
-    }
-
-    Some(ucs_access_token)
+        .map(transformers::convert_grpc_access_token_to_domain)
 }
 
 pub async fn set_access_token_for_ucs(
@@ -903,6 +879,17 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
+    response: payments_grpc::PaymentServicePreAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
