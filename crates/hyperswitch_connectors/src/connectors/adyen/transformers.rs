@@ -4965,6 +4965,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             // From the docs, the only value returned is "received", outcome of refund is available
             // through refund notification webhook
             // For more info: https://docs.adyen.com/online-payments/capture
+            //
             status: storage_enums::AttemptStatus::Pending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
