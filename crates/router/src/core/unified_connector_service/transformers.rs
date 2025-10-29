@@ -408,6 +408,16 @@ impl
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             metadata,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
         })
