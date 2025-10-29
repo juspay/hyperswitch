@@ -90,6 +90,7 @@ pub enum StripeWebhookObject {
     Mandate(StripeMandateResponse),
     #[cfg(feature = "payouts")]
     Payout(StripePayoutResponse),
+    Subscriptions,
 }
 
 #[derive(Serialize, Debug)]
@@ -302,6 +303,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PayoutProcessing => "payout.created",
         api_models::enums::EventType::PayoutExpired => "payout.failed",
         api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
+        api_models::enums::EventType::InvoicePaid => "invoice.paid",
     }
 }
 
@@ -344,6 +346,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             }
             #[cfg(feature = "payouts")]
             api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
+            api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => {
+                Self::Subscriptions
+            }
         }
     }
 }

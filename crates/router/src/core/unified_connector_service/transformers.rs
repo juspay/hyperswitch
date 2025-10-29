@@ -8,12 +8,12 @@ use external_services::grpc_client::unified_connector_service::UnifiedConnectorS
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
-        payments::{Authorize, PSync, SetupMandate},
+        payments::{Authorize, Capture, PSync, SetupMandate},
         unified_authentication_service as uas_flows, ExternalVaultProxy,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsSyncData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
@@ -152,6 +152,27 @@ impl
             .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let redirection_response =
+            router_data
+                .request
+                .redirect_response
+                .clone()
+                .map(|redirect_response| {
+                    let payload = redirect_response
+                        .payload
+                        .as_ref()
+                        .and_then(|val| val.peek().as_object())
+                        .map(|map| {
+                            map.iter()
+                                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                                .collect::<HashMap<String, String>>()
+                        })
+                        .unwrap_or_default();
+                    payments_grpc::RedirectionResponse {
+                        params: redirect_response.params.map(|params| params.expose()),
+                        payload,
+                    }
+                });
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -179,6 +200,7 @@ impl
             return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             access_token: None,
+            redirection_response,
             browser_info: router_data
                 .request
                 .browser_info
@@ -476,6 +498,7 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -532,6 +555,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_account_metadata: HashMap::new(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -653,6 +677,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            customer_id: None,
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -712,6 +737,7 @@ impl
             request_extended_authorization: None,
             customer_acceptance,
             browser_info,
+            merchant_account_metadata: HashMap::new(),
             payment_experience: None,
         })
     }
@@ -795,6 +821,7 @@ impl
             browser_info,
             test_mode: None,
             payment_method_type: None,
+            merchant_account_metadata: HashMap::new(),
             access_token: None,
         })
     }
@@ -1047,31 +1074,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
             }
         };
 
-        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
-            Some(redirection_data) => match redirection_data.form_type {
-                Some(ref form_type) => match form_type {
-                    payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
-                        };
-                        (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
-                            None,
-                        )
-                    }
-                    _ => (
-                        None,
-                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
-                    ),
-                },
-                None => (None, None),
-            },
-            None => (None, None),
-        };
+        let redirection_data = response
+            .redirection_data
+            .clone()
+            .map(|redirection_data| RedirectForm::foreign_try_from(redirection_data))
+            .transpose()?;
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -1101,7 +1108,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                     resource_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
-                    connector_metadata,
+                    connector_metadata: None,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,

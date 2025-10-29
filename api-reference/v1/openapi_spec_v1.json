@@ -12970,6 +12970,74 @@
           }
         }
       },
+      "ConfirmSubscriptionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "profile_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated subscription plan.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the subscription.",
+            "nullable": true
+          },
+          "coupon": {
+            "type": "string",
+            "description": "Optional coupon code applied to this subscription.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "payment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerId"
+              }
+            ],
+            "nullable": true
+          },
+          "invoice": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Invoice"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_subscription_id": {
+            "type": "string",
+            "description": "Billing Processor subscription ID.",
+            "nullable": true
+          }
+        }
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -16076,7 +16144,8 @@
           "refunds",
           "disputes",
           "mandates",
-          "payouts"
+          "payouts",
+          "subscriptions"
         ]
       },
       "EventListConstraints": {
@@ -16273,7 +16342,8 @@
           "payout_processing",
           "payout_cancelled",
           "payout_expired",
-          "payout_reversed"
+          "payout_reversed",
+          "invoice_paid"
         ]
       },
       "ExtendedCardInfo": {
@@ -18400,6 +18470,11 @@
           },
           "status": {
             "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "billing_processor_invoice_id": {
+            "type": "string",
+            "description": "billing processor invoice id",
+            "nullable": true
           }
         }
       },
@@ -21646,6 +21721,25 @@
               },
               "object": {
                 "$ref": "#/components/schemas/PayoutCreateResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ConfirmSubscriptionResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "subscription_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/ConfirmSubscriptionResponse"
               }
             }
           }

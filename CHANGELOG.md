@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.29.0
+
+### Features
+
+- **router:** Add /apply-payment-method-data endpoint (v2) ([#9868](https://github.com/juspay/hyperswitch/pull/9868)) ([`0637095`](https://github.com/juspay/hyperswitch/commit/0637095f60035b9057a590971425db67feddf4a2))
+
+### Bug Fixes
+
+- **connector:** [Finix] Add authentication_type check only for cards ([#10010](https://github.com/juspay/hyperswitch/pull/10010)) ([`d98f11d`](https://github.com/juspay/hyperswitch/commit/d98f11d647a7c421a62cef4831772d685570ed67))
+
+### Refactors
+
+- **connector:** Finix pass idempotency key ([#9979](https://github.com/juspay/hyperswitch/pull/9979)) ([`44fbcc9`](https://github.com/juspay/hyperswitch/commit/44fbcc9c7d9d0ff2c985dc3f3adf5fd0dbd4468b))
+
+**Full Changelog:** [`2025.10.28.0...2025.10.29.0`](https://github.com/juspay/hyperswitch/compare/2025.10.28.0...2025.10.29.0)
+
+- - -
+
+## 2025.10.28.0
+
+### Features
+
+- **core:**
+  - Added two step payment webhooks processing for Hyperswitch <> UCS Integration ([#9374](https://github.com/juspay/hyperswitch/pull/9374)) ([`faed8d3`](https://github.com/juspay/hyperswitch/commit/faed8d352c347339e2e1cb6bdfcaa6e4be07c31a))
+  - Hyperswitch <|> UCS Void flow integration ([#9714](https://github.com/juspay/hyperswitch/pull/9714)) ([`10587a0`](https://github.com/juspay/hyperswitch/commit/10587a0c96b14bba05d4ffb76e8ecdd64b211968))
+  - Added Capture flow support for Hyperswitch <> UCS Integration ([#9735](https://github.com/juspay/hyperswitch/pull/9735)) ([`b354d63`](https://github.com/juspay/hyperswitch/commit/b354d63bd58f3fe52a5d0fb47e2d98bfe48f75f7))
+- **payouts:** Add payout through psp token ([#9831](https://github.com/juspay/hyperswitch/pull/9831)) ([`f41a77f`](https://github.com/juspay/hyperswitch/commit/f41a77f3d1c299ee75ac4907919844a9c57b3dda))
+- Add outgoing webhooks for subscriptions ([#9859](https://github.com/juspay/hyperswitch/pull/9859)) ([`62035c4`](https://github.com/juspay/hyperswitch/commit/62035c4aeb014a72251a95a802d24cfa14b3e288))
+
+### Bug Fixes
+
+- **payments:** Update preprocessing steps and handle session token in payment flow ([#9947](https://github.com/juspay/hyperswitch/pull/9947)) ([`1c037fc`](https://github.com/juspay/hyperswitch/commit/1c037fc717dfbac885edf470b78542d595bb9425))
+- **subscriptions:** Save both payment connector and billing connector customer id ([#9982](https://github.com/juspay/hyperswitch/pull/9982)) ([`26ab385`](https://github.com/juspay/hyperswitch/commit/26ab3850dda7b99da703fdb98e63f7c2e4ad47c3))
+
+### Miscellaneous Tasks
+
+- **connector:** [tesouro] enable hyperswitch decrypted flow for google pay ([#9970](https://github.com/juspay/hyperswitch/pull/9970)) ([`6ff2116`](https://github.com/juspay/hyperswitch/commit/6ff2116461737c8e43bae1b07ec453703f29dd00))
+
+**Full Changelog:** [`2025.10.27.0...2025.10.28.0`](https://github.com/juspay/hyperswitch/compare/2025.10.27.0...2025.10.28.0)
+
+- - -
+
 ## 2025.10.27.0
 
 ### Features
