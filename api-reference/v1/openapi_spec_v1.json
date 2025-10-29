@@ -6807,6 +6807,207 @@
         ]
       }
     },
+    "/authentication/{authentication_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Eligibility",
+        "description": "Check if an authentication is eligible for a specific merchant.\n",
+        "operationId": "Check Authentication Eligibility",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication eligibility checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/authenticate": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Authenticate",
+        "description": "Authenticate an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Authenticate an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationAuthenticateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationAuthenticateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/redirect": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Redirect",
+        "description": "Redirect an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Redirect an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncPostUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication redirect"
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": []
+      }
+    },
+    "/authentication/{authentication_id}/sync": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Sync",
+        "description": "Sync an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Sync an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication sync",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/enabled_authn_methods_token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Enable Authn Methods Token",
+        "description": "Enable authn methods token for an authentication.\n",
+        "operationId": "Enable Authentication Authn Methods Token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSessionTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication enabled authn methods token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/user/create_platform": {
       "post": {
         "tags": [

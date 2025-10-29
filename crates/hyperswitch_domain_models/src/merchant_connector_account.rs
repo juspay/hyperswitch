@@ -97,6 +97,14 @@ impl MerchantConnectorAccount {
     pub fn get_metadata(&self) -> Option<Secret<Value>> {
         self.metadata.clone()
     }
+
+    pub fn get_ctp_service_provider(&self) -> Option<common_enums::CtpServiceProvider> {
+        match self.connector_name.to_string().as_str() {
+            "ctp_mastercard" => Some(common_enums::CtpServiceProvider::Mastercard),
+            "ctp_visa" => Some(common_enums::CtpServiceProvider::Visa),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

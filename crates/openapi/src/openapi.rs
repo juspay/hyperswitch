@@ -220,6 +220,11 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+        routes::authentication::authentication_eligibility,
+        routes::authentication::authentication_authenticate,
+        routes::authentication::authentication_redirect,
+        routes::authentication::authentication_sync,
+        routes::authentication::authentication_enabled_authn_methods_token,
 
         // Routes for platform account
         routes::platform::create_platform_account,

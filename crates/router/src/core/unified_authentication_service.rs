@@ -2045,6 +2045,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_metadata: hyperswitch_domain_models::payments::ClickToPayMetaData =
         merchant_connector_account
             .metadata
+            .clone()
             .parse_value("ClickToPayMetaData")
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while parsing ClickToPayMetaData")?;
@@ -2093,15 +2094,7 @@ pub async fn get_session_token_for_click_to_pay(
 
     validate_customer_details_for_click_to_pay(&customer_details)?;
 
-    let provider = match merchant_connector_account
-        .connector_name
-        .to_string()
-        .as_str()
-    {
-        "ctp_mastercard" => Some(common_enums::CtpServiceProvider::Mastercard),
-        "ctp_visa" => Some(common_enums::CtpServiceProvider::Visa),
-        _ => None,
-    };
+    let provider = merchant_connector_account.get_ctp_service_provider();
 
     let card_brands = [
         common_enums::CardNetwork::Mastercard,
