@@ -320,8 +320,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to construct Payment Get Request")?;
 
+                let merchant_connector_id = merchant_connector_account.get_mca_id();
+
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-                    merchant_connector_account.clone(),
+                    merchant_connector_account,
                     merchant_context,
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -370,7 +372,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             state,
                             merchant_context,
                             &connector_name,
-                            merchant_connector_account.get_mca_id().as_ref(),
+                            merchant_connector_id.as_ref(),
                             creds_identifier.clone(),
                             payment_get_response.state.as_ref(),
                         )
@@ -381,7 +383,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                                 merchant_context,
                                 &connector_name,
                                 access_token,
-                                merchant_connector_account.get_mca_id().as_ref(),
+                                merchant_connector_id.as_ref(),
                                 creds_identifier,
                             )
                             .await

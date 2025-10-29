@@ -4289,19 +4289,23 @@ where
     )
     .await?;
 
-    // Check for cached access token in Redis (no generation for UCS flows)
-    let cached_access_token = access_token::get_cached_access_token_for_ucs(
-        state,
-        &connector,
-        merchant_context,
-        router_data.payment_method,
-        payment_data.get_creds_identifier(),
-    )
-    .await?;
+    if matches!(
+        execution_path,
+        ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
+    ) {
+        let cached_access_token = access_token::get_cached_access_token_for_ucs(
+            state,
+            &connector,
+            merchant_context,
+            router_data.payment_method,
+            payment_data.get_creds_identifier(),
+        )
+        .await?;
 
-    // Set cached access token in router_data if available
-    if let Some(access_token) = cached_access_token {
-        router_data.access_token = Some(access_token);
+        // Set cached access token in router_data if available
+        if let Some(access_token) = cached_access_token {
+            router_data.access_token = Some(access_token);
+        }
     }
 
     record_time_taken_with(|| async {

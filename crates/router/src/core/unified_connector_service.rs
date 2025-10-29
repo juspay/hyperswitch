@@ -61,7 +61,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::transformers::{ForeignFrom, ForeignTryFrom},
 };
 
 pub mod transformers;
@@ -76,7 +76,7 @@ pub async fn get_access_token_from_ucs_response(
 ) -> Option<AccessToken> {
     let ucs_access_token = ucs_state
         .and_then(|state| state.access_token.as_ref())
-        .map(transformers::convert_grpc_access_token_to_domain)?;
+        .map(AccessToken::foreign_from)?;
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
 

@@ -939,15 +939,15 @@ async fn call_unified_connector_service_authorize(
         payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*router_data)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
+    
+    let merchant_connector_id = merchant_connector_account.get_mca_id();
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account.clone(),
+        merchant_connector_account,
         merchant_context,
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
-
-    let merchant_connector_id = merchant_connector_account.get_mca_id();
 
     let merchant_reference_id = header_payload
         .x_reference_id
@@ -1162,8 +1162,10 @@ async fn call_unified_connector_service_repeat_payment(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Repeat Request")?;
 
+    let merchant_connector_id = merchant_connector_account.get_mca_id();
+
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account.clone(),
+        merchant_connector_account,
         merchant_context,
     )
     .change_context(ApiErrorResponse::InternalServerError)
@@ -1213,7 +1215,7 @@ async fn call_unified_connector_service_repeat_payment(
                 state,
                 merchant_context,
                 &router_data.connector,
-                merchant_connector_account.get_mca_id().as_ref(),
+                merchant_connector_id.as_ref(),
                 creds_identifier.clone(),
                 payment_repeat_response.state.as_ref(),
             )
@@ -1224,7 +1226,7 @@ async fn call_unified_connector_service_repeat_payment(
                     merchant_context,
                     &router_data.connector,
                     access_token,
-                    merchant_connector_account.get_mca_id().as_ref(),
+                    merchant_connector_id.as_ref(),
                     creds_identifier,
                 )
                 .await

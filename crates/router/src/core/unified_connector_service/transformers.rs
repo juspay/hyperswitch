@@ -37,10 +37,25 @@ use crate::{
     types::{api, transformers},
 };
 
-pub fn convert_grpc_access_token_to_domain(grpc_token: &payments_grpc::AccessToken) -> AccessToken {
-    AccessToken {
-        token: masking::Secret::new(grpc_token.token.clone()),
-        expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+impl transformers::ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
+    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
+        Self {
+            token: masking::Secret::new(grpc_token.token.clone()),
+            expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+        }
+    }
+}
+
+impl transformers::ForeignFrom<Option<&AccessToken>> for Option<ConnectorState> {
+    fn foreign_from(access_token_opt: Option<&AccessToken>) -> Self {
+        access_token_opt.map(|token| ConnectorState {
+            access_token: Some(payments_grpc::AccessToken {
+                token: token.token.peek().to_string(),
+                expires_in_seconds: Some(token.expires),
+                token_type: None,
+            }),
+            connector_customer_id: None,
+        })
     }
 }
 impl
@@ -113,18 +128,7 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // Use access token from router_data
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(|token| ConnectorState {
-                access_token: Some(payments_grpc::AccessToken {
-                    token: token.token.peek().to_string(),
-                    expires_in_seconds: Some(token.expires),
-                    token_type: None,
-                }),
-                connector_customer_id: None,
-            });
+        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -370,18 +374,7 @@ impl
             connector_metadata_string
                 .map(|connector_metadata| ("connector_meta_data".to_string(), connector_metadata)),
         );
-        // Use access token from router_data
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(|token| ConnectorState {
-                access_token: Some(payments_grpc::AccessToken {
-                    token: token.token.peek().to_string(),
-                    expires_in_seconds: Some(token.expires),
-                    token_type: None,
-                }),
-                connector_customer_id: None,
-            });
+        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -621,17 +614,7 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(|token| ConnectorState {
-                access_token: Some(payments_grpc::AccessToken {
-                    token: token.token.peek().to_string(),
-                    expires_in_seconds: Some(token.expires),
-                    token_type: None,
-                }),
-                connector_customer_id: None,
-            });
+        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -746,17 +729,7 @@ impl
             }
         };
 
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(|token| ConnectorState {
-                access_token: Some(payments_grpc::AccessToken {
-                    token: token.token.peek().to_string(),
-                    expires_in_seconds: Some(token.expires),
-                    token_type: None,
-                }),
-                connector_customer_id: None,
-            });
+        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
 
         Ok(Self {
             request_ref_id: Some(Identifier {
