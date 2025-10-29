@@ -18,11 +18,12 @@ pub struct InvoiceNew {
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
     pub currency: String,
-    pub status: String,
+    pub status: InvoiceStatus,
     pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }
 
 #[derive(
@@ -44,20 +45,24 @@ pub struct Invoice {
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
     pub currency: String,
-    pub status: String,
+    pub status: InvoiceStatus,
     pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
 #[diesel(table_name = invoice)]
 pub struct InvoiceUpdate {
-    pub status: Option<String>,
+    pub status: Option<InvoiceStatus>,
     pub payment_method_id: Option<String>,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<String>,
 }
 
 impl InvoiceNew {
@@ -75,6 +80,7 @@ impl InvoiceNew {
         status: InvoiceStatus,
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> Self {
         let id = common_utils::id_type::InvoiceId::generate();
         let now = common_utils::date_time::now();
@@ -89,26 +95,33 @@ impl InvoiceNew {
             customer_id,
             amount,
             currency,
-            status: status.to_string(),
+            status,
             provider_name,
             metadata,
             created_at: now,
             modified_at: now,
+            connector_invoice_id,
         }
     }
 }
 
 impl InvoiceUpdate {
     pub fn new(
+        amount: Option<MinorUnit>,
+        currency: Option<String>,
         payment_method_id: Option<String>,
         status: Option<InvoiceStatus>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
+            status,
             payment_method_id,
-            status: status.map(|status| status.to_string()),
-            payment_intent_id,
+            connector_invoice_id,
             modified_at: common_utils::date_time::now(),
+            payment_intent_id,
+            amount,
+            currency,
         }
     }
 }

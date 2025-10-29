@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use common_utils::id_type;
-
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
 
@@ -120,17 +118,6 @@ impl Default for super::settings::KvConfig {
         Self {
             ttl: 900,
             soft_kill: Some(false),
-        }
-    }
-}
-
-impl Default for super::settings::GlobalTenant {
-    fn default() -> Self {
-        Self {
-            tenant_id: id_type::TenantId::get_default_global_tenant_id(),
-            schema: String::from("global"),
-            redis_key_prefix: String::from("global"),
-            clickhouse_database: String::from("global"),
         }
     }
 }

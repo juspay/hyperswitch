@@ -37,10 +37,10 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
-        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
-        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-        UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -76,13 +76,13 @@ pub use hyperswitch_domain_models::{
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -123,8 +123,6 @@ pub use hyperswitch_interfaces::{
 #[cfg(feature = "v2")]
 use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
-#[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::payments::{OperationSessionGetters, PaymentData},
@@ -155,6 +153,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsExtendAuthorizationRouterData =
+    RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 
@@ -195,6 +195,12 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
+    ExtendAuthorization,
+    R,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsBalanceResponseRouterData<R> =
     ResponseRouterData<Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
@@ -581,7 +587,7 @@ impl Capturable for PaymentsSyncData {
     #[cfg(feature = "v1")]
     fn get_captured_amount<F>(
         &self,
-        _amount_captured: Option<i64>,
+        amount_captured: Option<i64>,
         payment_data: &PaymentData<F>,
     ) -> Option<i64>
     where
@@ -591,6 +597,7 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or(payment_data.payment_intent.amount_captured)
+            .or(amount_captured.map(MinorUnit::new))
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
@@ -649,6 +656,50 @@ impl Capturable for PaymentsSyncData {
         }
     }
 }
+impl Capturable for PaymentsExtendAuthorizationData {
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Succeeded => Some(0),
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
+        }
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -668,6 +719,30 @@ pub struct CreateOrderResult {
 
 pub struct PspTokenResult {
     pub token: Result<String, ErrorResponse>,
+}
+
+/// Data extracted from UCS response
+pub struct UcsAuthorizeResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsRepeatPaymentResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsSetupMandateResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1358,8 +1433,7 @@ impl<F1, F2>
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,

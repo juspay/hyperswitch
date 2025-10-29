@@ -56,7 +56,7 @@ pub struct MandateAmountData {
 
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Serialize)]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,

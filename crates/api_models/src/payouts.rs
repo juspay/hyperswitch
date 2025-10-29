@@ -242,6 +242,8 @@ pub enum PayoutMethodData {
     Card(CardPayout),
     Bank(Bank),
     Wallet(Wallet),
+    BankRedirect(BankRedirect),
+    Passthrough(Passthrough),
 }
 
 impl Default for PayoutMethodData {
@@ -374,8 +376,34 @@ pub struct PixBankTransfer {
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
+    ApplePayDecrypt(ApplePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirect {
+    Interac(Interac),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Interac {
+    /// Customer email linked with interac account
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub email: Email,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct Passthrough {
+    /// PSP token generated for the payout method
+    #[schema(value_type = String, example = "token_12345")]
+    pub psp_token: Secret<String>,
+
+    /// Payout method type of the token
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    pub token_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -398,6 +426,25 @@ pub struct Venmo {
     /// mobile number linked to venmo account
     #[schema(value_type = String, example = "16608213349")]
     pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct ApplePayDecrypt {
+    /// The dpan number associated with card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub dpan: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String)]
+    pub expiry_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String)]
+    pub expiry_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
@@ -602,6 +649,10 @@ pub enum PayoutMethodDataResponse {
     Bank(Box<payout_method_utils::BankAdditionalData>),
     #[schema(value_type = WalletAdditionalData)]
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
+    #[schema(value_type = BankRedirectAdditionalData)]
+    BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
+    #[schema(value_type = PassthroughAddtionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
 }
 
 #[derive(
@@ -984,6 +1035,39 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
+            Wallet::ApplePayDecrypt(ApplePayDecrypt {
+                expiry_month,
+                expiry_year,
+                card_holder_name,
+                ..
+            }) => Self::ApplePayDecrypt(Box::new(
+                payout_method_utils::ApplePayDecryptAdditionalData {
+                    card_exp_month: expiry_month,
+                    card_exp_year: expiry_year,
+                    card_holder_name,
+                },
+            )),
+        }
+    }
+}
+
+impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
+    fn from(bank_redirect: BankRedirect) -> Self {
+        match bank_redirect {
+            BankRedirect::Interac(Interac { email }) => {
+                Self::Interac(Box::new(payout_method_utils::InteracAdditionalData {
+                    email: Some(ForeignFrom::foreign_from(email)),
+                }))
+            }
+        }
+    }
+}
+
+impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
+    fn from(passthrough_data: Passthrough) -> Self {
+        Self {
+            psp_token: passthrough_data.psp_token.into(),
+            token_type: passthrough_data.token_type,
         }
     }
 }
@@ -999,6 +1083,12 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::Wallet(wallet_data) => {
                 Self::Wallet(wallet_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
+                Self::BankRedirect(bank_redirect)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
+                Self::Passthrough(passthrough)
             }
         }
     }
