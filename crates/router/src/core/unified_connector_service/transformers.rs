@@ -870,90 +870,6 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCaptureResponse,
-    ) -> Result<Self, Self::Error> {
-        let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
-                identifier
-                    .id_type
-                    .clone()
-                    .and_then(|id_type| match id_type {
-                        payments_grpc::identifier::IdType::Id(id) => Some(id),
-                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                            Some(encoded_data)
-                        }
-                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                    })
-            });
-
-        let status_code = convert_connector_service_status_code(response.status_code)?;
-
-        let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
-
-        let response = if response.error_code.is_some() {
-            let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
-            };
-            Err(ErrorResponse {
-                code: response.error_code().to_owned(),
-                message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
-                status_code,
-                attempt_status,
-                connector_transaction_id: connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
-        } else {
-            let status = AttemptStatus::foreign_try_from(response.status())?;
-            Ok((
-                PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        }
-                    })),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed: response.incremental_authorization_allowed,
-                    charges: None,
-                },
-                status,
-            ))
-        };
-        Ok(response)
-    }
-}
-
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -1141,6 +1057,90 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             ))
         };
 
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCaptureResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: grpc_mandate.payment_method_id,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    charges: None,
+                },
+                status,
+            ))
+        };
         Ok(response)
     }
 }
