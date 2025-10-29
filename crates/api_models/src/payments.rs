@@ -7345,6 +7345,7 @@ pub struct PaymentsUpdateMetadataResponse {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The status of the payment intent after the metadata update
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
     /// Additional data that might be required by hyperswitch, to enable some specific features.

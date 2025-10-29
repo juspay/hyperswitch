@@ -1145,7 +1145,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
 [connector_request_reference_id_config]
-merchant_ids_send_payment_id_as_connector_request_id = ["merchant_1758787422"]
+merchant_ids_send_payment_id_as_connector_request_id = []
 
 [payouts]
 payout_eligibility = true
