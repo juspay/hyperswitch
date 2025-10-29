@@ -773,16 +773,16 @@ export const connectorDetails = {
     },
     Ideal: {
       Configs: {
-        TRIGGER_SKIP: true,
+        TRIGGER_SKIP: true, // Not implemented in Nuvei connector - returns "Default" error
       },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
-        currency: "EUR", // iDEAL requires EUR currency
+        currency: "EUR",
         payment_method_data: {
           bank_redirect: {
             ideal: {
-              bank_name: "ing", // Maps to INGBNL2A in Nuvei
+              bank_name: "ing",
             },
           },
         },
@@ -794,7 +794,7 @@ export const connectorDetails = {
             city: "Amsterdam",
             state: "North Holland",
             zip: "1012",
-            country: "NL", // Netherlands required for iDEAL
+            country: "NL",
             first_name: "John",
             last_name: "Doe",
           },
@@ -807,7 +807,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action", // Bank redirect requires customer action
+          status: "requires_customer_action",
           error_code: null,
           error_message: null,
         },
@@ -894,17 +894,17 @@ export const connectorDetails = {
     },
     Eps: {
       Configs: {
-        TRIGGER_SKIP: true,
+        TRIGGER_SKIP: true, // Not implemented in Nuvei connector - returns "Default" error
       },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
         amount: 11500,
-        currency: "EUR", // EPS requires EUR currency
+        currency: "EUR",
         payment_method_data: {
           bank_redirect: {
             eps: {
-              country: "AT", // Austria required for EPS
+              country: "AT",
             },
           },
         },
@@ -916,7 +916,7 @@ export const connectorDetails = {
             city: "Vienna",
             state: "Vienna",
             zip: "1010",
-            country: "AT", // Austria required for EPS
+            country: "AT",
             first_name: "John",
             last_name: "Doe",
           },
@@ -930,6 +930,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          error_code: null,
+          error_message: null,
         },
       },
     },
