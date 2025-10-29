@@ -103,7 +103,9 @@ where
             ),
             (
                 headers::USER_AGENT.to_string(),
-                "PostmanRuntime/7.31.1".to_string().into(),
+                hyperswitch_interfaces::consts::USER_AGENT
+                    .to_string()
+                    .into(),
             ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;

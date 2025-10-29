@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{self, RefundsResponseRouterData},
-    utils::RouterData as _,
+    utils::{PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 const NO_REFUND_REASON: &str = "No reason provided";
