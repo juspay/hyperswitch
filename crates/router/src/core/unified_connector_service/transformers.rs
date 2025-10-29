@@ -34,7 +34,7 @@ use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::transformers,
+    types::{api, transformers},
 };
 impl
     transformers::ForeignTryFrom<(
@@ -152,27 +152,6 @@ impl
             .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        let redirection_response =
-            router_data
-                .request
-                .redirect_response
-                .clone()
-                .map(|redirect_response| {
-                    let payload = redirect_response
-                        .payload
-                        .as_ref()
-                        .and_then(|val| val.peek().as_object())
-                        .map(|map| {
-                            map.iter()
-                                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                                .collect::<HashMap<String, String>>()
-                        })
-                        .unwrap_or_default();
-                    payments_grpc::RedirectionResponse {
-                        params: redirect_response.params.map(|params| params.expose()),
-                        payload,
-                    }
-                });
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -200,7 +179,6 @@ impl
             return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             access_token: None,
-            redirection_response,
             browser_info: router_data
                 .request
                 .browser_info
@@ -694,7 +672,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
         })
     }
@@ -742,7 +720,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            customer_id: None,
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -761,7 +738,7 @@ impl
                 .customer_name
                 .clone()
                 .map(|customer_name| customer_name.peek().to_owned()),
-            connector_customer_id: router_data
+            customer_id: router_data
                 .request
                 .customer_id
                 .as_ref()
@@ -802,8 +779,9 @@ impl
             request_extended_authorization: None,
             customer_acceptance,
             browser_info,
-            merchant_account_metadata: HashMap::new(),
             payment_experience: None,
+            connector_customer_id: router_data.connector_customer.clone(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -884,7 +862,7 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            test_mode: None,
+            test_mode: router_data.test_mode,
             payment_method_type: None,
             merchant_account_metadata: HashMap::new(),
             access_token: None,
@@ -1091,7 +1069,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                     connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
-                    incremental_authorization_allowed: None,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
                     charges: None,
                 },
                 status,
@@ -1459,7 +1437,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: None,
+                            payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
                         }
