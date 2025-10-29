@@ -2698,16 +2698,9 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>,
     ) -> Result<Self, Self::Error> {
-        let payment_method_data = item
-            .router_data
-            .request
-            .payment_method_data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
-            })?;
+        let payment_method_data = item.router_data.request.payment_method_data.clone();
 
-        match payment_method_data.clone() {
+        match payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network

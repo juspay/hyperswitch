@@ -138,6 +138,38 @@ impl UnifiedConnectorServiceClient {
         }
     }
 
+    /// Performs Payment Pre Authenticate
+    pub async fn payment_pre_authenticate(
+        &self,
+        payment_pre_authenticate_request: payments_grpc::PaymentServicePreAuthenticateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServicePreAuthenticateResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_pre_authenticate_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .pre_authenticate(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentPreAuthenticateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_pre_authenticate",
+                    connector_name=?connector_name,
+                    "UCS payment pre authenticate gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Authorize
     pub async fn payment_authorize(
         &self,
