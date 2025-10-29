@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use common_enums::connector_enums;
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
+use hyperswitch_domain_models::router_response_types;
 use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
@@ -311,7 +313,7 @@ async fn handle_preprocessing_through_unified_connector_service(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
-    _connector_data: &api::ConnectorData,
+    connector_data: &api::ConnectorData,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
     preprocessing_flow_name: api_interface::PreProcessingFlowName,
@@ -347,6 +349,7 @@ async fn handle_preprocessing_through_unified_connector_service(
                 lineage_ids,
                 merchant_connector_account,
                 merchant_context,
+                connector_data.connector_name,
                 unified_connector_service_execution_mode,
                 merchant_order_reference_id,
             )
@@ -408,6 +411,81 @@ async fn handle_preprocessing_through_unified_connector_service(
     }
 }
 
+fn transform_redirection_response_for_authenticate_flow(
+    connector: connector_enums::Connector,
+    response_data: router_response_types::RedirectForm,
+) -> RouterResult<router_response_types::RedirectForm> {
+    match (connector, &response_data) {
+        (
+            connector_enums::Connector::Cybersource,
+            router_response_types::RedirectForm::Form {
+                endpoint,
+                method: _,
+                ref form_fields,
+            },
+        ) => {
+            let access_token = form_fields.get("access_token").cloned().ok_or(
+                ApiErrorResponse::MissingRequiredField {
+                    field_name: "access_token",
+                },
+            )?;
+            let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
+            Ok(
+                router_response_types::RedirectForm::CybersourceConsumerAuth {
+                    access_token,
+                    step_up_url,
+                },
+            )
+        }
+        _ => Ok(response_data),
+    }
+}
+fn transform_response_for_authenticate_flow(
+    connector: connector_enums::Connector,
+    response_data: router_response_types::PaymentsResponseData,
+) -> RouterResult<router_response_types::PaymentsResponseData> {
+    match (connector, response_data.clone()) {
+        (
+            connector_enums::Connector::Cybersource,
+            router_response_types::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                mandate_reference,
+                connector_metadata,
+                network_txn_id,
+                connector_response_reference_id,
+                incremental_authorization_allowed,
+                charges,
+            },
+        ) => {
+            let redirection_data = Box::new(
+                (*redirection_data)
+                    .clone()
+                    .map(|redirection_data| {
+                        transform_redirection_response_for_authenticate_flow(
+                            connector,
+                            redirection_data,
+                        )
+                    })
+                    .transpose()?,
+            );
+            Ok(
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charges,
+                },
+            )
+        }
+        _ => Ok(response_data),
+    }
+}
+
 #[allow(dead_code, clippy::too_many_arguments)]
 async fn call_unified_connector_service_authenticate(
     router_data: &mut types::RouterData<
@@ -421,6 +499,7 @@ async fn call_unified_connector_service_authenticate(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
+    connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
@@ -486,6 +565,12 @@ async fn call_unified_connector_service_authenticate(
                 router_data.status = status;
                 response
             });
+            let router_data_response = match router_data_response {
+                Ok(response) => Ok(transform_response_for_authenticate_flow(
+                    connector, response,
+                )?),
+                Err(err) => Err(err),
+            };
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_authenticate_response
                 .raw_connector_response
