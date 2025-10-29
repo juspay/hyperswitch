@@ -207,7 +207,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: 6000,
         },
       },
     },
@@ -221,7 +221,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0, // Amount is updated via webhooks
+          amount_received: 6000, // Amount is updated via webhooks
         },
       },
     },
@@ -235,7 +235,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: 2000,
         },
       },
     },
