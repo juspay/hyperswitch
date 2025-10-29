@@ -324,22 +324,6 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-<<<<<<< HEAD
-
-        let setup_future_usage = router_data
-            .request
-            .setup_future_usage
-            .map(payments_grpc::FutureUsage::foreign_try_from)
-            .transpose()?;
-
-        let customer_acceptance = router_data
-            .request
-            .customer_acceptance
-            .clone()
-            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
-            .transpose()?;
-
-=======
         let connector_metadata_string = router_data
             .connector_meta_data
             .as_ref()
@@ -366,7 +350,19 @@ impl
             connector_metadata_string
                 .map(|connector_metadata| ("connector_meta_data".to_string(), connector_metadata)),
         );
->>>>>>> d6bbdde18c31cff43584d4758fb2182afb976065
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -1269,25 +1265,14 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     },
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
                     charges: None,
                 },
-<<<<<<< HEAD
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: response.network_txn_id.clone(),
-                connector_response_reference_id,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }, status))
-=======
                 status,
             ))
->>>>>>> d6bbdde18c31cff43584d4758fb2182afb976065
         };
 
         Ok(response)
