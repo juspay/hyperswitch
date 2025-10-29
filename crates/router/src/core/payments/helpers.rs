@@ -81,9 +81,7 @@ use crate::core::{
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
     },
-    unified_connector_service::{
-        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
-    },
+    unified_connector_service::update_gateway_system_in_feature_metadata,
     utils as core_utils,
 };
 #[cfg(feature = "v1")]
