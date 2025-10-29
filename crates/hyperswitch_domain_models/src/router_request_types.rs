@@ -1068,7 +1068,7 @@ pub struct AuthenticationData {
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
@@ -1101,7 +1101,7 @@ pub struct RefundsData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct RefundIntegrityObject {
     /// refund currency
     pub currency: storage_enums::Currency,
@@ -1109,14 +1109,14 @@ pub struct RefundIntegrityObject {
     pub refund_amount: MinorUnit,
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum SplitRefundsRequest {
     StripeSplitRefund(StripeSplitRefund),
     AdyenSplitRefund(common_types::domain::AdyenSplitData),
     XenditSplitRefund(common_types::domain::XenditSplitSubMerchantData),
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct StripeSplitRefund {
     pub charge_id: String,
     pub transfer_account_id: String,

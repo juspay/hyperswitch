@@ -81,9 +81,7 @@ use crate::core::{
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
     },
-    unified_connector_service::{
-        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
-    },
+    unified_connector_service::update_gateway_system_in_feature_metadata,
     utils as core_utils,
 };
 #[cfg(feature = "v1")]
@@ -126,7 +124,8 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
+    core::{payment_methods::cards::create_encrypted_data, unified_connector_service},
+    types::storage::CustomerUpdate::Update,
 };
 
 #[instrument(skip_all)]
@@ -8672,7 +8671,7 @@ where
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
 
     // Compare results
-    match serialize_router_data_and_send_to_comparison_service(
+    match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
         &state,
         direct_router_data,
         unified_connector_service_router_data,
@@ -8688,44 +8687,4 @@ where
             Ok(())
         }
     }
-}
-
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + Serialize,
-{
-    router_env::logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => masking::Secret::new(data),
-        Err(_) => {
-            router_env::logger::debug!("Failed to serialize HS router data");
-            return Ok(());
-        }
-    };
-
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => masking::Secret::new(data),
-            Err(_) => {
-                router_env::logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
 }
