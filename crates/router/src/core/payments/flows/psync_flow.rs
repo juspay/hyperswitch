@@ -244,18 +244,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         call_connector_action: common_enums::CallConnectorAction,
         creds_identifier: Option<String>,
     ) -> RouterResult<()> {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        if let Ok(Some(cached_access_token)) = state
-            .store
-            .get_access_token(merchant_id, &self.connector)
-            .await
-        {
-            self.access_token = Some(cached_access_token);
-            logger::debug!(
-                "Using cached access token for UCS psync call to connector: {}",
-                self.connector
-            );
-        }
         match call_connector_action {
             common_enums::CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
                 let webhook_content: payments_grpc::WebhookResponseContent =

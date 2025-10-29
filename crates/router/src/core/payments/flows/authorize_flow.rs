@@ -928,19 +928,6 @@ async fn call_unified_connector_service_authorize(
     merchant_order_reference_id: Option<String>,
     creds_identifier: Option<String>,
 ) -> RouterResult<()> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-    if let Ok(Some(cached_access_token)) = state
-        .store
-        .get_access_token(merchant_id, &router_data.connector)
-        .await
-    {
-        router_data.access_token = Some(cached_access_token);
-        logger::debug!(
-            "Using cached access token for UCS call to connector: {}",
-            router_data.connector
-        );
-    }
-
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -1156,19 +1143,6 @@ async fn call_unified_connector_service_repeat_payment(
     merchant_order_reference_id: Option<String>,
     creds_identifier: Option<String>,
 ) -> RouterResult<()> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-    if let Ok(Some(cached_access_token)) = state
-        .store
-        .get_access_token(merchant_id, &router_data.connector)
-        .await
-    {
-        router_data.access_token = Some(cached_access_token);
-        logger::debug!(
-            "Using cached access token for UCS repeat call to connector: {}",
-            router_data.connector
-        );
-    }
-
     let client = state
         .grpc_client
         .unified_connector_service_client
