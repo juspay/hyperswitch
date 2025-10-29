@@ -61,7 +61,10 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::{
+        transformers::ForeignTryFrom, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
+        UcsSetupMandateResponseData,
+    },
 };
 
 pub mod transformers;
@@ -854,13 +857,25 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
-    Ok((router_data_response, status_code))
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsAuthorizeResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
@@ -887,24 +902,74 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
-    Ok((router_data_response, status_code))
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+
+    Ok(UcsSetupMandateResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
-    Ok((router_data_response, status_code))
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsRepeatPaymentResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
+}
+
+/// Extracts connector_customer_id from UCS state
+pub fn extract_connector_customer_id_from_ucs_state(
+    ucs_state: Option<&payments_grpc::ConnectorState>,
+) -> Option<String> {
+    ucs_state.and_then(|state| {
+        state
+            .connector_customer_id
+            .as_ref()
+            .map(|id| id.to_string())
+    })
+}
+
+/// Extracts connector_response from UCS response
+pub fn extract_connector_response_from_ucs(
+    connector_response: Option<&payments_grpc::ConnectorResponseData>,
+) -> Option<hyperswitch_domain_models::router_data::ConnectorResponseData> {
+    connector_response.and_then(|data| {
+        <hyperswitch_domain_models::router_data::ConnectorResponseData as hyperswitch_interfaces::helpers::ForeignTryFrom<payments_grpc::ConnectorResponseData>>::foreign_try_from(data.clone())
+            .map_err(|e| {
+                logger::warn!(
+                    error=?e,
+                    "Failed to deserialize connector_response from UCS"
+                );
+                e
+            })
+            .ok()
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_cancel(
