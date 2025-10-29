@@ -16,6 +16,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to encode unified connector service request")]
     RequestEncodingFailed,
 
+    /// Failed to process webhook from unified connector service.
+    #[error("Failed to process webhook from unified connector service")]
+    WebhookProcessingFailure,
+
     /// Request encoding failed due to a specific reason.
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
@@ -73,9 +77,17 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
 
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Pre Authenticate from gRPC Server")]
+    PaymentPreAuthenticateFailure,
+
     /// Failed to perform Payment Get from gRPC Server
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
+
+    /// Failed to perform Payment Capture from gRPC Server
+    #[error("Failed to perform Payment Capture from gRPC Server")]
+    PaymentCaptureFailure,
 
     /// Failed to perform Payment Setup Mandate from gRPC Server
     #[error("Failed to perform Setup Mandate from gRPC Server")]
@@ -88,6 +100,19 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
     WebhookTransformFailure,
+
+    /// Failed to perform Payment Cancel from gRPC Server
+    #[error("Failed to perform Cancel from gRPC Server")]
+    PaymentCancelFailure,
+}
+
+/// UCS Webhook transformation status
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum WebhookTransformationStatus {
+    /// Transformation completed successfully, no further action needed
+    Complete,
+    /// Transformation incomplete, requires second call for final status
+    Incomplete,
 }
 
 #[allow(missing_docs)]
@@ -98,6 +123,7 @@ pub struct WebhookTransformData {
     pub source_verified: bool,
     pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
     pub response_ref_id: Option<String>,
+    pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>

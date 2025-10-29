@@ -71,12 +71,11 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "v2")]
 use crate::mandates;
-#[cfg(feature = "v2")]
-use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
     mandates::RecurringDetails,
+    payment_methods,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
@@ -679,19 +678,15 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GiftCardBalanceCheckResponse {
+pub struct PaymentMethodBalanceCheckResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the gift card
+    /// The balance of the payment method
     pub balance: MinorUnit,
-    /// The currency of the Gift Card
+    /// The currency of the payment method
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
-    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
-    pub needs_additional_pm_data: bool,
-    /// Transaction amount left after subtracting gift card balance (Used for split payments)
-    pub remaining_amount: MinorUnit,
 }
 
 #[cfg(feature = "v2")]
@@ -3171,6 +3166,37 @@ pub enum GiftCardData {
     PaySafeCard {},
     BhnCardNetwork(BHNGiftCardDetails),
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BalanceCheckPaymentMethodData {
+    GiftCard(GiftCardData),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ApplyPaymentMethodDataRequest {
+    pub payment_methods: Vec<BalanceCheckPaymentMethodData>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct ApplyPaymentMethodDataResponse {
+    pub remaining_amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
+    pub requires_additional_pm_data: bool,
+    pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct ApplyPaymentMethodDataSurchargeResponseItem {
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method_type: api_enums::PaymentMethod,
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct BHNGiftCardDetails {
@@ -5984,12 +6010,14 @@ pub struct PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Gift Card balance check
+/// Request for Payment method balance check
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentsGiftCardBalanceCheckRequest {
-    pub gift_card_data: GiftCardData,
+pub struct PaymentMethodBalanceCheckRequest {
+    /// The payment method data to be used for the balance check request. It can
+    /// only be a payment method that supports checking balance e.g. gift card
+    pub payment_method_data: BalanceCheckPaymentMethodData,
 }
 
 #[cfg(feature = "v2")]
@@ -7903,7 +7931,7 @@ pub struct GooglePaySessionResponse {
     pub email_required: bool,
     /// Shipping address parameters
     pub shipping_address_parameters: GpayShippingAddressParameters,
-    /// List of the allowed payment meythods
+    /// List of the allowed payment methods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
     pub transaction_info: GpayTransactionInfo,
@@ -7934,6 +7962,7 @@ pub struct SamsungPaySessionTokenResponse {
     /// Payment protocol type
     pub protocol: SamsungPayProtocolType,
     /// List of supported card brands
+    #[schema(value_type = Vec<String>)]
     pub allowed_brands: Vec<String>,
     /// Is billing address required to be collected from wallet
     pub billing_address_required: bool,

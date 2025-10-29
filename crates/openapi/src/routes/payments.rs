@@ -1307,13 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Gift Card Balance Check
+/// Payments - Payment Method Balance Check
 ///
-/// Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed
+/// Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    get,
-    path = "/v2/payments/{id}/check-gift-card-balance",
+    post,
+    path = "/v2/payments/{id}/payment-methods/check-balance",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1323,13 +1323,40 @@ pub fn payments_list() {}
         ),
     ),
     request_body(
-      content = PaymentsGiftCardBalanceCheckRequest,
+      content = PaymentMethodBalanceCheckRequest,
     ),
     responses(
-        (status = 200, description = "Get the Gift Card Balance", body = GiftCardBalanceCheckResponse),
+        (status = 200, description = "Get the Payment Method Balance", body = PaymentMethodBalanceCheckResponse),
     ),
     tag = "Payments",
-    operation_id = "Retrieve Gift Card Balance",
+    operation_id = "Retrieve Payment Method Balance",
     security(("publishable_key" = []))
 )]
 pub fn payment_check_gift_card_balance() {}
+
+/// Payments - Apply PM Data
+///
+/// Apply the payment method data and recalculate surcharge
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    post,
+    path = "/v2/payments/{id}/apply-payment-method-data",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = "pro_abcdefghijklmnop"
+        ),
+    ),
+    request_body(
+      content = ApplyPaymentMethodDataRequest,
+    ),
+    responses(
+        (status = 200, description = "Apply the Payment Method Data", body = ApplyPaymentMethodDataResponse),
+    ),
+    tag = "Payments",
+    operation_id = "Apply Payment Method Data",
+    security(("publishable_key" = []))
+)]
+pub fn payments_apply_pm_data() {}
