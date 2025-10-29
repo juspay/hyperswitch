@@ -10579,6 +10579,7 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
         connector_transaction_id,
+        amount_capturable,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -10610,6 +10611,17 @@ pub async fn payments_manual_update(
         .attach_printable(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
+
+    if let Some(amount_capturable) = amount_capturable {
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
 
     let payment_intent = state
         .store
@@ -10651,6 +10663,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
+        amount_capturable,
     };
     let updated_payment_attempt = state
         .store
@@ -10692,6 +10705,7 @@ pub async fn payments_manual_update(
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+            amount_capturable: Some(updated_payment_attempt.amount_capturable),
         },
     ))
 }
