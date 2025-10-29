@@ -32,13 +32,15 @@ use super::{
     context::RouterGatewayContext,
     helpers::prepare_ucs_infrastructure,
     ucs_context::RouterUcsContext,
-    ucs_executors::ucs_executor,
     ucs_execution_context::RouterUcsExecutionContext,
+    ucs_executors::ucs_executor,
 };
 use crate::{
     core::unified_connector_service::{
-        handle_unified_connector_service_response_for_payment_authorize, ucs_logging_wrapper,
+        handle_unified_connector_service_response_for_payment_authorize,
+        handle_unified_connector_service_response_for_payment_repeat,
     },
+    define_ucs_executor,
     routes::SessionState,
     types::{self, transformers::ForeignTryFrom},
 };
@@ -47,106 +49,30 @@ use crate::{
 // AuthorizeUcsExecutor - UCS Flow Executor for Authorize
 // =============================================================================
 
-#[derive(Debug, Clone, Copy)]
-struct AuthorizeUcsExecutor;
+define_ucs_executor! {
+    executor: AuthorizeUcsExecutor,
+    flow: domain::Authorize,
+    request_data: types::PaymentsAuthorizeData,
+    response_data: types::PaymentsResponseData,
+    grpc_request: payments_grpc::PaymentServiceAuthorizeRequest,
+    grpc_response: payments_grpc::PaymentServiceAuthorizeResponse,
+    grpc_method: payment_authorize,
+    response_handler: handle_unified_connector_service_response_for_payment_authorize,
+}
 
 // =============================================================================
-// Trait Implementations for AuthorizeUcsExecutor
+// RepeatUcsExecutor - UCS Flow Executor for Mandate Payments
 // =============================================================================
 
-impl
-    UcsRequestTransformer<
-        domain::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for AuthorizeUcsExecutor
-{
-    type GrpcRequest = payments_grpc::PaymentServiceAuthorizeRequest;
-
-    fn transform_request(
-        router_data: &RouterData<
-            domain::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> CustomResult<Self::GrpcRequest, ConnectorError> {
-        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
-            .change_context(ConnectorError::RequestEncodingFailed)
-    }
-}
-
-impl UcsResponseHandler<payments_grpc::PaymentServiceAuthorizeResponse, types::PaymentsResponseData> for AuthorizeUcsExecutor {
-    fn handle_response(
-        response: payments_grpc::PaymentServiceAuthorizeResponse,
-    ) -> CustomResult<
-        (
-            Result<(types::PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
-            u16,
-        ),
-        ConnectorError,
-    > {
-        handle_unified_connector_service_response_for_payment_authorize(response)
-            .change_context(ConnectorError::ResponseHandlingFailed)
-    }
-}
-
-#[async_trait]
-impl
-    UcsGrpcExecutor<
-        UnifiedConnectorServiceClient,
-        RouterUcsContext,
-        payments_grpc::PaymentServiceAuthorizeRequest,
-        payments_grpc::PaymentServiceAuthorizeResponse,
-    > for AuthorizeUcsExecutor
-{
-    type GrpcResponse = tonic::Response<payments_grpc::PaymentServiceAuthorizeResponse>;
-
-    async fn execute_grpc_call(
-        client: &UnifiedConnectorServiceClient,
-        request: payments_grpc::PaymentServiceAuthorizeRequest,
-        context: RouterUcsContext,
-    ) -> CustomResult<Self::GrpcResponse, ConnectorError> {
-        client
-            .payment_authorize(request, context.auth(), context.headers())
-            .await
-            .change_context(
-                hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::InternalServerError,
-            )
-            .change_context(ConnectorError::ProcessingStepFailed(None))
-    }
-}
-
-#[async_trait]
-impl
-    UcsFlowExecutor<
-        domain::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-        SessionState,
-    > for AuthorizeUcsExecutor
-{
-    type GrpcRequest = payments_grpc::PaymentServiceAuthorizeRequest;
-    type GrpcResponse = payments_grpc::PaymentServiceAuthorizeResponse;
-    type ExecCtx<'a> = RouterUcsExecutionContext<'a>;
-
-    async fn execute_ucs_flow<'a>(
-        state: &SessionState,
-        router_data: &RouterData<
-            domain::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-        execution_context: RouterUcsExecutionContext<'a>,
-    ) -> CustomResult<
-        RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        ConnectorError,
-    >
-    where
-        Self::GrpcRequest: serde::Serialize + std::fmt::Debug,
-        Self::GrpcResponse: std::fmt::Debug,
-    {
-        ucs_executor::<domain::Authorize, AuthorizeUcsExecutor, types::PaymentsAuthorizeData, types::PaymentsResponseData, _, _>(state, router_data, execution_context).await
-    }
+define_ucs_executor! {
+    executor: RepeatUcsExecutor,
+    flow: domain::Authorize,
+    request_data: types::PaymentsAuthorizeData,
+    response_data: types::PaymentsResponseData,
+    grpc_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
+    grpc_response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+    grpc_method: payment_repeat,
+    response_handler: handle_unified_connector_service_response_for_payment_repeat,
 }
 
 // =============================================================================
@@ -197,32 +123,6 @@ where
         ConnectorError,
     > {
         // Determine which GRPC endpoint to call based on mandate_id
-        // let updated_router_data = if router_data.request.mandate_id.is_some() {
-        //     // Create execution context for payment_repeat
-        //     let execution_context = RouterUcsExecutionContext::new(
-        //         &context.merchant_context,
-        //         &context.header_payload,
-        //         context.lineage_ids,
-        //         &context.merchant_connector_account,
-        //         context.execution_mode,
-        //     );
-        //     // Call payment_repeat for mandate payments using trait-based executor
-        //     RepeatUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await?
-        // } else {
-        //     // Create execution context for payment_authorize
-        //     let execution_context = RouterUcsExecutionContext::new(
-        //         &context.merchant_context,
-        //         &context.header_payload,
-        //         context.lineage_ids,
-        //         &context.merchant_connector_account,
-        //         context.execution_mode,
-        //     );
-        //     // Call payment_authorize for regular payments using trait-based executor
-        //     AuthorizeUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await?
-        // };
-        // Ok(updated_router_data)
-
-        // Temporary implementation - using only AuthorizeUcsExecutor until RepeatUcsExecutor is implemented
         let execution_context = RouterUcsExecutionContext::new(
             &context.merchant_context,
             &context.header_payload,
@@ -230,7 +130,14 @@ where
             &context.merchant_connector_account,
             context.execution_mode,
         );
-        AuthorizeUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await
+
+        if router_data.request.mandate_id.is_some() {
+            // Call payment_repeat for mandate payments using trait-based executor
+            RepeatUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await
+        } else {
+            // Call payment_authorize for regular payments using trait-based executor
+            AuthorizeUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await
+        }
     }
 }
 

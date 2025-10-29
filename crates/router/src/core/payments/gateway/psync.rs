@@ -8,27 +8,56 @@ use std::str::FromStr;
 use common_enums::{connector_enums::Connector, CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient;
 use hyperswitch_domain_models::{
     router_flow_types as domain,
-    router_data::RouterData,
+    router_data::{ErrorResponse, RouterData},
 };
 use hyperswitch_interfaces::{
     api::{self, gateway as payment_gateway},
     api_client::ApiClientWrapper,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::UcsFlowExecutor,
+    unified_connector_service::{
+        UcsContext, UcsFlowExecutor, UcsGrpcExecutor, UcsRequestTransformer, UcsResponseHandler,
+    },
 };
+use masking::Secret;
+use unified_connector_service_client::payments as payments_grpc;
+
 use crate::core::payments::gateway::RouterGatewayContext;
 
-// use super::{
-//     // ucs_execution_context::RouterUcsExecutionContext,
-//     // ucs_executors::PSyncUcsExecutor,
-// };
-use crate::{
-    routes::SessionState,
-    types,
+use super::{
+    helpers::prepare_ucs_infrastructure,
+    ucs_context::RouterUcsContext,
+    ucs_execution_context::RouterUcsExecutionContext,
+    ucs_executors::ucs_executor,
 };
+use hyperswitch_interfaces::unified_connector_service::handle_unified_connector_service_response_for_payment_get;
+use crate::{
+    define_ucs_executor,
+    routes::SessionState,
+    types::{self, transformers::ForeignTryFrom},
+};
+
+// =============================================================================
+// PSyncUcsExecutor - UCS Flow Executor for Payment Sync
+// =============================================================================
+
+define_ucs_executor! {
+    executor: PSyncUcsExecutor,
+    flow: domain::PSync,
+    request_data: types::PaymentsSyncData,
+    response_data: types::PaymentsResponseData,
+    grpc_request: payments_grpc::PaymentServiceGetRequest,
+    grpc_response: payments_grpc::PaymentServiceGetResponse,
+    grpc_method: payment_get,
+    response_handler: handle_unified_connector_service_response_for_payment_get,
+}
+
+// =============================================================================
+// PaymentGateway Implementation for domain::PSync
+// =============================================================================
 
 /// Implementation of PaymentGateway for api::PSync flow
 #[async_trait]
@@ -78,25 +107,21 @@ where
         }
 
         // Create execution context
-        // let execution_context = RouterUcsExecutionContext::new(
-        //     &context.merchant_context,
-        //     &context.header_payload,
-        //     context.lineage_ids,
-        //     &context.merchant_connector_account,
-        //     context.execution_mode,
-        // );
+        let execution_context = RouterUcsExecutionContext::new(
+            &context.merchant_context,
+            &context.header_payload,
+            context.lineage_ids,
+            &context.merchant_connector_account,
+            context.execution_mode,
+        );
 
-        // // Execute payment_get GRPC call using trait-based executor
-        // let updated_router_data = PSyncUcsExecutor::execute_ucs_flow(
-        //     state,
-        //     router_data,
-        //     execution_context,
-        // )
-        // .await?;
-
-        todo!();
-
-        // Ok(updated_router_data)
+        // Execute payment_get GRPC call using trait-based executor
+        PSyncUcsExecutor::execute_ucs_flow(
+            state,
+            router_data,
+            execution_context,
+        )
+        .await
     }
 }
 
