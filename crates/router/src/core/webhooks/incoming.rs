@@ -2421,6 +2421,13 @@ async fn update_additional_payment_method_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    if pm.locker_id.is_some() {
+        return Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Cannot proceed to update Payment Method when locker_id is already present"
+                .into(),
+        }));
+    }
+
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
         merchant_context.clone(),

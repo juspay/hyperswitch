@@ -1642,13 +1642,6 @@ pub async fn update_customer_payment_method(
     if let Some(card_update) = req.card.clone() {
         let db = state.store.as_ref();
         let pm = if let Some(pm) = pm_data.clone() {
-            if pm.locker_id.is_some() {
-                return Err(report!(errors::ApiErrorResponse::NotSupported {
-                    message:
-                        "Cannot proceed to update Payment Method when locker_id is already present"
-                            .into(),
-                }));
-            }
             pm
         } else {
             db.find_payment_method(
