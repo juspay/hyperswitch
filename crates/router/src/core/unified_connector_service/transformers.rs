@@ -910,7 +910,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
         let redirection_data = response
             .redirection_data
             .clone()
-            .map(|redirection_data| RedirectForm::foreign_try_from)
+            .map(RedirectForm::foreign_try_from)
             .transpose()?;
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
