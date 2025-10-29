@@ -5030,7 +5030,7 @@ where
                 state,
                 &connector,
                 merchant_context,
-                &router_data.payment_id,
+                router_data.payment_method,
                 payment_data.get_creds_identifier(),
             )
             .await?;
