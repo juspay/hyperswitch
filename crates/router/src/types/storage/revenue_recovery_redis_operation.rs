@@ -28,6 +28,15 @@ pub struct PaymentProcessorTokenDetails {
     pub card_type: Option<String>,
 }
 
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct AccountUpdateHistoryRecord {
+    pub old_token : String,
+    pub new_token : String,
+    pub updated_at : PrimitiveDateTime,
+    pub old_token_info : Option<api_models::payments::AdditionalCardInfo>,
+    pub new_token_info : Option<api_models::payments::AdditionalCardInfo>,
+}
+
 /// Represents the status and retry history of a payment processor token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentProcessorTokenStatus {
@@ -45,7 +54,13 @@ pub struct PaymentProcessorTokenStatus {
     pub is_hard_decline: Option<bool>,
     /// Timestamp of the last modification to this token status
     pub modified_at: Option<PrimitiveDateTime>,
+    /// Indicates if the token is active or not
+    pub is_active: Option<bool>,
+    /// Update history of the token
+    pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
+
+
 
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
@@ -550,6 +565,8 @@ impl RedisTokenManager {
                             OffsetDateTime::now_utc().date(),
                             OffsetDateTime::now_utc().time(),
                         )),
+                        is_active: status.is_active,
+                        account_update_history: status.account_update_history.clone(),
                     })
             }
             None => None,
@@ -631,6 +648,8 @@ impl RedisTokenManager {
                         OffsetDateTime::now_utc().date(),
                         OffsetDateTime::now_utc().time(),
                     )),
+                    is_active: status.is_active,
+                    account_update_history: status.account_update_history.clone(),
                 });
 
         match updated_token {
