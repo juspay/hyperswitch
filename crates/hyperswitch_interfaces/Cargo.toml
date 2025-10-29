@@ -37,6 +37,7 @@ hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_m
 masking = { version = "0.1.0", path = "../masking" }
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
+common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_env = { version = "0.1.0", path = "../router_env" }
 

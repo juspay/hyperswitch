@@ -982,12 +982,11 @@ async fn call_unified_connector_service_authorize(
 
             let payment_authorize_response = response.into_inner();
 
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_payment_authorize(
-                    payment_authorize_response.clone(),
-                )
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize UCS response")?;
+            let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
 
             // Extract and store access token if present
             if let Some(access_token) = get_access_token_from_ucs_response(
@@ -1019,7 +1018,7 @@ async fn call_unified_connector_service_authorize(
                 }
             }
 
-            let router_data_response = router_data_response.map(|(response, status)| {
+            let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
@@ -1028,7 +1027,16 @@ async fn call_unified_connector_service_authorize(
                 .raw_connector_response
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(status_code);
+            router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+            // Populate connector_customer_id if present
+            ucs_data.connector_customer_id.map(|connector_customer_id| {
+                router_data.connector_customer = Some(connector_customer_id);
+            });
+
+            ucs_data.connector_response.map(|customer_response| {
+                router_data.connector_response = Some(customer_response);
+            });
 
             Ok((router_data, payment_authorize_response))
         },
@@ -1203,12 +1211,11 @@ async fn call_unified_connector_service_repeat_payment(
 
             let payment_repeat_response = response.into_inner();
 
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_payment_repeat(
-                    payment_repeat_response.clone(),
-                )
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize UCS response")?;
+            let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
+                payment_repeat_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
 
             // Extract and store access token if present
             if let Some(access_token) = get_access_token_from_ucs_response(
@@ -1240,7 +1247,7 @@ async fn call_unified_connector_service_repeat_payment(
                 }
             }
 
-            let router_data_response = router_data_response.map(|(response, status)| {
+            let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
@@ -1249,7 +1256,17 @@ async fn call_unified_connector_service_repeat_payment(
                 .raw_connector_response
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(status_code);
+            router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+            // Populate connector_customer_id if present
+            ucs_data.connector_customer_id.map(|connector_customer_id| {
+                router_data.connector_customer = Some(connector_customer_id);
+            });
+
+            // Populate connector_response if present
+            ucs_data.connector_response.map(|connector_response| {
+                router_data.connector_response = Some(connector_response);
+            });
 
             Ok((router_data, payment_repeat_response))
         },
