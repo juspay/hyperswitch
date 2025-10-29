@@ -51,7 +51,7 @@ pub struct PaymentProcessorTokenStatus {
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountUpdateHistoryRecord {
     pub old_token : String,
     pub new_token : String,
