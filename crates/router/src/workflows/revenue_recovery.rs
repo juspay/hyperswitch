@@ -314,7 +314,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_network_str = card_network.map(|network| network.to_string());
 
-    let card_issuer_str = card_info.card_issuer.clone();
+    let card_issuer_str = card_info
+        .card_issuer
+        .clone()
+        .filter(|card_issuer| !card_issuer.is_empty());
 
     let card_funding_str = match card_info.card_type.as_deref() {
         Some("card") => None,
@@ -914,6 +917,13 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
 
         Some(token) => {
             tracing::debug!("Found payment processor token with least schedule time");
+
+            RedisTokenManager::update_payment_processor_tokens_schedule_time_to_none(
+                state,
+                connector_customer_id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,
