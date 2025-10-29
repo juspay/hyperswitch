@@ -1620,6 +1620,32 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
+    InvalidPaymentID: {
+      Request: {},
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
     DDCRaceConditionServerSide: getCustomExchange({
       Request: {
         payment_method: "card",
