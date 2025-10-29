@@ -1516,12 +1516,15 @@ impl TryFrom<&PaypalRouterData<&PaymentsIncrementalAuthorizationRouterData>>
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PaypalExtendedAuthResponse {
-    status: PaypalIncrementalStatus,
+    status: PaypalExtendedAuthorizationStatus,
     status_details: Option<PaypalIncrementalAuthStatusDetails>,
     id: String,
     links: Vec<PaypalLinks>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     expiration_time: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     create_time: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     update_time: Option<PrimitiveDateTime>,
 }
 
@@ -1553,6 +1556,17 @@ pub enum PaypalIncrementalStatus {
     PARTIALLYCAPTURED,
     VOIDED,
     PENDING,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalExtendedAuthorizationStatus {
+    Created,
+    Captured,
+    Denied,
+    PartiallyCaptured,
+    Voided,
+    Pending,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1595,18 +1609,30 @@ impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
         }
     }
 }
+impl From<PaypalExtendedAuthorizationStatus> for common_enums::AttemptStatus {
+    fn from(item: PaypalExtendedAuthorizationStatus) -> Self {
+        match item {
+            PaypalExtendedAuthorizationStatus::Created
+            | PaypalExtendedAuthorizationStatus::Captured
+            | PaypalExtendedAuthorizationStatus::PartiallyCaptured => Self::Authorized,
+            PaypalExtendedAuthorizationStatus::Pending => Self::Pending,
+            PaypalExtendedAuthorizationStatus::Denied
+            | PaypalExtendedAuthorizationStatus::Voided => Self::Failure,
+        }
+    }
+}
 
 fn is_extend_authorization_applied(
-    item: PaypalIncrementalStatus,
+    item: PaypalExtendedAuthorizationStatus,
 ) -> Option<common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool> {
     match item {
-        PaypalIncrementalStatus::CREATED
-        | PaypalIncrementalStatus::CAPTURED
-        | PaypalIncrementalStatus::PARTIALLYCAPTURED => {
+        PaypalExtendedAuthorizationStatus::Created
+        | PaypalExtendedAuthorizationStatus::Captured
+        | PaypalExtendedAuthorizationStatus::PartiallyCaptured => {
             Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
         }
-        PaypalIncrementalStatus::PENDING => None,
-        PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => {
+        PaypalExtendedAuthorizationStatus::Pending => None,
+        PaypalExtendedAuthorizationStatus::Denied | PaypalExtendedAuthorizationStatus::Voided => {
             Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false))
         }
     }

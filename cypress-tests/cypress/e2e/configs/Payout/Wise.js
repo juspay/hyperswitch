@@ -125,13 +125,13 @@ export const connectorDetails = {
     sepa_bank_transfer: {
       Create: {
         Request: {
-          currency: "GBP",
+          currency: "EUR",
           payout_type: "bank",
           payout_method_data: {
             bank: {
               iban: "NL46TEST0136169112",
               bic: "ABNANL2A",
-              bank_name: "Deutsche Bank",
+              bank_name: "Test Bank",
               bank_country_code: "NL",
               bank_city: "Amsterdam",
             },
@@ -148,13 +148,13 @@ export const connectorDetails = {
       },
       Confirm: {
         Request: {
-          currency: "GBP",
+          currency: "EUR",
           payout_type: "bank",
           payout_method_data: {
             bank: {
               iban: "NL46TEST0136169112",
               bic: "ABNANL2A",
-              bank_name: "Deutsche Bank",
+              bank_name: "Test Bank",
               bank_country_code: "NL",
               bank_city: "Amsterdam",
             },
@@ -171,13 +171,13 @@ export const connectorDetails = {
       },
       Fulfill: {
         Request: {
-          currency: "GBP",
+          currency: "EUR",
           payout_type: "bank",
           payout_method_data: {
             bank: {
               iban: "NL46TEST0136169112",
               bic: "ABNANL2A",
-              bank_name: "Deutsche Bank",
+              bank_name: "Test Bank",
               bank_country_code: "NL",
               bank_city: "Amsterdam",
             },
@@ -188,7 +188,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "success",
+            status: "initiated",
             payout_type: "bank",
           },
         },
@@ -215,14 +215,14 @@ export const connectorDetails = {
       },
       Token: {
         Request: {
-          currency: "GBP",
+          currency: "EUR",
           payout_token: "token",
           payout_type: "bank",
         },
         Response: {
           status: 200,
           body: {
-            status: "success",
+            status: "initiated",
             payout_type: "bank",
           },
         },
