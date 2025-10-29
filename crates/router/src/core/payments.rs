@@ -9955,7 +9955,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let mut (connectors, routing_approach) = routing::perform_static_routing_v1(
+    let (mut connectors, routing_approach) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
