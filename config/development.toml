@@ -333,7 +333,7 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
-santander.base_url = "https://trust-pix-h.santander.com.br/"        #Pix Base Url
+santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-sandbox.api.santander.com.br/collection_bill_management/"
 shift4.base_url = "https://api.shift4.com/"
 sift.base_url = "https://api.sift.com/v205"
@@ -1144,7 +1144,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
 [connector_request_reference_id_config]
-merchant_ids_send_payment_id_as_connector_request_id = ["merchant_1758787422"]
+merchant_ids_send_payment_id_as_connector_request_id = []
 
 [payouts]
 payout_eligibility = true
