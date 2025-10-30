@@ -86,6 +86,14 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Pre Authenticate from gRPC Server")]
     PaymentPreAuthenticateFailure,
 
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Authenticate from gRPC Server")]
+    PaymentAuthenticateFailure,
+
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Poat Authenticate from gRPC Server")]
+    PaymentPostAuthenticateFailure,
+
     /// Failed to perform Payment Get from gRPC Server
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
