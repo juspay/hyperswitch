@@ -38,7 +38,7 @@ use api_models::payment_methods::CountryCodeWithName;
 use common_enums::PayoutStatus;
 use common_enums::{
     CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
-    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus, SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -511,6 +511,12 @@ pub fn get_valid_webhook_status(key: &str) -> JsResult {
         #[cfg(feature = "payouts")]
         EventClass::Payouts => {
             let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Subscriptions => {
+            let statuses: Vec<SubscriptionStatus> = SubscriptionStatus::iter()
                 .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
                 .collect();
             Ok(serde_wasm_bindgen::to_value(&statuses)?)

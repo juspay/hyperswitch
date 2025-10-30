@@ -127,7 +127,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         exp_in_seconds: i64,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<(), errors::StorageError> {
         let redis_conn =
             state
                 .store
@@ -139,7 +139,7 @@ impl RedisTokenManager {
         let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
         let result: bool = redis_conn
-            .set_expiry(&lock_key.into(), exp_in_seconds)
+            .set_expiry(&lock_key.clone().into(), exp_in_seconds)
             .await
             .map_or_else(
                 |error| {
@@ -149,14 +149,20 @@ impl RedisTokenManager {
                 |_| true,
             );
 
-        tracing::debug!(
-            connector_customer_id = connector_customer_id,
-            new_ttl_in_seconds = exp_in_seconds,
-            ttl_updated = %result,
-            "Connector customer lock TTL update with new expiry time"
-        );
+        if result {
+            tracing::debug!(
+                lock_key = %lock_key,
+                new_ttl_in_seconds = exp_in_seconds,
+                "Redis key TTL updated successfully"
+            );
+        } else {
+            tracing::error!(
+                lock_key = %lock_key,
+                "Failed to update TTL: key not found or error occurred"
+            );
+        }
 
-        Ok(result)
+        Ok(())
     }
 
     /// Unlock connector customer status
@@ -602,6 +608,49 @@ impl RedisTokenManager {
         }
     }
 
+    // Update all payment processor token schedule time to None
+    #[instrument(skip_all)]
+    pub async fn update_payment_processor_tokens_schedule_time_to_none(
+        state: &SessionState,
+        connector_customer_id: &str,
+    ) -> CustomResult<(), errors::StorageError> {
+        let tokens_map =
+            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                .await?;
+
+        let mut updated_tokens_map = HashMap::new();
+
+        for (token_id, status) in tokens_map {
+            let updated_status = PaymentProcessorTokenStatus {
+                payment_processor_token_details: status.payment_processor_token_details.clone(),
+                inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
+                error_code: status.error_code.clone(),
+                daily_retry_history: status.daily_retry_history.clone(),
+                scheduled_at: None,
+                is_hard_decline: status.is_hard_decline,
+                modified_at: Some(PrimitiveDateTime::new(
+                    OffsetDateTime::now_utc().date(),
+                    OffsetDateTime::now_utc().time(),
+                )),
+            };
+            updated_tokens_map.insert(token_id, updated_status);
+        }
+
+        Self::update_or_add_connector_customer_payment_processor_tokens(
+            state,
+            connector_customer_id,
+            updated_tokens_map,
+        )
+        .await?;
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Updated all payment processor tokens schedule time to None",
+        );
+
+        Ok(())
+    }
+
     // Update payment processor token schedule time
     #[instrument(skip_all)]
     pub async fn update_payment_processor_token_schedule_time(
@@ -658,7 +707,7 @@ impl RedisTokenManager {
             None => {
                 tracing::debug!(
                     connector_customer_id = connector_customer_id,
-                    "payment processor tokens with not found",
+                    "Payment processor tokens not found",
                 );
                 Ok(false)
             }
@@ -768,14 +817,37 @@ impl RedisTokenManager {
             }
         }
 
-        token = token.and_then(|t| {
-            t.is_hard_decline
-                .unwrap_or(false)
-                .then(|| {
-                    logger::error!("Token is hard declined");
-                })
-                .map_or(Some(t), |_| None)
-        });
+        let token = match token {
+            Some(t) => {
+                if t.is_hard_decline.unwrap_or(false) {
+                    // Update the schedule time to None for hard declined tokens
+
+                    logger::warn!(
+                        connector_customer_id = connector_customer_id,
+                        "Token is hard declined, setting schedule time to None"
+                    );
+
+                    Self::update_payment_processor_token_schedule_time(
+                        state,
+                        connector_customer_id,
+                        &t.payment_processor_token_details.payment_processor_token,
+                        None,
+                    )
+                    .await?;
+
+                    None
+                } else {
+                    Some(t)
+                }
+            }
+            None => {
+                logger::warn!(
+                    connector_customer_id = connector_customer_id,
+                    "No token found for the customer",
+                );
+                None
+            }
+        };
 
         Ok(token)
     }
