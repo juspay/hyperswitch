@@ -94,9 +94,29 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![
+        let request_body = Self::get_request_body(self, req, connectors)?;
+
+        let request_body_string =
+            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
+                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        let request_body_string_without_whitespace =
+            request_body_string.replace(char::is_whitespace, "");
+
+        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let signature = crypto::HmacSha256::sign_message(
+            &crypto::HmacSha256,
+            auth.signing_key.expose().as_bytes(),
+            request_body_string_without_whitespace.as_bytes(),
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
+
+        let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
@@ -109,8 +129,10 @@ where
             ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        headers.append(&mut api_key);
+        headers.push(("X-Signature".to_string(), signature_base64.into_masked()));
+
+        Ok(headers)
     }
 }
 
@@ -261,28 +283,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request_body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
-        let request_body_string =
-            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
-                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-        let request_body_string_without_whitespace =
-            request_body_string.replace(char::is_whitespace, "");
-
-        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let signature = crypto::HmacSha256::sign_message(
-            &crypto::HmacSha256,
-            auth.signing_key.expose().as_bytes(),
-            request_body_string_without_whitespace.as_bytes(),
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
-
-        let mut headers = self.get_headers(req, connectors)?;
-        headers.push(("X-Signature".to_string(), signature_base64.into_masked()));
-
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -290,8 +290,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(headers)
-                .set_body(request_body)
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -359,35 +359,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request_body = types::PaymentsSyncType::get_request_body(self, req, connectors)?;
-        let request_body_string =
-            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
-                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-        let request_body_string_without_whitespace =
-            request_body_string.replace(char::is_whitespace, "");
-
-        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let signature = crypto::HmacSha256::sign_message(
-            &crypto::HmacSha256,
-            auth.signing_key.expose().as_bytes(),
-            request_body_string_without_whitespace.as_bytes(),
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
-
-        let mut headers = self.get_headers(req, connectors)?;
-        headers.push(("X-Signature".to_string(), signature_base64.into_masked()));
-
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(headers)
-                .set_body(request_body)
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -532,35 +510,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request_body = types::PaymentsVoidType::get_request_body(self, req, connectors)?;
-        let request_body_string =
-            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
-                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-        let request_body_string_without_whitespace =
-            request_body_string.replace(char::is_whitespace, "");
-
-        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let signature = crypto::HmacSha256::sign_message(
-            &crypto::HmacSha256,
-            auth.signing_key.expose().as_bytes(),
-            request_body_string_without_whitespace.as_bytes(),
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
-
-        let mut headers = self.get_headers(req, connectors)?;
-        headers.push(("X-Signature".to_string(), signature_base64.into_masked()));
-
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(headers)
-                .set_body(request_body)
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -628,37 +584,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payjust
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request_body = types::RefundExecuteType::get_request_body(self, req, connectors)?;
-        let request_body_string =
-            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
-                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-        let request_body_string_without_whitespace =
-            request_body_string.replace(char::is_whitespace, "");
-
-        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let signature = crypto::HmacSha256::sign_message(
-            &crypto::HmacSha256,
-            auth.signing_key.expose().as_bytes(),
-            request_body_string_without_whitespace.as_bytes(),
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
-
-        let mut headers = self.get_headers(req, connectors)?;
-        headers.push((
-            "X-Signature".to_string(),
-            signature_base64.clone().into_masked(),
-        ));
-
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(headers)
-            .set_body(request_body)
+            .headers(self.get_headers(req, connectors)?)
+            .set_body(self.get_request_body(req, connectors)?)
             .build();
         Ok(Some(request))
     }
@@ -726,35 +657,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payjustno
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request_body = types::RefundSyncType::get_request_body(self, req, connectors)?;
-        let request_body_string =
-            String::from_utf8(request_body.get_inner_value().peek().as_bytes().to_vec())
-                .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
-        let request_body_string_without_whitespace =
-            request_body_string.replace(char::is_whitespace, "");
-
-        let auth = payjustnow::PayjustnowAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let signature = crypto::HmacSha256::sign_message(
-            &crypto::HmacSha256,
-            auth.signing_key.expose().as_bytes(),
-            request_body_string_without_whitespace.as_bytes(),
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
-
-        let mut headers = self.get_headers(req, connectors)?;
-        headers.push(("X-Signature".to_string(), signature_base64.into_masked()));
-
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(headers)
-                .set_body(request_body)
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -860,14 +769,14 @@ impl webhooks::IncomingWebhook for Payjustnow {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let body_with_no_whitespace = request
+        let message = request
             .body
             .iter()
             .filter(|&b| !b.is_ascii_whitespace())
             .copied()
             .collect::<Vec<u8>>();
 
-        Ok(body_with_no_whitespace)
+        Ok(message)
     }
 
     async fn verify_webhook_source(
