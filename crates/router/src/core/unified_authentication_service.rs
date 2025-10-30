@@ -2094,7 +2094,12 @@ pub async fn get_session_token_for_click_to_pay(
 
     validate_customer_details_for_click_to_pay(&customer_details)?;
 
-    let provider = merchant_connector_account.get_ctp_service_provider();
+    let provider = merchant_connector_account
+        .get_ctp_service_provider()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Error while parsing ctp service provider from merchant connector account",
+        )?;
 
     let card_brands = [
         common_enums::CardNetwork::Mastercard,

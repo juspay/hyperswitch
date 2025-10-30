@@ -6,7 +6,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::ValueExt,
+    ext_traits::{StringExt, ValueExt},
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -98,12 +98,24 @@ impl MerchantConnectorAccount {
         self.metadata.clone()
     }
 
-    pub fn get_ctp_service_provider(&self) -> Option<common_enums::CtpServiceProvider> {
-        match self.connector_name.to_string().as_str() {
-            "ctp_mastercard" => Some(common_enums::CtpServiceProvider::Mastercard),
-            "ctp_visa" => Some(common_enums::CtpServiceProvider::Visa),
-            _ => None,
-        }
+    pub fn get_ctp_service_provider(
+        &self,
+    ) -> error_stack::Result<
+        Option<common_enums::CtpServiceProvider>,
+        common_utils::errors::ParsingError,
+    > {
+        let provider = self
+            .connector_name
+            .clone()
+            .parse_enum("CtpServiceProvider")
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to parse ctp service provider from connector_name: {}",
+                    self.connector_name
+                )
+            })?;
+
+        Ok(Some(provider))
     }
 }
 
