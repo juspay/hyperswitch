@@ -158,6 +158,7 @@ impl ApiEventMetric for AuthenticationResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationEligibilityCheckRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -166,6 +167,7 @@ impl ApiEventMetric for AuthenticationEligibilityCheckRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationEligibilityCheckResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -174,6 +176,7 @@ impl ApiEventMetric for AuthenticationEligibilityCheckResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -182,6 +185,7 @@ impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -373,6 +377,7 @@ pub enum AuthenticationEligibilityCheckData {
     ClickToPay(ClickToPayEligibilityCheckData),
 }
 
+#[cfg(feature = "v1")]
 impl AuthenticationEligibilityCheckData {
     pub fn get_click_to_pay_data(&self) -> Option<&ClickToPayEligibilityCheckData> {
         match self {
