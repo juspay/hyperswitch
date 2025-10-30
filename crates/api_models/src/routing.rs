@@ -68,7 +68,6 @@ pub struct RoutingConfigRequest {
     pub transaction_type: Option<TransactionType>,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(try_from = "String")]
 pub struct RoutingConfigName(String);
@@ -105,7 +104,6 @@ impl Deref for RoutingConfigName {
     }
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     #[schema(value_type = String)]
