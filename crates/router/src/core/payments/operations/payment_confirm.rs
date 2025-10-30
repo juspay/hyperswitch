@@ -1920,23 +1920,26 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
-            Some(authentication_store) => (
-                Some(
-                    authentication_store
-                        .authentication
-                        .is_separate_authn_required(),
-                ),
-                authentication_store
-                    .authentication
-                    .authentication_connector
-                    .clone(),
-                Some(
-                    authentication_store
-                        .authentication
-                        .authentication_id
-                        .clone(),
-                ),
-            ),
+            Some(authentication_store) => {
+                let auth = &authentication_store.authentication;
+                // Consider external 3DS authentication as attempted if:
+                // 1. Separate authentication is required (based on improved logic), OR
+                // 2. An authentication connector was used (even if version checks fail), OR
+                // 3. Authentication is in a non-terminal state (pending customer action)
+                let is_external_authn_attempted = auth.is_separate_authn_required()
+                    || auth.authentication_connector.is_some()
+                    || matches!(
+                        auth.authentication_status,
+                        common_enums::AuthenticationStatus::Pending
+                            | common_enums::AuthenticationStatus::Started
+                    );
+
+                (
+                    Some(is_external_authn_attempted),
+                    auth.authentication_connector.clone(),
+                    Some(auth.authentication_id.clone()),
+                )
+            }
             None => (None, None, None),
         };
 
