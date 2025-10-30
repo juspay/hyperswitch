@@ -487,15 +487,16 @@ mod u16_wrappers {
             out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
         ) -> diesel::serialize::Result {
             // CustomerListLimit validation ensures this is safe
-            let value = i16::try_from(self.0).map_err(|_| -> Box<dyn std::error::Error + Send + Sync> {
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!(
-                        "Value {} for CustomerListLimit exceeds i16 maximum limit",
-                        self.0
-                    ),
-                ))
-            })?;
+            let value =
+                i16::try_from(self.0).map_err(|_| -> Box<dyn std::error::Error + Send + Sync> {
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "Value {} for CustomerListLimit exceeds i16 maximum limit",
+                            self.0
+                        ),
+                    ))
+                })?;
 
             // Write the i16 value directly as big-endian bytes
             out.write_all(&value.to_be_bytes())?;
