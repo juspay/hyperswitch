@@ -721,7 +721,7 @@ pub enum VaultResponseData {
     },
     ExternalVaultMultiTokenResponse {
         network_token: masking::Secret<String>,
-        tavv: masking::Secret<String>,
+        cryptogram: Option<masking::Secret<String>>,
         token_expiration_month: masking::Secret<String>,
         token_expiration_year: masking::Secret<String>,
     },

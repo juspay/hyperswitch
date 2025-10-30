@@ -34,11 +34,19 @@ impl<T> From<(StringMinorUnit, T)> for VgsRouterData<T> {
 const VGS_FORMAT: &str = "UUID";
 const VGS_CLASSIFIER: &str = "data";
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct VgsTokenRequestItem {
     value: Secret<String>,
     classifiers: Vec<String>,
     format: String,
+    storage: VgsStorageType,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VgsStorageType {
+    Persistent,
+    Volatile,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -60,6 +68,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                         value: Secret::new(stringified_card),
                         classifiers: vec![VGS_CLASSIFIER.to_string()],
                         format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Persistent
                     }],
                 })
             }
@@ -69,24 +78,28 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                         value: Secret::new(network_token_data.network_token.get_card_no()),
                         classifiers: vec!["network_token".to_string()],
                         format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
                     },
                     VgsTokenRequestItem {
                         value: network_token_data.network_token_exp_month,
                         classifiers: vec!["expiry_month".to_string()],
                         format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
                     },
                     VgsTokenRequestItem {
                         value: network_token_data.network_token_exp_year,
                         classifiers: vec!["expiry_year".to_string()],
                         format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
                     },
                 ];
 
-                if let Some(tavv) = network_token_data.tavv {
+                if let Some(cryptogram) = network_token_data.cryptogram {
                     data.push(VgsTokenRequestItem {
-                        value: Secret::new(tavv),
-                        classifiers: vec!["tavv".to_string()],
+                        value: cryptogram,
+                        classifiers: vec!["cryptogram".to_string()],
                         format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
                     });
                 }
 
@@ -151,24 +164,19 @@ pub struct VgsRetrieveResponse {
 
 fn get_token_from_response(
     response: &Vec<VgsTokenResponseItem>,
-    alias_classifier: &str,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    alias_value: Secret<String>,
+) -> Option<Secret<String>> {
     for token_data in response {
-        for response_classifier in &token_data.classifiers {
-            if response_classifier.as_str() == alias_classifier {
-                for alias in &token_data.aliases {
-                    if matches!(alias.format.as_str(), "UUID") {
-                        return Ok(alias.alias.clone());
-                    }
+        if token_data.value.clone().expose() == alias_value.clone().expose() {
+            for alias in &token_data.aliases {
+                if matches!(alias.format.as_str(), "UUID") {
+                    return Some(Secret::new(alias.alias.clone()));
                 }
             }
         }
     }
-    router_env::logger::error!("missing alias for the given classifier: `{alias_classifier}`");
-    Err(errors::ConnectorError::MissingRequiredField {
-        field_name: "alias",
-    }
-    .into())
+    router_env::logger::error!("missing alias for the given data");
+    None
 }
 
 impl
@@ -191,33 +199,43 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         match item.data.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::NetworkToken(_)) => Ok(Self {
+            Some(PaymentMethodVaultingData::NetworkToken(network_details)) => Ok(Self {
                 status: common_enums::AttemptStatus::Started,
                 response: Ok(VaultResponseData::ExternalVaultMultiTokenResponse {
-                    network_token: Secret::new(get_token_from_response(
+                    network_token: get_token_from_response(
                         &item.response.data,
-                        "network_token",
-                    )?),
-                    tavv: Secret::new(get_token_from_response(&item.response.data, "tavv")?),
-                    token_expiration_month: Secret::new(get_token_from_response(
+                        Secret::new(network_details.network_token.get_card_no()),
+                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "alias",
+                    })?,
+                    cryptogram: network_details.cryptogram.and_then(|crypto| {
+                        get_token_from_response(&item.response.data, crypto)
+                    }),
+                    token_expiration_month: get_token_from_response(
                         &item.response.data,
-                        "expiry_month",
-                    )?),
-                    token_expiration_year: Secret::new(get_token_from_response(
+                        network_details.network_token_exp_month,
+                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "alias",
+                    })?,
+                    token_expiration_year: get_token_from_response(
                         &item.response.data,
-                        "expiry_year",
-                    )?),
+                        network_details.network_token_exp_year,
+                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "alias",
+                    })?,
                 }),
                 ..item.data
             }),
             _ => {
-                let vgs_alias = get_token_from_response(&item.response.data, "data")?;
+                let vgs_alias = get_token_from_response(&item.response.data, Secret::new("data".to_string())).ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "alias",
+                })?;
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                        connector_vault_id: vgs_alias.clone(),
-                        fingerprint_id: vgs_alias.clone(),
+                        connector_vault_id: vgs_alias.clone().expose(),
+                        fingerprint_id: vgs_alias.clone().expose(),
                     }),
                     ..item.data
                 })

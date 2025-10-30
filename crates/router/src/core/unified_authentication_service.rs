@@ -1788,6 +1788,8 @@ pub async fn authentication_sync_core(
                                 },
                             )?;
 
+                        let cryptogram = authentication_details.dynamic_data_details.clone().and_then(|details| details.dynamic_data_value);
+
                         let vault_data =
                         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                             payment_method_data::NetworkTokenDetails {
@@ -1799,7 +1801,7 @@ pub async fn authentication_sync_core(
                                     .token_expiration_month
                                     .clone(),
                                 network_token_exp_year: token_details.token_expiration_year.clone(),
-                                tavv: Some(token_details.payment_account_reference.clone()),
+                                cryptogram,
                                 card_issuer: None,
                                 card_network: None,
                                 card_type: None,
@@ -1821,7 +1823,7 @@ pub async fn authentication_sync_core(
                         if let Some(multi_vault_token) = external_vault_response.multi_vault_token {
                             Some(AuthTokenData {
                                 network_token: multi_vault_token.network_token,
-                                tavv: multi_vault_token.tavv,
+                                cryptogram: multi_vault_token.cryptogram,
                                 token_expiration_month: multi_vault_token.token_expiration_month,
                                 token_expiration_year: multi_vault_token.token_expiration_year,
                             })
@@ -1859,7 +1861,7 @@ pub async fn authentication_sync_core(
             (authentication, None)
         };
 
-    let (authentication_value, eci) = match auth_flow {
+    let (_, eci): (Option<masking::Secret<String>>, Option<String>) = match auth_flow {
         AuthFlow::Client => (None, None),
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) =
@@ -2008,7 +2010,6 @@ pub async fn authentication_sync_core(
         acquirer_details,
         error_message: updated_authentication.error_message.clone(),
         error_code: updated_authentication.error_code.clone(),
-        authentication_value,
         threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id.clone(),
         maximum_supported_3ds_version: updated_authentication.maximum_supported_version.clone(),
         connector_authentication_id: updated_authentication.connector_authentication_id.clone(),

@@ -880,7 +880,7 @@ pub struct NetworkTokenDetails {
     pub network_token: cards::NetworkToken,
     pub network_token_exp_month: Secret<String>,
     pub network_token_exp_year: Secret<String>,
-    pub tavv: Option<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,

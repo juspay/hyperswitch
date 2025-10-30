@@ -68,7 +68,7 @@ pub struct AddVaultResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct MultiVaultTokenData {
     pub network_token: Secret<String>,
-    pub tavv: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
 }

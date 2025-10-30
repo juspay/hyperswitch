@@ -403,7 +403,6 @@ pub struct ClickToPayEligibilityCheckResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct VisaEligibilityCheckData {
     // Indicates whether the consumer is enrolled in Visa Secure program
-    #[serde(rename = "consumerPresent1")]
     pub consumer_present: bool,
     // Status of the consumer in Visa Secure program]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -719,10 +718,6 @@ pub struct AuthenticationSyncResponse {
     /// Merchant app URL for OOB authentication.
     pub three_ds_requestor_app_url: Option<String>,
 
-    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
-    #[schema(value_type = Option<String>)]
-    pub authentication_value: Option<masking::Secret<String>>,
-
     /// ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     pub eci: Option<String>,
 
@@ -748,7 +743,7 @@ pub struct AuthTokenData {
 
     /// Token id for tavv
     #[schema(value_type = String)]
-    pub tavv: masking::Secret<String>,
+    pub cryptogram: Option<masking::Secret<String>>,
 
     /// Token id for token_expiration_month
     #[schema(value_type = String)]

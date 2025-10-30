@@ -2455,7 +2455,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
             }
             types::VaultResponseData::ExternalVaultMultiTokenResponse {
                 network_token,
-                tavv,
+                cryptogram,
                 token_expiration_month,
                 token_expiration_year,
             } => {
@@ -2472,7 +2472,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                         network_token,
                         token_expiration_month,
                         token_expiration_year,
-                        tavv,
+                        cryptogram,
                     }),
                 })
             }
