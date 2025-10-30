@@ -5,12 +5,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::Execute,
+    router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
@@ -549,6 +549,21 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     type Error = error_stack::Report<ParsingError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status: enums::RefundStatus::from(item.response.transaction_status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundSyncRouterData {
+    type Error = error_stack::Report<ParsingError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
