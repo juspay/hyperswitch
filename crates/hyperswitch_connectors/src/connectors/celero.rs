@@ -269,8 +269,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let response_integrity_object = utils::get_authorise_integrity_object(
             self.amount_converter,
-            data.request.minor_amount,
-            data.request.currency.to_string(),
+            response.amount,
+            response.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -362,8 +362,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cel
 
         let response_integrity_object = utils::get_sync_integrity_object(
             self.amount_converter,
-            data.request.amount,
-            data.request.currency.to_string(),
+            response.amount,
+            response.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -466,8 +466,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         router_env::logger::info!(connector_response=?response);
         let response_integrity_object = utils::get_capture_integrity_object(
             self.amount_converter,
-            Some(data.request.minor_amount_to_capture),
-            data.request.currency.to_string(),
+            Some(response.amount),
+            response.currency.to_string(),
         )?;
 
         let new_router_data = RouterData::try_from(ResponseRouterData {
@@ -637,8 +637,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Celero 
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
-            data.request.minor_refund_amount,
-            data.request.currency.to_string(),
+            response.amount,
+            response.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -730,8 +730,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Celero {
 
         let response_integrity_object = utils::get_refund_integrity_object(
             self.amount_converter,
-            data.request.minor_refund_amount,
-            data.request.currency.to_string(),
+            response.amount,
+            response.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
