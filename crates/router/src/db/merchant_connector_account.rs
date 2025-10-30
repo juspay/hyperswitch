@@ -69,6 +69,7 @@ impl ConnectorAccessToken for Store {
             merchant_id,
             merchant_connector_id_or_connector_name,
         );
+        println!("Redis Key in Set Access Token: {:?}", key);
         let serialized_access_token = access_token
             .encode_to_string_of_json()
             .change_context(errors::StorageError::SerializationFailed)?;

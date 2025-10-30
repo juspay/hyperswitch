@@ -402,6 +402,11 @@ impl Connector {
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
     }
+
+    pub fn is_different_access_token_required_per_payment_method_type(self) -> bool {
+        matches!(self, Self::Santander)
+    }
+
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),

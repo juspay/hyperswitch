@@ -59,6 +59,7 @@ pub async fn add_access_token<
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
 ) -> RouterResult<types::AddAccessTokenResult> {
+
     if connector
         .connector_name
         .supports_access_token(router_data.payment_method)
@@ -79,8 +80,21 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let access_token_key = if connector
+            .connector_name
+            .is_different_access_token_required_per_payment_method_type()
+        {
+            if let Some(pmt) = router_data.payment_method_type {
+                format!("{}_{}", merchant_connector_id_or_connector_name, pmt)
+            } else {
+                merchant_connector_id_or_connector_name.clone()
+            }
+        } else {
+            merchant_connector_id_or_connector_name.clone()
+        };
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(merchant_id, &access_token_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -164,7 +178,7 @@ pub async fn add_access_token<
                         if let Err(access_token_set_error) = store
                             .set_access_token(
                                 merchant_id,
-                                &merchant_connector_id_or_connector_name,
+                                &access_token_key,
                                 modified_access_token_with_expiry.clone(),
                             )
                             .await
