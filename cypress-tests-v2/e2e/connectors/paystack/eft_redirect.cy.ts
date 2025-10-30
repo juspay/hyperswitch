@@ -1,6 +1,10 @@
+/// <reference types="cypress" />
 // Cypress E2E: Paystack EFT bank_redirect flow
 
-const BASE = Cypress.env('PAYMENT_BASE_URL') || 'http://localhost:8080'
+const BASE =
+  Cypress.env('PAYMENT_BASE_URL') ||
+  Cypress.config('baseUrl') ||
+  'http://localhost:8080';
 
 describe('Paystack EFT bank_redirect', () => {
   it('happy path: completes bank_redirect and returns reference', () => {
@@ -28,10 +32,16 @@ describe('Paystack EFT bank_redirect', () => {
       expect(response.status).to.eq(200)
       const { next_action } = response.body
       expect(next_action).to.have.property('redirect_to_url')
-      cy.visit(next_action.redirect_to_url.url)
+      
       if (Cypress.env('CYPRESS_SKIP_DASHBOARD')) {
-        cy.intercept('GET', '**/dashboard/**', { statusCode: 200, body: '<div>Dashboard Stub</div>' })
+        cy.intercept('GET', '**/dashboard/**', {
+          statusCode: 200,
+          body: '<div>Dashboard Stub</div>',
+        }).as('dash');
       }
+      
+      cy.visit(next_action.redirect_to_url.url)
+      if (Cypress.env('CYPRESS_SKIP_DASHBOARD')) cy.wait('@dash')
       cy.location('href').should('include', 'reference')
     })
   })
