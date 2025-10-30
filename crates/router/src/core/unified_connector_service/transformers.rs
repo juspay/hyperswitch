@@ -53,7 +53,7 @@ impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
 
 impl ForeignFrom<&AccessToken> for ConnectorState {
     fn foreign_from(access_token: &AccessToken) -> Self {
-        ConnectorState {
+        Self {
             access_token: Some(payments_grpc::AccessToken {
                 token: access_token.token.peek().to_string(),
                 expires_in_seconds: Some(access_token.expires),
