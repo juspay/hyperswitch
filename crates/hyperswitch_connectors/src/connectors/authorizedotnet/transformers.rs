@@ -1132,15 +1132,19 @@ impl
                 .router_data
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
-                .map(|address| BillTo {
+                .map(|address| {
+                    let address_line = get_address_line(&address.line1, &address.line2, &address.line3);
+                    println!("sssssssssssss Address Line: {:?}", address_line.clone().map(|s| s.expose()));
+
+                    BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: get_address_line(&address.line1, &address.line2, &address.line3),
+                    address: address_line,
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
                     country: address.country,
-                }),
+                }}),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -2039,47 +2043,22 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
         match item.response.transaction {
             Some(transaction) => {
                 let payment_status = enums::AttemptStatus::from(transaction.transaction_status);
-                if utils::is_payment_failure(payment_status) {
-                    Ok(Self {
-                        response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(
-                                transaction.transaction_id.clone(),
-                            ),
-                            redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: Some(
-                                transaction.transaction_id.clone(),
-                            ),
-                            incremental_authorization_allowed: None,
-                            charges: None,
-                        }),
-                        status: payment_status,
-                        ..item.data
-                    })
-                } else {
-                    Ok(Self {
-                        status: payment_status,
-                        response: Err(ErrorResponse {
-                            code: transaction.response_reason_code.clone().unwrap_or(
-                                hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
-                            ),
-                            message: transaction.response_reason_description.clone().unwrap_or(
-                                hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
-                            ),
-                            reason: transaction.response_reason_description.clone(),
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: None,
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            connector_metadata: None,
-                        }),
-                        ..item.data
-                    })
-                }
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction.transaction_id.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    status: payment_status,
+                    ..item.data
+                })
             }
 
             // E00053 indicates "server too busy"
