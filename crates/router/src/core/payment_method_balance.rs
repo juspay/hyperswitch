@@ -1,10 +1,15 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::payments::{
-    GetPaymentMethodType, PaymentMethodBalanceCheckRequest, PaymentMethodBalanceCheckResponse,
+    ApplyPaymentMethodDataRequest, ApplyPaymentMethodDataResponse, GetPaymentMethodType,
+    PaymentMethodBalanceCheckRequest, PaymentMethodBalanceCheckResponse,
 };
 use common_enums::CallConnectorAction;
-use common_utils::{ext_traits::Encode, id_type, types::MinorUnit};
+use common_utils::{
+    ext_traits::{Encode, StringExt},
+    id_type,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::HeaderPayload,
@@ -197,6 +202,49 @@ pub async fn payments_check_gift_card_balance_core(
     Ok(services::ApplicationResponse::Json(resp))
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn payments_apply_pm_data_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    _req_state: ReqState,
+    req: ApplyPaymentMethodDataRequest,
+    payment_id: id_type::GlobalPaymentId,
+) -> RouterResponse<ApplyPaymentMethodDataResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            key_manager_state,
+            &payment_id,
+            merchant_context.get_merchant_key_store(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let balances =
+        fetch_payment_methods_balances_from_redis(&state, &payment_intent.id, &req.payment_methods)
+            .await
+            .attach_printable("Failed to retrieve payment method balances from redis")?;
+
+    let total_balance: MinorUnit = balances.values().map(|value| value.balance).sum();
+
+    // remaining_amount cannot be negative, hence using max with 0. This situation can arise when
+    // the gift card balance exceeds the order amount
+    let remaining_amount =
+        (payment_intent.amount_details.order_amount - total_balance).max(MinorUnit::zero());
+
+    let resp = ApplyPaymentMethodDataResponse {
+        remaining_amount,
+        currency: payment_intent.amount_details.currency,
+        requires_additional_pm_data: remaining_amount.is_greater_than(0),
+        surcharge_details: None, // TODO: Implement surcharge recalculation logic
+    };
+
+    Ok(services::ApplicationResponse::Json(resp))
+}
+
 #[instrument(skip_all)]
 pub async fn persist_individual_pm_balance_details_in_redis<'a>(
     state: &SessionState,
@@ -236,7 +284,61 @@ pub async fn persist_individual_pm_balance_details_in_redis<'a>(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to write to redis")?;
+
         logger::debug!("Surcharge results stored in redis with key = {}", redis_key);
     }
     Ok(())
+}
+
+pub async fn fetch_payment_methods_balances_from_redis(
+    state: &SessionState,
+    payment_intent_id: &id_type::GlobalPaymentId,
+    payment_methods: &[api_models::payments::BalanceCheckPaymentMethodData],
+) -> errors::RouterResult<HashMap<domain::PaymentMethodBalanceKey, domain::PaymentMethodBalance>> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let balance_data = domain::PaymentMethodBalanceData::new(payment_intent_id);
+
+    let balance_values: HashMap<String, domain::PaymentMethodBalance> = redis_conn
+        .get_hash_fields::<Vec<(String, String)>>(&balance_data.get_pm_balance_redis_key().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read payment method balance data from redis")?
+        .into_iter()
+        .map(|(key, value)| {
+            value
+                .parse_struct("PaymentMethodBalance")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse PaymentMethodBalance")
+                .map(|parsed| (key, parsed))
+        })
+        .collect::<errors::RouterResult<HashMap<_, _>>>()?;
+
+    payment_methods
+        .iter()
+        .map(|pm| {
+            let api_models::payments::BalanceCheckPaymentMethodData::GiftCard(gift_card_data) = pm;
+            let pm_balance_key = domain::PaymentMethodBalanceKey {
+                payment_method_type: common_enums::PaymentMethod::GiftCard,
+                payment_method_subtype: gift_card_data.get_payment_method_type(),
+                payment_method_key: domain::GiftCardData::from(gift_card_data.clone())
+                    .get_payment_method_key()
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Unable to get unique key for payment method".to_string(),
+                    })?
+                    .expose(),
+            };
+            let redis_key = pm_balance_key.get_redis_key();
+            let balance_value = balance_values.get(&redis_key).cloned().ok_or(
+                errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Balance not found for one or more payment methods".to_string(),
+                },
+            )?;
+            Ok((pm_balance_key, balance_value))
+        })
+        .collect::<errors::RouterResult<HashMap<_, _>>>()
 }
