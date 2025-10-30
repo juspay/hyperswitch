@@ -431,7 +431,7 @@ fn decide_execution_path(
         // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
         (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
             Ok((
-                GatewaySystem::UnifiedConnectorService,
+                GatewaySystem::Direct,
                 ExecutionPath::ShadowUnifiedConnectorService,
             ))
         }
