@@ -1132,19 +1132,15 @@ impl
                 .router_data
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
-                .map(|address| {
-                    let address_line = get_address_line(&address.line1, &address.line2, &address.line3);
-                    println!("sssssssssssss Address Line: {:?}", address_line.clone().map(|s| s.expose()));
-
-                    BillTo {
+                .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address_line,
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
                     country: address.country,
-                }}),
+                }),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
