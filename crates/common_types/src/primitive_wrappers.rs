@@ -437,7 +437,7 @@ mod u32_wrappers {
 }
 
 mod u16_wrappers {
-    use std::ops::Deref;
+    use std::{io::Write, ops::Deref};
 
     use serde::{de::Error, Deserialize, Serialize};
 
@@ -448,10 +448,10 @@ mod u16_wrappers {
     /// Customer list limit wrapper with automatic validation
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
     #[diesel(sql_type = diesel::sql_types::SmallInt)]
-    pub struct CustomerListLimit(i16);
+    pub struct CustomerListLimit(u16);
 
     impl Deref for CustomerListLimit {
-        type Target = i16;
+        type Target = u16;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -463,28 +463,21 @@ mod u16_wrappers {
         where
             D: serde::Deserializer<'de>,
         {
-            let val = i16::deserialize(deserializer)?;
-            if val < CUSTOMER_LIST_LOWER_LIMIT {
-                Err(D::Error::custom(format!(
-                    "CustomerListLimit cannot be less than {}",
-                    CUSTOMER_LIST_LOWER_LIMIT
-                )))
-            } else if val > CUSTOMER_LIST_UPPER_LIMIT {
-                Err(D::Error::custom(format!(
-                    "CustomerListLimit exceeds the maximum allowed value of {}",
-                    CUSTOMER_LIST_UPPER_LIMIT
-                )))
-            } else {
-                Ok(Self(val))
-            }
+            let val = u16::deserialize(deserializer)?;
+            Self::new(val).map_err(D::Error::custom)
         }
     }
+
+    use std::convert::TryFrom;
 
     impl diesel::deserialize::FromSql<diesel::sql_types::SmallInt, diesel::pg::Pg>
         for CustomerListLimit
     {
         fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-            i16::from_sql(value).map(Self)
+            let val = i16::from_sql(value)?;
+            let converted = u16::try_from(val)
+                .map_err(|_| format!("Invalid negative value {} for CustomerListLimit", val))?;
+            Ok(Self(converted))
         }
     }
 
@@ -493,9 +486,20 @@ mod u16_wrappers {
             &'b self,
             out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
         ) -> diesel::serialize::Result {
-            <i16 as diesel::serialize::ToSql<diesel::sql_types::SmallInt, diesel::pg::Pg>>::to_sql(
-                &self.0, out,
-            )
+            // CustomerListLimit validation ensures this is safe
+            let value = i16::try_from(self.0).map_err(|_| -> Box<dyn std::error::Error + Send + Sync> {
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Value {} for CustomerListLimit exceeds i16 maximum limit",
+                        self.0
+                    ),
+                ))
+            })?;
+
+            // Write the i16 value directly as big-endian bytes
+            out.write_all(&value.to_be_bytes())?;
+            Ok(diesel::serialize::IsNull::No)
         }
     }
 
@@ -509,33 +513,24 @@ mod u16_wrappers {
     impl CustomerListLimit {
         /// Creates a new CustomerListLimit with validation
         pub fn new(value: u16) -> Result<Self, String> {
-            // Convert constants to u16 for comparison - these should always succeed
-            let lower_u16 = u16::try_from(CUSTOMER_LIST_LOWER_LIMIT)
-                .map_err(|_| "Invalid lower limit constant".to_string())?;
-            let upper_u16 = u16::try_from(CUSTOMER_LIST_UPPER_LIMIT)
-                .map_err(|_| "Invalid upper limit constant".to_string())?;
-
-            if value < lower_u16 {
+            if value < CUSTOMER_LIST_LOWER_LIMIT {
                 Err(format!(
                     "CustomerListLimit cannot be less than {}",
                     CUSTOMER_LIST_LOWER_LIMIT
                 ))
-            } else if value > upper_u16 {
+            } else if value > CUSTOMER_LIST_UPPER_LIMIT {
                 Err(format!(
                     "CustomerListLimit exceeds the maximum allowed value of {}",
                     CUSTOMER_LIST_UPPER_LIMIT
                 ))
             } else {
-                let inner = i16::try_from(value)
-                    .map_err(|_| "Value too large for internal representation".to_string())?;
-                Ok(Self(inner))
+                Ok(Self(value))
             }
         }
 
         /// Returns the limit as u16 for external compatibility
-        pub fn get_value(&self) -> Result<u16, String> {
-            u16::try_from(self.0)
-                .map_err(|_| "Internal value cannot be converted to u16".to_string())
+        pub fn get_value(&self) -> u16 {
+            self.0
         }
     }
 }

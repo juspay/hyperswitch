@@ -15,13 +15,13 @@ pub const MAX_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
 pub const DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS: i32 = 24;
 
 /// Customer List Lower Limit
-pub const CUSTOMER_LIST_LOWER_LIMIT: i16 = 1;
+pub const CUSTOMER_LIST_LOWER_LIMIT: u16 = 1;
 
 /// Customer List Upper Limit
-pub const CUSTOMER_LIST_UPPER_LIMIT: i16 = 100;
+pub const CUSTOMER_LIST_UPPER_LIMIT: u16 = 100;
 
 /// Customer List Default Limit
-pub const CUSTOMER_LIST_DEFAULT_LIMIT: i16 = 20;
+pub const CUSTOMER_LIST_DEFAULT_LIMIT: u16 = 20;
 
 /// Default payment intent statuses that trigger a webhook
 pub const DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES: &[common_enums::IntentStatus] = &[

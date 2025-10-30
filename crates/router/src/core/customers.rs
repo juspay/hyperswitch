@@ -1,4 +1,4 @@
-use common_types::consts::{CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT};
+use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
@@ -23,7 +23,6 @@ use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
-        utils::{self},
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -629,17 +628,11 @@ pub async fn list_customers_with_count(
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
-    let limit = utils::customer_validation::validate_customer_list_limit(request.limit)
-        .change_context(errors::CustomersErrorResponse::InvalidRequestData {
-            message: format!(
-            " limit should be between {CUSTOMER_LIST_LOWER_LIMIT} and {CUSTOMER_LIST_UPPER_LIMIT}"
-        ),
-        })?;
-
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
         limit: request
             .limit
-            .unwrap_or_else(|| limit.get_value().unwrap_or(20)),
+            .map(|l| *l)
+            .unwrap_or_else(|| *CustomerListLimit::default()),
         offset: request.offset,
         customer_id: request.customer_id,
         time_range: request.time_range,
