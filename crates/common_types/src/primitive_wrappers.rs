@@ -446,8 +446,7 @@ mod u16_wrappers {
     };
 
     /// Customer list limit wrapper with automatic validation
-    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, diesel::expression::AsExpression)]
-    #[diesel(sql_type = diesel::sql_types::SmallInt)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
     pub struct CustomerListLimit(u16);
 
     impl Deref for CustomerListLimit {
@@ -465,19 +464,6 @@ mod u16_wrappers {
         {
             let val = u16::deserialize(deserializer)?;
             Self::new(val).map_err(D::Error::custom)
-        }
-    }
-
-    use std::convert::TryFrom;
-
-    impl diesel::deserialize::FromSql<diesel::sql_types::SmallInt, diesel::pg::Pg>
-        for CustomerListLimit
-    {
-        fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-            let val = i16::from_sql(value)?;
-            let converted = u16::try_from(val)
-                .map_err(|_| format!("Invalid negative value {} for CustomerListLimit", val))?;
-            Ok(Self(converted))
         }
     }
 
@@ -504,11 +490,6 @@ mod u16_wrappers {
             } else {
                 Ok(Self(value))
             }
-        }
-
-        /// Returns the limit as u16 for external compatibility
-        pub fn get_value(&self) -> u16 {
-            self.0
         }
     }
 }
