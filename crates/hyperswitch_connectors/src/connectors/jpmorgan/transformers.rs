@@ -63,7 +63,7 @@ impl TryFrom<&RefreshTokenRouterData> for JpmorganAuthUpdateRequest {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessToken>>
-for RouterData<F, T, AccessToken>
+    for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -148,7 +148,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                         message: "3DS payments".to_string(),
                         connector: "Jpmorgan",
                     }
-                        .into());
+                    .into());
                 }
 
                 let capture_method =
@@ -210,7 +210,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
             | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("jpmorgan"),
             )
-                .into()),
+            .into()),
         }
     }
 }
@@ -331,7 +331,7 @@ pub fn attempt_status_from_transaction_state(
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsResponseData>>
-for RouterData<F, T, PaymentsResponseData>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -430,7 +430,7 @@ pub struct CardCapRes {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsResponseData>>
-for RouterData<F, T, PaymentsResponseData>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -472,8 +472,8 @@ pub enum JpmorganResponseStatus {
 }
 
 impl<F, PaymentsSyncData>
-TryFrom<ResponseRouterData<F, JpmorganPSyncResponse, PaymentsSyncData, PaymentsResponseData>>
-for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, JpmorganPSyncResponse, PaymentsSyncData, PaymentsResponseData>>
+    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -597,7 +597,7 @@ impl From<(JpmorganResponseStatus, JpmorganTransactionState)> for RefundStatus {
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
-for RefundsRouterData<Execute>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -614,7 +614,7 @@ for RefundsRouterData<Execute>
                     item.response.response_status,
                     item.response.transaction_state,
                 ))
-                    .into(),
+                .into(),
             }),
             ..item.data
         })
@@ -634,7 +634,7 @@ pub struct JpmorganRefundSyncResponse {
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
-for RefundsRouterData<RSync>
+    for RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -647,7 +647,7 @@ for RefundsRouterData<RSync>
                     item.response.response_status,
                     item.response.transaction_state,
                 ))
-                    .into(),
+                .into(),
             }),
             ..item.data
         })
@@ -739,8 +739,8 @@ pub struct CardCancelResponse {
 }
 
 impl<F>
-TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData, PaymentsResponseData>>
-for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData, PaymentsResponseData>>
+    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
