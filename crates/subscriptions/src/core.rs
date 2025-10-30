@@ -1,6 +1,4 @@
-use api_models::subscription::{
-    self as subscription_types, SubscriptionResponse, SubscriptionStatus,
-};
+use api_models::subscription::{self as subscription_types, SubscriptionResponse};
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
@@ -178,6 +176,12 @@ pub async fn create_and_confirm_subscription(
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateAndConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+    request
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_string(),
+        })?;
+
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
@@ -287,7 +291,10 @@ pub async fn create_and_confirm_subscription(
                         .to_string(),
                 ),
                 payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    common_enums::SubscriptionStatus::from(subscription_create_response.status)
+                        .to_string(),
+                ),
                 request.plan_id,
                 Some(request.item_price_id),
             ),
@@ -310,6 +317,12 @@ pub async fn confirm_subscription(
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+    // Validate request
+    request
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_string(),
+        })?;
     // Find the subscription from database
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
@@ -363,12 +376,12 @@ pub async fn confirm_subscription(
             &state,
             customer.clone(),
             subscription.customer_id.clone(),
-            request.get_billing_address(),
+            payment_response.get_billing_address(),
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data
-                .clone(),
+                .as_ref()
+                .and_then(|data| data.payment_method_data.clone()),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
@@ -386,7 +399,7 @@ pub async fn confirm_subscription(
             &state,
             subscription.clone(),
             subscription.item_price_id.clone(),
-            request.get_billing_address(),
+            payment_response.get_billing_address(),
         )
         .await?;
 
@@ -423,7 +436,10 @@ pub async fn confirm_subscription(
                         .to_string(),
                 ),
                 payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    common_enums::SubscriptionStatus::from(subscription_create_response.status)
+                        .to_string(),
+                ),
                 subscription.plan_id.clone(),
                 subscription.item_price_id.clone(),
             ),
