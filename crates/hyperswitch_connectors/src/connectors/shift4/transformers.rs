@@ -219,7 +219,6 @@ pub enum PaymentMethodType {
     Eps,
     Giropay,
     Ideal,
-    Sofort,
     Boleto,
     Trustly,
     Alipay,
@@ -703,7 +702,6 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Eps { .. } => Ok(Self::Eps),
             BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
             BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
-            BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::Trustly { .. } => Ok(Self::Trustly),
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
