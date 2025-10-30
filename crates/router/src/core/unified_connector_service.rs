@@ -88,7 +88,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-
 /// Checks if a config key exists and returns its percentage if present
 /// Returns (key_exists, rollout_percentage)
 async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
@@ -97,13 +96,14 @@ async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (boo
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
             // Key exists, try to parse percentage
-            let percentage = match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
-                Ok(config) => Some(config.rollout_percent),
-                Err(_) => {
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>().ok()
-                }
-            };
+            let percentage =
+                match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                    Ok(config) => Some(config.rollout_percent),
+                    Err(_) => {
+                        // Fallback to legacy format (simple float)
+                        rollout_config.config.parse::<f64>().ok()
+                    }
+                };
             (true, percentage)
         }
         Err(_) => (false, None), // Key doesn't exist
@@ -216,12 +216,13 @@ where
 
     // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let (shadow_key_exists, _shadow_percentage) = get_rollout_config_info(state, &shadow_rollout_key).await;
+    let (shadow_key_exists, _shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
 
     let shadow_rollout_availability = if rollout_result.should_execute && shadow_key_exists {
         // Both rollout enabled and shadow key exists, check shadow percentage
         let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
-        
+
         if shadow_percentage != 0.0 {
             // Shadow key present with non-zero percentage - enable shadow mode for comparison
             router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists with non-zero percentage, enabling shadow mode for comparison" );
@@ -238,7 +239,7 @@ where
     } else if !rollout_result.should_execute && shadow_key_exists {
         // No rollout but shadow key exists - check shadow percentage
         let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
-        
+
         if shadow_percentage != 0.0 {
             // Shadow key with non-zero percentage but no rollout - enable shadow mode for comparison
             router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "No rollout but shadow key exists with non-zero percentage, enabling shadow mode for comparison" );
