@@ -130,7 +130,7 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -389,7 +389,7 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -642,7 +642,7 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -757,7 +757,7 @@ impl
             }
         };
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -1804,7 +1804,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             request_ref_id,
@@ -1872,7 +1872,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )),
         });
 
-        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
+        let state = router_data.access_token.as_ref().map(ConnectorState::foreign_from);
 
         Ok(Self {
             request_ref_id,
