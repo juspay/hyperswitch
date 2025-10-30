@@ -236,6 +236,7 @@ pub async fn trigger_refund_to_gateway(
                 &router_data,
                 None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await?;
 
@@ -838,6 +839,7 @@ pub async fn sync_refund_with_gateway(
                 &router_data,
                 None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await?;
 
