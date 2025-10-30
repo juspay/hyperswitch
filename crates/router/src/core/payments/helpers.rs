@@ -81,9 +81,7 @@ use crate::core::{
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
     },
-    unified_connector_service::{
-        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
-    },
+    unified_connector_service::update_gateway_system_in_feature_metadata,
     utils as core_utils,
 };
 #[cfg(feature = "v1")]
@@ -126,7 +124,8 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
+    core::{payment_methods::cards::create_encrypted_data, unified_connector_service},
+    types::storage::CustomerUpdate::Update,
 };
 
 #[instrument(skip_all)]
@@ -2128,34 +2127,145 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
         .unwrap_or(false)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct RolloutConfig {
+    pub rollout_percent: f64,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+impl Default for RolloutConfig {
+    fn default() -> Self {
+        Self {
+            rollout_percent: 0.0,
+            http_url: None,
+            https_url: None,
+        }
+    }
+}
+
+// Re-export ProxyOverride from hyperswitch_interfaces
+pub use hyperswitch_interfaces::types::ProxyOverride;
+
+#[derive(Debug, Clone)]
+pub struct RolloutExecutionResult {
+    pub should_execute: bool,
+    pub proxy_override: Option<ProxyOverride>,
+}
+
+/// Validates a proxy URL, filtering out invalid ones and logging warnings
+fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
+    url.and_then(|url_str| {
+        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
+            logger::warn!(
+                invalid_url = %url_str,
+                url_type = url_type,
+                "Invalid proxy URL in rollout config, ignoring"
+            );
+            None
+        } else {
+            Some(url_str)
+        }
+    })
+}
+
+/// Creates proxy override with validated URLs and logging
+fn create_proxy_override(
+    http_url: Option<String>,
+    https_url: Option<String>,
+) -> Option<ProxyOverride> {
+    let validated_http = validate_proxy_url(http_url, "HTTP");
+    let validated_https = validate_proxy_url(https_url, "HTTPS");
+
+    if validated_http.is_some() || validated_https.is_some() {
+        if let Some(ref http_url) = validated_http {
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+        }
+        if let Some(ref https_url) = validated_https {
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+        }
+        Some(ProxyOverride {
+            http_url: validated_http,
+            https_url: validated_https,
+        })
+    } else {
+        None
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<bool> {
+) -> RouterResult<RolloutExecutionResult> {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
-            Ok(rollout_percent) => {
-                if !(0.0..=1.0).contains(&rollout_percent) {
-                    logger::warn!(
-                        rollout_percent,
-                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+            {
+                Ok(config) => Ok(config),
+                Err(err) => {
+                    logger::debug!(
+                        error = ?err,
+                        config = %rollout_config.config,
+                        "Config not in JSON format, trying legacy float format"
                     );
-                    return Ok(false);
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>()
+                        .map(|percent| RolloutConfig {
+                            rollout_percent: percent,
+                            http_url: None,
+                            https_url: None,
+                        })
+                        .map_err(|err| {
+                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
+                            err
+                        })
                 }
+            };
 
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                Ok(sampled_value < rollout_percent)
+            match config_result {
+                Ok(config) => {
+                    if !(0.0..=1.0).contains(&config.rollout_percent) {
+                        logger::warn!(
+                            rollout_percent = config.rollout_percent,
+                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                        );
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+
+                        return Ok(RolloutExecutionResult {
+                            should_execute: false,
+                            proxy_override,
+                        });
+                    }
+
+                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                    let should_execute = sampled_value < config.rollout_percent;
+
+                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
+
+                    Ok(RolloutExecutionResult {
+                        should_execute,
+                        proxy_override,
+                    })
+                }
+                Err(err) => {
+                    logger::error!(error = ?err, "Failed to parse rollout config");
+                    Ok(RolloutExecutionResult {
+                        should_execute: false,
+                        proxy_override: None,
+                    })
+                }
             }
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse rollout percent");
-                Ok(false)
-            }
-        },
+        }
         Err(err) => {
             logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(false)
+            Ok(RolloutExecutionResult {
+                should_execute: false,
+                proxy_override: None,
+            })
         }
     }
 }
@@ -8520,7 +8630,7 @@ where
         match shadow_result {
             Ok((ucs_router_data, _customer_update)) => {
                 // Compare Direct vs UCS router data
-                serialize_router_data_and_send_to_comparison_service(
+                unified_connector_service::serialize_router_data_and_send_to_comparison_service(
                     &unified_connector_service_state,
                     direct_router_data,
                     ucs_router_data,
@@ -8632,44 +8742,4 @@ where
     .await?;
 
     Ok((unified_connector_service_router_data, updated_customer))
-}
-
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + Serialize,
-{
-    router_env::logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => masking::Secret::new(data),
-        Err(_) => {
-            router_env::logger::debug!("Failed to serialize HS router data");
-            return Ok(());
-        }
-    };
-
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => masking::Secret::new(data),
-            Err(_) => {
-                router_env::logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
 }
