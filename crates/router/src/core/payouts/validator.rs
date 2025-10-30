@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use actix_web::http::header;
+use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::{
@@ -71,67 +72,30 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validates that the payout type matches the provided payout method data.
-///
-/// This function ensures consistency between the declared payout type and the actual
-/// payout method data provided in the request. It performs type-safe validation to prevent
-/// mismatches that could lead to processing errors downstream.
-///
-/// # Arguments
-///
-/// * `payout_type` - An optional payout type indicating the intended method of payout
-///   (Card, Bank, Wallet, or BankRedirect). If `None`, validation passes regardless of
-///   the payout method data.
-///
-/// * `payout_method_data` - An optional reference to the actual payout method data structure.
-///   Must correspond to the declared payout type when both are provided.
-///
-/// # Returns
-///
-/// * `Ok(())` - If the payout type and method data are consistent or if payout_type is `None`
-/// * `Err(RouterResult)` - If there is a mismatch between payout type and method data
-///
-/// # Error Cases
-///
-/// Returns `InvalidRequestData` error with descriptive messages for:
-/// - `PayoutType::Card` provided without `PayoutMethodData::Card`
-/// - `PayoutType::Bank` provided without `PayoutMethodData::Bank`
-/// - `PayoutType::Wallet` provided without `PayoutMethodData::Wallet`
-/// - `PayoutType::BankRedirect` provided without `PayoutMethodData::BankRedirect`
-///
+/// Validates if the payout_type and payout_method_data belong to the same type
+/// - payout_type: Type of the payout (Card, Bank, Wallet, BankRedirect)
+/// - payout_method_data: Data related to the payout method
+/// Bypass happens if the payout_type is None or payout_method_data is `Passthrough`
 async fn validate_payout_type_and_method(
     payout_type: Option<api_enums::PayoutType>,
-    payout_method_data: &Option<payouts::PayoutMethodData>,
+    payout_method_data: &Option<PayoutMethodData>,
 ) -> RouterResult<()> {
     match (payout_type, payout_method_data) {
         (Some(common_enums::PayoutType::Card), Some(payouts::PayoutMethodData::Card(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Card), _) => Err(report!(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payout method data and payout type mismatch for Card".to_string(),
-            }
-        )),
-
         (Some(common_enums::PayoutType::Bank), Some(payouts::PayoutMethodData::Bank(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Bank), _) => Err(report!(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payout method data and payout type mismatch for Bank".to_string(),
-            }
-        )),
-
-        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Wallet), _) => Err(report!(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payout method data and payout type mismatch for Wallet".to_string(),
-            }
-        )),
-
-        (Some(common_enums::PayoutType::BankRedirect), Some(payouts::PayoutMethodData::BankRedirect(_))) => Ok(()),
-        (Some(common_enums::PayoutType::BankRedirect), _) => Err(report!(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payout method data and payout type mismatch for Bank Redirect".to_string(),
-            }
-        )),
-        _ => Ok(()),
+        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => {
+            Ok(())
+        }
+        (
+            Some(common_enums::PayoutType::BankRedirect),
+            Some(payouts::PayoutMethodData::BankRedirect(_)),
+        ) => Ok(()),
+        (_, Some(payouts::PayoutMethodData::Passthrough(_))) => Ok(()),
+        (None, _) => Ok(()),
+        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payout method data and payout type do not belong to the same type"
+                .to_string(),
+        })),
     }
 }
 
@@ -189,15 +153,11 @@ pub async fn validate_create_request(
     let request_payout_method_data = &req.payout_method_data;
 
     // validating the payout type and method data here.
-    validate_payout_type_and_method(
-        request_payout_type,
-        request_payout_method_data
-    ).await
-    .attach_printable_lazy(|| {
-        format!(
-            "Payout type: {request_payout_type:?} and Payout method data: {request_payout_method_data:?} validation failed",
-        )
-    })?;
+    validate_payout_type_and_method(request_payout_type, request_payout_method_data)
+        .await
+        .attach_printable_lazy(|| {
+            "Validation failed: Payout type and Payout method data mismatch".to_string()
+        })?;
 
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
