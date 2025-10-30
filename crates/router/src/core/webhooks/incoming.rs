@@ -468,6 +468,7 @@ async fn process_ucs_webhook_transform<'a>(
 }
 
 /// Shadow UCS data container
+#[allow(dead_code)]
 pub struct ShadowUcsData<'a> {
     ucs_source_verified: bool,
     ucs_event_type: webhooks::IncomingWebhookEvent,
@@ -541,6 +542,13 @@ async fn process_shadow_ucs_webhook_transform<'a>(
             Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)),
             Ok(mut direct_processing_result),
         ) => {
+            // Log both calls succeeded
+            logger::info!(
+                connector = connector_name,
+                merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                "Shadow UCS: Both UCS and Direct calls succeeded"
+            );
+
             // Create ShadowUcsData with UCS results
             let shadow_ucs_data = ShadowUcsData {
                 ucs_source_verified,
@@ -554,15 +562,40 @@ async fn process_shadow_ucs_webhook_transform<'a>(
             direct_processing_result.shadow_ucs_data = Some(shadow_ucs_data);
             Ok(direct_processing_result)
         }
-        (Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)), Err(direct_error)) => {
+        (Ok((_, _, _)), Err(direct_error)) => {
+            // Log UCS call succeeded, direct call failed
+            logger::info!(
+                connector = connector_name,
+                merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                direct_error = ?direct_error,
+                "Shadow UCS: UCS call succeeded, Direct call failed"
+            );
+
             // Return direct_result error as required
             Err(direct_error)
         }
         (Err(ucs_error), Ok(direct_processing_result)) => {
+            // Log the UCS error and direct result succeeded
+            logger::info!(
+                connector = connector_name,
+                merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                ucs_error = ?ucs_error,
+                "Shadow UCS: UCS call failed, Direct call succeeded"
+            );
+
             // In shadow mode, if UCS fails, fall back to Direct result
             Ok(direct_processing_result)
         }
         (Err(ucs_error), Err(direct_error)) => {
+            // Log both the errors and both call failed
+            logger::error!(
+                connector = connector_name,
+                merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                ucs_error = ?ucs_error,
+                direct_error = ?direct_error,
+                "Shadow UCS: Both UCS and Direct calls failed"
+            );
+
             // Return direct_result error as required
             Err(direct_error)
         }
