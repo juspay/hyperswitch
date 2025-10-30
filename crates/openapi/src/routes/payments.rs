@@ -1333,3 +1333,30 @@ pub fn payments_list() {}
     security(("publishable_key" = []))
 )]
 pub fn payment_check_gift_card_balance() {}
+
+/// Payments - Apply PM Data
+///
+/// Apply the payment method data and recalculate surcharge
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    post,
+    path = "/v2/payments/{id}/apply-payment-method-data",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = "pro_abcdefghijklmnop"
+        ),
+    ),
+    request_body(
+      content = ApplyPaymentMethodDataRequest,
+    ),
+    responses(
+        (status = 200, description = "Apply the Payment Method Data", body = ApplyPaymentMethodDataResponse),
+    ),
+    tag = "Payments",
+    operation_id = "Apply Payment Method Data",
+    security(("publishable_key" = []))
+)]
+pub fn payments_apply_pm_data() {}
