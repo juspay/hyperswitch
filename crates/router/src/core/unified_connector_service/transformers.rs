@@ -36,10 +36,10 @@ use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::{api, transformers},
+    types::{api, transformers::{self, ForeignFrom}},
 };
 
-impl transformers::ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
+impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
         Self {
             token: masking::Secret::new(grpc_token.token.clone()),
@@ -48,16 +48,16 @@ impl transformers::ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     }
 }
 
-impl transformers::ForeignFrom<Option<&AccessToken>> for Option<ConnectorState> {
-    fn foreign_from(access_token_opt: Option<&AccessToken>) -> Self {
-        access_token_opt.map(|token| ConnectorState {
+impl ForeignFrom<&AccessToken> for ConnectorState {
+    fn foreign_from(access_token: &AccessToken) -> Self {
+        ConnectorState {
             access_token: Some(payments_grpc::AccessToken {
-                token: token.token.peek().to_string(),
-                expires_in_seconds: Some(token.expires),
+                token: access_token.token.peek().to_string(),
+                expires_in_seconds: Some(access_token.expires),
                 token_type: None,
             }),
             connector_customer_id: None,
-        })
+        }
     }
 }
 impl
@@ -130,7 +130,7 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -389,7 +389,7 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -642,7 +642,7 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -757,7 +757,7 @@ impl
             }
         };
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -1804,7 +1804,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             request_ref_id,
@@ -1872,7 +1872,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )),
         });
 
-        let state = <Option<ConnectorState> as transformers::ForeignFrom<Option<&AccessToken>>>::foreign_from(router_data.access_token.as_ref());
+        let state = router_data.access_token.as_ref().map(|token| ConnectorState::foreign_from(token));
 
         Ok(Self {
             request_ref_id,
