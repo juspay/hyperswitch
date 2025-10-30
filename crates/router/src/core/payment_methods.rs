@@ -2403,7 +2403,7 @@ pub async fn vault_payment_method_external_v1(
     )
     .await?;
 
-    if old_router_data.access_token.is_some() {
+    if old_router_data.response.is_ok() {
         let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
             ExternalVaultInsertFlow,
             types::VaultRequestData,

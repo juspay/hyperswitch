@@ -9,7 +9,9 @@ use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
-    router_request_types::unified_authentication_service::UasAuthenticationResponseData,
+    router_request_types::unified_authentication_service::{
+        TokenDetails, UasAuthenticationResponseData,
+    },
 };
 use masking::ExposeInterface;
 
@@ -20,9 +22,13 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
-        errors::{utils::ConnectorErrorExt, RouterResult},
+        errors::{
+            utils::{ConnectorErrorExt, StorageErrorExt},
+            RouterResult,
+        },
         payments,
     },
+    db::domain,
     services::{self, execute_connector_processing_step},
     types::{api, transformers::ForeignFrom},
     SessionState,
@@ -357,6 +363,95 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
             Err(report!(ApiErrorResponse::ClientSecretExpired))
         } else {
             Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn get_token_details<F, Req>(
+    router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
+) -> Option<TokenDetails> {
+    if let Ok(UasAuthenticationResponseData::PostAuthentication {
+        authentication_details,
+    }) = router_data.response.clone()
+    {
+        authentication_details.token_details
+    } else {
+        None
+    }
+}
+#[cfg(feature = "v1")]
+pub async fn get_auth_multi_token_from_external_vault(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    business_profile: &domain::Profile,
+    token_details: Option<TokenDetails>,
+    authentication_value: Option<masking::Secret<String>>,
+) -> RouterResult<Option<std::collections::HashMap<String, String>>> {
+    use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
+    let key_manager_state = state.into();
+
+    match (
+        token_details,
+        business_profile.external_vault_details.clone(),
+    ) {
+        (
+            Some(auth_token_details),
+            ExternalVaultDetails::ExternalVaultEnabled(external_vault_details),
+        ) => {
+            let external_vault_mca_id = external_vault_details.vault_connector_id.clone();
+
+            let merchant_connector_account_details = state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    &key_manager_state,
+                    merchant_context.get_merchant_account().get_id(),
+                    &external_vault_mca_id,
+                    merchant_context.get_merchant_key_store(),
+                )
+                .await
+                .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: external_vault_mca_id.get_string_repr().to_string(),
+                })?;
+
+            let vault_data =
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                    hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
+                        network_token: auth_token_details.payment_token.clone().to_network_token(),
+                        network_token_exp_month: auth_token_details.token_expiration_month.clone(),
+                        network_token_exp_year: auth_token_details.token_expiration_year.clone(),
+                        tavv: authentication_value,
+                        card_issuer: None,
+                        card_network: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        card_holder_name: None,
+                        nick_name: None,
+                    },
+                );
+
+            let external_vault_response =
+                crate::core::payment_methods::vault_payment_method_external_v1(
+                    state,
+                    &vault_data,
+                    merchant_context.get_merchant_account(),
+                    merchant_connector_account_details,
+                )
+                .await?;
+
+            if let hyperswitch_domain_models::router_response_types::VaultIdType::MultiVauldIds(
+                multi_vault_token,
+            ) = external_vault_response.vault_id
+            {
+                Ok(Some(multi_vault_token))
+            } else {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected Behaviour, Multi Token Data is missing")
+            }
+        }
+        _ => {
+            router_env::logger::warn!("Either token_details or external_vault_details missing for post authentication flow");
+            Ok(None)
         }
     }
 }

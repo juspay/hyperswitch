@@ -28,9 +28,8 @@ use hyperswitch_domain_models::{
         authentication::{MessageCategory, PreAuthenticationData},
         unified_authentication_service::{
             AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
-            TransactionDetails, UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
@@ -1636,130 +1635,55 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, auth_token_data) = if !authentication
-        .authentication_status
-        .is_terminal_status()
-    {
-        let post_auth_response = if authentication_connector.is_click_to_pay() {
-            ClickToPay::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account.clone(),
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                None,
-            )
-            .await?
-        } else {
-            ExternalAuthentication::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account,
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                Some(&authentication),
-            )
-            .await?
-        };
-
-        let auth_token_data = if let Ok(UasAuthenticationResponseData::PostAuthentication {
-            authentication_details,
-        }) = &post_auth_response.response
-        {
-            if let Some(token_details) = &authentication_details.token_details {
-                use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
-
-                if let ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) =
-                    business_profile.external_vault_details
-                {
-                    let external_vault_mca_id = external_vault_details.vault_connector_id;
-
-                    let merchant_connector_account_details = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            &key_manager_state,
-                            merchant_context.get_merchant_account().get_id(),
-                            &external_vault_mca_id,
-                            merchant_context.get_merchant_key_store(),
-                        )
-                        .await
-                        .to_not_found_response(
-                            ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: external_vault_mca_id.get_string_repr().to_string(),
-                            },
-                        )?;
-
-                    let vault_data =
-                        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
-                            payment_method_data::NetworkTokenDetails {
-                                network_token: token_details
-                                    .payment_token
-                                    .clone()
-                                    .to_network_token(),
-                                network_token_exp_month: token_details
-                                    .token_expiration_month
-                                    .clone(),
-                                network_token_exp_year: token_details.token_expiration_year.clone(),
-                                tavv: Some(token_details.payment_account_reference.clone()),
-                                card_issuer: None,
-                                card_network: None,
-                                card_type: None,
-                                card_issuing_country: None,
-                                card_holder_name: None,
-                                nick_name: None,
-                            },
-                        );
-
-                    let external_vault_response =
-                        payment_methods::vault_payment_method_external_v1(
-                            &state,
-                            &vault_data,
-                            merchant_account,
-                            merchant_connector_account_details,
-                        )
-                        .await?;
-
-                    if let hyperswitch_domain_models::router_response_types::VaultIdType::MultiVauldIds(multi_vault_token) = external_vault_response.vault_id {
-                            Some(multi_vault_token)
-                        } else {
-                            router_env::logger::error!(
-                                "Unexpected Behaviour, Multi Token Data is missing"
-                            );
-                            None
-                        }
-                } else {
-                    None
-                }
+    let (updated_authentication, token_details) =
+        if !authentication.authentication_status.is_terminal_status() {
+            let post_auth_response = if authentication_connector.is_click_to_pay() {
+                ClickToPay::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account.clone(),
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    None,
+                )
+                .await?
             } else {
-                None
-            }
+                ExternalAuthentication::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account,
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    Some(&authentication),
+                )
+                .await?
+            };
+
+            let token_details = utils::get_token_details(&post_auth_response);
+
+            let auth_update_response = utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                merchant_context.get_merchant_key_store(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
+            (auth_update_response, token_details)
         } else {
-            None
+            (authentication, None)
         };
-
-        let auth_update_response = utils::external_authentication_update_trackers(
-            &state,
-            post_auth_response,
-            authentication.clone(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?;
-
-        (auth_update_response, auth_token_data)
-    } else {
-        (authentication, None)
-    };
 
     let (authentication_value, eci) = match auth_flow {
         AuthFlow::Client => (None, None),
@@ -1785,6 +1709,15 @@ pub async fn authentication_sync_core(
             }
         }
     };
+
+    let auth_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
+        &state,
+        &merchant_context,
+        &business_profile,
+        token_details,
+        authentication_value,
+    ))
+    .await?;
 
     let acquirer_details = Some(AcquirerDetails {
         acquirer_bin: updated_authentication.acquirer_bin.clone(),
@@ -1910,7 +1843,6 @@ pub async fn authentication_sync_core(
         acquirer_details,
         error_message: updated_authentication.error_message.clone(),
         error_code: updated_authentication.error_code.clone(),
-        authentication_value,
         threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id.clone(),
         maximum_supported_3ds_version: updated_authentication.maximum_supported_version.clone(),
         connector_authentication_id: updated_authentication.connector_authentication_id.clone(),

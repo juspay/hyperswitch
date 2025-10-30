@@ -564,10 +564,6 @@ pub struct AuthenticationSyncResponse {
     /// Merchant app URL for OOB authentication.
     pub three_ds_requestor_app_url: Option<String>,
 
-    /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
-    #[schema(value_type = Option<String>)]
-    pub authentication_value: Option<masking::Secret<String>>,
-
     /// ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     pub eci: Option<String>,
 

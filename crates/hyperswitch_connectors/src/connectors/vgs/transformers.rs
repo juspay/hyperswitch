@@ -84,7 +84,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
 
                 if let Some(tavv) = network_token_data.tavv {
                     data.push(VgsTokenRequestItem {
-                        value: Secret::new(tavv),
+                        value: tavv,
                         classifiers: vec!["tavv".to_string()],
                         format: VGS_FORMAT.to_string(),
                     });
