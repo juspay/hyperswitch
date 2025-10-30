@@ -3469,7 +3469,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -3511,7 +3511,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);

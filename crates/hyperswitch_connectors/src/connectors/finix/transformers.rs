@@ -1,5 +1,7 @@
 pub mod request;
 pub mod response;
+use api_models::payments::MandateReferenceId;
+use base64::Engine;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
@@ -13,15 +15,15 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCaptureData, RefundsData, ResponseId,
+        PaymentsCaptureData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
 
@@ -29,7 +31,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
         RouterData as _,
     },
 };
@@ -41,17 +43,6 @@ pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub merchant_identity_id: Secret<String>,
 }
 
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FinixMeta {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
-    ) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
-        Ok(metadata)
-    }
-}
-
 impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     for FinixRouterData<'a, Flow, Req, Res>
 {
@@ -60,13 +51,12 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     fn try_from(value: (MinorUnit, &'a RouterData<Flow, Req, Res>)) -> Result<Self, Self::Error> {
         let (amount, router_data) = value;
         let auth = FinixAuthType::try_from(&router_data.connector_auth_type)?;
-        let connector_meta = FinixMeta::try_from(&router_data.connector_meta_data)?;
 
         Ok(Self {
             amount,
             router_data,
             merchant_id: auth.merchant_id,
-            merchant_identity_id: connector_meta.merchant_id,
+            merchant_identity_id: auth.merchant_identity_id,
         })
     }
 }
@@ -144,6 +134,9 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
+        ) && matches!(
             item.router_data.auth_type,
             enums::AuthenticationType::ThreeDs
         ) {
@@ -152,55 +145,58 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             )
             .into());
         }
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
-                let source = item.router_data.get_payment_method_token()?;
-                Ok(Self {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                    source: match source {
+
+        let source =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(_)
+                | PaymentMethodData::Wallet(WalletData::GooglePay(_))
+                | PaymentMethodData::Wallet(WalletData::ApplePay(_)) => {
+                    let source = item.router_data.get_payment_method_token()?;
+                    match source {
                         PaymentMethodToken::Token(token) => token,
                         PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "finix"),
                         )?,
                         PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Stax"))?
+                            Err(unimplemented_payment_method!("Paze", "finix"))?
                         }
                         PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Stax"))?
+                            Err(unimplemented_payment_method!("Google Pay", "finix"))?
                         }
-                    },
-                    merchant: item.merchant_id.clone(),
-                    tags: None,
-                    three_d_secure: None,
-                })
-            }
-            PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
-                let source = item.router_data.get_payment_method_token()?;
-                Ok(Self {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                    source: match source {
-                        PaymentMethodToken::Token(token) => token,
-                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Simplified", "Finix"),
-                        )?,
-                        PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Finix"))?
-                        }
-                        PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Finix"))?
-                        }
-                    },
-                    merchant: item.merchant_id.clone(),
-                    tags: None,
-                    three_d_secure: None,
-                })
-            }
-            _ => Err(
-                ConnectorError::NotImplemented("Payment method not supported".to_string()).into(),
-            ),
-        }
+                    }
+                }
+                PaymentMethodData::MandatePayment => Secret::new(
+                    item.router_data
+                        .request
+                        .mandate_id
+                        .as_ref()
+                        .and_then(|mandate_ids| {
+                            mandate_ids
+                                .mandate_reference_id
+                                .as_ref()
+                                .and_then(|mandate_ref_id| match mandate_ref_id {
+                                    MandateReferenceId::ConnectorMandateId(id) => {
+                                        id.get_connector_mandate_id()
+                                    }
+                                    _ => None,
+                                })
+                        })
+                        .ok_or(ConnectorError::MissingConnectorMandateID)?,
+                ),
+                _ => Err(ConnectorError::NotImplemented(
+                    "Payment method not supported".to_string(),
+                ))?,
+            };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            source,
+            merchant: item.merchant_id.clone(),
+            idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
+            tags: None,
+            three_d_secure: None,
+        })
     }
 }
 
@@ -217,6 +213,143 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
     }
 }
 
+fn get_token_request(
+    payment_method_data: PaymentMethodData,
+    merchant_identity_id: Secret<String>,
+    identity: String,
+    customer_name: Option<Secret<String>>,
+) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<ConnectorError>> {
+    match &payment_method_data {
+        PaymentMethodData::Card(card_data) => {
+            Ok(FinixCreatePaymentInstrumentRequest {
+                instrument_type: FinixPaymentInstrumentType::PaymentCard,
+                name: card_data.card_holder_name.clone(),
+                number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
+                security_code: Some(card_data.card_cvc.clone()),
+                expiration_month: Some(card_data.get_expiry_month_as_i8()?),
+                expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
+                identity: identity.clone(), // This would come from a previously created identity
+                tags: None,
+                address: None,
+                card_brand: None, // Finix determines this from the card number
+                card_type: None,  // Finix determines this from the card number
+                additional_data: None,
+                merchant_identity: None,
+                third_party_token: None,
+            })
+        }
+        PaymentMethodData::Wallet(wallet) => match wallet {
+            WalletData::GooglePay(google_pay_wallet_data) => {
+                let third_party_token = google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "google_pay_token",
+                    })?;
+                Ok(FinixCreatePaymentInstrumentRequest {
+                    instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
+                    name: customer_name.clone(),
+                    identity: identity.clone(),
+                    number: None,
+                    security_code: None,
+                    expiration_month: None,
+                    expiration_year: None,
+                    tags: None,
+                    address: None,
+                    card_brand: None,
+                    card_type: None,
+                    additional_data: None,
+                    merchant_identity: Some(merchant_identity_id.clone()),
+                    third_party_token: Some(Secret::new(third_party_token)),
+                })
+            }
+            WalletData::ApplePay(apple_pay_wallet_data) => {
+                let applepay_encrypt_data = apple_pay_wallet_data
+                    .payment_data
+                    .get_encrypted_apple_pay_payment_data_mandatory()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "Apple pay encrypted data",
+                    })?;
+
+                let decoded_data = base64::prelude::BASE64_STANDARD
+                    .decode(applepay_encrypt_data)
+                    .change_context(ConnectorError::InvalidDataFormat {
+                        field_name: "apple_pay_encrypted_data",
+                    })?;
+
+                let apple_pay_token: FinixApplePayEncryptedData = serde_json::from_slice(
+                    &decoded_data,
+                )
+                .change_context(ConnectorError::InvalidDataFormat {
+                    field_name: "apple_pay_token_json",
+                })?;
+
+                let finix_token = FinixApplePayPaymentToken {
+                    token: FinixApplePayToken {
+                        payment_data: FinixApplePayEncryptedData {
+                            data: apple_pay_token.data.clone(),
+                            signature: apple_pay_token.signature.clone(),
+                            header: FinixApplePayHeader {
+                                public_key_hash: apple_pay_token.header.public_key_hash.clone(),
+                                ephemeral_public_key: apple_pay_token
+                                    .header
+                                    .ephemeral_public_key
+                                    .clone(),
+                                transaction_id: apple_pay_token.header.transaction_id.clone(),
+                            },
+                            version: apple_pay_token.version.clone(),
+                        },
+                        payment_method: FinixApplePayPaymentMethod {
+                            display_name: Secret::new(
+                                apple_pay_wallet_data.payment_method.display_name.clone(),
+                            ),
+                            network: Secret::new(
+                                apple_pay_wallet_data.payment_method.network.clone(),
+                            ),
+                            method_type: Secret::new(
+                                apple_pay_wallet_data.payment_method.pm_type.clone(),
+                            ),
+                        },
+                        transaction_identifier: apple_pay_wallet_data
+                            .transaction_identifier
+                            .clone(),
+                    },
+                };
+
+                let third_party_token = serde_json::to_string(&finix_token).change_context(
+                    ConnectorError::InvalidDataFormat {
+                        field_name: "apple pay token",
+                    },
+                )?;
+
+                Ok(FinixCreatePaymentInstrumentRequest {
+                    instrument_type: FinixPaymentInstrumentType::ApplePay,
+                    name: customer_name.clone(),
+                    number: None,
+                    security_code: None,
+                    expiration_month: None,
+                    expiration_year: None,
+                    identity: identity.clone(),
+                    tags: None,
+                    address: None,
+                    card_brand: None,
+                    card_type: None,
+                    additional_data: None,
+                    merchant_identity: Some(merchant_identity_id.clone()),
+                    third_party_token: Some(Secret::new(third_party_token)),
+                })
+            }
+            _ => Err(ConnectorError::NotImplemented(
+                "Payment method not supported for tokenization".to_string(),
+            )
+            .into()),
+        },
+        _ => Err(ConnectorError::NotImplemented(
+            "Payment method not supported for tokenization".to_string(),
+        )
+        .into()),
+    }
+}
 impl
     TryFrom<
         &FinixRouterData<
@@ -236,56 +369,13 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let tokenization_data = &item.router_data.request;
-
-        match &tokenization_data.payment_method_data {
-            PaymentMethodData::Card(card_data) => {
-                Ok(Self {
-                    instrument_type: FinixPaymentInstrumentType::PaymentCard,
-                    name: card_data.card_holder_name.clone(),
-                    number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
-                    security_code: Some(card_data.card_cvc.clone()),
-                    expiration_month: Some(card_data.get_expiry_month_as_i8()?),
-                    expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
-                    identity: item.router_data.get_connector_customer_id()?, // This would come from a previously created identity
-                    tags: None,
-                    address: None,
-                    card_brand: None, // Finix determines this from the card number
-                    card_type: None,  // Finix determines this from the card number
-                    additional_data: None,
-                    merchant_identity: None,
-                    third_party_token: None,
-                })
-            }
-            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_wallet_data)) => {
-                let third_party_token = google_pay_wallet_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "google_pay_token",
-                    })?;
-                Ok(Self {
-                    instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
-                    name: item.router_data.get_optional_billing_full_name(),
-                    identity: item.router_data.get_connector_customer_id()?,
-                    number: None,
-                    security_code: None,
-                    expiration_month: None,
-                    expiration_year: None,
-                    tags: None,
-                    address: None,
-                    card_brand: None,
-                    card_type: None,
-                    additional_data: None,
-                    merchant_identity: Some(item.merchant_identity_id.clone()),
-                    third_party_token: Some(Secret::new(third_party_token)),
-                })
-            }
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported for tokenization".to_string(),
-            )
-            .into()),
-        }
+        let tokenization_data: &PaymentMethodTokenizationData = &item.router_data.request;
+        get_token_request(
+            tokenization_data.payment_method_data.clone(),
+            item.merchant_identity_id.clone(),
+            item.router_data.get_connector_customer_id()?,
+            item.router_data.get_optional_billing_full_name(),
+        )
     }
 }
 
@@ -298,12 +388,70 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsRes
         item: ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::Charged,
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.id,
             }),
             ..item.data
         })
+    }
+}
+
+pub(crate) fn get_setup_mandate_router_data<Request>(
+    item: ResponseRouterData<
+        flows::SetupMandate,
+        FinixInstrumentResponse,
+        Request,
+        PaymentsResponseData,
+    >,
+) -> Result<
+    RouterData<flows::SetupMandate, Request, PaymentsResponseData>,
+    error_stack::Report<ConnectorError>,
+> {
+    Ok(RouterData {
+        status: AttemptStatus::Charged,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(Some(MandateReference {
+                connector_mandate_id: Some(item.response.id),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            })),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..item.data
+    })
+}
+
+//setup mandate
+
+impl
+    TryFrom<
+        &FinixRouterData<'_, flows::SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+    > for FinixCreatePaymentInstrumentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<
+            '_,
+            flows::SetupMandate,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let tokenization_data = &item.router_data.request;
+
+        get_token_request(
+            tokenization_data.payment_method_data.clone(),
+            item.merchant_identity_id.clone(),
+            item.router_data.get_connector_customer_id()?,
+            item.router_data.get_optional_billing_full_name(),
+        )
     }
 }
 
@@ -313,14 +461,16 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
+                key2,
             } => Ok(Self {
                 finix_user_name: api_key.clone(),
                 finix_password: api_secret.clone(),
                 merchant_id: key1.clone(),
+                merchant_identity_id: key2.clone(),
             }),
             _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -396,7 +546,12 @@ pub(crate) fn get_finix_response<F, T>(
                         .unwrap_or(router_data.response.id),
                 ),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: router_data.response.source.map(|id| id.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

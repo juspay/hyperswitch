@@ -42,7 +42,7 @@ pub use hyperswitch_interfaces::{
     },
     api_client::{
         call_connector_api, execute_connector_processing_step, handle_response,
-        handle_ucs_response, store_raw_connector_response_if_required,
+        store_raw_connector_response_if_required,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -803,6 +803,7 @@ impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
+impl Authenticate for api_models::payments::PaymentsExtendAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}

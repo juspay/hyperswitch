@@ -256,6 +256,7 @@ diesel::table! {
         billing_processor_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
+        is_l2_l3_enabled -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -1278,6 +1279,7 @@ diesel::table! {
         additional_payout_method_data -> Nullable<Jsonb>,
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
+        payout_connector_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1322,6 +1324,8 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 32]
         priority -> Nullable<Varchar>,
+        #[max_length = 32]
+        organization_id -> Nullable<Varchar>,
     }
 }
 

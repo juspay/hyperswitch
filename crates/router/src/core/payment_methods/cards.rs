@@ -79,7 +79,10 @@ use crate::{
     core::{
         configs,
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault},
+        payment_methods::{
+            network_tokenization, transformers as payment_methods, utils as payment_method_utils,
+            vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -1708,7 +1711,6 @@ pub async fn update_customer_payment_method(
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting card from locker")?;
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
@@ -1937,8 +1939,16 @@ pub async fn get_card_from_locker(
                 api_enums::LockerChoice::HyperswitchCardVault,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card from hyperswitch card vault")
+            .map_err(|err| match err.current_context() {
+                errors::VaultError::FetchCardFailed => {
+                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Card not found in vault".to_string(),
+                    })
+                }
+                _ => err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error getting card from card vault"),
+            })
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     1,
@@ -3468,6 +3478,11 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
+    let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
+        db,
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await;
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent)
     {
@@ -3547,6 +3562,7 @@ pub async fn list_payment_methods(
             collect_shipping_details_from_wallets,
             collect_billing_details_from_wallets,
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
+            sdk_next_action,
         },
     ))
 }
@@ -4616,7 +4632,6 @@ pub async fn get_card_details_from_locker(
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error getting card from card vault")?;
 
     payment_methods::get_card_detail(pm, card)
@@ -4815,6 +4830,12 @@ pub async fn get_bank_from_hs_locker(
         api::PayoutMethodData::BankRedirect(_) => {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Expected bank details, found bank redirect details instead".to_string(),
+            }
+            .into())
+        }
+        api::PayoutMethodData::Passthrough(_) => {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Expected bank details, found passthrough details instead".to_string(),
             }
             .into())
         }
