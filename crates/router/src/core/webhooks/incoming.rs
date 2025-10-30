@@ -855,9 +855,8 @@ async fn process_webhook_business_logic(
     };
 
     // Create shadow_event_object and shadow_webhook_details using shadow UCS data
-    let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> = shadow_ucs_data
-        .as_ref()
-        .and_then(|shadow_data| {
+    let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> =
+        shadow_ucs_data.as_ref().and_then(|shadow_data| {
             // Create shadow event object using UCS transform data and shadow request details
             let shadow_event_result = shadow_data
                 .ucs_transform_data
@@ -890,9 +889,8 @@ async fn process_webhook_business_logic(
             }
         });
 
-    let shadow_webhook_details: Option<api::IncomingWebhookDetails> = shadow_event_object
-        .as_ref()
-        .and_then(|shadow_obj| {
+    let shadow_webhook_details: Option<api::IncomingWebhookDetails> =
+        shadow_event_object.as_ref().and_then(|shadow_obj| {
             let resource_object_result = serde_json::to_vec(shadow_obj)
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable("Unable to convert shadow webhook payload to a value")
