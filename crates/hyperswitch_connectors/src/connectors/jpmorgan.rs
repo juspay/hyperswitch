@@ -38,6 +38,7 @@ use hyperswitch_interfaces::{
     },
     configs::Connectors,
     consts, errors,
+    errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{self, RefreshTokenType, Response},
     webhooks,

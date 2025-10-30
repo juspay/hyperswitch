@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_enums::{enums::CaptureMethod, Currency};
-use common_utils::types::MinorUnit;
+use common_utils::types::{FloatMajorUnit, MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -84,7 +84,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessTo
 pub struct JpmorganPaymentsRequest {
     capture_method: CapMethod,
     amount: MinorUnit,
-    currency: Currency,
+    currency: common_enums::Currency,
     merchant: JpmorganMerchant,
     payment_method_type: JpmorganPaymentMethodType,
 }
@@ -377,7 +377,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 pub struct JpmorganCaptureRequest {
     capture_method: Option<CapMethod>,
     amount: MinorUnit,
-    currency: Option<Currency>,
+    currency: Option<common_enums::Currency>,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -516,7 +516,7 @@ pub struct TransactionData {
 pub struct JpmorganRefundRequest {
     pub merchant: MerchantRefundReq,
     pub amount: MinorUnit,
-    pub currency: Currency,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
