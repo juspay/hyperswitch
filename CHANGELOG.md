@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.30.0
+
+### Features
+
+- **core:**
+  - Add amount_capturable field to manual update api ([#10013](https://github.com/juspay/hyperswitch/pull/10013)) ([`34cd79d`](https://github.com/juspay/hyperswitch/commit/34cd79df7c30ed3e7f28b30bb944611ef24c3242))
+  - Added Refund flow support for Hyperswitch <> UCS Integration ([#9862](https://github.com/juspay/hyperswitch/pull/9862)) ([`4bb60d0`](https://github.com/juspay/hyperswitch/commit/4bb60d04c159b012a1c329649fcdbf6b0df32422))
+- **router:** Add `sdk_next_action` in payment method list response ([#9922](https://github.com/juspay/hyperswitch/pull/9922)) ([`0d43f48`](https://github.com/juspay/hyperswitch/commit/0d43f48c4514952825dddc4ad660ee35795358d1))
+- **ucs:** Call pre-authentication during authorize as per connector ([#9949](https://github.com/juspay/hyperswitch/pull/9949)) ([`d6bbdde`](https://github.com/juspay/hyperswitch/commit/d6bbdde18c31cff43584d4758fb2182afb976065))
+- Added HS<>UCS create_connector_customer flow support and populated router_data fields received from UCS ([#9984](https://github.com/juspay/hyperswitch/pull/9984)) ([`8245838`](https://github.com/juspay/hyperswitch/commit/82458387b99ef3b8dc43d6c19154c7e917d31782))
+
+### Bug Fixes
+
+- **connector:** [WELLSFARGO, STAX, PLACETOPAY, HELCIM, GLOBALPAY, FORTE, FISERV, BAMBORAAPAC] Added 3ds validation checks ([#8751](https://github.com/juspay/hyperswitch/pull/8751)) ([`3f35173`](https://github.com/juspay/hyperswitch/commit/3f351733df7b21be66e76a946dace8814f0682ec))
+- **revenue-recovery:** Ensure payment attempt Insert and proxy call use the same payment processor token ([#9935](https://github.com/juspay/hyperswitch/pull/9935)) ([`ec18289`](https://github.com/juspay/hyperswitch/commit/ec18289a08d7f3fbac676b9c97ef08fd31abb7de))
+
+### Refactors
+
+- **connector:** [Payouts] Add bankredirect required fields for payout ([#10037](https://github.com/juspay/hyperswitch/pull/10037)) ([`38ee15e`](https://github.com/juspay/hyperswitch/commit/38ee15e83bdebbf4c29d39427bccd07be4f631e8))
+- Payment token support in subscriptions request ([#9988](https://github.com/juspay/hyperswitch/pull/9988)) ([`a981319`](https://github.com/juspay/hyperswitch/commit/a981319633f518c6a2ef4685fc999ff50fc907f5))
+
+### Documentation
+
+- Add payment lifecycle states in introduction page ([#10038](https://github.com/juspay/hyperswitch/pull/10038)) ([`b25f07c`](https://github.com/juspay/hyperswitch/commit/b25f07c1e825213187ff50461d5eb8a71de0cd37))
+
+### Miscellaneous Tasks
+
+- **router:** Choose proxy based on config ([#9821](https://github.com/juspay/hyperswitch/pull/9821)) ([`4aa9f44`](https://github.com/juspay/hyperswitch/commit/4aa9f44d4b1ffb726f60410226c8092d8a8bc11c))
+
+**Full Changelog:** [`2025.10.29.0...2025.10.30.0`](https://github.com/juspay/hyperswitch/compare/2025.10.29.0...2025.10.30.0)
+
+- - -
+
 ## 2025.10.29.0
 
 ### Features
