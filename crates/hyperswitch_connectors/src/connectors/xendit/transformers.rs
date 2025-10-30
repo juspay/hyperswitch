@@ -5,11 +5,9 @@ use common_enums::{enums, Currency};
 use common_utils::{pii, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreProcessingData, ResponseId,
-    },
+    router_request_types::ResponseId,
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -26,7 +24,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCaptureResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+    },
     utils::{
         get_unimplemented_payment_method_error_message, CardData, PaymentsAuthorizeRequestData,
         PaymentsSyncRequestData, RouterData as OtherRouterData,
@@ -308,20 +309,11 @@ impl TryFrom<XenditRouterData<&PaymentsCaptureRouterData>> for XenditPaymentsCap
         })
     }
 }
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, XenditPaymentResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            XenditPaymentResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<XenditPaymentResponse>,
     ) -> Result<Self, Self::Error> {
         let status = map_payment_response_to_attempt_status(
             item.response.clone(),
@@ -425,19 +417,13 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, XenditCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            XenditCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<XenditCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
             PaymentStatus::Failed => enums::AttemptStatus::Failure,
@@ -493,20 +479,13 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, XenditSplitResponse, PaymentsPreProcessingData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            XenditSplitResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<XenditSplitResponse>,
     ) -> Result<Self, Self::Error> {
         let for_user_id = match item.data.request.split_payments {
             Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(

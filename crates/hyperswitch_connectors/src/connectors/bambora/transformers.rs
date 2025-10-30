@@ -10,10 +10,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsSyncData, ResponseId,
-    },
+    router_request_types::{CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
@@ -22,7 +19,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData as _,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
@@ -553,18 +553,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, BamboraPaymentsResponse, PaymentsSyncData, PaymentsResponseData>>
-    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<BamboraPaymentsResponse>>
+    for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraPaymentsResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<BamboraPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: match item.data.request.is_auto_capture()? {
@@ -598,19 +592,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, BamboraPaymentsResponse, PaymentsCaptureData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>>
+    for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: if item.response.approved.as_str() == "1" {
@@ -633,19 +620,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, BamboraPaymentsResponse, PaymentsCancelData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<BamboraPaymentsResponse>>
+    for types::PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<BamboraPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: if item.response.approved.as_str() == "1" {

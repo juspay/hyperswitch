@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
         KlarnaSdkResponse, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCaptureData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsResponseRouterData, PaymentsSessionResponseRouterData, RefundsResponseRouterData,
-        ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _},
 };
@@ -627,18 +627,12 @@ pub struct KlarnaCaptureResponse {
     pub capture_id: Option<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, KlarnaCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
+    for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            KlarnaCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(KlarnaMeta {
             capture_id: item.response.capture_id,

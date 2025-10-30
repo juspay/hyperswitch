@@ -14,9 +14,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        CompleteAuthorizeData, MandateRevokeRequestData, PaymentsAuthorizeData, ResponseId,
-    },
+    router_request_types::{CompleteAuthorizeData, MandateRevokeRequestData, ResponseId},
     router_response_types::{
         MandateReference, MandateRevokeResponseData, PaymentsResponseData, RedirectForm,
         RefundsResponseData,
@@ -34,8 +32,8 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsSessionResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{
@@ -570,19 +568,12 @@ pub struct AuthChargeCreditCard {
     transaction: TransactionAuthChargeResponseBody,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, BraintreeAuthResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BraintreeAuthResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BraintreeAuthResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeAuthResponse::ErrorResponse(error_response) => Ok(Self {
@@ -789,24 +780,12 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BraintreePaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BraintreePaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BraintreePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreePaymentsResponse::ErrorResponse(error_response) => Ok(Self {

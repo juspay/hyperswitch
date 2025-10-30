@@ -44,6 +44,36 @@ pub trait SubscriptionRecordBackFlow:
 {
 }
 
+/// trait SubscriptionPause for V1
+pub trait SubscriptionPauseFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionPause,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionPauseRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionPauseResponse,
+>
+{
+}
+
+/// trait SubscriptionResume for V1
+pub trait SubscriptionResumeFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionResume,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionResumeRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionResumeResponse,
+>
+{
+}
+
+/// trait SubscriptionCancel for V1
+pub trait SubscriptionCancelFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCancel,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCancelRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCancelResponse,
+>
+{
+}
+
 /// trait GetSubscriptionPlanPrices for V1
 pub trait GetSubscriptionPlanPricesFlow:
     ConnectorIntegration<
@@ -78,5 +108,8 @@ pub trait Subscriptions:
     + PaymentsConnectorCustomer
     + SubscriptionRecordBackFlow
     + GetSubscriptionEstimateFlow
+    + SubscriptionPauseFlow
+    + SubscriptionResumeFlow
+    + SubscriptionCancelFlow
 {
 }

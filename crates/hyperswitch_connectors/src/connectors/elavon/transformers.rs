@@ -4,9 +4,9 @@ use common_utils::{pii::Email, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -19,8 +19,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsSyncResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData,
     },
     utils::{CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _},
 };
@@ -255,19 +255,10 @@ impl<'de> Deserialize<'de> for ElavonPaymentsResponse {
         Ok(Self { result })
     }
 }
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, ElavonPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            ElavonPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<ElavonPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let status =
             get_payment_status(&item.response.result, item.data.request.is_auto_capture()?);

@@ -13,8 +13,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
+        BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsSyncData,
+        ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
@@ -28,7 +28,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
@@ -605,19 +608,13 @@ where
     Ok(response_data)
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsPreProcessingData, PaymentsResponseData>>
-    for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<RedsysResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RedsysResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<RedsysResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             RedsysResponse::RedsysResponse(response) => {
@@ -650,13 +647,10 @@ impl<F>
     }
 }
 
-fn handle_redsys_preprocessing_response<F>(
-    item: ResponseRouterData<F, RedsysResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+fn handle_redsys_preprocessing_response(
+    item: PaymentsPreprocessingResponseRouterData<RedsysResponse>,
     response_data: &RedsysPaymentsResponse,
-) -> Result<
-    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
-    error_stack::Report<errors::ConnectorError>,
-> {
+) -> Result<PaymentsPreProcessingRouterData, error_stack::Report<errors::ConnectorError>> {
     match (
         response_data
             .ds_emv3ds
@@ -698,16 +692,13 @@ fn handle_redsys_preprocessing_response<F>(
     }
 }
 
-fn handle_threeds_invoke<F>(
-    item: ResponseRouterData<F, RedsysResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+fn handle_threeds_invoke(
+    item: PaymentsPreprocessingResponseRouterData<RedsysResponse>,
     response_data: &RedsysPaymentsResponse,
     three_d_s_method_u_r_l: String,
     three_d_s_server_trans_i_d: String,
     protocol_version: String,
-) -> Result<
-    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
-    error_stack::Report<errors::ConnectorError>,
-> {
+) -> Result<PaymentsPreProcessingRouterData, error_stack::Report<errors::ConnectorError>> {
     let three_d_s_method_notification_u_r_l = item.data.request.get_webhook_url()?;
 
     let threeds_invoke_data = ThreedsInvokeRequest {
@@ -751,15 +742,12 @@ fn handle_threeds_invoke<F>(
     })
 }
 
-fn handle_threeds_invoke_exempt<F>(
-    item: ResponseRouterData<F, RedsysResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+fn handle_threeds_invoke_exempt(
+    item: PaymentsPreprocessingResponseRouterData<RedsysResponse>,
     response_data: &RedsysPaymentsResponse,
     three_d_s_server_trans_i_d: String,
     protocol_version: String,
-) -> Result<
-    RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>,
-    error_stack::Report<errors::ConnectorError>,
-> {
+) -> Result<PaymentsPreProcessingRouterData, error_stack::Report<errors::ConnectorError>> {
     let three_ds_data = ThreeDsInvokeExempt {
         message_version: protocol_version.clone(),
         three_d_s_server_trans_i_d,
@@ -1258,12 +1246,10 @@ impl TryFrom<&RedsysRouterData<&PaymentsCaptureRouterData>> for RedsysTransactio
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCaptureRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, PaymentsResponseData>,
+        item: PaymentsCaptureResponseRouterData<RedsysResponse>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = match item.response {
             RedsysResponse::RedsysResponse(redsys_transaction_response) => {
@@ -1363,12 +1349,10 @@ impl<F> TryFrom<&RedsysRouterData<&RefundsRouterData<F>>> for RedsysTransaction 
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, RedsysResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<RedsysResponse>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = match item.response {
             RedsysResponse::RedsysResponse(redsys_transaction_response) => {
