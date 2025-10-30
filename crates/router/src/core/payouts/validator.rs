@@ -24,7 +24,10 @@ use crate::{
     db::StorageInterface,
     errors::StorageError,
     routes::SessionState,
-    types::{api::payouts, domain, storage},
+    types::{
+        api::{payouts, routing::api_enums},
+        domain, storage,
+    },
     utils,
     utils::OptionExt,
 };
@@ -68,6 +71,76 @@ pub async fn validate_create_request(
     todo!()
 }
 
+/// Validates that the payout type matches the provided payout method data.
+///
+/// This function ensures consistency between the declared payout type and the actual
+/// payout method data provided in the request. It performs type-safe validation to prevent
+/// mismatches that could lead to processing errors downstream.
+///
+/// # Arguments
+///
+/// * `payout_type` - An optional payout type indicating the intended method of payout
+///   (Card, Bank, Wallet, or BankRedirect). If `None`, validation passes regardless of
+///   the payout method data.
+///
+/// * `payout_method_data` - An optional reference to the actual payout method data structure.
+///   Must correspond to the declared payout type when both are provided.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the payout type and method data are consistent or if payout_type is `None`
+/// * `Err(RouterResult)` - If there is a mismatch between payout type and method data
+///
+/// # Error Cases
+///
+/// Returns `InvalidRequestData` error with descriptive messages for:
+/// - `PayoutType::Card` provided without `PayoutMethodData::Card`
+/// - `PayoutType::Bank` provided without `PayoutMethodData::Bank`
+/// - `PayoutType::Wallet` provided without `PayoutMethodData::Wallet`
+/// - `PayoutType::BankRedirect` provided without `PayoutMethodData::BankRedirect`
+///
+async fn validate_payout_type_and_method(
+    payout_type: Option<api_enums::PayoutType>,
+    payout_method_data: &Option<payouts::PayoutMethodData>,
+) -> RouterResult<()> {
+    match (payout_type, payout_method_data) {
+        (Some(common_enums::PayoutType::Card), Some(payouts::PayoutMethodData::Card(_))) => Ok(()),
+        (Some(common_enums::PayoutType::Card), _) => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data and payout type mismatch for Card".to_string(),
+            }))
+        }
+        (Some(common_enums::PayoutType::Bank), Some(payouts::PayoutMethodData::Bank(_))) => Ok(()),
+        (Some(common_enums::PayoutType::Bank), _) => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data and payout type mismatch for Bank".to_string(),
+            }))
+        }
+        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => {
+            Ok(())
+        }
+        (Some(common_enums::PayoutType::Wallet), _) => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data and payout type mismatch for Wallet".to_string(),
+            }))
+        }
+        (
+            Some(common_enums::PayoutType::BankRedirect),
+            Some(payouts::PayoutMethodData::BankRedirect(_)),
+        ) => Ok(()),
+        (Some(common_enums::PayoutType::BankRedirect), _) => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data and payout type mismatch for Bank Redirect"
+                    .to_string(),
+            }))
+        }
+        (None, _) => Ok(()),
+        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payout method data is required when payout type is provided".to_string(),
+        })),
+    }
+}
+
 /// Validates the request on below checks
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
@@ -84,11 +157,9 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
-
     // will have to add the validator here to map for the input data
     // and check if the mapping is correct or not between the payout_method_data
     // and req, which contains the payout type
-    
 
     if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -119,6 +190,20 @@ pub async fn validate_create_request(
         Some(provided_payout_id) => provided_payout_id.clone(),
         None => id_type::PayoutId::generate(),
     };
+
+    let request_payout_type = req.payout_type;
+    let request_payout_method_data = &req.payout_method_data;
+
+    // validating the payout type and method data here.
+    validate_payout_type_and_method(
+        request_payout_type,
+        request_payout_method_data
+    ).await
+    .attach_printable_lazy(|| {
+        format!(
+            "Payout type: {request_payout_type:?} and Payout method data: {request_payout_method_data:?} validation failed",
+        )
+    })?;
 
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
