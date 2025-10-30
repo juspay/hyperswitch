@@ -75,19 +75,19 @@ pub async fn validate_create_request(
 /// Validates if the payout_type and payout_method_data belong to the same type
 /// - payout_type: Type of the payout (Card, Bank, Wallet, BankRedirect)
 /// - payout_method_data: Data related to the payout method
-/// Bypass happens if the payout_type is None or payout_method_data is `Passthrough`
+///   Bypass happens if the payout_type is None or payout_method_data is `Passthrough`
 async fn validate_payout_type_and_method(
     payout_type: Option<api_enums::PayoutType>,
     payout_method_data: &Option<PayoutMethodData>,
 ) -> RouterResult<()> {
     match (payout_type, payout_method_data) {
-        (Some(common_enums::PayoutType::Card), Some(payouts::PayoutMethodData::Card(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Bank), Some(payouts::PayoutMethodData::Bank(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => {
+        (Some(api_enums::PayoutType::Card), Some(PayoutMethodData::Card(_))) => Ok(()),
+        (Some(api_enums::PayoutType::Bank), Some(PayoutMethodData::Bank(_))) => Ok(()),
+        (Some(api_enums::PayoutType::Wallet), Some(PayoutMethodData::Wallet(_))) => {
             Ok(())
         }
         (
-            Some(common_enums::PayoutType::BankRedirect),
+            Some(api_enums::PayoutType::BankRedirect),
             Some(payouts::PayoutMethodData::BankRedirect(_)),
         ) => Ok(()),
         (_, Some(payouts::PayoutMethodData::Passthrough(_))) => Ok(()),
