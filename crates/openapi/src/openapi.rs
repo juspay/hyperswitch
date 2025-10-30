@@ -220,6 +220,8 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+        routes::authentication::authentication_eligibility_check,
+        routes::authentication::authentication_retrieve_eligibility_check,
 
         // Routes for platform account
         routes::platform::create_platform_account,
@@ -861,6 +863,17 @@ Never share your secret api keys. Keep them guarded and secure.
         euclid::frontend::dir::enums::CustomerDeviceDisplaySize,
         api_models::authentication::AuthenticationCreateRequest,
         api_models::authentication::AuthenticationResponse,
+        api_models::authentication::AuthenticationEligibilityCheckRequest,
+        api_models::authentication::AuthenticationEligibilityCheckResponse,
+        api_models::authentication::AuthenticationRetrieveEligibilityCheckRequest,
+        api_models::authentication::AuthenticationRetrieveEligibilityCheckResponse,
+        api_models::authentication::AuthenticationEligibilityCheckData,
+        api_models::authentication::AuthenticationEligibilityCheckResponseData,
+        api_models::authentication::ClickToPayEligibilityCheckResponseData,
+        api_models::authentication::VisaEligibilityCheckData,
+        api_models::authentication::MasterCardEligibilityCheckData,
+        api_models::authentication::AuthenticationSdkNextAction,
+        api_models::authentication::ClickToPayEligibilityCheckData,
         api_models::authentication::AcquirerDetails,
         api_models::authentication::NextAction,
         common_utils::request::Method,

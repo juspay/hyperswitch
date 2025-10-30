@@ -104,6 +104,14 @@
                     ]
                   },
                   {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
+                    ]
+                  },
+                  {
                     "group": "Payouts",
                     "pages": [
                       "v1/payouts/payouts--create",
