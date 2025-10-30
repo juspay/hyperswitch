@@ -1116,29 +1116,6 @@ async fn payments_incoming_webhook_flow(
             let payment_id = payments_response.payment_id.clone();
             let payment_method_id_opt = payments_response.payment_method_id.clone();
 
-            let status = payments_response.status;
-
-            let event_type: Option<enums::EventType> = payments_response.status.into();
-
-            // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if let Some(outgoing_event_type) = event_type {
-                let primary_object_created_at = payments_response.created;
-                Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                    state.clone(),
-                    merchant_context.clone(),
-                    business_profile,
-                    outgoing_event_type,
-                    enums::EventClass::Payments,
-                    payment_id.get_string_repr().to_owned(),
-                    enums::EventObjectType::PaymentDetails,
-                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
-                    primary_object_created_at,
-                ))
-                .await?;
-            };
-
-            let response = WebhookResponseTracker::Payment { payment_id, status };
-
             match payment_method_id_opt {
                 Some(payment_method_id) => {
                     if let Err(e) = update_additional_payment_method_data(
@@ -1157,6 +1134,29 @@ async fn payments_incoming_webhook_flow(
                     logger::warn!("Failed to find payment_method_id in payments response");
                 }
             }
+
+            let status = payments_response.status;
+
+            let event_type: Option<enums::EventType> = payments_response.status.into();
+
+            // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+            if let Some(outgoing_event_type) = event_type {
+                let primary_object_created_at = payments_response.created;
+                Box::pin(super::create_event_and_trigger_outgoing_webhook(
+                    state,
+                    merchant_context,
+                    business_profile,
+                    outgoing_event_type,
+                    enums::EventClass::Payments,
+                    payment_id.get_string_repr().to_owned(),
+                    enums::EventObjectType::PaymentDetails,
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
+                    primary_object_created_at,
+                ))
+                .await?;
+            };
+
+            let response = WebhookResponseTracker::Payment { payment_id, status };
 
             Ok(response)
         }

@@ -1641,7 +1641,7 @@ pub async fn update_customer_payment_method(
     // Currently update is supported only for cards
     if let Some(card_update) = req.card.clone() {
         let db = state.store.as_ref();
-        let pm = if let Some(pm) = pm_data.clone() {
+        let pm = if let Some(pm) = pm_data {
             pm
         } else {
             db.find_payment_method(
