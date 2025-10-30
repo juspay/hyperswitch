@@ -45,6 +45,7 @@ use crate::{
 };
 
 const MAX_ID_LENGTH: usize = 20;
+const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
@@ -463,15 +464,17 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
         let bill_to = item
             .get_optional_billing()
             .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| BillTo {
+            .map(|address| {
+
+                BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
-                address: address.line1.clone(),
+                address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
                 state: address.state.clone(),
                 zip: address.zip.clone(),
                 country: address.country,
-            });
+            }});
         let payment_profile = match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => Ok(PaymentProfile {
                 bill_to,
@@ -933,15 +936,17 @@ impl
                 .router_data
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
-                .map(|address| BillTo {
+                .map(|address| {
+
+                    BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
                     country: address.country,
-                }),
+                }}),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -963,6 +968,27 @@ impl
             },
         })
     }
+}
+fn get_address_line(
+    address_line1: &Option<Secret<String>>,
+    address_line2: &Option<Secret<String>>,
+    address_line3: &Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    for lines in [
+        vec![address_line1, address_line2, address_line3],
+        vec![address_line1, address_line2],
+    ] {
+        let combined: String = lines.into_iter()
+            .flatten()
+            .map(|s| s.clone().expose())
+            .collect::<Vec<_>>()
+            .join(" ");
+        
+        if !combined.is_empty() && combined.len() <= ADDRESS_MAX_LENGTH {
+            return Some(Secret::new(combined));
+        }
+    }
+    address_line1.clone()
 }
 
 impl
@@ -1109,15 +1135,17 @@ impl
                 .router_data
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
-                .map(|address| BillTo {
+                .map(|address| {
+
+                    BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
                     country: address.country,
-                }),
+                }}),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1212,15 +1240,17 @@ impl
                 .router_data
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
-                .map(|address| BillTo {
+                .map(|address| {
+
+                    BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
                     country: address.country,
-                }),
+                }}),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1924,8 +1954,6 @@ pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     transaction_status: SyncStatus,
-    response_reason_code: Option<String>,
-    response_reason_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2037,11 +2065,11 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
             else {
                     Ok(Self {
                         status: payment_status,
-                        response:  Ok(ErrorResponse {
+                        response:  Err(ErrorResponse {
                             code: transaction.response_reason_code.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-                            message:  transaction.response_reason_description.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string())
+                            message:  transaction.response_reason_description.clone().unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
                             reason:  transaction.response_reason_description.clone(),
-                            status_code,
+                            status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
                             network_advice_code: None,
@@ -2062,7 +2090,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                 .messages
                 .message
                 .iter()
-                .find(|msg| msg.code == "E00053" |  msg.code == "E00104" )
+                .find(|msg| msg.code == "E00053" ||  msg.code == "E00104" )
             {
                 Some(_) => Ok(item.data),
                 None => Ok(Self {
