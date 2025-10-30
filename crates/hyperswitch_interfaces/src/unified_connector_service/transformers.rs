@@ -102,6 +102,14 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
 
+    /// Failed to perform Payment Refund from gRPC Server
+    #[error("Failed to perform Payment Refund from gRPC Server")]
+    PaymentRefundFailure,
+
+    /// Failed to perform Refund Sync from gRPC Server
+    #[error("Failed to perform Refund Sync from gRPC Server")]
+    RefundSyncFailure,
+
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
     WebhookTransformFailure,
