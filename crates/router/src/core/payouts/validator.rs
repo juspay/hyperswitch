@@ -105,39 +105,33 @@ async fn validate_payout_type_and_method(
 ) -> RouterResult<()> {
     match (payout_type, payout_method_data) {
         (Some(common_enums::PayoutType::Card), Some(payouts::PayoutMethodData::Card(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Card), _) => {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        (Some(common_enums::PayoutType::Card), _) => Err(report!(
+            errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payout method data and payout type mismatch for Card".to_string(),
-            }))
-        }
+            }
+        )),
+
         (Some(common_enums::PayoutType::Bank), Some(payouts::PayoutMethodData::Bank(_))) => Ok(()),
-        (Some(common_enums::PayoutType::Bank), _) => {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        (Some(common_enums::PayoutType::Bank), _) => Err(report!(
+            errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payout method data and payout type mismatch for Bank".to_string(),
-            }))
-        }
-        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => {
-            Ok(())
-        }
-        (Some(common_enums::PayoutType::Wallet), _) => {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            }
+        )),
+
+        (Some(common_enums::PayoutType::Wallet), Some(payouts::PayoutMethodData::Wallet(_))) => Ok(()),
+        (Some(common_enums::PayoutType::Wallet), _) => Err(report!(
+            errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payout method data and payout type mismatch for Wallet".to_string(),
-            }))
-        }
-        (
-            Some(common_enums::PayoutType::BankRedirect),
-            Some(payouts::PayoutMethodData::BankRedirect(_)),
-        ) => Ok(()),
-        (Some(common_enums::PayoutType::BankRedirect), _) => {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payout method data and payout type mismatch for Bank Redirect"
-                    .to_string(),
-            }))
-        }
-        (None, _) => Ok(()),
-        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payout method data is required when payout type is provided".to_string(),
-        })),
+            }
+        )),
+
+        (Some(common_enums::PayoutType::BankRedirect), Some(payouts::PayoutMethodData::BankRedirect(_))) => Ok(()),
+        (Some(common_enums::PayoutType::BankRedirect), _) => Err(report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data and payout type mismatch for Bank Redirect".to_string(),
+            }
+        )),
+        _ => Ok(()),
     }
 }
 
