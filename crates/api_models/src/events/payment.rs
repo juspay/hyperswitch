@@ -12,10 +12,10 @@ use crate::payment_methods::{
 };
 use crate::{
     payment_methods::{
-        self, CustomerPaymentMethodUpdateResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
-        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
-        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
+        PaymentMethodUpdate,
     },
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
@@ -25,7 +25,9 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    payment_methods::{PaymentMethodListRequest, PaymentMethodListResponse},
+    payment_methods::{
+        CustomerPaymentMethodUpdateResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+    },
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
         PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
@@ -310,6 +312,7 @@ impl ApiEventMetric for PaymentMethodResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for CustomerPaymentMethodUpdateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
