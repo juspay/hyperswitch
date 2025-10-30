@@ -1947,8 +1947,6 @@ pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     transaction_status: SyncStatus,
-    response_reason_code: Option<String>,
-    response_reason_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2249,8 +2247,6 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
             transaction: Some(SyncTransactionResponse {
                 transaction_id: get_trans_id(&item)?,
                 transaction_status: SyncStatus::from(item.event_type),
-                response_reason_code: None,
-                response_reason_description: None,
             }),
             messages: ResponseMessages {
                 ..Default::default()
