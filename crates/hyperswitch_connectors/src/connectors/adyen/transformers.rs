@@ -4984,7 +4984,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 incremental_authorization_allowed: None,
                 charges,
             }),
-            amount_captured: Some(item.response.amount.value.get_amount_as_i64()),
+            amount_captured: None, // updated by Webhooks
             ..item.data
         })
     }
