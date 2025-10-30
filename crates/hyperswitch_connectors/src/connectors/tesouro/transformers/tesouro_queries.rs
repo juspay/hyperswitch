@@ -86,7 +86,7 @@ pub const AUTHORIZE_TRANSACTION: &str = "mutation AuthorizeCustomerInitiatedTran
     }
 }";
 
-pub const AUTHORIZE_RECURING: &str = "mutation AuthorizeRecurring(
+pub const AUTHORIZE_RECURRING: &str = "mutation AuthorizeRecurring(
     $authorizeRecurringInput: AuthorizeRecurringInput!
 ) {
     authorizeRecurring(

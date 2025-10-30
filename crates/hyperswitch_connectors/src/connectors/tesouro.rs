@@ -175,14 +175,14 @@ impl ConnectorValidation for Tesouro {
         _pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
         match pm_data {
             PaymentMethodData::Card(_) => Ok(()),
-            //  Err(errors::ConnectorError::NotImplemented(
-
-            //     "validate_mandate_payment does not support cards".to_string(),
-            // )
-            // .into()),
-            _ => Ok(()),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "mandate payment".to_string(),
+                connector,
+            }
+            .into()),
         }
     }
 

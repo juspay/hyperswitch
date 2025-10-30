@@ -368,7 +368,7 @@ pub enum TesouroWalletType {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TesouroAuthorizeRecurringAcquirerTokenDetals {
+pub struct TesouroAuthorizeRecurringAcquirerTokenDetails {
     pub expiration_month: Option<Secret<String>>,
     pub expiration_year: Option<Secret<String>>,
     pub token: Secret<String>,
@@ -381,35 +381,41 @@ pub struct TesouroAuthorizeRecurringAcquirerTokenDetals {
 pub enum TesouroPaymentMethodDetails {
     CardWithPanDetails(TesouroCardWithPanDetails),
     NetworkTokenPassThroughDetails(TesouroNetworkTokenPassThroughDetails),
-    AcquirerTokenDetails(TesouroAuthorizeRecurringAcquirerTokenDetals),
+    AcquirerTokenDetails(TesouroAuthorizeRecurringAcquirerTokenDetails),
 }
 
 impl TesouroPaymentMethodDetails {
     fn get_recurring_acqquirer_token_details(
         connector_mandate_id: String,
         additional_payment_data: AdditionalPaymentData,
-    ) -> Self {
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
         let (expiration_month, expiration_year) = match additional_payment_data {
-            AdditionalPaymentData::Card(additional_card_info) => (
+            AdditionalPaymentData::Card(additional_card_info) => Ok((
                 additional_card_info.card_exp_month,
                 additional_card_info.card_exp_year,
-            ),
+            )),
             AdditionalPaymentData::Wallet {
-                apple_pay,
-                google_pay,
-                samsung_pay,
-            } => todo!(),
-            _ => todo!(),
-        };
-        Self::AcquirerTokenDetails(TesouroAuthorizeRecurringAcquirerTokenDetals {
-            expiration_month,
-            expiration_year,
-            token: Secret::new(connector_mandate_id),
-            security_code: TesouroSecurityCode::OmissionReason {
-                omission_reason: TesouroOmissionReason::VerificationNotRequested,
+                apple_pay: _,
+                google_pay: _,
+                samsung_pay: _,
+            } => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "expiration date and expiration year",
+            }),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "expiration date and expiration year",
+            }),
+        }?;
+        Ok(Self::AcquirerTokenDetails(
+            TesouroAuthorizeRecurringAcquirerTokenDetails {
+                expiration_month,
+                expiration_year,
+                token: Secret::new(connector_mandate_id),
+                security_code: TesouroSecurityCode::OmissionReason {
+                    omission_reason: TesouroOmissionReason::VerificationNotRequested,
+                },
+                wallet_type: None,
             },
-            wallet_type: None,
-        })
+        ))
     }
 }
 #[derive(Debug, Serialize)]
@@ -500,7 +506,6 @@ pub struct AuthorizeCustomerInitiatedTransactionInput {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-
 pub enum TesouroStorageIntent {
     StoreOnFile,
 }
@@ -553,7 +558,7 @@ pub struct RefundPreviousPaymentInput {
     pub transaction_amount_details: TransactionAmountDetails,
 }
 
-fn get_card_payement_method(
+fn get_card_payment_method(
     card: &Card,
     is_mandate_payment: bool,
 ) -> Result<TesouroPaymentMethodDetails, error_stack::Report<errors::ConnectorError>> {
@@ -599,7 +604,7 @@ fn get_apple_pay_data(
     }
 }
 
-fn get_goole_pay_data(
+fn get_google_pay_data(
     google_pay_wallet_data: &GooglePayWalletData,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<GPayPredecryptData, error_stack::Report<errors::ConnectorError>> {
@@ -644,7 +649,7 @@ impl TryFrom<(&GooglePayWalletData, Option<&PaymentMethodToken>)> for TesouroPay
     fn try_from(
         (wallet_data, payment_method_token): (&GooglePayWalletData, Option<&PaymentMethodToken>),
     ) -> Result<Self, Self::Error> {
-        let google_pay_data = get_goole_pay_data(wallet_data, payment_method_token)?;
+        let google_pay_data = get_google_pay_data(wallet_data, payment_method_token)?;
 
         let network_token_details = TesouroNetworkTokenPassThroughDetails {
             expiration_year: google_pay_data
@@ -713,7 +718,7 @@ pub fn get_tesouro_setupmandate_request(
         get_valid_transaction_id(router_data.connector_request_reference_id.clone())?;
     let bill_to_address = BillToAddress::from(router_data);
     let payment_method_details = match &router_data.request.payment_method_data {
-        PaymentMethodData::Card(card) => get_card_payement_method(card, true),
+        PaymentMethodData::Card(card) => get_card_payment_method(card, true),
         _ => Err(errors::ConnectorError::NotImplemented(
             connector_utils::get_unimplemented_payment_method_error_message("tesouro"),
         )
@@ -729,7 +734,7 @@ pub fn get_tesouro_setupmandate_request(
     Ok(TesouroSetupMandateRequest {
         query: tesouro_queries::SETUP_MANDATE.to_string(),
         variables: TesouroVerifyAccountRequest {
-            verify_account_input: verify_account_input,
+            verify_account_input,
         },
     })
 }
@@ -755,7 +760,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
         let mut original_purchase_date = None;
         let payment_method_details = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
-                get_card_payement_method(card, item.router_data.request.is_mandate_payment())
+                get_card_payment_method(card, item.router_data.request.is_mandate_payment())
             }
             PaymentMethodData::MandatePayment => {
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
@@ -797,11 +802,10 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
 
                     Some(tesouro_metadata.activity_date)
                 };
-                Ok(
-                    TesouroPaymentMethodDetails::get_recurring_acqquirer_token_details(
-                        connector_mandate_id,
-                        additional_payment_data,
-                    ),
+
+                TesouroPaymentMethodDetails::get_recurring_acqquirer_token_details(
+                    connector_mandate_id,
+                    additional_payment_data,
                 )
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -893,7 +897,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 original_purchase_date,
             };
             Ok(Self {
-                query: tesouro_queries::AUTHORIZE_RECURING.to_string(),
+                query: tesouro_queries::AUTHORIZE_RECURRING.to_string(),
                 variables: TesouroPaymentRequest::Recurring {
                     authorize_recurring_input: request_input,
                 },
@@ -987,7 +991,7 @@ pub struct TesouroTokenDetails {
 
 pub fn get_mandate_reference(
     token_details: Option<TesouroTokenDetails>,
-    transaction_id: Option<String>,
+    payment_id: Option<String>,
     activity_date: Option<String>,
 ) -> Result<Option<MandateReference>, error_stack::Report<errors::ConnectorError>> {
     if let Some(token_details) = token_details.clone() {
@@ -1002,7 +1006,7 @@ pub fn get_mandate_reference(
                 .clone(),
             payment_method_id: None,
             mandate_metadata,
-            connector_mandate_request_reference_id: transaction_id.clone(),
+            connector_mandate_request_reference_id: payment_id.clone(),
         }))
     } else {
         Ok(None)
@@ -1085,7 +1089,7 @@ impl<F>
                                 redirection_data: Box::new(None),
                                 mandate_reference: Box::new(get_mandate_reference(
                                     authorization_response.token_details.clone(),
-                                    Some(authorization_response.transaction_id),
+                                    authorization_response.payment_id,
                                     authorization_response.activity_date,
                                 )?),
                                 connector_metadata: Some(connector_metadata),
@@ -1260,7 +1264,7 @@ impl<F>
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(get_mandate_reference(
                                 Some(account_setup_response.token_details),
-                                Some(account_setup_response.transaction_id),
+                                Some(account_setup_response.payment_id),
                                 Some(account_setup_response.activity_date),
                             )?),
                             connector_metadata: Some(connector_metadata),
@@ -1398,7 +1402,7 @@ impl<F>
                                     redirection_data: Box::new(None),
                                     mandate_reference: Box::new(get_mandate_reference(
                                         capture_authorization_response.token_details.clone(),
-                                        Some(capture_authorization_response.transaction_id.clone()),
+                                        capture_authorization_response.payment_id.clone(),
                                         capture_authorization_response.activity_date.clone(),
                                     )?),
                                     connector_metadata: None,
@@ -1901,7 +1905,7 @@ fn get_payment_attempt_status(
         | TesouroSyncStatus::Refund
         | TesouroSyncStatus::RefundAuthorization => {
             Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Invalid Status Recieved".to_string()),
+                bytes::Bytes::from("Invalid Status Received".to_string()),
             ))
         }
     }
@@ -2054,7 +2058,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                     }
                     _ => {
                         return Err(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Invalid Status Recieved".to_string()),
+                            bytes::Bytes::from("Invalid Status Received".to_string()),
                         )
                         .into())
                     }
