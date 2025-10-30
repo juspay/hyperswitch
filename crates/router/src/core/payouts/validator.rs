@@ -84,6 +84,12 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+
+    // will have to add the validator here to map for the input data
+    // and check if the mapping is correct or not between the payout_method_data
+    // and req, which contains the payout type
+    
+
     if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Confirm must be true for recurring payouts".to_string(),
