@@ -311,7 +311,7 @@ pub enum TesouroPaymentRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroVerifyAccountRequest {
-    verify_account: TesouroVerifyAccountInput,
+    verify_account_input: TesouroVerifyAccountInput,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -729,7 +729,7 @@ pub fn get_tesouro_setupmandate_request(
     Ok(TesouroSetupMandateRequest {
         query: tesouro_queries::SETUP_MANDATE.to_string(),
         variables: TesouroVerifyAccountRequest {
-            verify_account: verify_account_input,
+            verify_account_input: verify_account_input,
         },
     })
 }
@@ -985,13 +985,14 @@ pub struct TesouroTokenDetails {
     token: Option<Secret<String>>,
 }
 
-pub fn get_mandate_reference<T>(
+pub fn get_mandate_reference(
     token_details: Option<TesouroTokenDetails>,
     transaction_id: Option<String>,
+    activity_date: Option<String>,
 ) -> Result<Option<MandateReference>, error_stack::Report<errors::ConnectorError>> {
     if let Some(token_details) = token_details.clone() {
         let mandate_metadata: Option<Secret<serde_json::Value>> =
-            response.activity_date.clone().map(|activity_date| {
+            activity_date.clone().map(|activity_date| {
                 serde_json::json!(TesouroMandateMetadata { activity_date }).into()
             });
         Ok(Some(MandateReference {
@@ -1084,7 +1085,8 @@ impl<F>
                                 redirection_data: Box::new(None),
                                 mandate_reference: Box::new(get_mandate_reference(
                                     authorization_response.token_details.clone(),
-                                    authorization_response.transaction_id,
+                                    Some(authorization_response.transaction_id),
+                                    authorization_response.activity_date,
                                 )?),
                                 connector_metadata: Some(connector_metadata),
                                 network_txn_id: None,
@@ -1246,6 +1248,9 @@ impl<F>
                 if let Some(account_setup_response) =
                     response.data.verify_account.verify_account_response
                 {
+                    let connector_metadata = serde_json::json!(TesouroTransactionMetadata {
+                        payment_id: account_setup_response.payment_id.clone()
+                    });
                     Ok(Self {
                         status: enums::AttemptStatus::Charged,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1254,8 +1259,9 @@ impl<F>
                             ),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(get_mandate_reference(
-                                account_setup_response.token_details,
-                                account_setup_response.transaction_id,
+                                Some(account_setup_response.token_details),
+                                Some(account_setup_response.transaction_id),
+                                Some(account_setup_response.activity_date),
                             )?),
                             connector_metadata: Some(connector_metadata),
                             network_txn_id: None,
@@ -1392,7 +1398,8 @@ impl<F>
                                     redirection_data: Box::new(None),
                                     mandate_reference: Box::new(get_mandate_reference(
                                         capture_authorization_response.token_details.clone(),
-                                        capture_authorization_response.transaction_id.clone(),
+                                        Some(capture_authorization_response.transaction_id.clone()),
+                                        capture_authorization_response.activity_date.clone(),
                                     )?),
                                     connector_metadata: None,
                                     network_txn_id: None,

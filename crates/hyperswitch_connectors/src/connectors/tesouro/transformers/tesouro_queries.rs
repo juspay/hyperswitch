@@ -177,7 +177,7 @@ pub const AUTHORIZE_RECURING: &str = "mutation AuthorizeRecurring(
 }";
 
 pub const SETUP_MANDATE: &str = "mutation VerifyAccount(
-    $verifyAccountInput: verifyAccountInput!
+    $verifyAccountInput: VerifyAccountInput!
 ) {
     verifyAccount(
         verifyAccountInput: $verifyAccountInput
