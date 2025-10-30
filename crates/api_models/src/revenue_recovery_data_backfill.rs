@@ -11,6 +11,22 @@ use time::{Date, PrimitiveDateTime};
 
 use crate::payments;
 
+fn deserialize_history_vec_opt<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<AccountUpdateHistoryRecord>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let val = Option::<String>::deserialize(deserializer)?;
+    match val.as_deref().map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(s) => serde_json::from_str::<Vec<AccountUpdateHistoryRecord>>(s)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
     pub bin_number: Option<Secret<String>>,
@@ -23,8 +39,9 @@ pub struct RevenueRecoveryBackfillRequest {
     pub clean_bank_name: Option<String>,
     pub country_name: Option<String>,
     pub daily_retry_history: Option<String>,
-    pub is_active: Option<String>,
-    pub account_update_history: Option<String>,
+    pub is_active: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_history_vec_opt")]
+    pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
 
 #[derive(Debug, Serialize)]

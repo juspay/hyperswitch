@@ -204,25 +204,11 @@ impl RedisTokenManager {
         }
     }
 
+    /// Get all payment processor tokens for a connector customer
     #[instrument(skip_all)]
     pub async fn get_connector_customer_payment_processor_tokens(
         state: &SessionState,
         connector_customer_id: &str,
-    ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
-        Self::get_connector_customer_payment_processor_tokens_internal(
-            state,
-            connector_customer_id,
-            false, // Default: filter out inactive tokens
-        )
-        .await
-    }
-
-    /// Get all payment processor tokens for a connector customer
-    #[instrument(skip_all)]
-    pub async fn get_connector_customer_payment_processor_tokens_internal(
-        state: &SessionState,
-        connector_customer_id: &str,
-        include_in_active: bool,
     ) -> CustomResult<HashMap<String, PaymentProcessorTokenStatus>, errors::StorageError> {
         let redis_conn =
             state
@@ -246,13 +232,7 @@ impl RedisTokenManager {
                 .into_iter()
                 .filter_map(|(token_id, token_data)| {
                     match serde_json::from_str::<PaymentProcessorTokenStatus>(&token_data) {
-                        Ok(token_status) => {
-                            if include_in_active || token_status.is_active.unwrap_or(true) {
-                                Some((token_id, token_status))
-                            } else {
-                                None
-                            }
-                        }
+                        Ok(token_status) => Some((token_id, token_status)),
                         Err(err) => {
                             tracing::warn!(
                                 connector_customer_id = %connector_customer_id,

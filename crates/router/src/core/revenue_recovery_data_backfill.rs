@@ -357,55 +357,6 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<Date, i32
     }
 }
 
-fn parse_is_active(is_active_str: Option<&str>) -> Option<bool> {
-    match is_active_str {
-        Some(s) if !s.is_empty() => match s.to_lowercase().trim() {
-            "true" | "1" | "yes" | "y" => Some(true),
-            "false" | "0" | "no" | "n" => Some(false),
-            _ => {
-                logger::warn!("Invalid is_active value '{}', expected true/false", s);
-                None
-            }
-        },
-        _ => None,
-    }
-}
-
-fn parse_account_update_history(
-    history_str: Option<&str>,
-) -> Option<Vec<api_models::revenue_recovery_data_backfill::AccountUpdateHistoryRecord>> {
-    match history_str {
-        Some(json) if !json.is_empty() => {
-            match serde_json::from_str::<
-                Vec<api_models::revenue_recovery_data_backfill::AccountUpdateHistoryRecord>,
-            >(json)
-            {
-                Ok(history) => {
-                    logger::debug!(
-                        "Successfully parsed account_update_history with {} entries",
-                        history.len()
-                    );
-                    Some(history)
-                }
-                Err(e) => {
-                    logger::warn!(
-                        "Failed to parse account_update_history JSON '{}': {}",
-                        json,
-                        e
-                    );
-                    None
-                }
-            }
-        }
-        _ => {
-            logger::debug!(
-                "Account update history not present or invalid, preserving existing data"
-            );
-            None
-        }
-    }
-}
-
 /// Build comprehensive card data from CSV record
 fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
@@ -444,13 +395,6 @@ fn build_comprehensive_card_data(
     // Parse daily retry history
     let daily_retry_history = parse_daily_retry_history(record.daily_retry_history.as_deref());
 
-    // Parse is_active
-    let is_active = parse_is_active(record.is_active.as_deref());
-
-    // Parse account_update_history
-    let account_update_history =
-        parse_account_update_history(record.account_update_history.as_deref());
-
     Ok(ComprehensiveCardData {
         card_type,
         card_exp_month,
@@ -459,8 +403,8 @@ fn build_comprehensive_card_data(
         card_issuer,
         card_issuing_country,
         daily_retry_history,
-        is_active,
-        account_update_history,
+        is_active: record.is_active,
+        account_update_history: record.account_update_history.clone(),
     })
 }
 
