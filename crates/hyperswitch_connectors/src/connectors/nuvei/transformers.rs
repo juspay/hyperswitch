@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, GooglePayCardFundingSource, PaymentChannel};
 use common_types::{
     payments::{
         ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
@@ -17,7 +17,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    address::Address,
+    address::{Address, AddressDetails},
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
         GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
@@ -39,6 +39,10 @@ use hyperswitch_domain_models::{
     },
     types,
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_response_types::PayoutsResponseData,
+};
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
@@ -47,6 +51,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+#[cfg(feature = "payouts")]
+use crate::{types::PayoutsResponseRouterData, utils::PayoutsData as _};
 use crate::{
     types::{
         PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
@@ -91,7 +97,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_minor_amount_required(
         &self,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>>;
-    fn get_customer_id_required(&self) -> Option<CustomerId>;
+    fn get_customer_id_optional(&self) -> Option<CustomerId>;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency_required(
         &self,
@@ -106,6 +112,7 @@ trait NuveiAuthorizePreprocessingCommon {
     ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
         Ok(None)
     }
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -123,7 +130,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         }
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -187,6 +194,10 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_ntid(&self) -> Option<String> {
         None
     }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -210,7 +221,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
         Ok(self.authentication_data.clone())
     }
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -260,6 +271,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.enable_partial_authorization
             .map(PartialApprovalFlag::from)
     }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -275,7 +290,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         None
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         None
     }
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -332,6 +347,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_ntid(&self) -> Option<String> {
         None
+    }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
 }
 
@@ -428,6 +447,14 @@ pub struct NuveiItem {
     pub image_url: Option<String>,
     pub product_url: Option<String>,
 }
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum IsRebilling {
+    #[serde(rename = "1")]
+    True,
+    #[serde(rename = "0")]
+    False,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -444,7 +471,7 @@ pub struct NuveiPaymentsRequest {
     //unique transaction id
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
-    pub is_rebilling: Option<String>,
+    pub is_rebilling: Option<IsRebilling>,
     pub payment_option: PaymentOption,
     pub is_moto: Option<bool>,
     pub device_details: DeviceDetails,
@@ -785,8 +812,36 @@ pub struct Card {
     pub issuer_country: Option<String>,
     pub is_prepaid: Option<String>,
     pub external_token: Option<ExternalToken>,
+    pub stored_credentials: Option<StoredCredentialMode>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredCredentialMode {
+    pub stored_credentials_mode: Option<StoredCredentialModeType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StoredCredentialModeType {
+    #[serde(rename = "0")]
+    First,
+    #[serde(rename = "1")]
+    Used,
+}
+
+impl StoredCredentialMode {
+    pub fn get_optional_stored_credential(is_stored_credential: Option<bool>) -> Option<Self> {
+        is_stored_credential.and_then(|is_stored_credential| {
+            if is_stored_credential {
+                Some(Self {
+                    stored_credentials_mode: Some(StoredCredentialModeType::Used),
+                })
+            } else {
+                None
+            }
+        })
+    }
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
@@ -1015,6 +1070,7 @@ pub struct NuveiCardDetails {
     card: payment_method_data::Card,
     three_d: Option<ThreeD>,
     card_holder_name: Option<Secret<String>>,
+    stored_credentials: Option<StoredCredentialMode>,
 }
 
 // Define new structs with camelCase serialization
@@ -1033,6 +1089,7 @@ struct GooglePayInfoCamelCase {
     card_network: Secret<String>,
     card_details: Secret<String>,
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
+    card_funding_source: Option<GooglePayCardFundingSource>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1075,7 +1132,7 @@ struct ApplePayPaymentMethodCamelCase {
 
 fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     brand: Option<String>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1114,7 +1171,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1161,6 +1218,7 @@ where
                                                 .card_holder_authenticated,
                                             account_verified: details.account_verified,
                                         }),
+                                    card_funding_source: gpay_data.info.card_funding_source.clone(),
                                 },
                                 tokenization_data: GooglePayTokenizationDataCamelCase {
                                     token_type: token_type.into(),
@@ -1187,7 +1245,7 @@ where
 
 fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     network: String,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1241,7 +1299,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1583,20 +1641,23 @@ where
         billing_address: None,
         shipping_address: None,
     };
-    let is_rebilling = if router_data.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
-    } else {
-        None
-    };
+    let is_rebilling = Some(IsRebilling::True);
+
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
+        user_token_id: Some(
+            router_data
+                .request
+                .get_customer_id_optional()
+                .ok_or_else(missing_field_err("customer_id"))?,
+        ),
         is_rebilling,
         ..Default::default()
     })
 }
 fn get_l2_l3_items(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
@@ -1655,7 +1716,7 @@ fn get_l2_l3_items(
 }
 
 fn get_amount_details(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
@@ -1686,7 +1747,8 @@ fn get_amount_details(
 
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
-    Req: NuveiAuthorizePreprocessingCommon,
+    Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
+    F: std::fmt::Debug,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1867,10 +1929,9 @@ where
         } else {
             request_data.device_details.clone()
         };
-
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
-            user_token_id: item.customer_id.clone(),
+            user_token_id: request_data.user_token_id,
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address,
@@ -1884,6 +1945,7 @@ where
             amount_details,
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
+            external_scheme_details: request_data.external_scheme_details,
             ..request
         })
     }
@@ -1903,7 +1965,7 @@ where
         None
     };
 
-    let address = item
+    let address: Option<&AddressDetails> = item
         .get_optional_billing()
         .and_then(|billing_details| billing_details.address.as_ref());
 
@@ -1918,7 +1980,7 @@ where
         match item.request.is_customer_initiated_mandate_payment() {
             true => {
                 (
-                    Some("0".to_string()), // In case of first installment, rebilling should be 0
+                    Some(IsRebilling::False), // In case of first installment, rebilling should be 0
                     Some(V2AdditionalParams {
                         rebill_expiry: Some(
                             time::OffsetDateTime::now_utc()
@@ -1932,7 +1994,7 @@ where
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
                         challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
-                    item.request.get_customer_id_required(),
+                    item.request.get_customer_id_optional(),
                 )
             }
             // non mandate transactions
@@ -1999,6 +2061,7 @@ where
             card: card_details.clone(),
             three_d,
             card_holder_name: item.get_optional_billing_full_name(),
+            stored_credentials: item.request.get_is_stored_credential(),
         }),
         is_moto,
         ..Default::default()
@@ -2015,6 +2078,7 @@ impl From<NuveiCardDetails> for PaymentOption {
                 expiration_year: Some(card.card_exp_year),
                 three_d: card_details.three_d,
                 cvv: Some(card.card_cvc),
+                stored_credentials: card_details.stored_credentials,
                 ..Default::default()
             }),
             ..Default::default()
@@ -2038,6 +2102,9 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
                         card,
                         three_d: None,
                         card_holder_name: item.get_optional_billing_full_name(),
+                        stored_credentials: StoredCredentialMode::get_optional_stored_credential(
+                            item.request.is_stored_credential,
+                        ),
                     }),
                     device_details,
                     ..Default::default()
@@ -2323,6 +2390,196 @@ impl TryFrom<&ConnectorAuthType> for NuveiAuthType {
     }
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: String,
+    pub client_unique_id: String,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub user_token_id: CustomerId,
+    pub time_stamp: String,
+    pub checksum: Secret<String>,
+    pub card_data: NuveiPayoutCardData,
+    pub url_details: NuveiPayoutUrlDetails,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutUrlDetails {
+    pub notification_url: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutCardData {
+    pub card_number: cards::CardNumber,
+    pub card_holder_name: Secret<String>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NuveiPayoutResponse {
+    NuveiPayoutSuccessResponse(NuveiPayoutSuccessResponse),
+    NuveiPayoutErrorResponse(NuveiPayoutErrorResponse),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutSuccessResponse {
+    pub transaction_id: String,
+    pub user_token_id: CustomerId,
+    pub transaction_status: NuveiTransactionStatus,
+    pub client_unique_id: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutErrorResponse {
+    pub status: NuveiPaymentStatus,
+    pub err_code: i64,
+    pub reason: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        payout_method_data: api_models::payouts::PayoutMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payout_method_data {
+            api_models::payouts::PayoutMethodData::Card(card_data) => Ok(Self {
+                card_number: card_data.card_number,
+                card_holder_name: card_data.card_holder_name.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "customer_id",
+                    },
+                )?,
+                expiration_month: card_data.expiry_month,
+                expiration_year: card_data.expiry_year,
+            }),
+            api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::Wallet(_)
+            | api_models::payouts::PayoutMethodData::BankRedirect(_)
+            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected Payout Method is not implemented for Nuvei".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+
+        let amount = convert_amount(
+            NUVEI_AMOUNT_CONVERTOR,
+            item.request.minor_amount,
+            item.request.destination_currency,
+        )?;
+
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let checksum = encode_payload(&[
+            connector_auth.merchant_id.peek(),
+            connector_auth.merchant_site_id.peek(),
+            &item.connector_request_reference_id,
+            &amount.get_amount_as_string(),
+            &item.request.destination_currency.to_string(),
+            &time_stamp,
+            connector_auth.merchant_secret.peek(),
+        ])?;
+
+        let payout_method_data = item.get_payout_method_data()?;
+
+        let card_data = NuveiPayoutCardData::try_from(payout_method_data)?;
+
+        let customer_details = item.request.get_customer_details()?;
+
+        let url_details = NuveiPayoutUrlDetails {
+            notification_url: item.request.get_webhook_url()?,
+        };
+
+        Ok(Self {
+            merchant_id: connector_auth.merchant_id,
+            merchant_site_id: connector_auth.merchant_site_id,
+            client_request_id: item.connector_request_reference_id.clone(),
+            client_unique_id: item.connector_request_reference_id.clone(),
+            amount,
+            currency: item.request.destination_currency.to_string(),
+            user_token_id: customer_details.customer_id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                },
+            )?,
+            time_stamp,
+            checksum: Secret::new(checksum),
+            card_data,
+            url_details,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
+    for types::PayoutsRouterData<PoFulfill>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        match response {
+            NuveiPayoutResponse::NuveiPayoutSuccessResponse(response_data) => Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(
+                        response_data.transaction_status.clone(),
+                    )),
+                    connector_payout_id: Some(response_data.transaction_id.clone()),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: None,
+                    error_message: None,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            }),
+            NuveiPayoutResponse::NuveiPayoutErrorResponse(error_response_data) => Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(
+                        error_response_data.status.clone(),
+                    )),
+                    connector_payout_id: None,
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: Some(error_response_data.err_code.to_string()),
+                    error_message: error_response_data.reason.clone(),
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NuveiPaymentStatus {
@@ -2357,6 +2614,29 @@ impl From<NuveiTransactionStatus> for enums::AttemptStatus {
             NuveiTransactionStatus::Approved => Self::Charged,
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failure,
             _ => Self::Pending,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<NuveiTransactionStatus> for enums::PayoutStatus {
+    fn from(item: NuveiTransactionStatus) -> Self {
+        match item {
+            NuveiTransactionStatus::Approved => Self::Success,
+            NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failed,
+            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Pending => Self::Pending,
+            NuveiTransactionStatus::Redirect => Self::Ineligible,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<NuveiPaymentStatus> for enums::PayoutStatus {
+    fn from(item: NuveiPaymentStatus) -> Self {
+        match item {
+            NuveiPaymentStatus::Success => Self::Success,
+            NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Self::Failed,
+            NuveiPaymentStatus::Processing => Self::Pending,
         }
     }
 }
@@ -3248,7 +3528,7 @@ where
             let connector_mandate_id = &item.request.get_connector_mandate_id();
             let customer_id = item
                 .request
-                .get_customer_id_required()
+                .get_customer_id_optional()
                 .ok_or(missing_field_err("customer_id")())?;
             let related_transaction_id = item.request.get_related_transaction_id().clone();
 
@@ -3272,7 +3552,7 @@ where
                 device_details: DeviceDetails {
                     ip_address: Secret::new(ip_address),
                 },
-                is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                is_rebilling: Some(IsRebilling::True), // In case of second installment, rebilling should be 1
                 user_token_id: Some(customer_id),
                 payment_option: PaymentOption {
                     user_payment_option_id: connector_mandate_id.clone(),
@@ -3391,9 +3671,8 @@ pub enum ChargebackStatus {
 
 /// Represents a Chargeback webhook notification from the Nuvei Control Panel.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct ChargebackNotification {
-    pub client_id: Option<i64>,
     pub client_name: Option<String>,
     pub event_date_u_t_c: Option<String>,
     pub event_correlation_id: Option<String>,
@@ -3408,10 +3687,11 @@ pub struct ChargebackNotification {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChargebackData {
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub date: Option<time::PrimitiveDateTime>,
-    pub chargeback_status_category: ChargebackStatusCategory,
+    pub chargeback_status_category: Option<ChargebackStatusCategory>,
     #[serde(rename = "Type")]
-    pub webhook_type: ChargebackType,
+    pub webhook_type: Option<ChargebackType>,
     pub status: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: String,
@@ -3421,8 +3701,9 @@ pub struct ChargebackData {
     pub chargeback_reason_category: Option<String>,
     pub reason_message: Option<String>,
     pub dispute_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub dispute_due_date: Option<time::PrimitiveDateTime>,
-    pub dispute_event_id: Option<i64>,
+    pub dispute_event_id: Option<String>,
     pub dispute_unified_status_code: Option<DisputeUnifiedStatusCode>,
 }
 
@@ -3857,80 +4138,145 @@ pub fn map_notification_to_event(
     }
 }
 
-pub fn map_dispute_notification_to_event(
-    dispute_code: DisputeUnifiedStatusCode,
+#[cfg(feature = "payouts")]
+pub fn map_notification_to_event_for_payout(
+    status: DmnStatus,
+    transaction_type: NuveiTransactionType,
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
-    match dispute_code {
-        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
-        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+    match (status, transaction_type) {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
         }
-        DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
-        | DisputeUnifiedStatusCode::Rdr
-        | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
-        | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
-        | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
-        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+        (DmnStatus::Pending, _) => Ok(api_models::webhooks::IncomingWebhookEvent::PayoutProcessing),
+        (DmnStatus::Declined | DmnStatus::Error, _) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
         }
-        DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
-        | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
-        | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
-        | DisputeUnifiedStatusCode::McCollaborationExpired
-        | DisputeUnifiedStatusCode::InquiryExpired
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
-        }
-        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
-        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
-        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
-        | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
-        }
-
-        DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
-        | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
-        | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
-        | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
-        | DisputeUnifiedStatusCode::InquiryUpdated => {
-            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-        }
+        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
     }
+}
+
+pub fn get_dispute_stage(
+    chargeback_data: &ChargebackData,
+) -> Result<common_enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
+    let dispute_stage = chargeback_data
+        .dispute_unified_status_code
+        .clone()
+        .map(common_enums::DisputeStage::from)
+        .or(match chargeback_data.webhook_type {
+            Some(ChargebackType::Retrieval) => Some(common_enums::DisputeStage::PreDispute),
+            Some(ChargebackType::Chargeback) | None => None,
+        })
+        .or(match chargeback_data.chargeback_status_category {
+            Some(ChargebackStatusCategory::Cancelled)
+            | Some(ChargebackStatusCategory::Duplicate) => {
+                Some(common_enums::DisputeStage::DisputeReversal)
+            }
+            Some(ChargebackStatusCategory::Regular) => Some(common_enums::DisputeStage::Dispute),
+            Some(ChargebackStatusCategory::RdrRefund) => {
+                Some(common_enums::DisputeStage::PreDispute)
+            }
+            Some(ChargebackStatusCategory::SoftCb) => {
+                Some(common_enums::DisputeStage::PreArbitration)
+            }
+            None => None,
+        });
+
+    dispute_stage.ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
+}
+
+pub fn map_dispute_notification_to_event(
+    chargeback_data: &ChargebackData,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
+    let event_code = chargeback_data
+        .dispute_unified_status_code
+        .as_ref()
+        .and_then(|code| match code {
+            DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+            | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+            }
+            DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+            | DisputeUnifiedStatusCode::Rdr
+            | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+            | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+            | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+            | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+            | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::McCollaborationExpired
+            | DisputeUnifiedStatusCode::InquiryExpired
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
+            }
+            DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+            | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+            | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+            | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+            }
+
+            DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+            | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+            | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+            | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+            | DisputeUnifiedStatusCode::InquiryUpdated => None,
+        });
+
+    event_code
+        .or_else(|| {
+            chargeback_data
+                .chargeback_status_category
+                .as_ref()
+                .and_then(|code| match code {
+                    ChargebackStatusCategory::Cancelled | ChargebackStatusCategory::Duplicate => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+                    }
+                    ChargebackStatusCategory::RdrRefund => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+                    }
+                    _ => None,
+                })
+        })
+        .ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
 }
 
 impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {

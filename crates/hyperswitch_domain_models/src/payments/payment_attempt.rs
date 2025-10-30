@@ -493,6 +493,8 @@ pub struct PaymentAttempt {
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    /// stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttempt {
@@ -627,6 +629,7 @@ impl PaymentAttempt {
             created_by: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            authorized_amount: None,
         })
     }
 
@@ -718,6 +721,7 @@ impl PaymentAttempt {
             created_by: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            authorized_amount: None,
         })
     }
 
@@ -815,6 +819,7 @@ impl PaymentAttempt {
             created_by: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            authorized_amount: None,
         })
     }
 
@@ -935,6 +940,7 @@ impl PaymentAttempt {
             created_by: None,
             connector_request_reference_id,
             network_transaction_id: None,
+            authorized_amount: None,
         })
     }
 
@@ -1038,6 +1044,9 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    /// stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1336,6 +1345,8 @@ pub struct PaymentAttemptNew {
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1369,6 +1380,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
+        is_stored_credential: Option<bool>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -1407,6 +1419,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     RejectUpdate {
@@ -1462,6 +1475,7 @@ pub enum PaymentAttemptUpdate {
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
+        authorized_amount: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1542,6 +1556,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+        amount_capturable: Option<MinorUnit>,
     },
     PostSessionTokensUpdate {
         updated_by: String,
@@ -1600,6 +1615,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 merchant_connector_id,
                 routing_approach,
+                is_stored_credential,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -1617,6 +1633,7 @@ impl PaymentAttemptUpdate {
                     }
                     _ => approach,
                 }),
+                is_stored_credential,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1683,6 +1700,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
                 request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
@@ -1728,6 +1746,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
                 request_extended_authorization,
             },
             Self::VoidUpdate {
@@ -1767,6 +1786,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 debit_routing_savings: _,
                 is_overcapture_enabled,
+                authorized_amount,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1794,6 +1814,7 @@ impl PaymentAttemptUpdate {
                 setup_future_usage_applied,
                 network_transaction_id,
                 is_overcapture_enabled,
+                authorized_amount,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1942,6 +1963,7 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::ManualUpdate {
                 status,
                 error_code,
@@ -1951,6 +1973,7 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                amount_capturable,
             },
             Self::PostSessionTokensUpdate {
                 updated_by,
@@ -2026,6 +2049,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: id_type::MerchantConnectorAccountId,
         authentication_type: storage_enums::AuthenticationType,
         payment_method_id: id_type::GlobalPaymentMethodId,
+        connector_request_reference_id: Option<String>,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
     ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
@@ -2178,6 +2202,8 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_id: self.network_transaction_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
         })
     }
 
@@ -2279,6 +2305,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 network_transaction_id: storage_model.network_transaction_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
+                is_stored_credential: storage_model.is_stored_credential,
+                authorized_amount: storage_model.authorized_amount,
             })
         }
         .await
@@ -2371,6 +2399,8 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
         })
     }
 }
@@ -2445,6 +2475,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            authorized_amount,
         } = self;
 
         let AttemptAmountDetails {
@@ -2544,6 +2575,8 @@ impl behaviour::Conversion for PaymentAttempt {
             is_overcapture_enabled: None,
             network_details: None,
             attempts_group_id,
+            is_stored_credential: None,
+            authorized_amount,
         })
     }
 
@@ -2669,6 +2702,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
+                authorized_amount: storage_model.authorized_amount,
             })
         }
         .await
@@ -2730,6 +2764,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            authorized_amount,
         } = self;
 
         let card_network = payment_method_data
@@ -2825,6 +2860,8 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_details: None,
             attempts_group_id,
+            is_stored_credential: None,
+            authorized_amount,
         })
     }
 }
@@ -3066,6 +3103,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 merchant_connector_id,
                 authentication_type,
                 payment_method_id,
+                connector_request_reference_id,
             } => Self {
                 status: Some(status),
                 payment_method_id: Some(payment_method_id),
@@ -3091,7 +3129,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
-                connector_request_reference_id: None,
+                connector_request_reference_id,
                 connector_response_reference_id: None,
                 cancellation_reason: None,
             },

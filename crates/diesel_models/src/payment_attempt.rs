@@ -107,6 +107,9 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    /// stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -226,6 +229,9 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    /// stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -328,6 +334,7 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
@@ -368,6 +375,7 @@ pub struct PaymentAttemptNew {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -452,6 +460,8 @@ pub struct PaymentAttemptNew {
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -487,6 +497,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
+        is_stored_credential: Option<bool>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -529,6 +540,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     VoidUpdate {
@@ -583,6 +595,7 @@ pub enum PaymentAttemptUpdate {
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
+        authorized_amount: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -663,6 +676,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+        amount_capturable: Option<MinorUnit>,
     },
     PostSessionTokensUpdate {
         updated_by: String,
@@ -852,6 +866,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_payment_id: Option<String>,
+        amount_capturable: Option<MinorUnit>,
     },
 }
 
@@ -1017,6 +1032,8 @@ impl PaymentAttemptUpdateInternal {
             is_overcapture_enabled: source.is_overcapture_enabled,
             network_details: source.network_details,
             attempts_group_id: source.attempts_group_id,
+            is_stored_credential: source.is_stored_credential,
+            authorized_amount: source.authorized_amount,
         }
     }
 }
@@ -1086,7 +1103,9 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1281,7 +1300,9 @@ impl PaymentAttemptUpdate {
             network_transaction_id,
             is_overcapture_enabled,
             network_details,
+            is_stored_credential,
             request_extended_authorization,
+            authorized_amount,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1354,8 +1375,10 @@ impl PaymentAttemptUpdate {
             network_transaction_id: network_transaction_id.or(source.network_transaction_id),
             is_overcapture_enabled: is_overcapture_enabled.or(source.is_overcapture_enabled),
             network_details: network_details.or(source.network_details),
+            is_stored_credential: is_stored_credential.or(source.is_stored_credential),
             request_extended_authorization: request_extended_authorization
                 .or(source.request_extended_authorization),
+            authorized_amount: authorized_amount.or(source.authorized_amount),
             ..source
         }
     }
@@ -1604,6 +1627,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_payment_id,
+                amount_capturable,
             } => {
                 let (connector_payment_id, connector_payment_data) = connector_payment_id
                     .map(ConnectorTransactionId::form_id_and_data)
@@ -1625,7 +1649,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     payment_method_id: None,
                     browser_info: None,
                     connector_metadata: None,
-                    amount_capturable: None,
+                    amount_capturable,
                     amount_to_capture: None,
                     merchant_connector_id: None,
                     connector: None,
@@ -2696,7 +2720,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2764,7 +2790,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2803,6 +2831,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
                 request_extended_authorization,
             } => Self {
                 amount: Some(amount),
@@ -2867,7 +2896,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential,
                 request_extended_authorization,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2936,7 +2967,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -3006,7 +3039,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3076,7 +3111,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3144,7 +3181,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3212,7 +3251,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3241,6 +3282,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 setup_future_usage_applied,
                 network_transaction_id,
                 is_overcapture_enabled,
+                authorized_amount,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -3310,7 +3352,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id,
                     is_overcapture_enabled,
                     network_details: None,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3398,7 +3442,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3464,7 +3510,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3476,6 +3524,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 merchant_connector_id,
                 routing_approach,
+                is_stored_credential,
             } => Self {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
@@ -3539,7 +3588,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3620,7 +3671,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3700,7 +3753,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3770,7 +3825,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3839,7 +3896,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3917,7 +3976,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3986,7 +4047,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -4057,7 +4120,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -4068,6 +4133,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                amount_capturable,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -4109,7 +4175,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     multiple_capture_count: None,
                     surcharge_amount: None,
                     tax_amount: None,
-                    amount_capturable: None,
+                    amount_capturable,
                     merchant_connector_id: None,
                     authentication_data: None,
                     encoded_data: None,
@@ -4137,7 +4203,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    is_stored_credential: None,
                     request_extended_authorization: None,
+                    authorized_amount: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -4206,7 +4274,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                is_stored_credential: None,
                 request_extended_authorization: None,
+                authorized_amount: None,
             },
         }
     }
