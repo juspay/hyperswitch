@@ -330,23 +330,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     }
 
     // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
-    let final_request_details;
-    let decoded_request_details;
-
-    match &webhook_processing_result.decoded_body {
-        Some(decoded_body) => {
-            decoded_request_details = IncomingWebhookRequestDetails {
-                method: request_details.method.clone(),
-                uri: request_details.uri.clone(),
-                headers: request_details.headers,
-                query_params: request_details.query_params.clone(),
-                body: decoded_body,
-            };
-            final_request_details = &decoded_request_details;
-        }
-        None => {
-            final_request_details = &request_details; // Use original request details for UCS
-        }
+    let final_request_details = match &webhook_processing_result.decoded_body {
+        Some(decoded_body) => &IncomingWebhookRequestDetails {
+            method: request_details.method.clone(),
+            uri: request_details.uri.clone(),
+            headers: request_details.headers,
+            query_params: request_details.query_params.clone(),
+            body: decoded_body,
+        },
+        None => &request_details, // Use original request details for UCS
     };
 
     logger::info!(event_type=?webhook_processing_result.event_type);
@@ -382,7 +374,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 webhook_processing_result.source_verified,
                 &webhook_processing_result.transform_data,
                 &mut webhook_processing_result.shadow_ucs_data,
-                &final_request_details,
+                final_request_details,
                 is_relay_webhook,
             )
             .await;
@@ -393,7 +385,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     event_object = extract_webhook_event_object(
                         &webhook_processing_result.transform_data,
                         &connector,
-                        &final_request_details,
+                        final_request_details,
                     )?;
                     response
                 }
@@ -402,7 +394,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         error,
                         &connector,
                         connector_name.as_str(),
-                        &final_request_details,
+                        final_request_details,
                         merchant_context.get_merchant_account().get_id(),
                     );
                     match error_result {
@@ -426,7 +418,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     // Generate response
     let response = connector
-        .get_webhook_api_response(&final_request_details, None)
+        .get_webhook_api_response(final_request_details, None)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
@@ -865,7 +857,7 @@ async fn process_webhook_business_logic(
     // Create shadow_event_object and shadow_webhook_details using shadow UCS data
     let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> = shadow_ucs_data
         .as_ref()
-        .map(|shadow_data| {
+        .and_then(|shadow_data| {
             // Create shadow event object using UCS transform data and shadow request details
             let shadow_event_result = shadow_data
                 .ucs_transform_data
@@ -886,14 +878,21 @@ async fn process_webhook_business_logic(
 
             match shadow_event_result {
                 Ok(shadow_obj) => Some(shadow_obj),
-                Err(_) => None, // In case of error, assign None
+                Err(error) => {
+                    logger::warn!(
+                        connector = connector_name,
+                        merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                        error = ?error,
+                        "Failed to create shadow event object from UCS transform data"
+                    );
+                    None
+                }
             }
-        })
-        .flatten();
+        });
 
     let shadow_webhook_details: Option<api::IncomingWebhookDetails> = shadow_event_object
         .as_ref()
-        .map(|shadow_obj| {
+        .and_then(|shadow_obj| {
             let resource_object_result = serde_json::to_vec(shadow_obj)
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable("Unable to convert shadow webhook payload to a value")
@@ -907,10 +906,17 @@ async fn process_webhook_business_logic(
                     object_reference_id: object_ref_id.clone(),
                     resource_object,
                 }),
-                Err(_) => None, // In case of serialization error, assign None
+                Err(error) => {
+                    logger::warn!(
+                        connector = connector_name,
+                        merchant_id = ?merchant_context.get_merchant_account().get_id(),
+                        error = ?error,
+                        "Failed to serialize shadow webhook payload to bytes"
+                    );
+                    None
+                }
             }
-        })
-        .flatten();
+        });
 
     // Assign shadow_webhook_details to shadow_ucs_data
     if let Some(shadow_data) = shadow_ucs_data.as_mut() {
