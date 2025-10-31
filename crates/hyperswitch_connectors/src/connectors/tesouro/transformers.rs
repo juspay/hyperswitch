@@ -28,6 +28,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::AdditionalCardInfo;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
@@ -44,6 +45,13 @@ pub mod tesouro_constants {
 pub struct GenericTesouroRequest<T> {
     query: String,
     variables: T,
+}
+
+pub fn get_todays_date() -> String {
+    use chrono::Utc;
+
+    let now = Utc::now();
+    now.format("%Y-%m-%d").to_string()
 }
 
 pub type TesouroAuthorizeRequest = GenericTesouroRequest<TesouroPaymentRequest>;
@@ -391,8 +399,8 @@ impl TesouroPaymentMethodDetails {
     ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
         let (expiration_month, expiration_year) = match additional_payment_data {
             AdditionalPaymentData::Card(additional_card_info) => Ok((
-                additional_card_info.card_exp_month,
-                additional_card_info.card_exp_year,
+                additional_card_info.card_exp_month.clone(),
+                Some(additional_card_info.get_card_expiry_year_4_digit()?),
             )),
             AdditionalPaymentData::Wallet {
                 apple_pay: _,
@@ -790,17 +798,20 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                         field_name: "additional_payment_method_data",
                     })?;
                 original_purchase_date = {
-                    let metadata = item
+                    if let Some(metadata) = item
                         .router_data
                         .get_recurring_mandate_payment_data()?
                         .mandate_metadata
-                        .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
-                        .expose();
-
-                    let tesouro_metadata: TesouroMandateMetadata = serde_json::from_value(metadata)
-                        .map_err(|_| errors::ConnectorError::MissingConnectorMandateMetadata)?;
-
-                    Some(tesouro_metadata.activity_date)
+                    {
+                        let tesouro_metadata: TesouroMandateMetadata =
+                            serde_json::from_value(metadata.expose()).map_err(|_| {
+                                errors::ConnectorError::MissingConnectorMandateMetadata
+                            })?;
+                        Some(tesouro_metadata.activity_date)
+                    } else {
+                        let now = chrono::Utc::now();
+                        Some(now.format("%Y-%m-%d").to_string())
+                    }
                 };
 
                 TesouroPaymentMethodDetails::get_recurring_acqquirer_token_details(
