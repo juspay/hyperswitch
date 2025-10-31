@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -62,7 +63,7 @@ pub struct CustomerListRequestWithConstraints {
     pub offset: Option<u32>,
     /// Limit
     #[schema(example = 32)]
-    pub limit: Option<u16>,
+    pub limit: Option<CustomerListLimit>,
     /// Unique identifier for a customer
     pub customer_id: Option<id_type::CustomerId>,
     /// Filter with created time range
