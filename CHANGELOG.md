@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.1
+
+### Features
+
+- **revenue_recovery:** Add token active status filtering and account update history tracking ([#10056](https://github.com/juspay/hyperswitch/pull/10056)) ([`8043027`](https://github.com/juspay/hyperswitch/commit/804302762ddf11f6b64a1f8301ef88b5dc2cd412))
+
+### Bug Fixes
+
+- **connectors:** [authorizedotnet] handle psync server maintenance error and pass complete billing address ([#10026](https://github.com/juspay/hyperswitch/pull/10026)) ([`5600887`](https://github.com/juspay/hyperswitch/commit/5600887665cea5becfb94a1de66d813b3054e912))
+
+**Full Changelog:** [`2025.10.31.0...2025.10.31.1`](https://github.com/juspay/hyperswitch/compare/2025.10.31.0...2025.10.31.1)
+
+- - -
+
 ## 2025.10.31.0
 
 ### Features

@@ -768,7 +768,12 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
+            let active_tokens: HashMap<_, _> = existing_tokens
+                .into_iter()
+                .filter(|(_, token_status)| token_status.is_active != Some(false))
+                .collect();
+
+            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
 
             let payment_processor_token_response =
                 call_decider_for_payment_processor_tokens_select_closest_time(
