@@ -179,7 +179,7 @@ paths:
             text/plain:
               schema:
                 $ref: "#/components/schemas/Health"
-  /api/v2/fingerprint:
+  /api/v2/vault/fingerprint:
     post:
       tags:
         - Data
