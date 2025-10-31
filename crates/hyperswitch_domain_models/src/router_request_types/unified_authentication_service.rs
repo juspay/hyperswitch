@@ -141,6 +141,16 @@ pub struct PostAuthenticationDetails {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
+    pub raw_card_details: Option<RawCardDetails>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
