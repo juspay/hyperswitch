@@ -7621,5 +7621,10 @@ type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
 [payjustnow]
-[payjustnow.connector_auth.HeaderKey]
-api_key = "API Key"
+[payjustnow.connector_auth.BodyKey]
+api_key = "Signing Key"
+key1 = "Merchant Account Id"
+
+[[payjustnow.pay_later]]
+  payment_method_type = "payjustnow"
+

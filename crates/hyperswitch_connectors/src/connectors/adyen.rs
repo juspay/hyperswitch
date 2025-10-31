@@ -235,7 +235,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Givex
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
-                | PaymentMethodType::Walley => match capture_method {
+                | PaymentMethodType::Walley
+                | PaymentMethodType::Payjustnow => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::SequentialAutomatic => Ok(()),

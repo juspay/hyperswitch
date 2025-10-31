@@ -100,6 +100,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Walley
                 | api_enums::PaymentMethodType::Breadpay
                 | api_enums::PaymentMethodType::Flexiti
+                | api_enums::PaymentMethodType::Payjustnow
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,

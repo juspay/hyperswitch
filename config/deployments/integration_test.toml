@@ -863,6 +863,9 @@ credit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 debit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 apple_pay = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 
+[pm_filters.payjustnow]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"

@@ -34,6 +34,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Walley => Self::Walley,
             enums::PayLaterType::Atome => Self::Atome,
             enums::PayLaterType::Breadpay => Self::Breadpay,
+            enums::PayLaterType::Payjustnow => Self::Payjustnow,
         }
     }
 }

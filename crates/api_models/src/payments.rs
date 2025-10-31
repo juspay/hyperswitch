@@ -2379,6 +2379,7 @@ pub enum PayLaterData {
     AlmaRedirect {},
     AtomeRedirect {},
     BreadpayRedirect {},
+    PayjustnowRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for PayLaterData {
@@ -2421,7 +2422,8 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::KlarnaSdk { .. }
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {}
-            | Self::BreadpayRedirect {} => None,
+            | Self::BreadpayRedirect {}
+            | Self::PayjustnowRedirect {} => None,
         }
     }
 }
@@ -3014,6 +3016,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
+            Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
         }
     }
 }

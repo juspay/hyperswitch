@@ -18,6 +18,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
             global_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
             global_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
+            global_enums::PaymentMethodType::Payjustnow => Ok(dirval!(PayLaterType = Payjustnow)),
             global_enums::PaymentMethodType::AfterpayClearpay => {
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
             }

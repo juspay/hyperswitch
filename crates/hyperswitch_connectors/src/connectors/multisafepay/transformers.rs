@@ -817,7 +817,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         | PayLaterData::WalleyRedirect {}
                         | PayLaterData::AlmaRedirect {}
                         | PayLaterData::AtomeRedirect {}
-                        | PayLaterData::BreadpayRedirect {} => {
+                        | PayLaterData::BreadpayRedirect {}
+                        | PayLaterData::PayjustnowRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",

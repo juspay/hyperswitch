@@ -95,7 +95,8 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {  } |
                             hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {  } |
-                            hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } => {
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } |
+                            hyperswitch_domain_models::payment_method_data::PayLaterData::PayjustnowRedirect {  } => {
                                 Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("breadpay"),
                             ))

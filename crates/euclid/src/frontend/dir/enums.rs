@@ -58,6 +58,7 @@ pub enum PayLaterType {
     Flexiti,
     Atome,
     Breadpay,
+    Payjustnow,
 }
 
 #[derive(
