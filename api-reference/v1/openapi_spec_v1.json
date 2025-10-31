@@ -11644,6 +11644,44 @@
           }
         }
       },
+      "BoletoAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fine_percentage": {
+            "type": "string",
+            "description": "The percentage of fine applied for late payment",
+            "nullable": true
+          },
+          "fine_quantity_days": {
+            "type": "string",
+            "description": "The number of days after due date when fine is applied",
+            "nullable": true
+          },
+          "interest_percentage": {
+            "type": "string",
+            "description": "The percentage of interest applied for late payment",
+            "nullable": true
+          },
+          "write_off_quantity_days": {
+            "type": "string",
+            "description": "Number of days after which the boleto can be written off",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional messages to display to the shopper",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Due Date for the Boleto",
+            "nullable": true
+          }
+        }
+      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -16495,17 +16533,12 @@
             ],
             "nullable": true
           },
-          "pix_additional_details": {
+          "boleto_additional_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixAdditionalDetails"
+                "$ref": "#/components/schemas/BoletoAdditionalDetails"
               }
             ],
-            "nullable": true
-          },
-          "boleto_expiry_details": {
-            "type": "string",
-            "description": "Date until the Boleto is valid",
             "nullable": true
           }
         }
@@ -29849,39 +29882,6 @@
             "type": "string",
             "description": "The country code attached to the number",
             "example": "+1",
-            "nullable": true
-          }
-        }
-      },
-      "PixAdditionalDetails": {
-        "type": "object",
-        "properties": {
-          "fine_percentage": {
-            "type": "string",
-            "description": "The percentage of fine applied for late payment",
-            "nullable": true
-          },
-          "fine_quantity_days": {
-            "type": "string",
-            "description": "The number of days after due date when fine is applied",
-            "nullable": true
-          },
-          "interest_percentage": {
-            "type": "string",
-            "description": "The percentage of interest applied for late payment",
-            "nullable": true
-          },
-          "write_off_quantity_days": {
-            "type": "string",
-            "description": "Number of days after which the boleto can be written off",
-            "nullable": true
-          },
-          "messages": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Additional messages to display to the shopper",
             "nullable": true
           }
         }

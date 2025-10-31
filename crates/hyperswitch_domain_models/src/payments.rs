@@ -1159,12 +1159,9 @@ where
             pix_qr_expiry_time: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.pix_qr_expiry_time.clone()),
-            pix_additional_details: payment_intent_feature_metadata
+            boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
-                .and_then(|data| data.pix_additional_details.clone()),
-            boleto_expiry_details: payment_intent_feature_metadata
-                .as_ref()
-                .and_then(|data| data.boleto_expiry_details.clone()),
+                .and_then(|data| data.boleto_additional_details.clone()),
         }))
     }
 }

@@ -1,4 +1,4 @@
-use common_utils::types::{FloatMajorUnit, StringMajorUnit};
+use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub struct Payer {
     pub neighborhood: Secret<String>,
     pub city: String,
     pub state: Secret<String>,
-    pub zipcode: Secret<String>,
+    pub zip_code: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +115,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentsResponse {
     pub environment: requests::Environment,
     pub nsu_code: String,
@@ -133,16 +134,16 @@ pub struct SantanderBoletoPaymentsResponse {
     pub fine_percentage: Option<String>,
     pub fine_quantity_days: Option<String>,
     pub interest_percentage: Option<String>,
-    pub deduction_value: Option<FloatMajorUnit>,
+    pub deduction_value: Option<String>,
     pub protest_type: Option<requests::ProtestType>,
-    pub protest_quantity_days: Option<i64>,
+    pub protest_quantity_days: Option<String>,
     pub write_off_quantity_days: Option<String>,
     pub payment_type: PaymentType,
-    pub parcels_quantity: Option<i64>,
+    pub parcels_quantity: Option<String>,
     pub value_type: Option<String>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub iof_percentage: Option<f64>,
+    pub min_value_or_percentage: Option<String>,
+    pub max_value_or_percentage: Option<String>,
+    pub iof_percentage: Option<String>,
     pub sharing: Option<Sharing>,
     pub key: Option<Key>,
     pub tx_id: Option<String>,
@@ -410,13 +411,15 @@ pub struct SantanderPattern1ErrorResponse {
 pub struct SantanderPattern2ErrorResponse {
     pub timestamp: String,
     pub http_status: String,
-    pub details: String,
+    pub details: Option<String>,
+    pub error_code: Option<serde_json::Value>,
+    pub tracking_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorObject {
     #[serde(rename = "_code")]
-    pub code: Option<i64>,
+    pub code: Option<String>,
     #[serde(rename = "_field")]
     pub field: Option<String>,
     #[serde(rename = "_message")]
@@ -575,7 +578,14 @@ pub enum SanatanderAccessTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SanatanderTokenResponse {
+#[serde(untagged)]
+pub enum SanatanderTokenResponse {
+    Pix(SanatanderPixAccessTokenResponse),
+    Boleto(SanatanderBoletoAccessTokenResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanatanderPixAccessTokenResponse {
     #[serde(rename = "refreshUrl")]
     pub refresh_url: String,
     pub token_type: String,
@@ -583,6 +593,17 @@ pub struct SanatanderTokenResponse {
     pub access_token: Secret<String>,
     pub scopes: String,
     pub expires_in: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanatanderBoletoAccessTokenResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: i64,
+    pub token_type: String,
+    #[serde(rename = "not-before-policy")]
+    pub not_before_policy: i64,
+    pub session_state: String,
+    pub scope: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

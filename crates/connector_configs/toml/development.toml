@@ -6781,55 +6781,95 @@ options=[]
   payment_method_type = "boleto"
 [[santander.bank_transfer]]
   payment_method_type = "pix"
-[santander.connector_auth.MultiAuthKey]
-api_key="Client ID"
-key1="Client Secret"
-api_secret="Certificates"   #To generate a cert.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./  GDPP-BR-Cert.pfx -nocerts -out key.pem -nodes -legacy
-key2="Certificate Key"      #To generate a key.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./Cert.pfx -clcerts -nokeys -out cert.pem -legacy
+[santander.connector_auth.BodyKey]
+api_key="Certificates"      #To generate a cert.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./  GDPP-BR-Cert.pfx -nocerts -out key.pem -nodes -legacy
+key1="Certificate Key"      #To generate a key.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./Cert.pfx -clcerts -nokeys -out cert.pem -legacy
 
-[santander.metadata.pix_key]
+[[santander.metadata.pix.client_id]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+
+[[santander.metadata.pix.client_secret]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+
+[[santander.metadata.pix.pix_key]]
 name="pix_key"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
 
-[santander.metadata.expiration_time]
-name="expiration_time"
-label="Expiration Time"
-placeholder="Enter your Pix QR Code Expiration Time"
-required=true
-type="Number"
-
-[santander.metadata.cpf]
+[[santander.metadata.pix.cpf]]
 name="cpf"
 label="Cpf"
 placeholder="Enter your cpf number"
 required=true
 type="Text"
 
-[santander.metadata.merchant_city]
+[[santander.metadata.pix.cnpj]]
+name="cnpj"
+label="Cnpj"
+placeholder="Enter your cnpj number"
+required=true
+type="Text"
+
+[[santander.metadata.pix.merchant_city]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
 
-[santander.metadata.merchant_name]
+[[santander.metadata.pix.merchant_name]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
 required=true
 type="Text"
 
-[santander.metadata.workspace_id]
+[[santander.metadata.boleto.client_id]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+
+[[santander.metadata.boleto.client_secret]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+
+[[santander.metadata.boleto.cpf]]
+name="cpf"
+label="Cpf"
+placeholder="Enter your cpf number"
+required=true
+type="Text"
+
+[[santander.metadata.boleto.cnpj]]
+name="cnpj"
+label="Cnpj"
+placeholder="Enter your cnpj number"
+required=true
+type="Text"
+
+[[santander.metadata.boleto.workspace_id]]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
 required=true
 type="Text"
 
-[santander.metadata.covenant_code]
+[[santander.metadata.boleto.covenant_code]]
 name="covenant_code"
 label="Covenant Code"
 placeholder="Enter the covenant code"

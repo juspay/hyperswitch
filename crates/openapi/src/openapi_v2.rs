@@ -426,7 +426,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PixQRExpirationDuration,
         api_models::payments::ImmediateExpirationTime,
         api_models::payments::ScheduledExpirationTime,
-        api_models::payments::PixAdditionalDetails,
+        api_models::payments::BoletoAdditionalDetails,
         api_models::payments::PaymentProcessingDetailsAt,
         api_models::payments::ApplepayInitiative,
         api_models::payments::PaymentProcessingDetails,
