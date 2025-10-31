@@ -1358,7 +1358,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
 #[cfg(feature = "payouts")]
 impl CardData for api_models::payouts::ApplePayDecrypt {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let binding = self.expiry_month.clone();
+        let binding = self.expiry_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
