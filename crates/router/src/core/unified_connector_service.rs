@@ -33,7 +33,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    payment_method_data::WalletData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
@@ -771,7 +770,7 @@ pub fn build_unified_connector_service_payment_method(
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
             match wallet_data {
-                WalletData::Mifinity(mifinity_data) => Ok(payments_grpc::PaymentMethod {
+                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(mifinity_data) => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
                         wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
                             date_of_birth: Some(
