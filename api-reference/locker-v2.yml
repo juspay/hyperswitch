@@ -299,9 +299,6 @@ components:
           type: string
     Secret:
       type: object
-      properties:
-        data:
-          type: object
     Ttl:
       type: integer
       description: Time-to-live in seconds
