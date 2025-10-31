@@ -88,7 +88,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-
 /// Checks if a config key exists and returns its percentage if present
 /// Returns (key_exists, rollout_percentage)
 async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
