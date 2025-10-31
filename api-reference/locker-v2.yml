@@ -27,7 +27,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/StoreDataRequest"
+              oneOf:
+                - $ref: "#/components/schemas/StoreDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
         required: true
       responses:
         "200":
@@ -35,7 +37,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StoreDataResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/StoreDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
   /api/v2/vault/retrieve:
     post:
       tags:
@@ -52,7 +56,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RetrieveDataRequest"
+              oneOf:
+                - $ref: "#/components/schemas/RetrieveDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
         required: true
       responses:
         "200":
@@ -60,7 +66,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RetrieveDataResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/RetrieveDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
   /api/v2/vault/delete:
     post:
       tags:
@@ -77,7 +85,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeleteDataRequest"
+              oneOf:
+                - $ref: "#/components/schemas/DeleteDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
         required: true
       responses:
         "200":
@@ -85,7 +95,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteDataResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/DeleteDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
   /custodian/key1:
     post:
       tags:
@@ -171,15 +183,15 @@ paths:
     post:
       tags:
         - Data
-      summary: Get or insert the card fingerprint
-      description: Get or insert the card fingerprint
+      summary: Get or insert the data fingerprint
+      description: Get or insert the data fingerprint
       parameters:
         - in: header
           name: x-tenant-id
           schema:
             type: string
       requestBody:
-        description: Provide card number and hash key
+        description: Provide data number and hash key
         content:
           application/json:
             schema:
@@ -256,6 +268,35 @@ components:
         vault_id:
           type: string
           description: Unique identifier for the vault
+    JWEReq:
+      title: JWEReq
+      type: object
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string
+    JWERes:
+      title: JWERes
+      type: object
+      description: JWE encrypted response equivalent
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string
     Secret:
       type: object
       properties:
@@ -295,9 +336,3 @@ components:
       properties:
         fingerprint_id:
           type: string
-    # FingerprintCardData:
-    #   type: object
-    #   properties:
-    #     card_number:
-    #       type: string
-    #       example: 4242424242424242

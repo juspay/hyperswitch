@@ -479,9 +479,6 @@
                   "locker-api-reference/locker-general-purpose-storage/add-data-in-locker",
                   "locker-api-reference/locker-general-purpose-storage/retrieve-data-from-locker",
                   "locker-api-reference/locker-general-purpose-storage/delete-data-from-locker",
-                  "locker-api-reference/locker-general-purpose-storage/provide-key-1",
-                  "locker-api-reference/locker-general-purpose-storage/provide-key-2",
-                  "locker-api-reference/locker-general-purpose-storage/unlock-the-locker",
                   "locker-api-reference/locker-general-purpose-storage/get-health",
                   "locker-api-reference/locker-general-purpose-storage/get-or-insert-the-card-fingerprint"
                 ]
