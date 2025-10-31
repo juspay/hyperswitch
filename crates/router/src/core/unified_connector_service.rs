@@ -90,22 +90,25 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-/// Gets the rollout percentage for a given config key
-async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+/// Checks if a config key exists and returns its percentage if present
+/// Returns (key_exists, rollout_percentage)
+async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
-                Ok(config) => Some(config.rollout_percent),
-                Err(_) => {
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>().ok()
-                }
-            }
+            // Key exists, try to parse percentage
+            let percentage =
+                match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                    Ok(config) => Some(config.rollout_percent),
+                    Err(_) => {
+                        // Fallback to legacy format (simple float)
+                        rollout_config.config.parse::<f64>().ok()
+                    }
+                };
+            (true, percentage)
         }
-        Err(_) => None,
+        Err(_) => (false, None), // Key doesn't exist
     }
 }
 
@@ -214,33 +217,38 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
 
-    // Check both rollout keys to determine priority based on shadow percentage
+    // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let (shadow_key_exists, _shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
 
-    // Get shadow percentage to determine priority
-    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
-        .await
-        .unwrap_or(0.0);
+    // Simplified decision logic: Shadow takes priority, then rollout, then direct
+    let shadow_rollout_availability = if shadow_key_exists {
+        // Block 1: Shadow key exists - check if it's enabled
+        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
 
-    let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
-            // Shadow is present and percentage is non-zero, use shadow
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is present with non-zero percentage, using shadow"
-            );
-            ShadowRolloutAvailability::IsAvailable
-        } else if rollout_result.should_execute {
-            // Either shadow is 0.0 or not present, use rollout if available
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is 0.0 or not present, using rollout"
-            );
+        if shadow_percentage != 0.0 {
+            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
             ShadowRolloutAvailability::IsAvailable
         } else {
+            router_env::logger::debug!(
+                shadow_key = %shadow_rollout_key,
+                shadow_percentage = shadow_percentage,
+                rollout_enabled = rollout_result.should_execute,
+                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
+            );
+            // Shadow disabled, result is the same regardless of rollout status
             ShadowRolloutAvailability::NotAvailable
-        };
+        }
+    } else if rollout_result.should_execute {
+        // Block 2: No shadow key, but rollout is enabled - use primary UCS
+        router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
+        ShadowRolloutAvailability::NotAvailable
+    } else {
+        // Block 3: Neither shadow nor rollout enabled - use direct
+        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Neither shadow nor rollout enabled, using Direct mode" );
+        ShadowRolloutAvailability::NotAvailable
+    };
 
     // Single decision point using pattern matching
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -441,7 +449,7 @@ fn decide_execution_path(
         // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
         (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
             Ok((
-                GatewaySystem::UnifiedConnectorService,
+                GatewaySystem::Direct,
                 ExecutionPath::ShadowUnifiedConnectorService,
             ))
         }
@@ -610,22 +618,21 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     // Get shadow percentage to determine priority
-    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
-        .await
-        .unwrap_or(0.0);
+    let (_shadow_key_exists, shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
 
     let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
+        if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
             // Shadow is present and percentage is non-zero, use shadow
             router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
                 "Shadow rollout is present with non-zero percentage for webhooks, using shadow"
             );
             ShadowRolloutAvailability::IsAvailable
         } else if rollout_result.should_execute {
             // Either shadow is 0.0 or not present, use rollout if available
             router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
                 "Shadow rollout is 0.0 or not present for webhooks, using rollout"
             );
             ShadowRolloutAvailability::IsAvailable
