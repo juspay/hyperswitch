@@ -20,7 +20,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
+            set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -241,6 +242,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
         call_connector_action: common_enums::CallConnectorAction,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         match call_connector_action {
             common_enums::CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
@@ -303,7 +305,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     );
                     return Ok(());
                 }
-
                 let client = state
                     .grpc_client
                     .unified_connector_service_client
@@ -318,6 +319,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     ))
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to construct Payment Get Request")?;
+
+                let merchant_connector_id = merchant_connector_account.get_mca_id();
 
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
                     merchant_connector_account,
@@ -342,6 +345,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .external_vault_proxy_metadata(None)
                     .merchant_reference_id(merchant_reference_id)
                     .lineage_ids(lineage_ids);
+                let connector_name = self.connector.clone();
                 let updated_router_data = Box::pin(ucs_logging_wrapper(
                     self.clone(),
                     state,
@@ -362,6 +366,38 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             )
                             .change_context(ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to deserialize UCS response")?;
+
+                        // Extract and store access token if present
+                        if let Some(access_token) = get_access_token_from_ucs_response(
+                            state,
+                            merchant_context,
+                            &connector_name,
+                            merchant_connector_id.as_ref(),
+                            creds_identifier.clone(),
+                            payment_get_response.state.as_ref(),
+                        )
+                        .await
+                        {
+                            if let Err(error) = set_access_token_for_ucs(
+                                state,
+                                merchant_context,
+                                &connector_name,
+                                access_token,
+                                merchant_connector_id.as_ref(),
+                                creds_identifier,
+                            )
+                            .await
+                            {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to store UCS access token from psync response"
+                                );
+                            } else {
+                                logger::debug!(
+                                    "Successfully stored access token from UCS psync response"
+                                );
+                            }
+                        }
 
                         let router_data_response =
                             router_data_response.map(|(response, status)| {
