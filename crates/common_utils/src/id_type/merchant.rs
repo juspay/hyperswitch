@@ -151,10 +151,12 @@ impl MerchantId {
     pub fn get_access_token_key(
         &self,
         merchant_connector_id_or_connector_name: impl Display,
+        payment_method_type: Option<String>,
     ) -> String {
         format!(
-            "access_token_{}_{merchant_connector_id_or_connector_name}",
-            self.get_string_repr()
+            "access_token_{}_{merchant_connector_id_or_connector_name}_{:?}",
+            self.get_string_repr(),
+            payment_method_type,
         )
     }
 

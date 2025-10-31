@@ -79,8 +79,23 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let pmt_suffix = connector
+            .connector_name
+            .is_different_access_token_required_per_payment_method_type()
+            .then(|| {
+                router_data
+                    .payment_method_type
+                    .as_ref()
+                    .map(|pmt| pmt.to_string())
+            })
+            .flatten();
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(
+                merchant_id,
+                &merchant_connector_id_or_connector_name,
+                pmt_suffix.clone(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -166,6 +181,7 @@ pub async fn add_access_token<
                                 merchant_id,
                                 &merchant_connector_id_or_connector_name,
                                 modified_access_token_with_expiry.clone(),
+                                pmt_suffix.clone(),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
