@@ -68,7 +68,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                         value: Secret::new(stringified_card),
                         classifiers: vec![VGS_CLASSIFIER.to_string()],
                         format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Persistent
+                        storage: VgsStorageType::Persistent,
                     }],
                 })
             }
@@ -205,31 +205,36 @@ impl
                     network_token: get_token_from_response(
                         &item.response.data,
                         Secret::new(network_details.network_token.get_card_no()),
-                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "alias",
                     })?,
-                    cryptogram: network_details.cryptogram.and_then(|crypto| {
-                        get_token_from_response(&item.response.data, crypto)
-                    }),
+                    cryptogram: network_details
+                        .cryptogram
+                        .and_then(|crypto| get_token_from_response(&item.response.data, crypto)),
                     token_expiration_month: get_token_from_response(
                         &item.response.data,
                         network_details.network_token_exp_month,
-                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "alias",
                     })?,
                     token_expiration_year: get_token_from_response(
                         &item.response.data,
                         network_details.network_token_exp_year,
-                    ).ok_or(errors::ConnectorError::MissingRequiredField {
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "alias",
                     })?,
                 }),
                 ..item.data
             }),
             _ => {
-                let vgs_alias = get_token_from_response(&item.response.data, Secret::new("data".to_string())).ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "alias",
-                })?;
+                let vgs_alias =
+                    get_token_from_response(&item.response.data, Secret::new("data".to_string()))
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "alias",
+                    })?;
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,

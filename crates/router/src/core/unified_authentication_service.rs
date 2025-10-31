@@ -1788,7 +1788,10 @@ pub async fn authentication_sync_core(
                                 },
                             )?;
 
-                        let cryptogram = authentication_details.dynamic_data_details.clone().and_then(|details| details.dynamic_data_value);
+                        let cryptogram = authentication_details
+                            .dynamic_data_details
+                            .clone()
+                            .and_then(|details| details.dynamic_data_value);
 
                         let vault_data =
                         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
