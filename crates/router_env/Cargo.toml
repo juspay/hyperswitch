@@ -17,7 +17,7 @@ opentelemetry-aws = { version = "0.15.0", default-features = false, features = [
 opentelemetry-otlp = { version = "0.27.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
 opentelemetry_sdk = { version = "0.27.1", default-features = false, features = ["rt-tokio-current-thread", "metrics", "trace"] }
 rustc-hash = "1.1"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
 strum = { version = "0.26.3", features = ["derive"] }
