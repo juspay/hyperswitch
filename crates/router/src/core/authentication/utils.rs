@@ -302,6 +302,7 @@ pub async fn create_new_authentication(
         challenge_cancel: None,
         challenge_code_reason: None,
         message_extension: None,
+        customer_details: None,
     };
     state
         .store

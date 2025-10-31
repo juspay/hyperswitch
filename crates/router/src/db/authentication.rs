@@ -173,6 +173,7 @@ impl AuthenticationInterface for MockDb {
             challenge_cancel: authentication.challenge_cancel,
             challenge_code_reason: authentication.challenge_code_reason,
             message_extension: authentication.message_extension,
+            customer_details: authentication.customer_details,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

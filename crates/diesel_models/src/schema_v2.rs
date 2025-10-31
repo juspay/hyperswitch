@@ -144,6 +144,7 @@ diesel::table! {
         message_extension -> Nullable<Jsonb>,
         #[max_length = 255]
         challenge_request_key -> Nullable<Varchar>,
+        customer_details -> Nullable<Bytea>,
     }
 }
 
