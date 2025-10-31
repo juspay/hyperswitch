@@ -358,6 +358,8 @@ pub struct HelcimPaymentsResponse {
     invoice_number: Option<String>,
     #[serde(rename = "type")]
     transaction_type: HelcimTransactionType,
+    pub(crate) amount: FloatMajorUnit,
+    pub(crate) currency: String,
 }
 
 impl<F>
@@ -683,6 +685,8 @@ pub struct RefundResponse {
     transaction_id: u64,
     #[serde(rename = "type")]
     transaction_type: HelcimRefundTransactionType,
+    pub(crate) amount: FloatMajorUnit,
+    pub(crate) currency: String,
 }
 
 impl From<RefundResponse> for enums::RefundStatus {
