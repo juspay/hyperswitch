@@ -616,22 +616,20 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     // Get shadow percentage to determine priority
-    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
-        .await
-        .unwrap_or(0.0);
-
+    let (_shadow_key_exists, shadow_percentage) = get_rollout_config_info(state, &shadow_rollout_key).await;
+    
     let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
+        if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
             // Shadow is present and percentage is non-zero, use shadow
             router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
                 "Shadow rollout is present with non-zero percentage for webhooks, using shadow"
             );
             ShadowRolloutAvailability::IsAvailable
         } else if rollout_result.should_execute {
             // Either shadow is 0.0 or not present, use rollout if available
             router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
                 "Shadow rollout is 0.0 or not present for webhooks, using rollout"
             );
             ShadowRolloutAvailability::IsAvailable
