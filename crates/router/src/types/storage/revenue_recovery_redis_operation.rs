@@ -53,10 +53,15 @@ pub struct PaymentProcessorTokenStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountUpdateHistoryRecord {
+    /// Old token by the account updater
     pub old_token : String,
+    /// New token by the account updater
     pub new_token : String,
+    /// The time at which the token was updated
     pub updated_at : PrimitiveDateTime,
+    /// Metadata of the old token 
     pub old_token_info : Option<api_models::payments::AdditionalCardInfo>,
+    /// Metadata of the new token
     pub new_token_info : Option<api_models::payments::AdditionalCardInfo>,
 }
 

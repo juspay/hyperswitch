@@ -1300,6 +1300,30 @@ pub struct PaymentResponse {
     pub network_transaction_id: Option<Secret<String>>,
     pub approved_amount: Option<MinorUnit>,
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
+    pub account_updater : Option<AccountUpdater>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdater {
+    pub original_card_token_info : Option<CardTokenInfo>,
+    pub new_card_token_info: Option<CardTokenInfo>,
+    pub extended_card_response: ExtendedCardResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtendedCardResponse {
+    pub message: Option<String>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CardTokenInfo {
+    pub cnp_token: Secret<String>,
+    pub exp_date: Option<String>,
+    pub type_field: Option<String>,
+    pub bin: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -3984,18 +4008,18 @@ fn get_vantiv_card_data(
                     };
 
                     let apple_pay_network = apple_pay_data
-    .payment_method
-    .network
-    .parse::<WorldPayVativApplePayNetwork>()
-    .map_err(|_| {
-        error_stack::Report::new(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
-                apple_pay_data.payment_method.network
-            ),
-            connector: "worldpay_vativ"
-        })
-    })?;
+                    .payment_method
+                    .network
+                    .parse::<WorldPayVativApplePayNetwork>()
+                    .map_err(|_| {
+                        error_stack::Report::new(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
+                                apple_pay_data.payment_method.network
+                            ),
+                            connector: "worldpay_vativ"
+                        })
+                    })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
@@ -4038,18 +4062,18 @@ fn get_vantiv_card_data(
                             })?,
                     };
                     let google_pay_network = google_pay_data
-    .info
-    .card_network
-    .parse::<WorldPayVativGooglePayNetwork>()
-    .map_err(|_| {
-        error_stack::Report::new(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
-                google_pay_data.info.card_network
-            ),
-            connector: "worldpay_vativ"
-        })
-    })?;
+                        .info
+                        .card_network
+                        .parse::<WorldPayVativGooglePayNetwork>()
+                        .map_err(|_| {
+                            error_stack::Report::new(errors::ConnectorError::NotSupported {
+                                message: format!(
+                                    "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
+                                    google_pay_data.info.card_network
+                                ),
+                                connector: "worldpay_vativ"
+                            })
+                        })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
