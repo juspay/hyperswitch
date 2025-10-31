@@ -695,3 +695,21 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+
+/// Billing Descriptor information to be sent to the payment gateway
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct BillingDescriptor {
+    /// name to be put in billing description
+    pub name: Option<String>,
+    /// city to be put in billing description
+    pub city: Option<String>,
+    /// phone to be put in billing description
+    pub phone: Option<Secret<String>>,
+    /// a short description for the payment
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
+}
+
+impl_to_sql_from_sql_json!(BillingDescriptor);

@@ -6,7 +6,7 @@ use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
     request::{Method, RequestContent},
-    types::MinorUnit,
+    types::{MinorUnit, StatementDescriptor},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -363,6 +363,14 @@ pub struct CheckoutLineItem {
 }
 
 #[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutBillingDescriptor {
+    pub name: Option<String>,
+    pub city: Option<String>,
+    pub reference: Option<StatementDescriptor>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
@@ -380,6 +388,7 @@ pub struct PaymentsRequest {
     pub merchant_initiated: Option<bool>,
     pub previous_payment_id: Option<String>,
     pub store_for_future_use: Option<bool>,
+    pub billing_descriptor: Option<CheckoutBillingDescriptor>,
     // Level 2/3 data fields
     pub customer: Option<CheckoutCustomer>,
     pub processing: Option<CheckoutProcessing>,
@@ -806,6 +815,17 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
+        let billing_descriptor =
+            item.router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| CheckoutBillingDescriptor {
+                    name: descriptor.name.clone(),
+                    city: descriptor.city.clone(),
+                    reference: descriptor.statement_descriptor.clone(),
+                });
+
         let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -826,6 +846,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             items,
             partial_authorization,
             payment_ip,
+            billing_descriptor,
         };
 
         Ok(request)

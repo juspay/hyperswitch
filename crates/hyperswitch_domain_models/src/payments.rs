@@ -126,6 +126,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 impl PaymentIntent {

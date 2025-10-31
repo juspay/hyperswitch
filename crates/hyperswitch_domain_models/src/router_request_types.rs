@@ -90,6 +90,7 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Debug, Clone, Serialize)]

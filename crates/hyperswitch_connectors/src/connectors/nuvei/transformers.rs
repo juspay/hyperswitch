@@ -113,6 +113,7 @@ trait NuveiAuthorizePreprocessingCommon {
         Ok(None)
     }
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
+    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -198,6 +199,10 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
+        None
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -275,6 +280,18 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
+        self.billing_descriptor
+            .as_ref()
+            .map(|descriptor| NuveiDynamicDescriptor {
+                merchant_name: descriptor
+                    .name
+                    .as_ref()
+                    .map(|name| name.trim().chars().take(25).collect()),
+                merchant_phone: descriptor.phone.clone(),
+            })
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -351,6 +368,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
+
+    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
+        None
     }
 }
 
@@ -458,6 +479,14 @@ pub enum IsRebilling {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct NuveiDynamicDescriptor {
+    pub merchant_name: Option<String>,
+    pub merchant_phone: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
     pub session_token: Secret<String>,
@@ -484,6 +513,7 @@ pub struct NuveiPaymentsRequest {
     pub items: Option<Vec<NuveiItem>>,
     pub is_partial_approval: Option<PartialApprovalFlag>,
     pub external_scheme_details: Option<ExternalSchemeDetails>,
+    pub dynamic_descriptor: Option<NuveiDynamicDescriptor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1929,6 +1959,9 @@ where
         } else {
             request_data.device_details.clone()
         };
+
+        let dynamic_descriptor = item.request.get_dynamic_descriptor();
+
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
@@ -1946,6 +1979,7 @@ where
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
             external_scheme_details: request_data.external_scheme_details,
+            dynamic_descriptor,
             ..request
         })
     }
