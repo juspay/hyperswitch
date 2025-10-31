@@ -113,10 +113,6 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
-    // will have to add the validator here to map for the input data
-    // and check if the mapping is correct or not between the payout_method_data
-    // and req, which contains the payout type
-
     if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Confirm must be true for recurring payouts".to_string(),
@@ -147,11 +143,8 @@ pub async fn validate_create_request(
         None => id_type::PayoutId::generate(),
     };
 
-    let request_payout_type = req.payout_type;
-    let request_payout_method_data = &req.payout_method_data;
-
     // validating the payout type and method data here.
-    validate_payout_type_and_method(request_payout_type, request_payout_method_data)
+    validate_payout_type_and_method(req.payout_type, &req.payout_method_data)
         .await
         .attach_printable_lazy(|| {
             "Validation failed: Payout type and Payout method data mismatch".to_string()
