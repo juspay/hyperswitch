@@ -738,22 +738,42 @@ pub struct AuthenticationSyncResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct AuthTokenData {
-    /// Token id for network_token
-    #[schema(value_type = String)]
-    pub network_token: masking::Secret<String>,
+#[serde(untagged)]
+pub enum AuthTokenData {
+    Network {
+        /// Token id for network_token
+        #[schema(value_type = String)]
+        payment_token: masking::Secret<String>,
 
-    /// Token id for tavv
-    #[schema(value_type = String)]
-    pub cryptogram: Option<masking::Secret<String>>,
+        /// Token id for tavv
+        #[schema(value_type = String)]
+        token_cryptogram: Option<masking::Secret<String>>,
 
-    /// Token id for token_expiration_month
-    #[schema(value_type = String)]
-    pub token_expiration_month: masking::Secret<String>,
+        /// Token id for token_expiration_month
+        #[schema(value_type = String)]
+        token_expiration_month: masking::Secret<String>,
 
-    /// Token id for token_expiration_year
-    #[schema(value_type = String)]
-    pub token_expiration_year: masking::Secret<String>,
+        /// Token id for token_expiration_year
+        #[schema(value_type = String)]
+        token_expiration_year: masking::Secret<String>,
+    },
+    Card {
+        /// card number for card
+        #[schema(value_type = String)]
+        card_number: masking::Secret<String>,
+
+        /// card cvc
+        #[schema(value_type = String)]
+        card_cvc: Option<masking::Secret<String>>,
+
+        /// card_expiry_month
+        #[schema(value_type = String)]
+        card_expiry_month: masking::Secret<String>,
+
+        /// card_expiry_year
+        #[schema(value_type = String)]
+        card_expiry_year: masking::Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]

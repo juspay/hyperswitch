@@ -775,6 +775,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: billing_name,
+                        card_cvc: None,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card_network.clone(),
@@ -2453,9 +2454,9 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                     multi_vault_token: None,
                 })
             }
-            types::VaultResponseData::ExternalVaultMultiTokenResponse {
-                network_token,
-                cryptogram,
+            types::VaultResponseData::NetworkExternalVaultMultiTokenResponse {
+                payment_token,
+                token_cryptogram,
                 token_expiration_month,
                 token_expiration_year,
             } => {
@@ -2468,11 +2469,35 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                     vault_id,
                     fingerprint_id: None,
                     entity_id: None,
-                    multi_vault_token: Some(pm_types::MultiVaultTokenData {
-                        network_token,
+                    multi_vault_token: Some(pm_types::MultiVaultTokenData::Network {
+                        payment_token,
                         token_expiration_month,
                         token_expiration_year,
-                        cryptogram,
+                        token_cryptogram,
+                    }),
+                })
+            }
+
+            types::VaultResponseData::CardExternalVaultMultiTokenResponse {
+                card_number,
+                card_cvc,
+                card_expiry_month,
+                card_expiry_year,
+            } => {
+                #[cfg(feature = "v2")]
+                let vault_id = domain::VaultId::generate("".to_string());
+                #[cfg(not(feature = "v2"))]
+                let vault_id = "".to_string();
+
+                Ok(pm_types::AddVaultResponse {
+                    vault_id,
+                    fingerprint_id: None,
+                    entity_id: None,
+                    multi_vault_token: Some(pm_types::MultiVaultTokenData::Card {
+                        card_number,
+                        card_cvc,
+                        card_expiry_month,
+                        card_expiry_year,
                     }),
                 })
             }

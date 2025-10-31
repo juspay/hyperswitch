@@ -19,6 +19,7 @@ use api_models::{
         AuthenticationSdkNextAction, AuthenticationSessionTokenRequest,
         ClickToPayEligibilityCheckResponseData,
     },
+    payment_methods::CardDetail,
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
@@ -68,7 +69,7 @@ use crate::{
     db::domain,
     routes::SessionState,
     services::AuthFlow,
-    types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
+    types::{domain::types::AsyncLift, payment_methods as pm_types, transformers::ForeignTryFrom},
 };
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -1731,69 +1732,96 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, auth_token_data) =
-        if !authentication.authentication_status.is_terminal_status() {
-            let post_auth_response = if authentication_connector.is_click_to_pay() {
-                ClickToPay::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account.clone(),
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    None,
-                )
-                .await?
-            } else {
-                ExternalAuthentication::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account,
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    Some(&authentication),
-                )
-                .await?
-            };
+    let (updated_authentication, auth_token_data) = if !authentication
+        .authentication_status
+        .is_terminal_status()
+    {
+        let post_auth_response = if authentication_connector.is_click_to_pay() {
+            ClickToPay::post_authentication(
+                &state,
+                &business_profile,
+                None,
+                &three_ds_connector_account.clone(),
+                &authentication_connector.to_string(),
+                &authentication_id,
+                common_enums::PaymentMethod::Card,
+                merchant_id,
+                None,
+            )
+            .await?
+        } else {
+            ExternalAuthentication::post_authentication(
+                &state,
+                &business_profile,
+                None,
+                &three_ds_connector_account,
+                &authentication_connector.to_string(),
+                &authentication_id,
+                common_enums::PaymentMethod::Card,
+                merchant_id,
+                Some(&authentication),
+            )
+            .await?
+        };
 
-            let auth_token_data = if let Ok(UasAuthenticationResponseData::PostAuthentication {
-                authentication_details,
-            }) = &post_auth_response.response
+        let auth_token_data = if let Ok(UasAuthenticationResponseData::PostAuthentication {
+            authentication_details,
+        }) = &post_auth_response.response
+        {
+            if authentication_details.token_details.is_some()
+                || authentication_details.raw_card_details.is_some()
             {
-                if let Some(token_details) = &authentication_details.token_details {
-                    use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
+                use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
 
-                    if let ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) =
-                        business_profile.external_vault_details
+                if let ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) =
+                    business_profile.external_vault_details
+                {
+                    let external_vault_mca_id = external_vault_details.vault_connector_id;
+
+                    let merchant_connector_account_details = state
+                        .store
+                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            &key_manager_state,
+                            merchant_context.get_merchant_account().get_id(),
+                            &external_vault_mca_id,
+                            merchant_context.get_merchant_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: external_vault_mca_id.get_string_repr().to_string(),
+                            },
+                        )?;
+
+                    let vault_data = if let Some(card_details) =
+                        authentication_details.raw_card_details.clone()
                     {
-                        let external_vault_mca_id = external_vault_details.vault_connector_id;
-
-                        let merchant_connector_account_details = state
-                            .store
-                            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                                &key_manager_state,
-                                merchant_context.get_merchant_account().get_id(),
-                                &external_vault_mca_id,
-                                merchant_context.get_merchant_key_store(),
-                            )
-                            .await
-                            .to_not_found_response(
-                                ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: external_vault_mca_id.get_string_repr().to_string(),
-                                },
-                            )?;
-
+                        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
+                            CardDetail {
+                                card_number: card_details.pan,
+                                card_exp_month: card_details.expiration_month,
+                                card_exp_year: card_details.expiration_year,
+                                card_cvc: card_details.card_security_code,
+                                card_holder_name: None,
+                                nick_name: None,
+                                card_issuing_country: None,
+                                card_network: None,
+                                card_issuer: None,
+                                card_type: None,
+                            },
+                        )
+                    } else {
                         let cryptogram = authentication_details
                             .dynamic_data_details
                             .clone()
                             .and_then(|details| details.dynamic_data_value);
 
-                        let vault_data =
+                        let token_details = authentication_details
+                            .token_details
+                            .clone()
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable("failed to get network_token_details")?;
+
                         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                             payment_method_data::NetworkTokenDetails {
                                 network_token: token_details
@@ -1812,31 +1840,48 @@ pub async fn authentication_sync_core(
                                 card_holder_name: None,
                                 nick_name: None,
                             },
-                        );
+                        )
+                    };
 
-                        let external_vault_response =
-                            payment_methods::vault_payment_method_external_v1(
-                                &state,
-                                &vault_data,
-                                merchant_account,
-                                merchant_connector_account_details,
-                            )
-                            .await?;
+                    let external_vault_response =
+                        Box::pin(payment_methods::vault_payment_method_external_v1(
+                            &state,
+                            &vault_data,
+                            merchant_account,
+                            merchant_connector_account_details,
+                        ))
+                        .await?;
 
-                        if let Some(multi_vault_token) = external_vault_response.multi_vault_token {
-                            Some(AuthTokenData {
-                                network_token: multi_vault_token.network_token,
-                                cryptogram: multi_vault_token.cryptogram,
-                                token_expiration_month: multi_vault_token.token_expiration_month,
-                                token_expiration_year: multi_vault_token.token_expiration_year,
-                            })
-                        } else {
-                            router_env::logger::error!(
-                                "Unexpected Behaviour, Multi Token Data is missing"
-                            );
-                            None
-                        }
+                    if let Some(pm_types::MultiVaultTokenData::Network {
+                        payment_token,
+                        token_cryptogram,
+                        token_expiration_month,
+                        token_expiration_year,
+                    }) = external_vault_response.multi_vault_token.clone()
+                    {
+                        Some(AuthTokenData::Network {
+                            payment_token,
+                            token_cryptogram,
+                            token_expiration_month,
+                            token_expiration_year,
+                        })
+                    } else if let Some(pm_types::MultiVaultTokenData::Card {
+                        card_number,
+                        card_cvc,
+                        card_expiry_year,
+                        card_expiry_month,
+                    }) = external_vault_response.multi_vault_token
+                    {
+                        Some(AuthTokenData::Card {
+                            card_number,
+                            card_cvc,
+                            card_expiry_year,
+                            card_expiry_month,
+                        })
                     } else {
+                        router_env::logger::error!(
+                            "Unexpected Behaviour, Multi Token Data is missing"
+                        );
                         None
                     }
                 } else {
@@ -1844,25 +1889,28 @@ pub async fn authentication_sync_core(
                 }
             } else {
                 None
-            };
-
-            let auth_update_response = utils::external_authentication_update_trackers(
-                &state,
-                post_auth_response,
-                authentication.clone(),
-                None,
-                merchant_context.get_merchant_key_store(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .await?;
-
-            (auth_update_response, auth_token_data)
+            }
         } else {
-            (authentication, None)
+            None
         };
+
+        let auth_update_response = utils::external_authentication_update_trackers(
+            &state,
+            post_auth_response,
+            authentication.clone(),
+            None,
+            merchant_context.get_merchant_key_store(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?;
+
+        (auth_update_response, auth_token_data)
+    } else {
+        (authentication, None)
+    };
 
     let (_, eci): (Option<masking::Secret<String>>, Option<String>) = match auth_flow {
         AuthFlow::Client => (None, None),

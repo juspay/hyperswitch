@@ -368,6 +368,7 @@ impl PaymentMethodsController for PmCards<'_> {
             card_number: network_token_data.network_token_number.clone(),
             card_exp_month: network_token_data.network_token_exp_month.clone(),
             card_exp_year: network_token_data.network_token_exp_year.clone(),
+            card_cvc: None,
             card_holder_name: network_token_data.card_holder_name.clone(),
             nick_name: network_token_data.nick_name.clone(),
             card_issuing_country: network_token_data.card_issuing_country.clone(),

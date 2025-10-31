@@ -1185,12 +1185,12 @@ pub async fn save_in_locker_external(
             })?;
 
         // Call vault_payment_method_external_v1
-        let vault_response = vault_payment_method_external_v1(
+        let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
             &payment_method_vaulting_data,
             merchant_context.get_merchant_account(),
             merchant_connector_account_details,
-        )
+        ))
         .await?;
 
         let payment_method_id = vault_response.vault_id.to_string().to_owned();
@@ -1328,6 +1328,7 @@ pub async fn save_network_token_in_locker(
                             card_number: token_response.token.clone(),
                             card_exp_month: token_response.token_expiry_month.clone(),
                             card_exp_year: token_response.token_expiry_year.clone(),
+                            card_cvc: None,
                             card_holder_name: None,
                             nick_name: None,
                             card_issuing_country: None,

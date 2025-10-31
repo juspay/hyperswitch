@@ -719,11 +719,17 @@ pub enum VaultResponseData {
         connector_vault_id: String,
         fingerprint_id: String,
     },
-    ExternalVaultMultiTokenResponse {
-        network_token: masking::Secret<String>,
-        cryptogram: Option<masking::Secret<String>>,
+    NetworkExternalVaultMultiTokenResponse {
+        payment_token: masking::Secret<String>,
+        token_cryptogram: Option<masking::Secret<String>>,
         token_expiration_month: masking::Secret<String>,
         token_expiration_year: masking::Secret<String>,
+    },
+    CardExternalVaultMultiTokenResponse {
+        card_number: masking::Secret<String>,
+        card_cvc: Option<masking::Secret<String>>,
+        card_expiry_month: masking::Secret<String>,
+        card_expiry_year: masking::Secret<String>,
     },
     ExternalVaultRetrieveResponse {
         vault_data: PaymentMethodVaultingData,

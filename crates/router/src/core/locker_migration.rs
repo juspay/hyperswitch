@@ -141,6 +141,7 @@ pub async fn call_to_locker(
             card_number: card.card_number,
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
+            card_cvc: None,
             card_holder_name: card.name_on_card,
             nick_name: card.nick_name.map(masking::Secret::new),
             card_issuing_country: None,

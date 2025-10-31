@@ -551,6 +551,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_number: card_details.card_number.clone(),
                 card_exp_month: card_details.card_exp_month.clone(),
                 card_exp_year: card_details.card_exp_year.clone(),
+                card_cvc: None,
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
                 card_issuing_country: card_details.card_issuing_country.clone(),

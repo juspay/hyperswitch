@@ -65,12 +65,21 @@ pub struct AddVaultResponse {
     pub multi_vault_token: Option<MultiVaultTokenData>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct MultiVaultTokenData {
-    pub network_token: Secret<String>,
-    pub cryptogram: Option<Secret<String>>,
-    pub token_expiration_month: Secret<String>,
-    pub token_expiration_year: Secret<String>,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum MultiVaultTokenData {
+    Network {
+        payment_token: Secret<String>,
+        token_cryptogram: Option<Secret<String>>,
+        token_expiration_month: Secret<String>,
+        token_expiration_year: Secret<String>,
+    },
+    Card {
+        card_number: Secret<String>,
+        card_cvc: Option<Secret<String>>,
+        card_expiry_year: Secret<String>,
+        card_expiry_month: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v2")]
