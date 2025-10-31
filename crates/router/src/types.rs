@@ -520,7 +520,8 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
@@ -564,7 +565,8 @@ impl Capturable for PaymentsCancelPostCaptureData {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
