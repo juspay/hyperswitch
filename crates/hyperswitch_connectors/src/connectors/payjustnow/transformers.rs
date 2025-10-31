@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{self, RefundsResponseRouterData},
-    utils::{PaymentsAuthorizeRequestData, RouterData as _},
+    utils::{PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RouterData as _},
 };
 
 const NO_REFUND_REASON: &str = "No reason provided";
@@ -237,15 +237,7 @@ impl TryFrom<&PaymentsCancelRouterData> for PayjustnowCancelRequest {
 impl TryFrom<&PaymentsSyncRouterData> for PayjustnowSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
-        let checkout_token = match item.request.connector_transaction_id.clone() {
-            ResponseId::ConnectorTransactionId(id) => id,
-            ResponseId::EncodedData(_) | ResponseId::NoResponseId => {
-                return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                }
-                .into())
-            }
-        };
+        let checkout_token = item.request.get_connector_transaction_id()?;
         Ok(Self { checkout_token })
     }
 }
