@@ -8118,6 +8118,8 @@ pub enum NextActionCall {
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
     Deny { message: String },
+    /// The next action is to perform eligibility check
+    EligibilityCheck,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -8559,6 +8561,8 @@ pub struct PaymentsManualUpdateRequest {
     pub error_reason: Option<String>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,
+    /// The amount that can be captured on the payment.
+    pub amount_capturable: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -8580,6 +8584,8 @@ pub struct PaymentsManualUpdateResponse {
     pub error_reason: Option<String>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,
+    /// The amount that can be captured on the payment.
+    pub amount_capturable: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

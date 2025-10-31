@@ -685,6 +685,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+        amount_capturable: Option<MinorUnit>,
     },
     PostSessionTokensUpdate {
         updated_by: String,
@@ -874,6 +875,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_payment_id: Option<String>,
+        amount_capturable: Option<MinorUnit>,
     },
 }
 
@@ -1639,6 +1641,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_payment_id,
+                amount_capturable,
             } => {
                 let (connector_payment_id, connector_payment_data) = connector_payment_id
                     .map(ConnectorTransactionId::form_id_and_data)
@@ -1660,7 +1663,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     payment_method_id: None,
                     browser_info: None,
                     connector_metadata: None,
-                    amount_capturable: None,
+                    amount_capturable,
                     amount_to_capture: None,
                     merchant_connector_id: None,
                     connector: None,
@@ -4164,6 +4167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                amount_capturable,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -4205,7 +4209,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     multiple_capture_count: None,
                     surcharge_amount: None,
                     tax_amount: None,
-                    amount_capturable: None,
+                    amount_capturable,
                     merchant_connector_id: None,
                     authentication_data: None,
                     encoded_data: None,

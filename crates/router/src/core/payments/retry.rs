@@ -405,6 +405,7 @@ where
         payment_data,
         customer,
         payments::CallConnectorAction::Trigger,
+        None,
         validate_result,
         schedule_time,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
