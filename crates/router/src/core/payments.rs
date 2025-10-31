@@ -551,6 +551,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
@@ -841,6 +842,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -974,6 +976,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action,
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -2118,6 +2121,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
@@ -2153,6 +2157,7 @@ where
             operation.clone(),
             req,
             call_connector_action,
+            shadow_ucs_call_connector_action,
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
@@ -3141,6 +3146,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             services::api::AuthFlow::Merchant,
             connector_action,
             None,
+            None,
             HeaderPayload::default(),
         ))
         .await?;
@@ -3301,6 +3307,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 payment_sync_req,
                 services::api::AuthFlow::Merchant,
                 connector_action,
+                None,
                 None,
                 HeaderPayload::default(),
             ),
@@ -3646,6 +3653,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 services::api::AuthFlow::Merchant,
                 connector_action,
                 None,
+                None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
             ))
             .await?
@@ -3677,6 +3685,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     payment_sync_req,
                     services::api::AuthFlow::Merchant,
                     connector_action,
+                    None,
                     None,
                     HeaderPayload::default(),
                 ),
@@ -4253,6 +4262,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -4286,6 +4296,7 @@ where
         &router_data,
         Some(payment_data),
         call_connector_action.clone(),
+        shadow_ucs_call_connector_action.clone(),
     )
     .await?;
 
@@ -4343,6 +4354,7 @@ where
                     payment_data,
                     customer,
                     call_connector_action,
+                    shadow_ucs_call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
@@ -4837,6 +4849,7 @@ where
         &router_data,
         Some(payment_data),
         call_connector_action.clone(),
+        None,
     )
     .await?;
 
@@ -4982,6 +4995,7 @@ where
             &router_data,
             Some(payment_data),
             call_connector_action.clone(),
+            None,
         )
         .await?;
         if matches!(execution, ExecutionPath::UnifiedConnectorService) {

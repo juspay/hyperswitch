@@ -8497,6 +8497,7 @@ pub async fn process_through_direct_with_shadow_unified_connector_service<
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -8599,6 +8600,7 @@ where
             unified_connector_service_merchant_context,
             unified_connector_service_merchant_order_reference_id,
             call_connector_action,
+            shadow_ucs_call_connector_action,
             unified_connector_service_creds_identifier,
             unified_connector_service_customer,
             unified_connector_service_payment_attempt_data,
@@ -8633,6 +8635,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_context: domain::MerchantContext,
     merchant_order_reference_id: Option<String>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     creds_identifier: Option<String>,
     customer: Option<domain::Customer>,
     payment_attempt_data: PaymentAttempt,
@@ -8671,7 +8674,7 @@ where
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
-            call_connector_action,
+            shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
             creds_identifier,
         )
         .await
