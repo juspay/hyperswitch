@@ -28,12 +28,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::AdditionalCardInfo;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
-        RefundsRequestData, RouterData as _,
+        self as connector_utils, AdditionalCardInfo, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
