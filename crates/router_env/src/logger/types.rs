@@ -658,6 +658,10 @@ pub enum Flow {
     AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
+    /// Authentication Eligibility Check flow
+    AuthenticationEligibilityCheck,
+    /// Authentication Retrieve Eligibility Check flow
+    AuthenticationRetrieveEligibilityCheck,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
