@@ -153,11 +153,23 @@ impl MerchantId {
         merchant_connector_id_or_connector_name: impl Display,
         payment_method_type: Option<String>,
     ) -> String {
-        format!(
-            "access_token_{}_{merchant_connector_id_or_connector_name}_{:?}",
-            self.get_string_repr(),
-            payment_method_type,
-        )
+        match payment_method_type {
+            Some(pmt) => {
+                format!(
+                    "access_token_{}_{}_{}",
+                    self.get_string_repr(),
+                    merchant_connector_id_or_connector_name,
+                    pmt
+                )
+            }
+            None => {
+                format!(
+                    "access_token_{}_{}",
+                    self.get_string_repr(),
+                    merchant_connector_id_or_connector_name
+                )
+            }
+        }
     }
 
     /// get_skip_saving_wallet_at_connector_key
