@@ -1013,6 +1013,7 @@ impl Default for PaymentAuthorizeType {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            skip_psp_tokenization: None,
         };
         Self(data)
     }

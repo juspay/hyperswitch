@@ -1294,6 +1294,10 @@ pub struct PaymentsRequest {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
+    #[schema(value_type = Option<bool>, default = true)]
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5815,6 +5819,10 @@ pub struct PaymentsResponse {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
+    #[schema(value_type = Option<bool>, default = true)]
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

@@ -1670,6 +1670,7 @@ impl PaymentCreate {
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
+            skip_psp_tokenization: request.skip_psp_tokenization,
         })
     }
 

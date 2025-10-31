@@ -1859,6 +1859,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization,
             enable_overcapture: None,
             mit_category: None,
+            skip_psp_tokenization: None,
         })
     }
     async fn convert_back(
@@ -2116,6 +2117,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: self.enable_partial_authorization,
+            skip_psp_tokenization: None,
         })
     }
 }
@@ -2200,6 +2202,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            skip_psp_tokenization: self.skip_psp_tokenization,
         })
     }
 
@@ -2310,6 +2313,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
+                skip_psp_tokenization: storage_model.skip_psp_tokenization,
             })
         }
         .await
@@ -2392,6 +2396,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            skip_psp_tokenization: self.skip_psp_tokenization,
         })
     }
 }

@@ -1413,6 +1413,7 @@ mod tests {
             shipping_cost: None,
             card_discovery: None,
             mit_category: None,
+            skip_psp_tokenization: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,

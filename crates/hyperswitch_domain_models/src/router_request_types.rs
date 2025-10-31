@@ -90,6 +90,7 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -811,6 +812,7 @@ pub struct CompleteAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub is_stored_credential: Option<bool>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1437,6 +1439,7 @@ pub struct SetupMandateRequestData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
     pub is_stored_credential: Option<bool>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[derive(Debug, Clone)]

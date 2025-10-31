@@ -81,6 +81,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub skip_psp_tokenization: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -186,6 +187,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -393,6 +395,7 @@ pub struct PaymentIntentNew {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -478,6 +481,7 @@ pub struct PaymentIntentNew {
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub skip_psp_tokenization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -821,6 +825,7 @@ impl PaymentIntentUpdateInternal {
             active_attempt_id_type: source.active_attempt_id_type,
             active_attempts_group_id: source.active_attempts_group_id,
             mit_category: None,
+            skip_psp_tokenization: None,
         }
     }
 }

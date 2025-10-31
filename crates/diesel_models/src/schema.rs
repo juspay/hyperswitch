@@ -1194,6 +1194,7 @@ diesel::table! {
         enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
+        skip_psp_tokenization -> Nullable<Bool>,
     }
 }
 

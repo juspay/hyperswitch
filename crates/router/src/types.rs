@@ -1320,6 +1320,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             enable_overcapture: None,
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
+            skip_psp_tokenization: None,
         }
     }
 }

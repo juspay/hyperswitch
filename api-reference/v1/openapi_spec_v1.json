@@ -24907,6 +24907,12 @@
               }
             ],
             "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
+            "nullable": true
           }
         }
       },
@@ -25400,6 +25406,12 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
             "nullable": true
           }
         }
@@ -26045,6 +26057,12 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
             "nullable": true
           }
         }
@@ -26888,6 +26906,12 @@
               }
             ],
             "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -27559,6 +27583,12 @@
               }
             ],
             "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
+            "nullable": true
           }
         }
       },
@@ -28185,6 +28215,12 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "skip_psp_tokenization": {
+            "type": "boolean",
+            "description": "The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.",
+            "default": true,
             "nullable": true
           }
         }
