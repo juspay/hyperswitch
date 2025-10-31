@@ -1285,6 +1285,29 @@ fn saved_in_locker_default() -> bool {
 }
 
 #[cfg(feature = "v1")]
+impl PartialEq for CardDetailFromLocker {
+    fn eq(&self, other: &Self) -> bool {
+        self.scheme == other.scheme
+            && self.issuer_country == other.issuer_country
+            && self.last4_digits == other.last4_digits
+            && self.expiry_month == other.expiry_month
+            && self.expiry_year == other.expiry_year
+            && self.card_token == other.card_token
+            && self.card_holder_name == other.card_holder_name
+            && self.card_fingerprint == other.card_fingerprint
+            && self.nick_name == other.nick_name
+            && self.card_network == other.card_network
+            && self.card_isin == other.card_isin
+            && self.card_issuer == other.card_issuer
+            && self.card_type == other.card_type
+            && self.saved_to_locker == other.saved_to_locker
+    }
+}
+
+#[cfg(feature = "v1")]
+impl Eq for CardDetailFromLocker {}
+
+#[cfg(feature = "v1")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {

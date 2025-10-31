@@ -32,6 +32,7 @@ use crate::core::payment_methods::vault_payment_method_external_v1;
 use crate::{
     consts,
     core::{
+        api_locking,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{
@@ -42,7 +43,7 @@ use crate::{
         payments,
     },
     logger,
-    routes::{metrics, SessionState},
+    routes::{lock_utils, metrics, SessionState},
     services,
     types::{
         self,
@@ -63,6 +64,7 @@ async fn save_in_locker(
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
+    Option<api_locking::LockAction>,
 )> {
     match &business_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
@@ -79,8 +81,45 @@ async fn save_in_locker(
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
-            save_in_locker_internal(state, merchant_context, payment_method_request, card_detail)
-                .await
+            let (resp, dc) = save_in_locker_internal(
+                state,
+                merchant_context,
+                payment_method_request.clone(),
+                card_detail,
+            )
+            .await?;
+
+            let customer_id = payment_method_request
+                .customer_id
+                .clone()
+                .get_required_value("customer_id")?;
+            let val = format!(
+                "payment_methods_{}_{}_{}",
+                merchant_context
+                    .get_merchant_account()
+                    .get_id()
+                    .to_owned()
+                    .get_string_repr(),
+                customer_id.get_string_repr(),
+                resp.payment_method_id.clone()
+            );
+            let lock_action = api_locking::LockAction::Hold {
+                input: api_locking::LockingInput {
+                    unique_locking_key: val,
+                    api_identifier: lock_utils::ApiIdentifier::PaymentMethods,
+                    override_lock_retries: None,
+                },
+            };
+
+            lock_action
+                .clone()
+                .perform_locking_action(
+                    state,
+                    merchant_context.get_merchant_account().get_id().to_owned(),
+                )
+                .await?;
+
+            Ok((resp, dc, Some(lock_action)))
         }
     }
 }
@@ -254,13 +293,14 @@ where
                 let (
                     (mut resp, duplication_check, network_token_requestor_ref_id),
                     network_token_resp,
+                    lock_action,
                 ) = if !state.conf.locker.locker_enabled {
                     let (res, dc) = skip_saving_card_in_locker(
                         merchant_context,
                         payment_method_create_request.to_owned(),
                     )
                     .await?;
-                    ((res, dc, None), None)
+                    ((res, dc, None), None, None)
                 } else {
                     let payment_method_status = common_enums::PaymentMethodStatus::from(
                         save_payment_method_data.attempt_status,
@@ -570,6 +610,19 @@ where
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable("Failed to add payment method in db")?;
                                         }
+
+                                        //remove the lock aquired earlier
+                                        if let Some(la) = lock_action {
+                                            la.free_lock_action(
+                                                state,
+                                                merchant_context
+                                                    .get_merchant_account()
+                                                    .get_id()
+                                                    .to_owned(),
+                                            )
+                                            .await?;
+                                        }
+
                                         Ok(pm)
                                     }
                                     Err(err) => {
@@ -821,6 +874,15 @@ where
                                     Some(vault_source_details),
                                 )
                                 .await?;
+
+                            //remove the lock aquired earlier
+                            if let Some(la) = lock_action {
+                                la.free_lock_action(
+                                    state,
+                                    merchant_context.get_merchant_account().get_id().to_owned(),
+                                )
+                                .await?;
+                            }
 
                             match network_token_requestor_ref_id {
                                 Some(network_token_requestor_ref_id) => {
@@ -1157,6 +1219,7 @@ pub async fn save_in_locker_external(
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
+    Option<api_locking::LockAction>,
 )> {
     let customer_id = payment_method_request
         .customer_id
@@ -1198,11 +1261,11 @@ pub async fn save_in_locker_external(
 
         let pm_resp = api::PaymentMethodResponse {
             merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            customer_id: Some(customer_id),
-            payment_method_id,
+            customer_id: Some(customer_id.clone()),
+            payment_method_id: payment_method_id.clone(),
             payment_method: payment_method_request.payment_method,
             payment_method_type: payment_method_request.payment_method_type,
-            card: Some(card_detail),
+            card: Some(card_detail.clone()),
             recurring_enabled: Some(false),
             installment_payment_enabled: Some(false),
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -1213,8 +1276,66 @@ pub async fn save_in_locker_external(
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
         };
+        let val = format!(
+            "payment_methods_{}_{}_{}",
+            merchant_context
+                .get_merchant_account()
+                .get_id()
+                .to_owned()
+                .get_string_repr(),
+            customer_id.get_string_repr(),
+            pm_resp.payment_method_id.clone()
+        );
+        let lock_action = api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: val,
+                api_identifier: lock_utils::ApiIdentifier::PaymentMethods,
+                override_lock_retries: None,
+            },
+        };
 
-        Ok((pm_resp, None))
+        lock_action
+            .clone()
+            .perform_locking_action(
+                state,
+                merchant_context.get_merchant_account().get_id().to_owned(),
+            )
+            .await?;
+
+        let db = &*state.store;
+        let existing_pm_by_locker_id = db
+            .find_payment_method_by_locker_id_customer_id_merchant_id(
+                &(state.into()),
+                merchant_context.get_merchant_key_store(),
+                &payment_method_id,
+                &customer_id,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await;
+
+        let duplication_check = match &existing_pm_by_locker_id {
+            Ok(pm) => {
+                //check for duplication
+                let card_decrypted = pm
+                    .payment_method_data
+                    .clone()
+                    .map(|x| x.into_inner().expose())
+                    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                    .and_then(|pmd| match pmd {
+                        PaymentMethodsData::Card(card) => Some(CardDetailFromLocker::from(card)),
+                        _ => None,
+                    })
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to obtain decrypted token object from db")?;
+
+                // Use the duplication check function to compare card details
+                check_for_duplication_of_card_data(&card_detail, &card_decrypted)
+            }
+            Err(_) => None,
+        };
+
+        Ok((pm_resp, duplication_check, Some(lock_action)))
     } else {
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
@@ -1235,7 +1356,18 @@ pub async fn save_in_locker_external(
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
         };
-        Ok((payment_method_response, None))
+        Ok((payment_method_response, None, None))
+    }
+}
+
+pub fn check_for_duplication_of_card_data(
+    card_details: &CardDetailFromLocker,
+    card_decrypted: &CardDetailFromLocker,
+) -> Option<payment_methods::transformers::DataDuplicationCheck> {
+    if card_details.eq(card_decrypted) {
+        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
+    } else {
+        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
     }
 }
 
@@ -1749,6 +1881,7 @@ pub async fn save_card_and_network_token_in_locker(
         Option<String>,
     ),
     Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<api_locking::LockAction>,
 )> {
     let network_token_requestor_reference_id = payment_method_info
         .and_then(|pm_info| pm_info.network_token_requestor_reference_id.clone());
@@ -1775,7 +1908,7 @@ pub async fn save_card_and_network_token_in_locker(
                 )
                 .await;
             }
-            let (res, dc) = Box::pin(save_in_locker(
+            let (res, dc, lock_action) = Box::pin(save_in_locker(
                 state,
                 merchant_context,
                 payment_method_create_request.to_owned(),
@@ -1786,7 +1919,7 @@ pub async fn save_card_and_network_token_in_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card In Locker Failed")?;
 
-            Ok(((res, dc, None), None))
+            Ok(((res, dc, None), None, lock_action))
         }
         Some(hyperswitch_domain_models::payments::VaultOperation::SaveCardAndNetworkTokenData(
             save_card_and_network_token_data,
@@ -1826,6 +1959,7 @@ pub async fn save_card_and_network_token_in_locker(
                 Ok((
                     (res, dc, network_token_requestor_reference_id),
                     network_token_resp,
+                    None,
                 ))
             } else {
                 if let (Some(nt_ref_id), Some(tokenization_service)) = (
@@ -1857,12 +1991,12 @@ pub async fn save_card_and_network_token_in_locker(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Card In Locker Failed")?;
 
-                Ok(((res, dc, None), None))
+                Ok(((res, dc, None), None, None))
             }
         }
         _ => {
             let card_data = payment_method_create_request.card.clone();
-            let (res, dc) = Box::pin(save_in_locker(
+            let (res, dc, lock_action) = Box::pin(save_in_locker(
                 state,
                 merchant_context,
                 payment_method_create_request.to_owned(),
@@ -1892,12 +2026,13 @@ pub async fn save_card_and_network_token_in_locker(
                         Ok((
                             (res, dc, network_token_requestor_ref_id),
                             network_token_resp,
+                            None,
                         ))
                     }
-                    _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
+                    _ => Ok(((res, dc, None), None, lock_action)), //network_token_resp is None in case of other payment methods
                 }
             } else {
-                Ok(((res, dc, None), None))
+                Ok(((res, dc, None), None, lock_action))
             }
         }
     }
