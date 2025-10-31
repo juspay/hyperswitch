@@ -5175,6 +5175,174 @@
         ]
       }
     },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/create": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Auth Rate Based",
+        "description": "Create a success based dynamic routing algorithm",
+        "operationId": "Create success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be created",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for success based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/create": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Elimination",
+        "description": "Create a elimination based dynamic routing algorithm",
+        "operationId": "Create elimination routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be created",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for elimination based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EliminationRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle": {
       "post": {
         "tags": [
