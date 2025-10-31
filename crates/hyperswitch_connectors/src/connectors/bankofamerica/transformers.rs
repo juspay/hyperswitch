@@ -412,7 +412,8 @@ impl<F, T>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -1716,7 +1717,8 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -1923,7 +1925,8 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 let risk_info: Option<ClientRiskInformation> = None;
