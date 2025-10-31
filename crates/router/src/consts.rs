@@ -343,6 +343,10 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub mod superposition {
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "requires_cvv";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// UCS shadow rollout configuration key
+    pub const UCS_SHADOW_ROLLOUT_CONFIG: &str = "ucs_shadow_rollout_config";
 }
 
 #[cfg(test)]

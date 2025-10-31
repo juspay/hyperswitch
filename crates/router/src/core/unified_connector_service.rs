@@ -25,6 +25,7 @@ use external_services::{
         LineageIds,
     },
     http_client,
+    superposition,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -138,11 +139,18 @@ async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
     config_key: &str,
+    context: &superposition::ConfigContext,
 ) -> RouterResult<ConnectorIntegrationType> {
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = ucs_config.ucs_only_connectors.contains(&connector);
-            let rollout_result = should_execute_based_on_rollout(state, config_key).await?;
+      
+            let rollout_result = should_execute_based_on_rollout(
+                state,
+                consts::superposition::UCS_ROLLOUT_CONFIG,
+                Some(context.clone()),
+                config_key,
+            ).await?;
 
             if is_ucs_only || rollout_result.should_execute {
                 router_env::logger::debug!(
@@ -198,7 +206,7 @@ where
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let (rollout_key, shadow_rollout_key) = build_rollout_keys(
+    let (rollout_key, shadow_rollout_key, superposition_context) = build_rollout_keys_and_context(
         merchant_id,
         connector_name,
         &flow_name,
@@ -206,15 +214,29 @@ where
     );
 
     // Determine connector integration type
-    let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+    let connector_integration_type = determine_connector_integration_type(
+        state,
+        connector_enum,
+        &rollout_key,
+        &superposition_context,
+    ).await?;
 
     // Extract previous gateway from payment data
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
 
     // Check both rollout keys to determine priority based on shadow percentage
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let rollout_result = should_execute_based_on_rollout(
+        state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
+        Some(superposition_context.clone()),
+        &rollout_key,
+    ).await?;
+    let shadow_rollout_result = should_execute_based_on_rollout(
+        state,
+        consts::superposition::UCS_SHADOW_ROLLOUT_CONFIG,
+        Some(superposition_context),
+        &shadow_rollout_key,
+    ).await?;
 
     // Get shadow percentage to determine priority
     let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
@@ -466,16 +488,23 @@ fn decide_execution_path(
     }
 }
 
-/// Build rollout keys based on flow type - include payment method for payments, skip for refunds
-fn build_rollout_keys(
+/// Build rollout keys and context based on flow type - include payment method for payments, skip for refunds
+fn build_rollout_keys_and_context(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
-) -> (String, String) {
+) -> (String, String, superposition::ConfigContext) {
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
+    // Build base context (common for all flows)
+    let mut context = superposition::ConfigContext::new()
+        .with("merchant_id", merchant_id)
+        .with("connector_name", connector_name)
+        .with("flow_name", flow_name);
+
+    // Build rollout key and conditionally add payment_method to context
     let rollout_key = if is_refund_flow {
         // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
         format!(
@@ -488,6 +517,10 @@ fn build_rollout_keys(
     } else {
         // Payment flows: UCS_merchant_connector_paymentmethod_flow (e.g., UCS_merchant123_stripe_card_Authorize)
         let payment_method_str = payment_method.to_string();
+        
+        // Add payment_method to context for payment flows
+        context = context.with("payment_method", &payment_method_str);
+        
         format!(
             "{}_{}_{}_{}_{}",
             consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
@@ -499,7 +532,7 @@ fn build_rollout_keys(
     };
 
     let shadow_rollout_key = format!("{rollout_key}_shadow");
-    (rollout_key, shadow_rollout_key)
+    (rollout_key, shadow_rollout_key, context)
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -596,16 +629,36 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     );
     let shadow_rollout_key = format!("{rollout_key}_shadow");
 
+    // Build context for Superposition (webhooks don't use payment method)
+    let superposition_context = superposition::ConfigContext::new()
+        .with("merchant_id", merchant_id)
+        .with("connector_name", connector_name)
+        .with("flow_name", flow_name);
+
     // Determine connector integration type
-    let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+    let connector_integration_type = determine_connector_integration_type(
+        state,
+        connector_enum,
+        &rollout_key,
+        &superposition_context,
+    ).await?;
 
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
     // Check both rollout keys to determine priority based on shadow percentage
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let rollout_result = should_execute_based_on_rollout(
+        state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
+        Some(superposition_context.clone()),
+        &rollout_key,
+    ).await?;
+    let shadow_rollout_result = should_execute_based_on_rollout(
+        state,
+        consts::superposition::UCS_SHADOW_ROLLOUT_CONFIG,
+        Some(superposition_context),
+        &shadow_rollout_key,
+    ).await?;
 
     // Get shadow percentage to determine priority
     let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)

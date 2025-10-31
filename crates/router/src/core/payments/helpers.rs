@@ -32,7 +32,7 @@ use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
-use external_services::grpc_client;
+use external_services::{grpc_client, superposition};
 use futures::future::Either;
 pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
@@ -2193,75 +2193,103 @@ fn create_proxy_override(
     }
 }
 
+/// Get rollout config from superposition
+async fn get_rollout_config_from_superposition(
+    state: &SessionState,
+    superposition_key: &str,
+    context: Option<superposition::ConfigContext>,
+) -> Option<RolloutConfig> {
+    let superposition_client = state.superposition_service.as_ref().unwrap();
+
+    match superposition_client
+        .get_object_value(superposition_key, context.as_ref())
+        .await
+    {
+        Ok(json_value) => Some(
+            serde_json::from_value::<RolloutConfig>(json_value).unwrap_or_else(|err| {
+                logger::warn!(error = ?err, "Failed to parse superposition config, using default");
+                RolloutConfig::default()
+            }),
+        ),
+        Err(err) => {
+            logger::error!(error = ?err, "Failed to fetch rollout config from superposition");
+            None
+        }
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
-    config_key: &str,
+    superposition_key: &str,
+    context: Option<superposition::ConfigContext>,
+    db_key: &str,
 ) -> RouterResult<RolloutExecutionResult> {
-    let db = state.store.as_ref();
-
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-            {
-                Ok(config) => Ok(config),
-                Err(err) => {
-                    logger::debug!(
-                        error = ?err,
-                        config = %rollout_config.config,
-                        "Config not in JSON format, trying legacy float format"
-                    );
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>()
-                        .map(|percent| RolloutConfig {
-                            rollout_percent: percent,
-                            http_url: None,
-                            https_url: None,
-                        })
-                        .map_err(|err| {
-                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
-                            err
-                        })
-                }
-            };
-
-            match config_result {
-                Ok(config) => {
-                    if !(0.0..=1.0).contains(&config.rollout_percent) {
-                        logger::warn!(
-                            rollout_percent = config.rollout_percent,
-                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+    // Binary decision: Superposition OR Database
+    let config_option: Option<RolloutConfig> = if state.superposition_service.is_some() {
+        // Superposition enabled
+        get_rollout_config_from_superposition(state, superposition_key, context).await
+    } else {
+        // Database path - existing logic unchanged
+        let db = state.store.as_ref();
+        match db.find_config_by_key(db_key).await {
+            Ok(rollout_config) => {
+                // Try to parse as JSON first (new format), fallback to float (legacy format)
+                match serde_json::from_str::<RolloutConfig>(&rollout_config.config) {
+                    Ok(config) => Some(config),
+                    Err(err) => {
+                        logger::debug!(
+                            error = ?err,
+                            config = %rollout_config.config,
+                            "Config not in JSON format, trying legacy float format"
                         );
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
-
-                        return Ok(RolloutExecutionResult {
-                            should_execute: false,
-                            proxy_override,
-                        });
+                        // Fallback to legacy format (simple float)
+                        rollout_config.config.parse::<f64>()
+                            .map(|percent| RolloutConfig {
+                                rollout_percent: percent,
+                                http_url: None,
+                                https_url: None,
+                            })
+                            .inspect_err(|err| {
+                                logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
+                            })
+                            .ok()
                     }
-
-                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                    let should_execute = sampled_value < config.rollout_percent;
-
-                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
-
-                    Ok(RolloutExecutionResult {
-                        should_execute,
-                        proxy_override,
-                    })
-                }
-                Err(err) => {
-                    logger::error!(error = ?err, "Failed to parse rollout config");
-                    Ok(RolloutExecutionResult {
-                        should_execute: false,
-                        proxy_override: None,
-                    })
                 }
             }
+            Err(err) => {
+                logger::error!(error = ?err, "Failed to fetch rollout config from DB");
+                None
+            }
         }
-        Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
+    };
+
+    match config_option {
+        Some(config) => {
+            if !(0.0..=1.0).contains(&config.rollout_percent) {
+                logger::warn!(
+                    rollout_percent = config.rollout_percent,
+                    "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                );
+                let proxy_override = create_proxy_override(config.http_url, config.https_url);
+
+                return Ok(RolloutExecutionResult {
+                    should_execute: false,
+                    proxy_override, //to be discussed
+                });
+            }
+
+            let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+            let should_execute = sampled_value < config.rollout_percent;
+
+            let proxy_override = create_proxy_override(config.http_url, config.https_url);
+
+            Ok(RolloutExecutionResult {
+                should_execute,
+                proxy_override,
+            })
+        }
+        None => {
+            // No config found - use default (no execution)
             Ok(RolloutExecutionResult {
                 should_execute: false,
                 proxy_override: None,
