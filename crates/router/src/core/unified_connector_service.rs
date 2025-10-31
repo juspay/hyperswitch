@@ -88,7 +88,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-
 /// Gets the rollout percentage for a given config key
 #[allow(dead_code)]
 async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
