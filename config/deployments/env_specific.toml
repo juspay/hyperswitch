@@ -254,7 +254,7 @@ region = "report_download_config_region"                     # Region of the buc
 
 [opensearch]
 host = "https://localhost:9200"
-enabled = true
+enabled = false
 
 [opensearch.auth]
 auth = "basic"
@@ -267,7 +267,6 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
-payouts = "hyperswitch-payout-events"
 sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
 sessionizer_payment_intents = "sessionizer-payment-intent-events"
 sessionizer_refunds = "sessionizer-refund-events"
