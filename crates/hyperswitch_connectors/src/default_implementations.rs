@@ -973,7 +973,6 @@ default_imp_for_update_metadata!(
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
-    connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
     connectors::Silverflow,
