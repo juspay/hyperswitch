@@ -770,7 +770,9 @@ pub fn build_unified_connector_service_payment_method(
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
             match wallet_data {
-                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(mifinity_data) => Ok(payments_grpc::PaymentMethod {
+                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
+                    mifinity_data,
+                ) => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
                         wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
                             date_of_birth: Some(
