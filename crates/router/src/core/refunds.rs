@@ -229,13 +229,14 @@ pub async fn trigger_refund_to_gateway(
         // Access token available or not needed - proceed with execution
 
         // Check which gateway system to use for refunds
-        let (execution_path, _session_state) =
+        let (execution_path, updated_state) =
             unified_connector_service::should_call_unified_connector_service(
                 state,
                 merchant_context,
                 &router_data,
                 None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await?;
 
@@ -273,7 +274,7 @@ pub async fn trigger_refund_to_gateway(
             }
             common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
                 Box::pin(execute_refund_execute_via_direct_with_ucs_shadow(
-                    state,
+                    &updated_state,
                     &connector,
                     merchant_context,
                     refund,
@@ -831,13 +832,14 @@ pub async fn sync_refund_with_gateway(
         // Access token available or not needed - proceed with execution
 
         // Check which gateway system to use for refund sync
-        let (execution_path, _session_state) =
+        let (execution_path, updated_state) =
             unified_connector_service::should_call_unified_connector_service(
                 state,
                 merchant_context,
                 &router_data,
                 None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await?;
 
@@ -873,7 +875,7 @@ pub async fn sync_refund_with_gateway(
             }
             common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
                 Box::pin(execute_refund_sync_via_direct_with_ucs_shadow(
-                    state,
+                    &updated_state,
                     &connector,
                     merchant_context,
                     router_data,

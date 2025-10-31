@@ -494,6 +494,7 @@ async fn payments_create_core() {
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
     .await
@@ -780,6 +781,7 @@ async fn payments_create_core_adyen_no_redirect() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
