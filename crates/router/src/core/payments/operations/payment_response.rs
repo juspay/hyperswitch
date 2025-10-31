@@ -1668,34 +1668,43 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 Ok(()) => {
                     let attempt_status = payment_data.payment_attempt.status.to_owned();
                     let connector_status = router_data.status.to_owned();
-                    let updated_attempt_status = match (
-                        connector_status,
-                        attempt_status,
-                        payment_data.frm_message.to_owned(),
-                    ) {
-                        (
-                            enums::AttemptStatus::Authorized,
-                            enums::AttemptStatus::Unresolved,
-                            Some(frm_message),
-                        ) => match frm_message.frm_status {
-                            enums::FraudCheckStatus::Fraud
-                            | enums::FraudCheckStatus::ManualReview => attempt_status,
-                            _ => router_data.get_attempt_status_for_db_update(
-                                &payment_data,
-                                router_data.amount_captured,
-                                router_data
-                                    .minor_amount_capturable
-                                    .map(MinorUnit::get_amount_as_i64),
-                            )?,
-                        },
-                        _ => router_data.get_attempt_status_for_db_update(
-                            &payment_data,
-                            router_data.amount_captured,
-                            router_data
-                                .minor_amount_capturable
-                                .map(MinorUnit::get_amount_as_i64),
-                        )?,
-                    };
+
+                    // Check if current status is terminal and preserve it in PSync flows
+                    let flow_name = core_utils::get_flow_name::<F>()?;
+                    let updated_attempt_status =
+                        if flow_name == "PSync" && attempt_status.is_terminal_status() {
+                            // For PSync flows, if payment is already in terminal state, don't update the status
+                            attempt_status
+                        } else {
+                            match (
+                                connector_status,
+                                attempt_status,
+                                payment_data.frm_message.to_owned(),
+                            ) {
+                                (
+                                    enums::AttemptStatus::Authorized,
+                                    enums::AttemptStatus::Unresolved,
+                                    Some(frm_message),
+                                ) => match frm_message.frm_status {
+                                    enums::FraudCheckStatus::Fraud
+                                    | enums::FraudCheckStatus::ManualReview => attempt_status,
+                                    _ => router_data.get_attempt_status_for_db_update(
+                                        &payment_data,
+                                        router_data.amount_captured,
+                                        router_data
+                                            .minor_amount_capturable
+                                            .map(MinorUnit::get_amount_as_i64),
+                                    )?,
+                                },
+                                _ => router_data.get_attempt_status_for_db_update(
+                                    &payment_data,
+                                    router_data.amount_captured,
+                                    router_data
+                                        .minor_amount_capturable
+                                        .map(MinorUnit::get_amount_as_i64),
+                                )?,
+                            }
+                        };
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
                             pre_processing_id,
