@@ -554,9 +554,18 @@ impl
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             metadata,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -699,9 +708,18 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -808,8 +826,17 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -882,6 +909,16 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             email: router_data
@@ -893,7 +930,6 @@ impl
             test_mode: router_data.test_mode,
             payment_method_type: None,
             access_token: None,
-            merchant_account_metadata: HashMap::new(),
         })
     }
 }
