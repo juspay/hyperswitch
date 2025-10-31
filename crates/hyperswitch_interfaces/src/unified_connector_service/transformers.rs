@@ -287,6 +287,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
                     extended_authentication_applied: data
                         .extended_authentication_applied
                         .map(ExtendedAuthorizationAppliedBool::from),
+                    extended_authorization_last_applied_at: None // This field has to be added to UCS
                 }
             });
 
