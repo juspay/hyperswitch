@@ -96,7 +96,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub order_details: Option<&'a Vec<Secret<OrderDetailsWithAmount>>>,
 
     pub allowed_payment_method_types: Option<&'a Vec<common_enums::PaymentMethodType>>,
-    pub connector_metadata: Option<&'a Secret<Value>>,
+    pub connector_metadata: Option<&'a api_models::payments::ConnectorMetadata>,
     pub payment_link_id: Option<&'a String>,
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,

@@ -95,6 +95,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
+                None,
                 services::AuthFlow::Client,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
@@ -329,7 +330,7 @@ pub async fn recovery_retry_sync_task(
 
             connector_customer_id
                 .async_map(|id| async move {
-                    let _ = update_token_expiry_based_on_schedule_time(state, &id, Some(s_time))
+                    let _ = update_token_expiry_based_on_schedule_time(state, &id, s_time)
                         .await
                         .map_err(|e| {
                             logger::error!(

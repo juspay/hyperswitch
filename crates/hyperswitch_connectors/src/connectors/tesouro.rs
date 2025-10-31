@@ -854,9 +854,9 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         common_enums::CardNetwork::UnionPay,
     ];
 
-    let mut paysafe_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut tesouro_supported_payment_methods = SupportedPaymentMethods::new();
 
-    paysafe_supported_payment_methods.add(
+    tesouro_supported_payment_methods.add(
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
@@ -875,7 +875,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         },
     );
 
-    paysafe_supported_payment_methods.add(
+    tesouro_supported_payment_methods.add(
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
@@ -894,7 +894,29 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         },
     );
 
-    paysafe_supported_payment_methods
+    tesouro_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    tesouro_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    tesouro_supported_payment_methods
 });
 
 static TESOURO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {

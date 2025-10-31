@@ -29,7 +29,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -42,10 +41,6 @@ use crate::{
         PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
-
-fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ORDER_ID_LENGTH)
-}
 
 #[derive(Clone, Copy, Debug)]
 enum AddressKind {
@@ -541,6 +536,28 @@ pub fn get_error_response(
     }
 }
 
+fn get_nexi_order_id(payment_id: &str) -> CustomResult<String, errors::ConnectorError> {
+    if payment_id.len() > MAX_ORDER_ID_LENGTH {
+        if payment_id.starts_with("pay_") {
+            Ok(payment_id
+                .chars()
+                .take(MAX_ORDER_ID_LENGTH)
+                .collect::<String>())
+        } else {
+            Err(error_stack::Report::from(
+                errors::ConnectorError::MaxFieldLengthViolated {
+                    field_name: "payment_id".to_string(),
+                    connector: "Nexixpay".to_string(),
+                    max_length: MAX_ORDER_ID_LENGTH,
+                    received_length: payment_id.len(),
+                },
+            ))
+        }
+    } else {
+        Ok(payment_id.to_string())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthData {
@@ -714,22 +731,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let order_id = if item.router_data.payment_id.len() > MAX_ORDER_ID_LENGTH {
-            if item.router_data.payment_id.starts_with("pay_") {
-                get_random_string()
-            } else {
-                return Err(error_stack::Report::from(
-                    errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: "payment_id".to_string(),
-                        connector: "Nexixpay".to_string(),
-                        max_length: MAX_ORDER_ID_LENGTH,
-                        received_length: item.router_data.payment_id.len(),
-                    },
-                ));
-            }
-        } else {
-            item.router_data.payment_id.clone()
-        };
+        let order_id = get_nexi_order_id(&item.router_data.payment_id)?;
 
         let billing_address = get_validated_billing_address(item.router_data)?;
         let shipping_address = get_validated_shipping_address(item.router_data)?;
@@ -1129,6 +1131,22 @@ impl<F>
             NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => {
                 let status =
                     AttemptStatus::from(mandate_response.operation.operation_result.clone());
+                let is_auto_capture = item.data.request.is_auto_capture()?;
+                let operation_id = mandate_response.operation.operation_id.clone();
+                let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+                    three_d_s_auth_result: None,
+                    three_d_s_auth_response: None,
+                    authorization_operation_id: Some(operation_id.clone()),
+                    cancel_operation_id: None,
+                    capture_operation_id: {
+                        if is_auto_capture {
+                            Some(operation_id)
+                        } else {
+                            None
+                        }
+                    },
+                    psync_flow: NexixpayPaymentIntent::Authorize
+                }));
                 match status {
                     AttemptStatus::Failure => {
                         let response = Err(get_error_response(
@@ -1148,7 +1166,7 @@ impl<F>
                             ),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
-                            connector_metadata: None,
+                            connector_metadata,
                             network_txn_id: None,
                             connector_response_reference_id: Some(
                                 mandate_response.operation.order_id.clone(),
@@ -1325,22 +1343,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             )?;
         let capture_type = get_nexixpay_capture_type(item.router_data.request.capture_method)?;
 
-        let order_id = if item.router_data.payment_id.len() > MAX_ORDER_ID_LENGTH {
-            if item.router_data.payment_id.starts_with("pay_") {
-                get_random_string()
-            } else {
-                return Err(error_stack::Report::from(
-                    errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: "payment_id".to_string(),
-                        connector: "Nexixpay".to_string(),
-                        max_length: MAX_ORDER_ID_LENGTH,
-                        received_length: item.router_data.payment_id.len(),
-                    },
-                ));
-            }
-        } else {
-            item.router_data.payment_id.clone()
-        };
+        let order_id = get_nexi_order_id(&item.router_data.payment_id)?;
         let amount = item.amount.clone();
 
         let billing_address = get_validated_billing_address(item.router_data)?;

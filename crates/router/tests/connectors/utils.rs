@@ -479,6 +479,7 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
                 webhook_url: None,
                 browser_info: None,
+                payout_connector_metadata: None,
             },
             payment_info,
         )
@@ -510,6 +511,7 @@ pub trait ConnectorActions: Connector {
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
             payment_method: enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             payment_method_status: None,

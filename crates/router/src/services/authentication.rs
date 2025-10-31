@@ -4273,6 +4273,15 @@ impl ClientSecretFetch for payments::PaymentsRequest {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -4334,6 +4343,20 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
 impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::GetPlansQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
     }
 }
 
@@ -4505,6 +4528,31 @@ where
         ))
     } else {
         check_client_secret_and_get_auth(headers, payload, api_auth)
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn check_internal_api_key_auth_no_client_secret<T>(
+    headers: &HeaderMap,
+    api_auth: ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
+        Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            api::AuthFlow::Merchant,
+        ))
+    } else {
+        let (auth, auth_flow) = get_auth_type_and_flow(headers, api_auth)?;
+        Ok((auth, auth_flow))
     }
 }
 
