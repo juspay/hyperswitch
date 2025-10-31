@@ -89,6 +89,26 @@ type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
 
+/// Gets the rollout percentage for a given config key
+#[allow(dead_code)]
+async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+    let db = state.store.as_ref();
+
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                Ok(config) => Some(config.rollout_percent),
+                Err(_) => {
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>().ok()
+                }
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 /// Checks if a config key exists and returns its percentage if present
 /// Returns (key_exists, rollout_percentage)
 async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
