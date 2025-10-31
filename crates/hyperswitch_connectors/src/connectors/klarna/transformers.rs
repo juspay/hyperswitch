@@ -121,6 +121,12 @@ pub struct PaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
     authorized_payment_method: Option<AuthorizedPaymentMethod>,
+    #[serde(default)]
+    order_amount: Option<MinorUnit>,
+    #[serde(default)]
+    order_tax_amount: Option<MinorUnit>,
+    #[serde(default)]
+    purchase_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -128,6 +134,12 @@ pub struct CheckoutResponse {
     order_id: String,
     status: KlarnaCheckoutStatus,
     html_snippet: String,
+    #[serde(default)]
+    order_amount: Option<MinorUnit>,
+    #[serde(default)]
+    order_tax_amount: Option<MinorUnit>,
+    #[serde(default)]
+    purchase_currency: Option<enums::Currency>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthorizedPaymentMethod {
@@ -524,6 +536,10 @@ pub struct KlarnaSDKSyncResponse {
     pub order_id: String,
     pub status: KlarnaPaymentStatus,
     pub klarna_reference: Option<String>,
+    #[serde(default)]
+    pub order_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub purchase_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -531,6 +547,10 @@ pub struct KlarnaCheckoutSyncResponse {
     pub order_id: String,
     pub status: KlarnaCheckoutStatus,
     pub options: CheckoutOptions,
+    #[serde(default)]
+    pub order_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub purchase_currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -625,6 +645,10 @@ pub struct KlarnaMeta {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KlarnaCaptureResponse {
     pub capture_id: Option<String>,
+    #[serde(default)]
+    pub captured_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub purchase_currency: Option<enums::Currency>,
 }
 
 impl<F>
@@ -692,6 +716,10 @@ impl<F> TryFrom<&KlarnaRouterData<&types::RefundsRouterData<F>>> for KlarnaRefun
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KlarnaRefundResponse {
     pub refund_id: String,
+    #[serde(default)]
+    pub refunded_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub purchase_currency: Option<enums::Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, KlarnaRefundResponse>>
@@ -721,6 +749,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, KlarnaRefundResponse>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KlarnaRefundSyncResponse {
     pub refund_id: String,
+    #[serde(default)]
+    pub refunded_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub purchase_currency: Option<enums::Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, KlarnaRefundSyncResponse>>
