@@ -362,6 +362,26 @@ impl IncomingWebhook for Adyenplatform {
         Ok(payload_sign.as_bytes().eq(&signature))
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_error_update_object(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutStatusUpdate, ConnectorError> {
+        let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
+            .body
+            .parse_struct("AdyenplatformIncomingWebhook")
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(api_models::webhooks::PayoutStatusUpdate {
+            error_message: webhook_body
+                .data
+                .tracking
+                .and_then(|tracking_data| tracking_data.reason)
+                .or(webhook_body.data.reason),
+            error_code: None,
+        })
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,

@@ -1075,6 +1075,8 @@ async fn process_webhook_business_logic(
                 webhook_details,
                 event_type,
                 source_verified,
+                request_details,
+                connector,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed"),
@@ -1444,6 +1446,7 @@ async fn payments_incoming_webhook_flow(
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 async fn payouts_incoming_webhook_flow(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -1451,6 +1454,8 @@ async fn payouts_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
@@ -1491,13 +1496,18 @@ async fn payouts_incoming_webhook_flow(
             .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable("Failed to fetch the payout")?;
 
+        let payout_error_details = connector
+            .get_payout_error_update_object(request_details)
+            .switch()
+            .attach_printable("Failed to get error object for payouts")?;
+
         let payout_attempt_update = PayoutAttemptUpdate::StatusUpdate {
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status: common_enums::PayoutStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed payout status mapping from event type")?,
-            error_message: None,
-            error_code: None,
+            error_message: payout_error_details.error_message,
+            error_code: payout_error_details.error_code,
             is_eligible: payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
