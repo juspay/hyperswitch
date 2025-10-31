@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -38,7 +38,8 @@ use hyperswitch_domain_models::{
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -66,7 +67,8 @@ use hyperswitch_domain_models::{
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
@@ -377,6 +379,27 @@ pub type GetSubscriptionEstimateType = dyn ConnectorIntegration<
     GetSubscriptionEstimate,
     GetSubscriptionEstimateRequest,
     GetSubscriptionEstimateResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>`
+pub type SubscriptionPauseType = dyn ConnectorIntegration<
+    SubscriptionPause,
+    SubscriptionPauseRequest,
+    SubscriptionPauseResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>`
+pub type SubscriptionResumeType = dyn ConnectorIntegration<
+    SubscriptionResume,
+    SubscriptionResumeRequest,
+    SubscriptionResumeResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>`
+pub type SubscriptionCancelType = dyn ConnectorIntegration<
+    SubscriptionCancel,
+    SubscriptionCancelRequest,
+    SubscriptionCancelResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`

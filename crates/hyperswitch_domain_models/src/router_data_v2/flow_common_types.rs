@@ -179,6 +179,21 @@ pub struct GetSubscriptionEstimateData {
 }
 
 #[derive(Debug, Clone)]
+pub struct SubscriptionPauseData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionResumeData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancelData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
