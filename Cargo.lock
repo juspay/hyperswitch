@@ -2624,6 +2624,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if 1.0.0",
+ "crossbeam-utils 0.8.21",
+ "hashbrown 0.14.5",
+ "lock_api 0.4.12",
+ "once_cell",
+ "parking_lot_core 0.9.10",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4466,7 +4480,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db2fa452206ebee18c4b5c2274dbf1de17008e874b4dc4f0aea9d01ca79e4526"
 dependencies = [
  "displaydoc",
- "yoke",
+ "yoke 0.7.5",
  "zerofrom",
  "zerovec",
 ]
@@ -4561,7 +4575,7 @@ dependencies = [
  "stable_deref_trait",
  "tinystr",
  "writeable",
- "yoke",
+ "yoke 0.7.5",
  "zerofrom",
  "zerovec",
 ]
@@ -4804,6 +4818,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -5170,7 +5193,7 @@ dependencies = [
  "diesel",
  "erased-serde 0.4.6",
  "prost",
- "scylla",
+ "scylla 0.15.0",
  "serde",
  "serde_json",
  "subtle",
@@ -5332,7 +5355,7 @@ checksum = "c325dfab65f261f386debee8b0969da215b3fa0037e74c8a1234db7ba986d803"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-utils 0.8.21",
- "dashmap",
+ "dashmap 5.5.3",
  "skeptic",
  "smallvec 1.15.0",
  "tagptr",
@@ -6889,6 +6912,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_pcg"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b48ac3f7ffaab7fac4d2376632268aa5f89abdb55f7ebf8f4d11fffccb2320f7"
+dependencies = [
+ "rand_core 0.9.3",
+]
+
+[[package]]
 name = "rand_xorshift"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7908,7 +7940,7 @@ dependencies = [
  "byteorder",
  "bytes 1.10.1",
  "chrono",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "hashbrown 0.14.5",
  "histogram",
@@ -7916,13 +7948,38 @@ dependencies = [
  "lazy_static",
  "lz4_flex",
  "rand 0.8.5",
- "rand_pcg",
- "scylla-cql",
- "scylla-macros",
+ "rand_pcg 0.3.1",
+ "scylla-cql 0.4.0",
+ "scylla-macros 0.7.0",
  "smallvec 1.15.0",
  "snap",
  "socket2",
  "thiserror 1.0.69",
+ "tokio 1.45.1",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "scylla"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b42cf9feea170a110c5644c013a4dc790c24c60dc802f43df2ca69acae5112a4"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "bytes 1.10.1",
+ "chrono",
+ "dashmap 6.1.0",
+ "futures 0.3.31",
+ "hashbrown 0.15.2",
+ "itertools 0.14.0",
+ "rand 0.9.1",
+ "rand_pcg 0.9.0",
+ "scylla-cql 1.3.1",
+ "smallvec 1.15.0",
+ "socket2",
+ "thiserror 2.0.12",
  "tokio 1.45.1",
  "tracing",
  "uuid",
@@ -7937,19 +7994,51 @@ dependencies = [
  "byteorder",
  "bytes 1.10.1",
  "lz4_flex",
- "scylla-macros",
+ "scylla-macros 0.7.0",
  "snap",
  "stable_deref_trait",
  "thiserror 1.0.69",
  "tokio 1.45.1",
  "uuid",
- "yoke",
+ "yoke 0.7.5",
+]
+
+[[package]]
+name = "scylla-cql"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5139a271deeb8b3b8118c28d19bb3519421ec4a131e3a39533503c526d415dc2"
+dependencies = [
+ "byteorder",
+ "bytes 1.10.1",
+ "chrono",
+ "itertools 0.14.0",
+ "lz4_flex",
+ "scylla-macros 1.3.1",
+ "snap",
+ "stable_deref_trait",
+ "thiserror 2.0.12",
+ "tokio 1.45.1",
+ "uuid",
+ "yoke 0.8.0",
 ]
 
 [[package]]
 name = "scylla-macros"
 version = "0.7.0"
 source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "scylla-macros"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "162aed3aa5b6985d121d9e7e4137efebd49645dee204962b2e9ab85176349119"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -8777,6 +8866,7 @@ dependencies = [
  "redis_interface",
  "router_derive",
  "router_env",
+ "scylla 1.3.1",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -11362,7 +11452,19 @@ checksum = "120e6aef9aa629e3d4f52dc8cc43a015c7724194c97dfaf45180d2daf2b77f40"
 dependencies = [
  "serde",
  "stable_deref_trait",
- "yoke-derive",
+ "yoke-derive 0.7.5",
+ "zerofrom",
+]
+
+[[package]]
+name = "yoke"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f41bb01b8226ef4bfd589436a297c53d118f65921786300e427be8d487695cc"
+dependencies = [
+ "serde",
+ "stable_deref_trait",
+ "yoke-derive 0.8.0",
  "zerofrom",
 ]
 
@@ -11371,6 +11473,18 @@ name = "yoke-derive"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2380878cad4ac9aac1e2435f3eb4020e8374b5f13c296cb75b4620ff8e229154"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+ "synstructure 0.13.1",
+]
+
+[[package]]
+name = "yoke-derive"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38da3c9736e16c5d3c8c597a9aaa5d1fa565d0532ae05e27c24aa62fb32c0ab6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11451,7 +11565,7 @@ version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa2b893d79df23bfb12d5461018d408ea19dfafe76c2c7ef6d4eba614f8ff079"
 dependencies = [
- "yoke",
+ "yoke 0.7.5",
  "zerofrom",
  "zerovec-derive",
 ]

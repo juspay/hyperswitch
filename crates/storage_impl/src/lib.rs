@@ -37,6 +37,7 @@ pub mod refund;
 mod reverse_lookup;
 pub mod subscription;
 pub mod utils;
+pub mod cassandra;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
