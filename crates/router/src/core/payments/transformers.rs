@@ -459,6 +459,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
+        billing_descriptor: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3740,6 +3741,7 @@ where
                 .map(NetworkDetails::foreign_from),
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
+            billing_descriptor: payment_intent.billing_descriptor,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4055,6 +4057,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
+            billing_descriptor: pi.billing_descriptor,
         }
     }
 }
@@ -4389,6 +4392,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            billing_descriptor: None,
         })
     }
 }
@@ -4625,6 +4629,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            billing_descriptor: payment_data.payment_intent.billing_descriptor,
         })
     }
 }
