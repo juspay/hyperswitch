@@ -218,39 +218,30 @@ where
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
     let (shadow_key_exists, _shadow_percentage) = get_rollout_config_info(state, &shadow_rollout_key).await;
 
-    let shadow_rollout_availability = if rollout_result.should_execute && shadow_key_exists {
-        // Both rollout enabled and shadow key exists, check shadow percentage
+    // Simplified decision logic: Shadow takes priority, then rollout, then direct
+    let shadow_rollout_availability = if shadow_key_exists {
+        // Block 1: Shadow key exists - check if it's enabled
         let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
         
         if shadow_percentage != 0.0 {
-            // Shadow key present with non-zero percentage - enable shadow mode for comparison
-            router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists with non-zero percentage, enabling shadow mode for comparison" );
+            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
             ShadowRolloutAvailability::IsAvailable
         } else {
-            // Shadow key present but percentage is 0.0 - use rollout instead (primary UCS mode)
-            router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists but percentage is 0.0, using rollout for primary UCS mode" );
-            ShadowRolloutAvailability::NotAvailable
+            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists but disabled (0.0%), falling back to check rollout" );
+            // Shadow disabled, check rollout in next block
+            if rollout_result.should_execute {
+                ShadowRolloutAvailability::NotAvailable // Use rollout (primary UCS)
+            } else {
+                ShadowRolloutAvailability::NotAvailable // Use direct
+            }
         }
-    } else if rollout_result.should_execute && !shadow_key_exists {
-        // Rollout enabled but no shadow key - primary UCS mode (no comparison)
-        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Rollout enabled but no shadow key, using primary UCS mode" );
+    } else if rollout_result.should_execute {
+        // Block 2: No shadow key, but rollout is enabled - use primary UCS
+        router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
         ShadowRolloutAvailability::NotAvailable
-    } else if !rollout_result.should_execute && shadow_key_exists {
-        // No rollout but shadow key exists - check shadow percentage
-        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
-        
-        if shadow_percentage != 0.0 {
-            // Shadow key with non-zero percentage but no rollout - enable shadow mode for comparison
-            router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "No rollout but shadow key exists with non-zero percentage, enabling shadow mode for comparison" );
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            // Shadow key exists but percentage is 0.0 and no rollout - Direct mode only
-            router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists but percentage is 0.0 and no rollout, using Direct mode only" );
-            ShadowRolloutAvailability::NotAvailable
-        }
     } else {
-        // Neither rollout nor shadow enabled - Direct mode only
-        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, rollout_enabled = rollout_result.should_execute, shadow_exists = shadow_key_exists, "Neither rollout nor shadow enabled, using Direct mode only" );
+        // Block 3: Neither shadow nor rollout enabled - use direct
+        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Neither shadow nor rollout enabled, using Direct mode" );
         ShadowRolloutAvailability::NotAvailable
     };
 
