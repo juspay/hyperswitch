@@ -249,7 +249,7 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
-payout_function = "report_download_config_payout_function" # Config to download payout report
+payout_function = "report_download_config_payout_function"   # Config to download payout report
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
