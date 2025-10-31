@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.0
+
+### Features
+
+- **core:** Implement Diff Checker for Webhooks ([#10019](https://github.com/juspay/hyperswitch/pull/10019)) ([`03b299f`](https://github.com/juspay/hyperswitch/commit/03b299f5877e2a854f714c57551bb1e2a6e290a1))
+- **ucs:** Add UCS authentication and post-authentication flows for payment processing ([#9959](https://github.com/juspay/hyperswitch/pull/9959)) ([`558f60b`](https://github.com/juspay/hyperswitch/commit/558f60bb3d0fb37d7c4de9e73648fc951a2ffc06))
+
+### Bug Fixes
+
+- **connector:** Manual capture on adyen results partially_captured ([#10044](https://github.com/juspay/hyperswitch/pull/10044)) ([`07dc525`](https://github.com/juspay/hyperswitch/commit/07dc5255903ac72439525e01ea287dcb366458c0))
+- Use updated session state for refund ucs shadow mode using mitm proxy ([#10061](https://github.com/juspay/hyperswitch/pull/10061)) ([`5ff88d7`](https://github.com/juspay/hyperswitch/commit/5ff88d77457a62af35e22e942533a9e6c8758ce6))
+
+**Full Changelog:** [`2025.10.30.0...2025.10.31.0`](https://github.com/juspay/hyperswitch/compare/2025.10.30.0...2025.10.31.0)
+
+- - -
+
 ## 2025.10.30.0
 
 ### Features
