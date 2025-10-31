@@ -88,7 +88,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-/// Gets the rollout percentage for a given config key
 async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
     let db = state.store.as_ref();
 
@@ -247,13 +246,14 @@ where
             router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
             ShadowRolloutAvailability::IsAvailable
         } else {
-            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key exists but disabled (0.0%), falling back to check rollout" );
-            // Shadow disabled, check rollout in next block
-            if rollout_result.should_execute {
-                ShadowRolloutAvailability::NotAvailable // Use rollout (primary UCS)
-            } else {
-                ShadowRolloutAvailability::NotAvailable // Use direct
-            }
+            router_env::logger::debug!(
+                shadow_key = %shadow_rollout_key,
+                shadow_percentage = shadow_percentage,
+                rollout_enabled = rollout_result.should_execute,
+                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
+            );
+            // Shadow disabled, result is the same regardless of rollout status
+            ShadowRolloutAvailability::NotAvailable
         }
     } else if rollout_result.should_execute {
         // Block 2: No shadow key, but rollout is enabled - use primary UCS
