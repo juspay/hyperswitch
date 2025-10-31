@@ -46,13 +46,6 @@ pub struct GenericTesouroRequest<T> {
     variables: T,
 }
 
-pub fn get_todays_date() -> String {
-    use chrono::Utc;
-
-    let now = Utc::now();
-    now.format("%Y-%m-%d").to_string()
-}
-
 pub type TesouroAuthorizeRequest = GenericTesouroRequest<TesouroPaymentRequest>;
 pub type TesouroSetupMandateRequest = GenericTesouroRequest<TesouroVerifyAccountRequest>;
 pub type TesouroCaptureRequest = GenericTesouroRequest<TesouroCaptureInput>;
