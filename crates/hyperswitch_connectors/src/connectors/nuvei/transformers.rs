@@ -481,7 +481,7 @@ pub enum IsRebilling {
 #[serde(rename_all = "camelCase")]
 pub struct NuveiDynamicDescriptor {
     pub merchant_name: Option<String>,
-    pub merchant_phone: Option<Secret<String>>,
+    pub merchant_phone: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

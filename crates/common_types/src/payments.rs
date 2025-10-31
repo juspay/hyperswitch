@@ -707,7 +707,7 @@ pub struct BillingDescriptor {
     /// city to be put in billing description
     pub city: Option<String>,
     /// phone to be put in billing description
-    pub phone: Option<Secret<String>>,
+    pub phone: Option<String>,
     /// a short description for the payment
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
 }
