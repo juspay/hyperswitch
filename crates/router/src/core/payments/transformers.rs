@@ -459,6 +459,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
+        billing_descriptor: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4391,6 +4392,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            billing_descriptor: None,
         })
     }
 }
