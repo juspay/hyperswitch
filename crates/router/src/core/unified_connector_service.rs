@@ -616,8 +616,9 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     // Get shadow percentage to determine priority
-    let (_shadow_key_exists, shadow_percentage) = get_rollout_config_info(state, &shadow_rollout_key).await;
-    
+    let (_shadow_key_exists, shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
+
     let shadow_rollout_availability =
         if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
             // Shadow is present and percentage is non-zero, use shadow
