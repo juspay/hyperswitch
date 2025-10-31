@@ -95,6 +95,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
+                None,
                 services::AuthFlow::Client,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),

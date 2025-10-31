@@ -957,8 +957,8 @@ impl RevenueRecoveryAttempt {
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
                 card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
             },
-            is_active: Some(true),
-            account_update_history: None
+            is_active: Some(true), // Tokens created from recovery attempts are active by default
+            account_update_history: None, // No prior account update history exists for freshly ingested tokens
         };
 
         // Make the Redis call to store tokens

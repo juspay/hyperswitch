@@ -79,6 +79,7 @@ pub async fn setup_intents_create(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
@@ -159,6 +160,7 @@ pub async fn setup_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -243,6 +245,7 @@ pub async fn setup_intents_update(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
@@ -326,6 +329,7 @@ pub async fn setup_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
