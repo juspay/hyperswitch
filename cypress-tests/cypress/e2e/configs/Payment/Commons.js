@@ -1620,6 +1620,19 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
     DDCRaceConditionServerSide: getCustomExchange({
       Request: {
         payment_method: "card",

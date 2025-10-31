@@ -1,9 +1,12 @@
 use common_enums::enums;
+use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::types::FloatMajorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData},
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    payment_method_data::{
+        ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
+    },
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
@@ -321,10 +324,18 @@ pub enum TesouroAutomaticCapture {
     OnApproval,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TesouroWalletType {
+    ApplePay,
+    GooglePay,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TesouroPaymentMethodDetails {
     CardWithPanDetails(TesouroCardWithPanDetails),
+    NetworkTokenPassThroughDetails(TesouroNetworkTokenPassThroughDetails),
 }
 
 #[derive(Debug, Serialize)]
@@ -335,6 +346,17 @@ pub struct TesouroCardWithPanDetails {
     pub account_number: cards::CardNumber,
     pub payment_entry_mode: TesouroPaymentEntryMode,
     pub security_code: TesouroSecurityCode,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroNetworkTokenPassThroughDetails {
+    pub cryptogram: Option<Secret<String>>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub token_value: cards::CardNumber,
+    pub wallet_type: TesouroWalletType,
+    pub ecommerce_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -424,6 +446,90 @@ impl TryFrom<&Card> for TesouroPaymentMethodDetails {
     }
 }
 
+fn get_apple_pay_data(
+    apple_pay_wallet_data: &ApplePayWalletData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<ApplePayPredecryptData, error_stack::Report<errors::ConnectorError>> {
+    if let Some(PaymentMethodToken::ApplePayDecrypt(decrypted_data)) = payment_method_token {
+        return Ok(*decrypted_data.clone());
+    }
+
+    match &apple_pay_wallet_data.payment_data {
+        common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+            Ok(decrypted_data.clone())
+        }
+        common_types::payments::ApplePayPaymentData::Encrypted(_) => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "decrypted apple pay data",
+            })?
+        }
+    }
+}
+
+fn get_goole_pay_data(
+    google_pay_wallet_data: &GooglePayWalletData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<GPayPredecryptData, error_stack::Report<errors::ConnectorError>> {
+    if let Some(PaymentMethodToken::GooglePayDecrypt(decrypted_data)) = payment_method_token {
+        return Ok(*decrypted_data.clone());
+    }
+
+    match &google_pay_wallet_data.tokenization_data {
+        common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+            Ok(decrypted_data.clone())
+        }
+        common_types::payments::GpayTokenizationData::Encrypted(_) => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "decrypted google pay data",
+            })?
+        }
+    }
+}
+
+impl TryFrom<(&ApplePayWalletData, Option<&PaymentMethodToken>)> for TesouroPaymentMethodDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (wallet_data, payment_method_token): (&ApplePayWalletData, Option<&PaymentMethodToken>),
+    ) -> Result<Self, Self::Error> {
+        let apple_pay_data = get_apple_pay_data(wallet_data, payment_method_token)?;
+
+        let network_token_details = TesouroNetworkTokenPassThroughDetails {
+            expiration_year: apple_pay_data.get_four_digit_expiry_year(),
+            cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
+            token_value: apple_pay_data.application_primary_account_number,
+            expiration_month: apple_pay_data.application_expiration_month,
+            ecommerce_indicator: apple_pay_data.payment_data.eci_indicator,
+            wallet_type: TesouroWalletType::ApplePay,
+        };
+
+        Ok(Self::NetworkTokenPassThroughDetails(network_token_details))
+    }
+}
+
+impl TryFrom<(&GooglePayWalletData, Option<&PaymentMethodToken>)> for TesouroPaymentMethodDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (wallet_data, payment_method_token): (&GooglePayWalletData, Option<&PaymentMethodToken>),
+    ) -> Result<Self, Self::Error> {
+        let google_pay_data = get_goole_pay_data(wallet_data, payment_method_token)?;
+
+        let network_token_details = TesouroNetworkTokenPassThroughDetails {
+            expiration_year: google_pay_data
+                .get_four_digit_expiry_year()
+                .change_context(errors::ConnectorError::InvalidWalletToken {
+                    wallet_name: "Google Pay".to_string(),
+                })?,
+            cryptogram: google_pay_data.cryptogram,
+            token_value: google_pay_data.application_primary_account_number,
+            expiration_month: google_pay_data.card_exp_month,
+            ecommerce_indicator: google_pay_data.eci_indicator,
+            wallet_type: TesouroWalletType::GooglePay,
+        };
+
+        Ok(Self::NetworkTokenPassThroughDetails(network_token_details))
+    }
+}
+
 pub struct TesouroCaptureData {
     automatic_capture: TesouroAutomaticCapture,
     authorization_intent: TesouroAuthorizationIntent,
@@ -485,9 +591,58 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
 
         let payment_method_details = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => TesouroPaymentMethodDetails::try_from(card),
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_wallet_data) => {
+                    let payment_method_token = item.router_data.payment_method_token.as_ref();
+                    TesouroPaymentMethodDetails::try_from((
+                        apple_pay_wallet_data,
+                        payment_method_token,
+                    ))
+                }
+                WalletData::GooglePay(google_pay_wallet_data) => {
+                    let payment_method_token = item.router_data.payment_method_token.as_ref();
+                    TesouroPaymentMethodDetails::try_from((
+                        google_pay_wallet_data,
+                        payment_method_token,
+                    ))
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    connector_utils::get_unimplemented_payment_method_error_message("Tesouro"),
+                ))?,
+            },
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)

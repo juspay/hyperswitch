@@ -280,6 +280,7 @@ pub async fn modify_trackers(
             .payout_attempt
             .additional_payout_method_data
             .to_owned(),
+        payout_connector_metadata: None,
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

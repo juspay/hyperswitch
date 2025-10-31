@@ -1,11 +1,13 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use common_enums::{self, enums};
 use common_types::payments as common_payments_types;
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -48,6 +50,8 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -61,6 +65,8 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
     }
@@ -150,13 +156,12 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
         ))
@@ -202,16 +207,27 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
-        let request = self.request.clone();
-        tokenization::add_payment_method_token(
-            state,
-            connector,
-            tokenization_action,
-            self,
-            types::PaymentMethodTokenizationData::try_from(request)?,
-            should_continue_payment,
-        )
-        .await
+        if connector
+            .connector
+            .should_call_tokenization_before_setup_mandate()
+        {
+            let request = self.request.clone();
+            tokenization::add_payment_method_token(
+                state,
+                connector,
+                tokenization_action,
+                self,
+                types::PaymentMethodTokenizationData::try_from(request)?,
+                should_continue_payment,
+            )
+            .await
+        } else {
+            Ok(types::PaymentMethodTokenResult {
+                payment_method_token_result: Ok(None),
+                is_payment_method_tokenization_performed: false,
+                connector_response: None,
+            })
+        }
     }
 
     async fn create_connector_customer<'a>(
@@ -270,6 +286,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -292,6 +312,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
+            .or(merchant_order_reference_id)
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -299,7 +320,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
@@ -321,19 +342,24 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
                 let payment_register_response = response.into_inner();
 
-                let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_payment_register(
-                        payment_register_response.clone(),
-                    )
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data = handle_unified_connector_service_response_for_payment_register(
+                    payment_register_response.clone(),
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response =
+                    ucs_data.router_data_response.map(|(response, status)| {
+                        router_data.status = status;
+                        response
+                    });
                 router_data.response = router_data_response;
-                router_data.connector_http_status_code = Some(status_code);
+                router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+                // Populate connector_customer_id if present
+                ucs_data.connector_customer_id.map(|connector_customer_id| {
+                    router_data.connector_customer = Some(connector_customer_id);
+                });
 
                 Ok((router_data, payment_register_response))
             },
