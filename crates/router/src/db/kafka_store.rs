@@ -1195,9 +1195,10 @@ impl ConnectorAccessToken for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &str,
+        payment_method_type: Option<String>,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
         self.diesel_store
-            .get_access_token(merchant_id, merchant_connector_id)
+            .get_access_token(merchant_id, merchant_connector_id, payment_method_type)
             .await
     }
 
@@ -1206,9 +1207,15 @@ impl ConnectorAccessToken for KafkaStore {
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &str,
         access_token: AccessToken,
+        payment_method_type: Option<String>,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .set_access_token(merchant_id, merchant_connector_id, access_token)
+            .set_access_token(
+                merchant_id,
+                merchant_connector_id,
+                access_token,
+                payment_method_type,
+            )
             .await
     }
 }

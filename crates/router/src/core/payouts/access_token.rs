@@ -63,7 +63,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let store = &*state.store;
         let old_access_token = store
-            .get_access_token(merchant_id, connector.connector.id())
+            .get_access_token(merchant_id, connector.connector.id(), None)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -110,6 +110,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                             merchant_id,
                             connector.connector.id(),
                             access_token.clone(),
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)

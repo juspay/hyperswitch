@@ -8,6 +8,7 @@ use crate::id_type;
 pub fn create_access_token_key(
     merchant_id: &id_type::MerchantId,
     merchant_connector_id_or_connector_name: impl Display,
+    payment_method_type: Option<String>,
 ) -> String {
-    merchant_id.get_access_token_key(merchant_connector_id_or_connector_name)
+    merchant_id.get_access_token_key(merchant_connector_id_or_connector_name, payment_method_type)
 }
