@@ -5744,6 +5744,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<bool>)]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
+    /// date and time at which extended authorization was last applied on this payment
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
+
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple

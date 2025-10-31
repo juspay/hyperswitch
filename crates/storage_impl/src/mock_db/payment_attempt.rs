@@ -227,6 +227,8 @@ impl PaymentAttemptInterface for MockDb {
             connector_mandate_detail: payment_attempt.connector_mandate_detail,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_last_applied_at: payment_attempt
+                .extended_authorization_last_applied_at,
             capture_before: payment_attempt.capture_before,
             card_discovery: payment_attempt.card_discovery,
             charges: None,
