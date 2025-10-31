@@ -393,8 +393,10 @@ pub struct ClickToPayEligibilityCheckData {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ClickToPayEligibilityCheckResponseData {
     // Visa specific eligibility check data
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub visa: Option<bool>,
     // MasterCard specific eligibility check data
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mastercard: Option<bool>,
 }
 
