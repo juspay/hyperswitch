@@ -32,7 +32,10 @@ use crate::{
             operations::{GetTrackerResponse, Operation},
             transformers::GenerateResponse,
         },
-        revenue_recovery::types::RevenueRecoveryOutgoingWebhook,
+        revenue_recovery::types::{
+            reopen_calculate_workflow_on_payment_failure, RevenueRecoveryOutgoingWebhook,
+        },
+        revenue_recovery_data_backfill::unlock_connector_customer_status,
     },
     db::StorageInterface,
     logger,
@@ -160,6 +163,73 @@ pub async fn upsert_calculate_pcr_task(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn record_internal_attempt_and_execute_payment(
+    state: &SessionState,
+    execute_task_process: &storage::ProcessTracker,
+    profile: &domain::Profile,
+    merchant_context: domain::MerchantContext,
+    tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    payment_intent: &PaymentIntent,
+    payment_processor_token: &storage::revenue_recovery_redis_operation::PaymentProcessorTokenStatus,
+    revenue_recovery_metadata: &mut api_models::payments::PaymentRevenueRecoveryMetadata,
+) -> Result<(), sch_errors::ProcessTrackerError> {
+    let db = &*state.store;
+
+    let card_info = api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
+
+    // record attempt call
+    let record_attempt = api::record_internal_attempt_api(
+        state,
+        payment_intent,
+        revenue_recovery_payment_data,
+        revenue_recovery_metadata,
+        card_info,
+        &payment_processor_token
+            .payment_processor_token_details
+            .payment_processor_token,
+    )
+    .await;
+
+    match record_attempt {
+        Ok(record_attempt_response) => {
+            let action = Box::pin(types::Action::execute_payment(
+                state,
+                revenue_recovery_payment_data.merchant_account.get_id(),
+                payment_intent,
+                execute_task_process,
+                profile,
+                merchant_context,
+                revenue_recovery_payment_data,
+                revenue_recovery_metadata,
+                &record_attempt_response.id,
+                payment_processor_token,
+            ))
+            .await?;
+            Box::pin(action.execute_payment_task_response_handler(
+                state,
+                payment_intent,
+                execute_task_process,
+                revenue_recovery_payment_data,
+                revenue_recovery_metadata,
+            ))
+            .await?;
+        }
+        Err(err) => {
+            logger::error!("Error while recording attempt: {:?}", err);
+            let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                status: enums::ProcessTrackerStatus::Pending,
+                business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_REQUEUE)),
+            };
+            db.as_scheduler()
+                .update_process(execute_task_process.clone(), pt_update)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
@@ -210,66 +280,55 @@ pub async fn perform_execute_payment(
                 &connector_customer_id,
                 tracking_data.revenue_recovery_retry,
                 last_token_used.as_deref(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to fetch token details from redis".to_string(),
-                })?
-                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to fetch token details from redis".to_string(),
-            })?;
-            logger::info!("Token fetched from redis success");
-            let card_info =
-                api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
-            // record attempt call
-            let record_attempt = api::record_internal_attempt_api(
-                state,
-                payment_intent,
-                revenue_recovery_payment_data,
-                &revenue_recovery_metadata,
-                card_info,
-                &processor_token
-                    .payment_processor_token_details
-                    .payment_processor_token,
             )
-            .await;
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch token details from redis".to_string(),
+            })?;
 
-            match record_attempt {
-                Ok(record_attempt_response) => {
-                    let action = Box::pin(types::Action::execute_payment(
+            match processor_token {
+                None => {
+                    logger::info!("No Token fetched from redis");
+
+                    // Close the job if there is no token available
+                    db.as_scheduler()
+                        .finish_process_with_business_status(
+                            execute_task_process.clone(),
+                            business_status::EXECUTE_WORKFLOW_COMPLETE,
+                        )
+                        .await?;
+
+                    Box::pin(reopen_calculate_workflow_on_payment_failure(
                         state,
-                        revenue_recovery_payment_data.merchant_account.get_id(),
-                        payment_intent,
                         execute_task_process,
                         profile,
                         merchant_context,
-                        revenue_recovery_payment_data,
-                        &revenue_recovery_metadata,
-                        &record_attempt_response.id,
-                    ))
-                    .await?;
-                    Box::pin(action.execute_payment_task_response_handler(
-                        state,
                         payment_intent,
-                        execute_task_process,
                         revenue_recovery_payment_data,
-                        &mut revenue_recovery_metadata,
+                        &tracking_data.payment_attempt_id,
                     ))
                     .await?;
+
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
                 }
-                Err(err) => {
-                    logger::error!("Error while recording attempt: {:?}", err);
-                    let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: enums::ProcessTrackerStatus::Pending,
-                        business_status: Some(String::from(
-                            business_status::EXECUTE_WORKFLOW_REQUEUE,
-                        )),
-                    };
-                    db.as_scheduler()
-                        .update_process(execute_task_process.clone(), pt_update)
-                        .await?;
+
+                Some(payment_processor_token) => {
+                    logger::info!("Token fetched from redis success");
+
+                    record_internal_attempt_and_execute_payment(
+                        state,
+                        execute_task_process,
+                        profile,
+                        merchant_context,
+                        tracking_data,
+                        revenue_recovery_payment_data,
+                        payment_intent,
+                        &payment_processor_token,
+                        &mut revenue_recovery_metadata,
+                    )
+                    .await?;
                 }
-            }
+            };
         }
 
         types::Decision::Psync(attempt_status, attempt_id) => {

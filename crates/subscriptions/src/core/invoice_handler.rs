@@ -1,11 +1,13 @@
 use api_models::{
     enums as api_enums,
+    mandates::RecurringDetails,
     subscription::{self as subscription_types},
 };
 use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
+use masking::PeekInterface;
 
 use super::errors;
 use crate::{
@@ -173,7 +175,11 @@ impl InvoiceHandler {
             billing: request.get_billing_address(),
             shipping: request.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
-            setup_future_usage: payment_details.setup_future_usage,
+            setup_future_usage: payment_details
+                .payment_method_id
+                .is_none()
+                .then_some(payment_details.setup_future_usage)
+                .flatten(),
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
             authentication_type: payment_details.authentication_type,
@@ -182,6 +188,11 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            recurring_details: payment_details
+                .payment_method_id
+                .as_ref()
+                .map(|id| RecurringDetails::PaymentMethodId(id.peek().clone())),
+            off_session: Some(payment_details.payment_method_id.is_some()),
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
@@ -208,6 +219,7 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            payment_token: payment_details.payment_token.clone(),
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
@@ -315,7 +327,7 @@ impl InvoiceHandler {
             currency,
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
-            recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
+            recurring_details: Some(RecurringDetails::PaymentMethodId(
                 payment_method_id.to_owned(),
             )),
             off_session: Some(true),

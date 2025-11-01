@@ -1,6 +1,11 @@
 use common_enums::AttemptStatus;
+use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse, router_response_types::PaymentsResponseData,
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
+        ExtendedAuthorizationResponseData,
+    },
+    router_response_types::PaymentsResponseData,
 };
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
@@ -77,6 +82,18 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
 
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Pre Authenticate from gRPC Server")]
+    PaymentPreAuthenticateFailure,
+
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Authenticate from gRPC Server")]
+    PaymentAuthenticateFailure,
+
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Poat Authenticate from gRPC Server")]
+    PaymentPostAuthenticateFailure,
+
     /// Failed to perform Payment Get from gRPC Server
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
@@ -92,6 +109,14 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
+
+    /// Failed to perform Payment Refund from gRPC Server
+    #[error("Failed to perform Payment Refund from gRPC Server")]
+    PaymentRefundFailure,
+
+    /// Failed to perform Refund Sync from gRPC Server
+    #[error("Failed to perform Refund Sync from gRPC Server")]
+    RefundSyncFailure,
 
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]
@@ -236,6 +261,82 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             }
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
+    }
+}
+
+// Transformer for ConnectorResponseData from UCS proto to Hyperswitch domain type
+impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseData {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::ConnectorResponseData) -> Result<Self, Self::Error> {
+        // Extract additional_payment_method_data
+        let additional_payment_method_data = value
+            .additional_payment_method_data
+            .map(AdditionalPaymentMethodConnectorResponse::foreign_try_from)
+            .transpose()?;
+
+        let extended_authorization_response_data =
+            value.extended_authorization_response_data.map(|data| {
+                ExtendedAuthorizationResponseData {
+                    capture_before: data
+                        .capture_before
+                        .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
+                        .map(|offset_dt| {
+                            time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time())
+                        }),
+                    extended_authentication_applied: data
+                        .extended_authentication_applied
+                        .map(ExtendedAuthorizationAppliedBool::from),
+                }
+            });
+
+        let is_overcapture_enabled = value
+            .is_overcapture_enabled
+            .map(OvercaptureEnabledBool::new);
+
+        Ok(Self::new(
+            additional_payment_method_data,
+            is_overcapture_enabled,
+            extended_authorization_response_data,
+        ))
+    }
+}
+
+// Transformer for AdditionalPaymentMethodConnectorResponse
+impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
+    for AdditionalPaymentMethodConnectorResponse
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
+    ) -> Result<Self, Self::Error> {
+        let card_data = value.card.unwrap_or_default();
+
+        Ok(Self::Card {
+            authentication_data: card_data.authentication_data.and_then(|data| {
+                serde_json::from_slice(&data)
+                    .inspect_err(|e| {
+                        router_env::logger::warn!(
+                            deserialization_error=?e,
+                            "Failed to deserialize authentication_data from UCS connector response"
+                        );
+                    })
+                    .ok()
+            }),
+            payment_checks: card_data.payment_checks.and_then(|data| {
+                serde_json::from_slice(&data)
+                    .inspect_err(|e| {
+                        router_env::logger::warn!(
+                            deserialization_error=?e,
+                            "Failed to deserialize payment_checks from UCS connector response"
+                        );
+                    })
+                    .ok()
+            }),
+            card_network: card_data.card_network,
+            domestic_network: card_data.domestic_network,
+        })
     }
 }
 

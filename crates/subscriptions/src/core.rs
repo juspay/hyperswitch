@@ -176,6 +176,12 @@ pub async fn create_and_confirm_subscription(
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateAndConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+    request
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_string(),
+        })?;
+
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
@@ -311,6 +317,12 @@ pub async fn confirm_subscription(
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+    // Validate request
+    request
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_string(),
+        })?;
     // Find the subscription from database
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
@@ -368,8 +380,8 @@ pub async fn confirm_subscription(
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data
-                .clone(),
+                .as_ref()
+                .and_then(|data| data.payment_method_data.clone()),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
