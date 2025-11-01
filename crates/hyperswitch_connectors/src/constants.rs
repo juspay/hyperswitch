@@ -36,6 +36,8 @@ pub(crate) mod headers {
     pub(crate) const X_SIGNATURE: &str = "X-Signature";
     pub(crate) const SOAP_ACTION: &str = "SOAPAction";
     pub(crate) const X_PROFILE_ID: &str = "X-Profile-Id";
+    pub(crate) const X_VOLT_API_VERSION: &str = "X-Volt-Api-Version";
+    pub(crate) const X_VOLT_INITIATION_CHANNEL: &str = "X-Volt-Initiation-Channel";
 }
 
 /// Unsupported response type error message
