@@ -504,9 +504,9 @@ impl RedisTokenManager {
                 match (existing_token.modified_at, modified_at) {
                     (Some(old), Some(new)) if new > old => {
                         existing_token.modified_at = Some(new);
-                        
+
                         existing_token.error_code = error_code;
-                        
+
                         existing_token.is_hard_decline = token_data.is_hard_decline;
                     }
                     _ => {}
