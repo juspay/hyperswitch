@@ -259,6 +259,7 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
+            payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
     }

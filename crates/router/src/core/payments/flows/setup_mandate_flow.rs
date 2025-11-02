@@ -324,7 +324,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(ucs_logging_wrapper(
+        let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
             payment_register_request,
@@ -361,7 +361,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     router_data.connector_customer = Some(connector_customer_id);
                 });
 
-                Ok((router_data, payment_register_response))
+                Ok((router_data, (), payment_register_response))
             },
         ))
         .await?;

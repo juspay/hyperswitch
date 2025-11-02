@@ -239,9 +239,9 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_pre_authenticate",
+                    method="payment_post_authenticate",
                     connector_name=?connector_name,
-                    "UCS payment pre authenticate gRPC call failed"
+                    "UCS payment post authenticate gRPC call failed"
                 )
             })
     }

@@ -957,7 +957,7 @@ async fn call_unified_connector_service_authorize(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_authorize_request,
@@ -1001,7 +1001,7 @@ async fn call_unified_connector_service_authorize(
                 router_data.connector_response = Some(customer_response);
             });
 
-            Ok((router_data, payment_authorize_response))
+            Ok((router_data, (), payment_authorize_response))
         },
     ))
     .await?;
@@ -1137,7 +1137,7 @@ async fn call_unified_connector_service_pre_authenticate(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_pre_authenticate_request,
@@ -1177,7 +1177,7 @@ async fn call_unified_connector_service_pre_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            Ok((router_data, payment_pre_authenticate_response))
+            Ok((router_data,(), payment_pre_authenticate_response))
         },
     ))
     .await?;
@@ -1234,7 +1234,7 @@ async fn call_unified_connector_service_repeat_payment(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_repeat_request,
@@ -1279,7 +1279,7 @@ async fn call_unified_connector_service_repeat_payment(
                 router_data.connector_response = Some(connector_response);
             });
 
-            Ok((router_data, payment_repeat_response))
+            Ok((router_data, (), payment_repeat_response))
         },
     ))
     .await?;

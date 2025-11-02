@@ -657,6 +657,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
@@ -672,6 +673,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            payment_method_type: data.payment_method_type,
             amount: Some(data.amount),
             minor_amount: Some(data.minor_amount),
             email: data.email,
@@ -686,6 +688,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPostAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
@@ -701,6 +704,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
 
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_type: data.payment_method_type,
             payment_method_data: data.payment_method_data,
             amount: Some(data.amount),
             minor_amount: Some(data.minor_amount),
@@ -708,7 +712,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             currency: Some(data.currency),
             browser_info: data.browser_info,
             connector_transaction_id: None,
-            redirect_response: None,
+            redirect_response: data.redirect_response,
         })
     }
 }
@@ -805,6 +809,8 @@ pub struct CompleteAuthorizeData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub authentication_data: Option<AuthenticationData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
@@ -1056,7 +1062,9 @@ pub struct AuthenticationData {
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub acs_trans_id: Option<String>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
