@@ -6,7 +6,7 @@ use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
     request::{Method, RequestContent},
-    types::{MinorUnit, StatementDescriptor},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -367,7 +367,7 @@ pub struct CheckoutLineItem {
 pub struct CheckoutBillingDescriptor {
     pub name: Option<String>,
     pub city: Option<String>,
-    pub reference: Option<StatementDescriptor>,
+    pub reference: Option<String>,
 }
 
 #[skip_serializing_none]

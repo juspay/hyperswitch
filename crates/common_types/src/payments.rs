@@ -709,7 +709,7 @@ pub struct BillingDescriptor {
     /// phone to be put in billing description
     pub phone: Option<String>,
     /// a short description for the payment
-    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
+    pub statement_descriptor: Option<String>,
 }
 
 impl_to_sql_from_sql_json!(BillingDescriptor);
