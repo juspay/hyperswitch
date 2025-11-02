@@ -501,11 +501,16 @@ impl RedisTokenManager {
                         .or_insert(value);
                 }
 
-                (existing_token.modified_at < modified_at).then(|| {
-                    existing_token.modified_at = modified_at;
-                    error_code.map(|err| existing_token.error_code = Some(err));
-                    existing_token.is_hard_decline = token_data.is_hard_decline;
-                });
+                match (existing_token.modified_at, modified_at) {
+                    (Some(old), Some(new)) if new > old => {
+                        existing_token.modified_at = Some(new);
+                        
+                        existing_token.error_code = error_code;
+                        
+                        existing_token.is_hard_decline = token_data.is_hard_decline;
+                    }
+                    _ => {}
+                }
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);

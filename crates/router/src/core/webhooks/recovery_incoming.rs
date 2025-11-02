@@ -908,7 +908,8 @@ impl RevenueRecoveryAttempt {
         payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
-        let error_code = recovery_attempt.error_code.clone();
+
+        let error_code = revenue_recovery_attempt_data.error_code.clone() ;
         let error_message = revenue_recovery_attempt_data.error_message.clone();
         let connector_name = payment_connector_name
             .ok_or(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
