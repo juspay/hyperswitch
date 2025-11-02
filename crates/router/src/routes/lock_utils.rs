@@ -163,7 +163,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
-            | Flow::GiftCardBalanceCheck
+            | Flow::PaymentMethodBalanceCheck
+            | Flow::ApplyPaymentMethodData
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent

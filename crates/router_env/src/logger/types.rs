@@ -680,10 +680,12 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
-    /// Gift card balance check flow
-    GiftCardBalanceCheck,
+    /// Payment Method balance check flow
+    PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
+    /// Apply payment method data flow
+    ApplyPaymentMethodData,
 }
 
 /// Trait for providing generic behaviour to flow metric
