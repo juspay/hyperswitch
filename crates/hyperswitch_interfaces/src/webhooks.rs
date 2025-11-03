@@ -212,11 +212,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     /// fn get_status_update_object
     #[cfg(feature = "payouts")]
-    fn get_payout_error_update_object(
+    fn get_payout_webhook_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::PayoutStatusUpdate, errors::ConnectorError> {
-        Ok(api_models::webhooks::PayoutStatusUpdate {
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
+        Ok(api_models::webhooks::PayoutWebhookUpdate {
             error_code: None,
             error_message: None,
         })

@@ -313,13 +313,13 @@ impl IncomingWebhook for ConnectorEnum {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_error_update_object(
+    fn get_payout_webhook_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::PayoutStatusUpdate, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_payout_error_update_object(request),
-            Self::New(connector) => connector.get_payout_error_update_object(request),
+            Self::Old(connector) => connector.get_payout_webhook_details(request),
+            Self::New(connector) => connector.get_payout_webhook_details(request),
         }
     }
 

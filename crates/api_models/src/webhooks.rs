@@ -411,7 +411,7 @@ pub struct IncomingWebhookDetails {
 }
 
 #[cfg(feature = "payouts")]
-pub struct PayoutStatusUpdate {
+pub struct PayoutWebhookUpdate {
     pub error_message: Option<String>,
     pub error_code: Option<String>,
 }
