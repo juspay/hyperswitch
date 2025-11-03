@@ -398,6 +398,7 @@ impl
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
                 transaction_id: authentication.connector_authentication_id.clone(),
+                ucaf_collection_indicator: None,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

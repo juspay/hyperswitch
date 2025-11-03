@@ -1065,6 +1065,7 @@ pub struct AuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub transaction_id: Option<String>,
+    pub ucaf_collection_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

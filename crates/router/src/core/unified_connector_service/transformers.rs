@@ -1830,9 +1830,14 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
 
     fn foreign_try_from(authentication_data: AuthenticationData) -> Result<Self, Self::Error> {
         use transformers::ForeignFrom;
+        let cavv = if authentication_data.cavv.peek().is_empty() {
+            None
+        } else {
+            Some(authentication_data.cavv.expose().to_string())
+        };
         Ok(Self {
             eci: authentication_data.eci,
-            cavv: Some(authentication_data.cavv.expose()),
+            cavv,
             threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
                 |id| Identifier {
                     id_type: Some(payments_grpc::identifier::IdType::Id(id)),
@@ -1848,6 +1853,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .map(i32::from),
             acs_transaction_id: authentication_data.acs_trans_id,
             transaction_id: authentication_data.transaction_id,
+            ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
         })
     }
 }
@@ -2027,6 +2033,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
             trans_status,
             acs_transaction_id,
             transaction_id,
+            ucaf_collection_indicator,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
@@ -2063,6 +2070,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
             acs_trans_id: acs_transaction_id,
             authentication_type: None,
             transaction_id,
+            ucaf_collection_indicator,
         })
     }
 }
