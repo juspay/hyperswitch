@@ -1353,6 +1353,7 @@ pub async fn save_in_locker_external(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn check_for_duplication_of_card_data(
     card_details: &CardDetailFromLocker,
     card_decrypted: &CardDetailFromLocker,
