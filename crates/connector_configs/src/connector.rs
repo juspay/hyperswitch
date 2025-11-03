@@ -328,6 +328,7 @@ pub struct ConnectorConfig {
     pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub peachpayments: Option<ConnectorTomlConfig>,
+    pub payjustnow: Option<ConnectorTomlConfig>,
     pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -600,6 +601,7 @@ impl ConnectorConfig {
             Connector::Xendit => Ok(connector_data.xendit),
             Connector::Paytm => Ok(connector_data.paytm),
             Connector::Phonepe => Ok(connector_data.phonepe),
+            Connector::Payjustnow => Ok(connector_data.payjustnow),
         }
     }
 }
