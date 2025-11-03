@@ -6,6 +6,9 @@
 //! Each flow (Authorize, PSync, SetupMandate, etc.) has its own implementation
 //! that handles the specific GRPC endpoint and request/response transformations.
 
+#[macro_use]
+pub mod macros;
+
 pub mod authorize;
 pub mod context;
 pub mod helpers;

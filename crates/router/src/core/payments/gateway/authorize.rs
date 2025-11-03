@@ -13,7 +13,7 @@ use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient;
 use hyperswitch_domain_models::{
-    router_data::{self, ErrorResponse, RouterData},
+    router_data::{ErrorResponse, RouterData},
     router_flow_types as domain,
 };
 use hyperswitch_interfaces::{
@@ -76,6 +76,10 @@ define_ucs_executor! {
 }
 
 // =============================================================================
+// PaymentGateway Implementation for domain::Authorize - Using Macro
+// =============================================================================
+
+// =============================================================================
 // PaymentGateway Implementation for domain::Authorize
 // =============================================================================
 
@@ -122,7 +126,6 @@ where
         RouterData<domain::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        // Determine which GRPC endpoint to call based on mandate_id
         let execution_context = RouterUcsExecutionContext::new(
             &context.merchant_context,
             &context.header_payload,
@@ -132,10 +135,8 @@ where
         );
 
         if router_data.request.mandate_id.is_some() {
-            // Call payment_repeat for mandate payments using trait-based executor
             RepeatUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await
         } else {
-            // Call payment_authorize for regular payments using trait-based executor
             AuthorizeUcsExecutor::execute_ucs_flow(state, router_data, execution_context).await
         }
     }
@@ -185,349 +186,33 @@ where
 }
 
 // =============================================================================
-// TODO Implementations - Pending UCS GRPC Endpoints
+// TODO Implementations - Using Macros
 // =============================================================================
 
-#[async_trait]
-impl<RCD>
-    payment_gateway::PaymentGateway<
-        SessionState,
-        RCD,
-        domain::AuthorizeSessionToken,
-        types::AuthorizeSessionTokenData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::AuthorizeSessionToken
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-{
-    async fn execute(
-        self: Box<Self>,
-        _state: &SessionState,
-        _connector_integration: BoxedConnectorIntegrationInterface<
-            domain::AuthorizeSessionToken,
-            RCD,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        _router_data: &RouterData<
-            domain::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        _call_connector_action: CallConnectorAction,
-        _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext,
-    ) -> CustomResult<
-        RouterData<
-            domain::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        todo!("UCS GRPC endpoint for session tokens not available - decision pending")
-    }
+impl_payment_gateway_todo! {
+    flow: domain::AuthorizeSessionToken,
+    request_data: types::AuthorizeSessionTokenData,
+    response_data: types::PaymentsResponseData,
+    reason: "UCS GRPC endpoint for session tokens not available - decision pending"
 }
 
-impl<RCD>
-    payment_gateway::FlowGateway<
-        SessionState,
-        RCD,
-        types::AuthorizeSessionTokenData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::AuthorizeSessionToken
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-{
-    fn get_gateway(
-        _execution_path: ExecutionPath,
-    ) -> Box<
-        dyn payment_gateway::PaymentGateway<
-            SessionState,
-            RCD,
-            Self,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-            RouterGatewayContext,
-        >,
-    > {
-        todo!("UCS GRPC endpoint for session tokens not available - decision pending")
-    }
+impl_payment_gateway_todo! {
+    flow: domain::PreProcessing,
+    request_data: types::PaymentsPreProcessingData,
+    response_data: types::PaymentsResponseData,
+    reason: "UCS GRPC endpoint for preprocessing not available - decision pending"
 }
 
-#[async_trait]
-impl<RCD>
-    payment_gateway::PaymentGateway<
-        SessionState,
-        RCD,
-        domain::PreProcessing,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::PreProcessing
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-{
-    async fn execute(
-        self: Box<Self>,
-        _state: &SessionState,
-        _connector_integration: BoxedConnectorIntegrationInterface<
-            domain::PreProcessing,
-            RCD,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-        _router_data: &RouterData<
-            domain::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-        _call_connector_action: CallConnectorAction,
-        _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext,
-    ) -> CustomResult<
-        RouterData<
-            domain::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        todo!("UCS GRPC endpoint for preprocessing not available - decision pending")
-    }
+impl_payment_gateway_todo! {
+    flow: domain::PostProcessing,
+    request_data: types::PaymentsPostProcessingData,
+    response_data: types::PaymentsResponseData,
+    reason: "UCS GRPC endpoint for post-processing not available - decision pending"
 }
 
-impl<RCD>
-    payment_gateway::FlowGateway<
-        SessionState,
-        RCD,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::PreProcessing
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-{
-    fn get_gateway(
-        _execution_path: ExecutionPath,
-    ) -> Box<
-        dyn payment_gateway::PaymentGateway<
-            SessionState,
-            RCD,
-            Self,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-            RouterGatewayContext,
-        >,
-    > {
-        todo!("UCS GRPC endpoint for preprocessing not available - decision pending")
-    }
-}
-
-#[async_trait]
-impl<RCD>
-    payment_gateway::PaymentGateway<
-        SessionState,
-        RCD,
-        domain::PostProcessing,
-        types::PaymentsPostProcessingData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::PostProcessing
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::PostProcessing,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        >,
-{
-    async fn execute(
-        self: Box<Self>,
-        _state: &SessionState,
-        _connector_integration: BoxedConnectorIntegrationInterface<
-            domain::PostProcessing,
-            RCD,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        >,
-        _router_data: &RouterData<
-            domain::PostProcessing,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        >,
-        _call_connector_action: CallConnectorAction,
-        _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext,
-    ) -> CustomResult<
-        RouterData<
-            domain::PostProcessing,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        todo!("UCS GRPC endpoint for post-processing not available - decision pending")
-    }
-}
-
-impl<RCD>
-    payment_gateway::FlowGateway<
-        SessionState,
-        RCD,
-        types::PaymentsPostProcessingData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::PostProcessing
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::PostProcessing,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        >,
-{
-    fn get_gateway(
-        _execution_path: ExecutionPath,
-    ) -> Box<
-        dyn payment_gateway::PaymentGateway<
-            SessionState,
-            RCD,
-            Self,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-            RouterGatewayContext,
-        >,
-    > {
-        todo!("UCS GRPC endpoint for post-processing not available - decision pending")
-    }
-}
-
-#[async_trait]
-impl<RCD>
-    payment_gateway::PaymentGateway<
-        SessionState,
-        RCD,
-        domain::CreateOrder,
-        types::CreateOrderRequestData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::CreateOrder
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::CreateOrder,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        >,
-{
-    async fn execute(
-        self: Box<Self>,
-        _state: &SessionState,
-        _connector_integration: BoxedConnectorIntegrationInterface<
-            domain::CreateOrder,
-            RCD,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        >,
-        _router_data: &RouterData<
-            domain::CreateOrder,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        >,
-        _call_connector_action: CallConnectorAction,
-        _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
-        _context: RouterGatewayContext,
-    ) -> CustomResult<
-        RouterData<
-            domain::CreateOrder,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        todo!("UCS GRPC endpoint for order creation not available - decision pending")
-    }
-}
-
-impl<RCD>
-    payment_gateway::FlowGateway<
-        SessionState,
-        RCD,
-        types::CreateOrderRequestData,
-        types::PaymentsResponseData,
-        RouterGatewayContext,
-    > for domain::CreateOrder
-where
-    RCD: Clone
-        + Send
-        + Sync
-        + 'static
-        + RouterDataConversion<
-            domain::CreateOrder,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-        >,
-{
-    fn get_gateway(
-        _execution_path: ExecutionPath,
-    ) -> Box<
-        dyn payment_gateway::PaymentGateway<
-            SessionState,
-            RCD,
-            Self,
-            types::CreateOrderRequestData,
-            types::PaymentsResponseData,
-            RouterGatewayContext,
-        >,
-    > {
-        todo!("UCS GRPC endpoint for order creation not available - decision pending")
-    }
+impl_payment_gateway_todo! {
+    flow: domain::CreateOrder,
+    request_data: types::CreateOrderRequestData,
+    response_data: types::PaymentsResponseData,
+    reason: "UCS GRPC endpoint for order creation not available - decision pending"
 }
