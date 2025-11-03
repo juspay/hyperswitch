@@ -427,6 +427,9 @@ where
     todo!()
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method_data_helper(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
