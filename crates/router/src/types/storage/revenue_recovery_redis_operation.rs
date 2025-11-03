@@ -484,7 +484,7 @@ impl RedisTokenManager {
 
         let error_code = token_data.error_code.clone();
 
-        let modified_at = token_data.modified_at;
+        let last_external_attempt_at = token_data.modified_at;
 
         let today = OffsetDateTime::now_utc().date();
 
@@ -501,16 +501,22 @@ impl RedisTokenManager {
                         .or_insert(value);
                 }
 
-                match (existing_token.modified_at, modified_at) {
-                    (Some(old), Some(new)) if new > old => {
-                        existing_token.modified_at = Some(new);
-
+                existing_token
+                    .modified_at
+                    .zip(last_external_attempt_at)
+                    .and_then(|(existing_token_modified_at, last_external_attempt_at)| {
+                        (last_external_attempt_at > existing_token_modified_at)
+                            .then_some(last_external_attempt_at)
+                    })
+                    .or_else(|| existing_token.modified_at.is_none().then(|| last_external_attempt_at).flatten()
+                )
+                    .map(|last_external_attempt_at| {
+                        existing_token.modified_at = Some(last_external_attempt_at);
                         existing_token.error_code = error_code;
-
                         existing_token.is_hard_decline = token_data.is_hard_decline;
-                    }
-                    _ => {}
-                }
+                    });
+
+                
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);

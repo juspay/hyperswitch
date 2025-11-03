@@ -705,7 +705,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     payment_intent: &PaymentIntent,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
-    let locked = RedisTokenManager::lock_connector_customer_status(
+    let locked_acquired = RedisTokenManager::lock_connector_customer_status(
         state,
         connector_customer_id,
         &payment_intent.id,
@@ -715,7 +715,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match locked {
+    match locked_acquired {
         false => {
             let token_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
