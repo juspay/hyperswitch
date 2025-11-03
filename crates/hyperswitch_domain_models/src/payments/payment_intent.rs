@@ -1859,6 +1859,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization,
             enable_overcapture: None,
             mit_category: None,
+            billing_descriptor: None,
         })
     }
     async fn convert_back(

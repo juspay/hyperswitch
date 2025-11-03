@@ -697,7 +697,7 @@ pub enum RecoveryAction {
 }
 
 /// Billing Descriptor information to be sent to the payment gateway
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 pub struct BillingDescriptor {
     /// name to be put in billing description
