@@ -6807,6 +6807,82 @@
         ]
       }
     },
+    "/authentication/{authentication_id}/eligibility-check": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - POST Eligibility Check",
+        "operationId": "Submit Eligibility for an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligibility Performed for the Authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - GET Eligibility Check",
+        "operationId": "Retrieve Eligibility Check data for an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationRetrieveEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved Eligibility check data for the Authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationRetrieveEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/user/create_platform": {
       "post": {
         "tags": [
@@ -9259,6 +9335,69 @@
           }
         }
       },
+      "AuthenticationEligibilityCheckData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "click_to_pay"
+            ],
+            "properties": {
+              "click_to_pay": {
+                "$ref": "#/components/schemas/ClickToPayEligibilityCheckData"
+              }
+            }
+          }
+        ]
+      },
+      "AuthenticationEligibilityCheckRequest": {
+        "type": "object",
+        "required": [
+          "eligibility_check_data"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
+            "nullable": true
+          },
+          "eligibility_check_data": {
+            "$ref": "#/components/schemas/AuthenticationEligibilityCheckData"
+          }
+        }
+      },
+      "AuthenticationEligibilityCheckResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/AuthenticationSdkNextAction"
+          }
+        }
+      },
+      "AuthenticationEligibilityCheckResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "click_to_pay_enrollment_status"
+            ],
+            "properties": {
+              "click_to_pay_enrollment_status": {
+                "$ref": "#/components/schemas/ClickToPayEligibilityCheckResponseData"
+              }
+            }
+          }
+        ]
+      },
       "AuthenticationEligibilityRequest": {
         "type": "object",
         "required": [
@@ -9511,6 +9650,51 @@
             "nullable": true
           }
         }
+      },
+      "AuthenticationRetrieveEligibilityCheckRequest": {
+        "type": "object"
+      },
+      "AuthenticationRetrieveEligibilityCheckResponse": {
+        "type": "object",
+        "required": [
+          "eligibility_check_data"
+        ],
+        "properties": {
+          "eligibility_check_data": {
+            "$ref": "#/components/schemas/AuthenticationEligibilityCheckResponseData"
+          }
+        }
+      },
+      "AuthenticationSdkNextAction": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "The next action is to await for a merchant callback",
+            "enum": [
+              "await_merchant_callback"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "deny"
+            ],
+            "properties": {
+              "deny": {
+                "type": "object",
+                "description": "The next action is to deny the payment with an error message",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -13106,6 +13290,40 @@
           "invoice_immediately",
           "add_to_unbilled_charges"
         ]
+      },
+      "ClickToPayEligibilityCheckData": {
+        "type": "object",
+        "properties": {
+          "visa": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VisaEligibilityCheckData"
+              }
+            ],
+            "nullable": true
+          },
+          "mastercard": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MasterCardEligibilityCheckData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ClickToPayEligibilityCheckResponseData": {
+        "type": "object",
+        "properties": {
+          "visa": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "mastercard": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
       },
       "ClickToPaySessionResponse": {
         "type": "object",
@@ -19372,6 +19590,25 @@
         "properties": {
           "mask": {
             "type": "string"
+          }
+        }
+      },
+      "MasterCardEligibilityCheckData": {
+        "type": "object",
+        "required": [
+          "consumerPresent"
+        ],
+        "properties": {
+          "consumerPresent": {
+            "type": "boolean"
+          },
+          "idLookupSessionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastUsedCardTimestamp": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -35757,6 +35994,29 @@
             "type": "string",
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
+            "nullable": true
+          }
+        }
+      },
+      "VisaEligibilityCheckData": {
+        "type": "object",
+        "required": [
+          "consumerPresent"
+        ],
+        "properties": {
+          "consumerPresent": {
+            "type": "boolean"
+          },
+          "consumerStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "customData": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         }
