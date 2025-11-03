@@ -222,6 +222,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
