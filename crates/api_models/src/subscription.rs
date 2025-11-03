@@ -1,7 +1,9 @@
 use common_enums::{connector_enums::InvoiceStatus, SubscriptionStatus};
 use common_types::payments::CustomerAcceptance;
 use common_utils::{
+    errors::ValidationError,
     events::ApiEventMetric,
+    fp_utils,
     id_type::{
         CustomerId, InvoiceId, MerchantConnectorAccountId, MerchantId, PaymentId, ProfileId,
         SubscriptionId,
@@ -195,9 +197,27 @@ pub struct ConfirmSubscriptionPaymentDetails {
     pub billing: Option<Address>,
     pub payment_method: PaymentMethod,
     pub payment_method_type: Option<PaymentMethodType>,
-    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+impl ConfirmSubscriptionPaymentDetails {
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.payment_method_data.is_none() && self.payment_token.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: String::from(
+                        "Either payment_method_data or payment_token must be present",
+                    ),
+                }
+                .into())
+            },
+        )
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -224,6 +244,24 @@ pub struct PaymentDetails {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_type: Option<PaymentType>,
+    #[schema(value_type = Option<String>, example = "pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: Option<Secret<String>>,
+}
+
+impl PaymentDetails {
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.payment_method_data.is_none() && self.payment_method_id.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: String::from(
+                        "Either payment_method_data or payment_method_id must be present",
+                    ),
+                }
+                .into())
+            },
+        )
+    }
 }
 
 // Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
@@ -250,10 +288,15 @@ pub struct ConfirmPaymentsRequestData {
     pub shipping: Option<Address>,
     pub profile_id: Option<ProfileId>,
     pub payment_method: PaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<PaymentMethodType>,
-    pub payment_method_data: PaymentMethodDataRequest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -272,10 +315,16 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub capture_method: Option<CaptureMethod>,
     pub authentication_type: Option<AuthenticationType>,
     pub payment_method: Option<PaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<PaymentMethodType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub payment_type: Option<PaymentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_details: Option<RecurringDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub off_session: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -303,6 +352,8 @@ pub struct PaymentResponseData {
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
     pub payment_type: Option<PaymentType>,
+    #[schema(value_type = Option<String>, example = "token_sxJdmpUnpNsJk5VWzcjl")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 impl PaymentResponseData {
@@ -336,10 +387,14 @@ impl ConfirmSubscriptionRequest {
     pub fn get_billing_address(&self) -> Option<Address> {
         self.payment_details
             .payment_method_data
-            .billing
             .as_ref()
-            .or(self.payment_details.billing.as_ref())
-            .cloned()
+            .and_then(|data| data.billing.clone())
+            .or(self.payment_details.billing.clone())
+    }
+
+    // Perform validation on ConfirmSubscriptionRequest fields
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        self.payment_details.validate()
     }
 }
 
@@ -379,6 +434,10 @@ impl CreateAndConfirmSubscriptionRequest {
             .as_ref()
             .and_then(|data| data.billing.clone())
             .or(self.billing.clone())
+    }
+
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        self.payment_details.validate()
     }
 }
 

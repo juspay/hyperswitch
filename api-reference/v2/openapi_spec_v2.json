@@ -15823,6 +15823,13 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform eligibility check",
+            "enum": [
+              "eligibility_check"
+            ]
           }
         ]
       },

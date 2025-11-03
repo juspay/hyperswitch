@@ -425,27 +425,9 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a diesel_refund::Refund,
-    creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        creds_identifier.as_deref(),
-        merchant_context.get_merchant_key_store(),
-        profile_id,
-        connector_id,
-        payment_attempt.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
