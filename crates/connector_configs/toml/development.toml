@@ -7646,6 +7646,10 @@ required=true
 type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
+[zift]
+[zift.connector_auth.HeaderKey]
+api_key = "API Key"
+
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
 api_key = "Signing Key"
