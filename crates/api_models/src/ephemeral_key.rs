@@ -84,7 +84,9 @@ impl common_utils::events::ApiEventMetric for ClientSecretResponse {
 
 #[cfg(feature = "v1")]
 /// ephemeral_key for the customer_id mentioned
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema, SmithyModel)]
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct EphemeralKeyCreateResponse {
     /// customer_id to which this ephemeral key belongs to

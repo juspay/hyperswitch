@@ -2001,7 +2001,17 @@ pub struct ToggleAllKVResponse {
 }
 
 /// Merchant connector details used to make payments.
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    ToSchema,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info, like encoded_data in this field. And do not send the string "null".

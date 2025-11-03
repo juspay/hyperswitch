@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
-use smithy::SmithyModel;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -226,7 +226,17 @@ pub struct RefundManualUpdateRequest {
 #[cfg(feature = "v1")]
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
-    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display, SmithyModel
+    Default,
+    Debug,
+    Clone,
+    Copy,
+    ToSchema,
+    Deserialize,
+    Serialize,
+    Eq,
+    PartialEq,
+    strum::Display,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]

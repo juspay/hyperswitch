@@ -12,7 +12,16 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -29,7 +38,16 @@ pub struct AdyenSplitData {
 impl_to_sql_from_sql_json!(AdyenSplitData);
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -58,7 +76,16 @@ impl_to_sql_from_sql_json!(AdyenSplitItem);
 
 /// Fee information to be charged on the payment being collected for sub-merchant via xendit
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]

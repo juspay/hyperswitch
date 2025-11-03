@@ -117,7 +117,9 @@ pub struct MandateListConstraints {
 }
 
 /// Details required for recurring payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RecurringDetails {
@@ -135,7 +137,9 @@ pub enum RecurringDetails {
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ProcessorPaymentToken {
     #[smithy(value_type = "String")]
@@ -145,7 +149,9 @@ pub struct ProcessorPaymentToken {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndCardDetails {
     /// The card number

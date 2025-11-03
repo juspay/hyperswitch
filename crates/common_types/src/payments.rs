@@ -24,7 +24,16 @@ use utoipa::ToSchema;
 
 use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
@@ -45,7 +54,16 @@ pub enum SplitPaymentsRequest {
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -54,16 +72,16 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 pub struct StripeSplitPaymentRequest {
     /// Stripe's charge type
     #[schema(value_type = PaymentChargeType, example = "direct")]
-     #[smithy(value_type = "PaymentChargeType")]
+    #[smithy(value_type = "PaymentChargeType")]
     pub charge_type: enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
     #[schema(value_type = i64, example = 6540)]
-     #[smithy(value_type = "Option<i64>")]
+    #[smithy(value_type = "Option<i64>")]
     pub application_fees: Option<MinorUnit>,
 
     /// Identifier for the reseller's account where the funds were transferred
-     #[smithy(value_type = "String")]
+    #[smithy(value_type = "String")]
     pub transfer_account_id: String,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
@@ -193,7 +211,7 @@ impl_to_sql_from_sql_json!(ConditionalConfigs);
     Clone,
     AsExpression,
     ToSchema,
-    SmithyModel
+    SmithyModel,
 )]
 #[serde(deny_unknown_fields)]
 #[diesel(sql_type = Jsonb)]
@@ -237,7 +255,16 @@ impl CustomerAcceptance {
 impl masking::SerializableSecret for CustomerAcceptance {}
 
 #[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema, SmithyModel
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -260,7 +287,7 @@ pub enum AcceptanceType {
     AsExpression,
     Clone,
     ToSchema,
-    SmithyModel
+    SmithyModel,
 )]
 #[serde(deny_unknown_fields)]
 /// Details of online mandate
@@ -302,7 +329,16 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
 
 /// Fee information to be charged on the payment being collected via Stripe
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -330,7 +366,16 @@ impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
 /// Charge Information
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
@@ -352,7 +397,16 @@ impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
 
 /// Fee information to be charged on the payment being collected via xendit
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -379,7 +433,16 @@ impl_to_sql_from_sql_json!(XenditSplitRoute);
 
 /// Fee information to be charged on the payment being collected via xendit
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -402,7 +465,16 @@ impl_to_sql_from_sql_json!(XenditMultipleSplitRequest);
 
 /// Xendit Charge Request
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
@@ -421,7 +493,16 @@ impl_to_sql_from_sql_json!(XenditSplitRequest);
 
 /// Charge Information
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
@@ -440,7 +521,16 @@ impl_to_sql_from_sql_json!(XenditChargeResponseData);
 
 /// Fee information charged on the payment being collected via xendit
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
@@ -464,7 +554,9 @@ pub struct XenditMultipleSplitResponse {
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -478,7 +570,9 @@ pub enum GpayTokenizationData {
     Encrypted(GpayEcryptedTokenizationData),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the encrypted Gpay payment data
 pub struct GpayEcryptedTokenizationData {
@@ -491,7 +585,9 @@ pub struct GpayEcryptedTokenizationData {
     pub token: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Google Pay payment data
@@ -608,7 +704,9 @@ impl GPayPredecryptData {
         Ok(self.card_exp_month.clone())
     }
 }
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -622,7 +720,9 @@ pub enum ApplePayPaymentData {
     Encrypted(String),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Apple Pay payment data
@@ -645,7 +745,9 @@ pub struct ApplePayPredecryptData {
     pub payment_data: ApplePayCryptogramData,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the cryptogram data for Apple Pay transactions

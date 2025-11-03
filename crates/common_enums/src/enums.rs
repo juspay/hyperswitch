@@ -1988,7 +1988,7 @@ impl From<AttemptStatus> for PaymentMethodStatus {
     strum::Display,
     ToSchema,
     Default,
-    SmithyModel
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
@@ -9846,7 +9846,9 @@ pub enum ExternalVaultEnabled {
     Skip,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "UPPERCASE")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GooglePayCardFundingSource {

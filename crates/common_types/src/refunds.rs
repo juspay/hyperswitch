@@ -9,7 +9,16 @@ use utoipa::ToSchema;
 use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
@@ -30,7 +39,16 @@ pub enum SplitRefund {
 impl_to_sql_from_sql_json!(SplitRefund);
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema, SmithyModel,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]

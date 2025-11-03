@@ -51,13 +51,19 @@ fn generate_struct_impl(
     // Count flattened vs non-flattened fields to determine shape type
     let flattened_fields: Vec<_> = fields.iter().filter(|f| f.flatten).collect();
     let non_flattened_fields: Vec<_> = fields.iter().filter(|f| !f.flatten).collect();
-    
+
     // Use smart runtime inspection for structs with only a single flattened field
-    let should_use_smart_generation = non_flattened_fields.is_empty() && flattened_fields.len() == 1;
+    let should_use_smart_generation =
+        non_flattened_fields.is_empty() && flattened_fields.len() == 1;
 
     if should_use_smart_generation {
         // Generate smart logic that determines union vs structure at runtime based on the flattened type
-        return generate_union_from_flattened_struct(name, namespace, &flattened_fields[0], &struct_doc_expr);
+        return generate_union_from_flattened_struct(
+            name,
+            namespace,
+            &flattened_fields[0],
+            &struct_doc_expr,
+        );
     }
 
     // Otherwise, generate Structure (existing logic)
@@ -207,7 +213,6 @@ fn generate_struct_impl(
     Ok(expanded)
 }
 
-
 fn generate_union_from_flattened_struct(
     name: &syn::Ident,
     namespace: &str,
@@ -215,7 +220,7 @@ fn generate_union_from_flattened_struct(
     struct_doc_expr: &proc_macro2::TokenStream,
 ) -> syn::Result<TokenStream2> {
     let value_type = &flattened_field.value_type;
-    
+
     // Extract the inner type from Option<T> if it's an optional type
     let inner_type = if value_type.starts_with("Option<") && value_type.ends_with('>') {
         let start_idx = "Option<".len();
@@ -239,12 +244,12 @@ fn generate_union_from_flattened_struct(
 
                 // Check if the flattened type is actually an enum or union
                 let mut is_flattened_enum_or_union = false;
-                
+
                 // Find the target shape in the flattened model
                 for (shape_name, shape) in flattened_model.shapes.clone() {
                     if shape_name == flattened_struct_name {
                         match &shape {
-                            smithy_core::SmithyShape::Union { .. } | 
+                            smithy_core::SmithyShape::Union { .. } |
                             smithy_core::SmithyShape::Enum { .. } => {
                                 is_flattened_enum_or_union = true;
                             },
@@ -367,7 +372,13 @@ fn generate_enum_impl(
     if is_tagged_enum {
         // Generate tagged enum as a structure with tag field + all variant fields as optional
         // Plus a separate enum for the variants
-        generate_tagged_enum_impl(name, namespace, &variants, &serde_enum_attrs, &enum_doc_expr)
+        generate_tagged_enum_impl(
+            name,
+            namespace,
+            &variants,
+            &serde_enum_attrs,
+            &enum_doc_expr,
+        )
     } else if is_string_enum && !has_nested_value_type {
         // Generate as Smithy enum
         let variant_implementations = variants
@@ -695,10 +706,10 @@ fn generate_tagged_enum_impl(
 ) -> syn::Result<TokenStream2> {
     let tag_field_name = serde_enum_attrs.tag.as_ref().unwrap();
     let variants_enum_name = format!("{}EnumVariants", name);
-    
+
     // Collect all unique fields from all variants
     let mut all_fields = std::collections::HashMap::new();
-    
+
     for variant in variants {
         for field in &variant.fields {
             // Make all variant fields optional by wrapping in Option<> if not already
@@ -707,11 +718,18 @@ fn generate_tagged_enum_impl(
             } else {
                 format!("Option<{}>", field.value_type)
             };
-            
-            all_fields.insert(field.name.clone(), (optional_type, field.documentation.clone(), field.constraints.clone()));
+
+            all_fields.insert(
+                field.name.clone(),
+                (
+                    optional_type,
+                    field.documentation.clone(),
+                    field.constraints.clone(),
+                ),
+            );
         }
     }
-    
+
     // Generate field implementations for the main structure
     let field_implementations = all_fields.iter().map(|(field_name, (value_type, documentation, constraints))| {
         let field_doc = documentation
@@ -775,7 +793,7 @@ fn generate_tagged_enum_impl(
             }
         }
     });
-    
+
     // Generate variant enum values
     let variant_implementations = variants
         .iter()

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use common_utils::types::{StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
-use smithy::SmithyModel;
 use serde::de::Error;
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 

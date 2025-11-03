@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 

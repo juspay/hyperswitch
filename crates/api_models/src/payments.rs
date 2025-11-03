@@ -75,8 +75,13 @@ use crate::mandates;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails, payments::additional_info::{BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData, CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData, WalletAdditionalDataForCard},
+    mandates::RecurringDetails,
     payment_methods,
+    payments::additional_info::{
+        BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
+        CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
+        WalletAdditionalDataForCard,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
@@ -151,7 +156,15 @@ pub struct CustomerDetails {
 #[cfg(feature = "v1")]
 /// Details of customer attached to this payment
 #[derive(
-    Debug, Default, serde::Serialize, serde::Deserialize, Clone, ToSchema, PartialEq, Setter, SmithyModel,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    ToSchema,
+    PartialEq,
+    Setter,
+    SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetailsResponse {
@@ -1643,7 +1656,15 @@ mod payments_request_test {
 
 /// Details of surcharge applied on this payment, if applicable
 #[derive(
-    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq, SmithyModel,
+    Default,
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    Copy,
+    ToSchema,
+    PartialEq,
+    SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RequestSurchargeDetails {
@@ -1744,7 +1765,15 @@ impl RequestSurchargeDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema, SmithyModel)]
+#[derive(
+    Debug,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentAttemptResponse {
     /// A unique identifier for this specific payment attempt.
@@ -1989,7 +2018,14 @@ pub struct PaymentAttemptRevenueRecoveryData {
 }
 
 #[derive(
-    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema, SmithyModel,
+    Default,
+    Debug,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+    SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CaptureResponse {
@@ -2198,7 +2234,17 @@ impl MandateIds {
 /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    SmithyModel,
+)]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateData {
@@ -2220,7 +2266,17 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize, SmithyModel)]
+#[derive(
+    Clone,
+    Eq,
+    PartialEq,
+    Debug,
+    Default,
+    ToSchema,
+    serde::Serialize,
+    serde::Deserialize,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
@@ -2249,7 +2305,9 @@ pub struct MandateAmountData {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MandateType {
@@ -2267,14 +2325,26 @@ impl Default for MandateType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema, SmithyModel)]
+#[derive(
+    Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkDetails {
     #[smithy(value_type = "Option<String>")]
     pub network_advice_code: Option<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Card {
     /// The card number
@@ -2299,7 +2369,7 @@ pub struct Card {
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
-     #[smithy(value_type = "String")]
+    #[smithy(value_type = "String")]
     pub card_cvc: Secret<String>,
 
     /// The name of the issuer of card
@@ -2494,7 +2564,17 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default, SmithyModel)]
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Default,
+    SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardToken {
@@ -2509,7 +2589,9 @@ pub struct CardToken {
     pub card_cvc: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardRedirectData {
@@ -2523,7 +2605,9 @@ pub enum CardRedirectData {
     CardRedirect {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PayLaterData {
@@ -2626,7 +2710,9 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankDebitData {
@@ -2943,7 +3029,9 @@ mod payment_method_data_serde {
 }
 
 /// The payment method information provided for making a payment
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodDataRequest {
     /// This field is optional because, in case of saved cards we pass the payment_token
@@ -3061,7 +3149,9 @@ pub struct VaultToken {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodData {
@@ -3407,7 +3497,9 @@ impl GetPaymentMethodType for GiftCardData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GiftCardData {
@@ -3449,7 +3541,9 @@ pub struct ApplyPaymentMethodDataSurchargeResponseItem {
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BHNGiftCardDetails {
@@ -3471,7 +3565,9 @@ pub struct BHNGiftCardDetails {
     pub expiration_date: Option<String>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GiftCardDetails {
@@ -3612,7 +3708,9 @@ pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankRedirectData {
@@ -3929,7 +4027,9 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
@@ -3946,7 +4046,9 @@ pub struct AlfamartVoucherData {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
@@ -3963,7 +4065,9 @@ pub struct IndomaretVoucherData {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
@@ -3984,7 +4088,9 @@ pub struct JCSVoucherData {
     pub phone_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
@@ -3993,7 +4099,9 @@ pub struct AchBillingDetails {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
@@ -4010,7 +4118,9 @@ pub struct DokuBillingDetails {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MultibancoBillingDetails {
     #[schema(value_type = Option<String>, example = "example@me.com")]
@@ -4018,7 +4128,9 @@ pub struct MultibancoBillingDetails {
     pub email: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
@@ -4031,7 +4143,9 @@ pub struct SepaAndBacsBillingDetails {
     pub name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CryptoData {
@@ -4041,7 +4155,9 @@ pub struct CryptoData {
     pub network: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum UpiData {
@@ -4052,7 +4168,9 @@ pub enum UpiData {
     UpiQr(UpiQrData),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
@@ -4061,11 +4179,15 @@ pub struct UpiCollectData {
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiQrData {}
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiIntentData {}
 
@@ -4076,7 +4198,9 @@ pub struct SofortBilling {
     pub billing_country: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
@@ -4111,7 +4235,9 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferData {
@@ -4235,7 +4361,9 @@ pub enum BankTransferData {
     },
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RealTimePaymentData {
@@ -4316,7 +4444,9 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(
+    serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankDebitBilling {
     /// The billing name for bank debits
@@ -4356,7 +4486,9 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum WalletData {
@@ -4557,7 +4689,9 @@ impl GetAddressFromPaymentMethodData for WalletData {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PazeWalletData {
@@ -4566,7 +4700,9 @@ pub struct PazeWalletData {
     pub complete_response: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayWalletData {
@@ -4574,7 +4710,9 @@ pub struct SamsungPayWalletData {
     pub payment_credential: SamsungPayWalletCredentials,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case", untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayWalletCredentials {
@@ -4596,7 +4734,9 @@ impl From<SamsungPayCardBrand> for common_enums::SamsungPayCardBrand {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayAppWalletData {
@@ -4627,7 +4767,9 @@ pub struct SamsungPayAppWalletData {
     pub recurring_payment: Option<bool>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayWebWalletData {
@@ -4650,7 +4792,9 @@ pub struct SamsungPayWebWalletData {
     pub token_data: SamsungPayTokenData,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayTokenData {
@@ -4667,7 +4811,9 @@ pub struct SamsungPayTokenData {
     pub data: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayCardBrand {
@@ -4683,7 +4829,9 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum OpenBankingData {
@@ -4692,7 +4840,9 @@ pub enum OpenBankingData {
     OpenBankingPIS {},
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MobilePaymentData {
@@ -4709,7 +4859,9 @@ pub enum MobilePaymentData {
     },
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayWalletData {
@@ -4743,27 +4895,39 @@ pub struct AmazonPayMerchantCredentials {
     pub store_id: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SkrillData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PayseraData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayRedirectData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayThirdPartySdkData {
     #[schema(value_type = Option<String>)]
@@ -4771,7 +4935,9 @@ pub struct GooglePayThirdPartySdkData {
     pub token: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayThirdPartySdkData {
     #[schema(value_type = Option<String>)]
@@ -4779,23 +4945,33 @@ pub struct ApplePayThirdPartySdkData {
     pub token: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPay {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WeChatPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CashappQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaypalRedirection {
     /// paypal's email address
@@ -4804,43 +4980,63 @@ pub struct PaypalRedirection {
     pub email: Option<Email>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayQr {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AliPayHkRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BluecodeQrRedirect {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MomoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct KakaoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GoPayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GcashRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MobilePayRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
@@ -4849,7 +5045,9 @@ pub struct MbWayRedirection {
     pub telephone_number: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayPaymentMethodInfo {
@@ -4867,7 +5065,9 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayAssuranceDetails {
@@ -4879,7 +5079,9 @@ pub struct GooglePayAssuranceDetails {
     pub account_verified: bool,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PayPalWalletData {
     /// Token generated for the Apple pay
@@ -4887,19 +5089,27 @@ pub struct PayPalWalletData {
     pub token: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct TouchNGoRedirection {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SwishQrData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RevolutPayData {}
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MifinityData {
     #[schema(value_type = Date)]
@@ -4909,7 +5119,9 @@ pub struct MifinityData {
     pub language_preference: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayWalletData {
     /// Checkout Session identifier
@@ -4917,7 +5129,9 @@ pub struct AmazonPayWalletData {
     pub checkout_session_id: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
@@ -4932,7 +5146,9 @@ pub struct ApplePayWalletData {
     pub transaction_identifier: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepayPaymentMethod {
     /// The name to be displayed on Apple Pay button
@@ -4947,7 +5163,9 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardResponse {
     #[smithy(value_type = "Option<String>")]
@@ -4988,7 +5206,9 @@ pub struct RewardData {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BoletoVoucherData {
     /// The shopper's social security number (CPF or CNPJ)
@@ -5038,7 +5258,9 @@ pub struct BoletoVoucherData {
     pub due_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum VoucherData {
@@ -5161,7 +5383,9 @@ where
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodDataResponse {
@@ -5201,7 +5425,9 @@ pub enum PaymentMethodDataResponse {
     MobilePayment(Box<MobilePaymentResponse>),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankDebitResponse {
     #[serde(flatten)]
@@ -5210,7 +5436,9 @@ pub struct BankDebitResponse {
     details: Option<BankDebitAdditionalData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case", tag = "type")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankRedirectResponse {
@@ -5224,7 +5452,9 @@ pub struct BankRedirectResponse {
     pub details: Option<BankRedirectDetails>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankTransferResponse {
     #[serde(flatten)]
@@ -5233,7 +5463,9 @@ pub struct BankTransferResponse {
     details: Option<BankTransferAdditionalData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardRedirectResponse {
     #[serde(flatten)]
@@ -5241,7 +5473,9 @@ pub struct CardRedirectResponse {
     details: Option<CardRedirectData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CardTokenResponse {
     #[serde(flatten)]
@@ -5250,7 +5484,9 @@ pub struct CardTokenResponse {
     details: Option<CardTokenAdditionalData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CryptoResponse {
     #[serde(flatten)]
@@ -5258,7 +5494,9 @@ pub struct CryptoResponse {
     details: Option<CryptoData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GiftCardResponse {
     #[serde(flatten)]
@@ -5267,7 +5505,9 @@ pub struct GiftCardResponse {
     details: Option<GiftCardAdditionalData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OpenBankingResponse {
     #[serde(flatten)]
@@ -5275,7 +5515,9 @@ pub struct OpenBankingResponse {
     details: Option<OpenBankingData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MobilePaymentResponse {
     #[serde(flatten)]
@@ -5283,7 +5525,9 @@ pub struct MobilePaymentResponse {
     details: Option<MobilePaymentData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RealTimePaymentDataResponse {
     #[serde(flatten)]
@@ -5291,7 +5535,9 @@ pub struct RealTimePaymentDataResponse {
     details: Option<RealTimePaymentData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiResponse {
     #[serde(flatten)]
@@ -5300,7 +5546,9 @@ pub struct UpiResponse {
     details: Option<UpiAdditionalData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct VoucherResponse {
     #[serde(flatten)]
@@ -5308,14 +5556,18 @@ pub struct VoucherResponse {
     details: Option<VoucherData>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaylaterResponse {
     #[smithy(value_type = "Option<KlarnaSdkPaymentMethodResponse>")]
     klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WalletResponse {
     #[serde(flatten)]
@@ -5324,7 +5576,9 @@ pub struct WalletResponse {
 }
 
 /// Hyperswitch supports SDK integration with Apple Pay and Google Pay wallets. For other wallets, we integrate with their respective connectors, redirecting the customer to the connector for wallet payments. As a result, we don’t receive any payment method data in the confirm call for payments made through other wallets.
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum WalletResponseData {
@@ -5339,14 +5593,18 @@ pub enum WalletResponseData {
     SamsungPay(Box<WalletAdditionalDataForCard>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct KlarnaSdkPaymentMethodResponse {
     #[smithy(value_type = "Option<String>")]
     pub payment_type: Option<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
@@ -5425,7 +5683,17 @@ impl Default for PaymentIdType {
     }
 }
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+)]
 // #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct Address {
@@ -5460,7 +5728,17 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema, SmithyModel)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    SmithyModel,
+)]
 // #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AddressDetails {
@@ -5576,7 +5854,17 @@ pub struct EncryptableAddressDetails {
     pub email: crypto::OptionalEncryptableEmail,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize, SmithyModel)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PhoneDetails {
     /// The contact number
@@ -5590,7 +5878,17 @@ pub struct PhoneDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment being captured. This is taken from the path parameter.
@@ -5716,7 +6014,9 @@ pub enum NextActionType {
     RedirectInsidePopup,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
@@ -5813,7 +6113,9 @@ pub enum NextActionData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(tag = "method_key")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum IframeData {
@@ -5838,7 +6140,9 @@ pub enum IframeData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ThreeDsData {
     /// ThreeDS authentication url - to initiate authentication
@@ -5861,7 +6165,9 @@ pub struct ThreeDsData {
     pub directory_server_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ThreeDsMethodData {
@@ -5884,7 +6190,9 @@ pub enum ThreeDsMethodData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ThreeDsMethodKey {
     #[serde(rename = "threeDSMethodData")]
@@ -5893,7 +6201,9 @@ pub enum ThreeDsMethodKey {
     JWT,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PollConfigResponse {
     /// Poll Id
@@ -5933,7 +6243,9 @@ pub enum QrCodeInformation {
     },
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SdkNextActionData {
@@ -5943,7 +6255,9 @@ pub struct SdkNextActionData {
     pub order_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FetchQrCodeInformation {
     #[smithy(value_type = "String")]
@@ -5955,7 +6269,9 @@ pub struct SdkUpiIntentInformation {
     pub sdk_uri: Url,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankTransferNextStepsData {
     /// The instructions for performing a bank transfer
@@ -5967,7 +6283,9 @@ pub struct BankTransferNextStepsData {
     pub receiver: Option<ReceiverDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct VoucherNextStepData {
     /// Voucher entry date
@@ -5996,7 +6314,9 @@ pub struct MobilePaymentNextStepData {
     pub consent_data_required: MobilePaymentConsent,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MobilePaymentConsent {
@@ -6019,7 +6339,9 @@ pub struct WaitScreenInstructions {
     pub poll_config: Option<PollConfig>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PollConfig {
     /// Interval of the poll
@@ -6030,7 +6352,9 @@ pub struct PollConfig {
     pub frequency: u16,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferInstructions {
@@ -6051,7 +6375,9 @@ pub enum BankTransferInstructions {
     Multibanco(Box<MultibancoTransferInstructions>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SepaBankTransferInstructions {
     #[schema(value_type = String, example = "Jane Doe")]
@@ -6079,7 +6405,9 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub three_ds_method_data_submission: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BacsBankTransferInstructions {
     #[schema(value_type = String, example = "Jane Doe")]
@@ -6093,7 +6421,9 @@ pub struct BacsBankTransferInstructions {
     pub sort_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MultibancoTransferInstructions {
     #[schema(value_type = String, example = "122385736258")]
@@ -6104,7 +6434,9 @@ pub struct MultibancoTransferInstructions {
     pub entity: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DokuBankTransferInstructions {
     #[schema(value_type = String, example = "1707091200000")]
@@ -6118,7 +6450,9 @@ pub struct DokuBankTransferInstructions {
     pub instructions_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AchTransfer {
     #[schema(value_type = String, example = "122385736258")]
@@ -6134,7 +6468,9 @@ pub struct AchTransfer {
     pub swift_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ReceiverDetails {
     /// The amount received by receiver
@@ -6149,7 +6485,15 @@ pub struct ReceiverDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema, SmithyModel)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+    SmithyModel,
+)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsResponse {
@@ -8109,7 +8453,9 @@ pub struct PaymentsRetrieveRequest {
     pub all_keys_required: Option<bool>,
 }
 
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
@@ -8181,7 +8527,17 @@ pub struct OrderDetailsWithAmount {
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
-#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Default,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RedirectResponse {
     #[schema(value_type = Option<String>)]
@@ -8308,7 +8664,9 @@ pub struct DisplayAmountOnSdk {
     pub shipping_cost: Option<StringMajorUnit>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayAllowedMethodsParameters {
     /// The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)
@@ -8331,7 +8689,9 @@ pub struct GpayAllowedMethodsParameters {
     pub assurance_details_required: Option<bool>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayBillingAddressParameters {
     /// Is billing phone number required
@@ -8342,14 +8702,18 @@ pub struct GpayBillingAddressParameters {
     pub format: GpayBillingAddressFormat,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GpayBillingAddressFormat {
     FULL,
     MIN,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTokenParameters {
     /// The name of the connector
@@ -8380,7 +8744,9 @@ pub struct GpayTokenParameters {
     pub public_key: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
@@ -8392,7 +8758,9 @@ pub struct GpayTokenizationSpecification {
     pub parameters: GpayTokenParameters,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayAllowedPaymentMethods {
     /// The type of payment method
@@ -8407,7 +8775,9 @@ pub struct GpayAllowedPaymentMethods {
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTransactionInfo {
     /// The country code
@@ -8427,7 +8797,9 @@ pub struct GpayTransactionInfo {
     pub total_price: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayMerchantInfo {
     /// The merchant Identifier that needs to be passed while invoking Gpay SDK
@@ -8676,7 +9048,9 @@ pub struct SessionTokenInfo {
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Display, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Display, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplepayInitiative {
@@ -8694,7 +9068,9 @@ pub enum PaymentProcessingDetailsAt {
     Connector,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentProcessingDetails {
     #[schema(value_type = String)]
@@ -8769,7 +9145,9 @@ pub struct GooglePayTokenizationParameters {
     pub stripe_version: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -8838,7 +9216,9 @@ pub struct HyperswitchVaultSessionDetails {
     pub profile_id: Secret<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PazeSessionTokenResponse {
@@ -8865,7 +9245,9 @@ pub struct PazeSessionTokenResponse {
     pub email_address: Option<Email>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GpaySessionTokenResponse {
@@ -8877,7 +9259,9 @@ pub enum GpaySessionTokenResponse {
     GooglePaySession(GooglePaySessionResponse),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePayThirdPartySdk {
@@ -8892,7 +9276,9 @@ pub struct GooglePayThirdPartySdk {
     pub sdk_next_action: SdkNextAction,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GooglePaySessionResponse {
@@ -8928,7 +9314,9 @@ pub struct GooglePaySessionResponse {
     pub secrets: Option<SecretInfoToInitiateSdk>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPaySessionTokenResponse {
@@ -8963,14 +9351,18 @@ pub struct SamsungPaySessionTokenResponse {
     pub shipping_address_required: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayProtocolType {
     Protocol3ds,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayMerchantPaymentInformation {
@@ -8986,7 +9378,9 @@ pub struct SamsungPayMerchantPaymentInformation {
     pub country_code: api_enums::CountryAlpha2,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayAmountDetails {
@@ -9005,7 +9399,9 @@ pub struct SamsungPayAmountDetails {
     pub total_amount: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayAmountFormat {
@@ -9015,7 +9411,9 @@ pub enum SamsungPayAmountFormat {
     FormatTotalEstimatedAmount,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayShippingAddressParameters {
@@ -9024,7 +9422,9 @@ pub struct GpayShippingAddressParameters {
     pub phone_number_required: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct KlarnaSessionTokenResponse {
@@ -9055,7 +9455,9 @@ pub struct PaypalTransactionInfo {
     pub total_price: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaypalSessionTokenResponse {
@@ -9074,7 +9476,9 @@ pub struct PaypalSessionTokenResponse {
     pub transaction_info: Option<PaypalTransactionInfo>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OpenBankingSessionToken {
@@ -9083,7 +9487,9 @@ pub struct OpenBankingSessionToken {
     pub open_banking_session_token: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepaySessionTokenResponse {
@@ -9115,7 +9521,9 @@ pub struct ApplepaySessionTokenResponse {
     pub connector_merchant_id: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SdkNextAction {
     /// The type of next action
@@ -9123,7 +9531,9 @@ pub struct SdkNextAction {
     pub next_action: NextActionCall,
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionCall {
@@ -9143,7 +9553,9 @@ pub enum NextActionCall {
     EligibilityCheck,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePaySessionResponse {
@@ -9159,7 +9571,9 @@ pub enum ApplePaySessionResponse {
     NoSessionResponse(NullObject),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
+)]
 #[serde(rename_all(deserialize = "camelCase"))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NoThirdPartySdkSessionResponse {
@@ -9198,14 +9612,18 @@ pub struct NoThirdPartySdkSessionResponse {
     pub psp_id: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ThirdPartySdkSessionResponse {
     #[smithy(value_type = "SecretInfoToInitiateSdk")]
     pub secrets: SecretInfoToInitiateSdk,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SecretInfoToInitiateSdk {
     // Authorization secrets used by client to initiate sdk
@@ -9218,7 +9636,9 @@ pub struct SecretInfoToInitiateSdk {
     pub payment: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayPaymentRequest {
     /// The code for country
@@ -9254,7 +9674,9 @@ pub struct ApplePayPaymentRequest {
     pub recurring_payment_request: Option<ApplePayRecurringPaymentRequest>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRecurringPaymentRequest {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
@@ -9273,7 +9695,9 @@ pub struct ApplePayRecurringPaymentRequest {
     pub management_u_r_l: common_utils::types::Url,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRegularBillingRequest {
     /// The amount of the recurring payment
@@ -9306,7 +9730,9 @@ pub struct ApplePayRegularBillingRequest {
     pub recurring_payment_interval_count: Option<i32>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePayPaymentTiming {
@@ -9321,7 +9747,9 @@ pub struct ApplePayBillingContactFields(pub Vec<ApplePayAddressParameters>);
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayShippingContactFields(pub Vec<ApplePayAddressParameters>);
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
+)]
 #[serde(rename_all = "camelCase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePayAddressParameters {
@@ -9330,7 +9758,9 @@ pub enum ApplePayAddressParameters {
     Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmountInfo {
     /// The label must be the name of the merchant.
@@ -9353,7 +9783,9 @@ pub struct ApplepayErrorResponse {
     pub status_message: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPaySessionTokenResponse {
     /// Amazon Pay merchant account identifier
@@ -9386,7 +9818,9 @@ pub struct AmazonPaySessionTokenResponse {
     pub delivery_options: Vec<AmazonPayDeliveryOptions>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AmazonPayPaymentIntent {
     /// Create a Charge Permission to authorize and capture funds at a later time
@@ -9397,7 +9831,9 @@ pub enum AmazonPayPaymentIntent {
     AuthorizeWithCapture,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayDeliveryOptions {
     /// Delivery Option identifier
@@ -9414,7 +9850,9 @@ pub struct AmazonPayDeliveryOptions {
     pub is_default: bool,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayDeliveryPrice {
     /// Transaction amount in MinorUnit
@@ -9431,7 +9869,9 @@ pub struct AmazonPayDeliveryPrice {
     pub currency_code: common_enums::Currency,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmazonPayShippingMethod {
     /// Name of the shipping method
@@ -9966,7 +10406,9 @@ pub struct ApplePayRegularBillingDetails {
     pub recurring_payment_interval_count: Option<i32>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RecurringPaymentIntervalUnit {
@@ -10493,7 +10935,9 @@ pub struct ExtendedCardInfoResponse {
     pub payload: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ClickToPaySessionResponse {
     #[smithy(value_type = "String")]
