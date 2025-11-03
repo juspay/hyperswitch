@@ -691,14 +691,6 @@ pub struct AdyenplatformIncomingWebhookData {
     pub tracking: Option<AdyenplatformTrackingData>,
     pub reason: Option<String>,
     pub category: Option<AdyenPayoutMethod>,
-    pub events: Vec<AdyenPayoutEventData>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenPayoutEventData {
-    pub status: AdyenplatformWebhookStatus,
-    pub reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
