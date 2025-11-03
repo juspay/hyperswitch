@@ -10,10 +10,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_build() -> Result<(), Box<dyn std::error::Error>> {
     let workspace_root = get_workspace_root()?;
-    
+
     // Detect enabled features for this build
     let enabled_features = detect_enabled_features();
-    
+
     // Create feature resolver to map smithy-generator features to dependency features
     let feature_resolver = FeatureResolver::new(&enabled_features);
 
@@ -62,7 +62,7 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
 /// Detects which features are enabled for the current build
 fn detect_enabled_features() -> HashSet<String> {
     let mut features = HashSet::new();
-    
+
     // Check all CARGO_FEATURE_* environment variables
     for (key, value) in std::env::vars() {
         if key.starts_with("CARGO_FEATURE_") && value == "1" {
@@ -72,13 +72,13 @@ fn detect_enabled_features() -> HashSet<String> {
             }
         }
     }
-    
+
     // Always include default features if none are explicitly enabled
     // Note: We should be more careful about default feature assumptions
     if features.is_empty() {
         features.insert("v1".to_string());
     }
-    
+
     features
 }
 
@@ -94,20 +94,21 @@ impl FeatureResolver {
             enabled_features: enabled_features.clone(),
             crate_feature_cache: std::collections::HashMap::new(),
         };
-        
+
         // Pre-compute feature mappings for known crates
         resolver.initialize_feature_mappings();
         resolver
     }
-    
+
     fn initialize_feature_mappings(&mut self) {
         // Initialize feature mappings for each known crate
         for crate_name in &["api_models", "common_utils", "common_types", "common_enums"] {
             let features = self.compute_crate_features(crate_name);
-            self.crate_feature_cache.insert(crate_name.to_string(), features);
+            self.crate_feature_cache
+                .insert(crate_name.to_string(), features);
         }
     }
-    
+
     /// Determines if a crate should be scanned based on enabled features
     fn should_scan_crate(&self, crate_name: &str) -> bool {
         match crate_name {
@@ -143,21 +144,21 @@ impl FeatureResolver {
             }
         }
     }
-    
+
     /// Determines which features are enabled for a dependency crate
     fn get_enabled_crate_features(&self, crate_name: &str) -> HashSet<String> {
         // Use cached result if available
         if let Some(cached_features) = self.crate_feature_cache.get(crate_name) {
             return cached_features.clone();
         }
-        
+
         // Compute features for unknown crates
         self.compute_crate_features(crate_name)
     }
-    
+
     fn compute_crate_features(&self, crate_name: &str) -> HashSet<String> {
         let mut crate_features = HashSet::new();
-        
+
         match crate_name {
             "api_models" => {
                 // api_models has v1 and v2 features that directly map to smithy-generator features
@@ -167,7 +168,7 @@ impl FeatureResolver {
                 if self.enabled_features.contains("v2") {
                     crate_features.insert("v2".to_string());
                 }
-                
+
                 // api_models also has some derived features
                 for feature in &self.enabled_features {
                     match feature.as_str() {
@@ -227,7 +228,7 @@ impl FeatureResolver {
                 }
             }
         }
-        
+
         crate_features
     }
 }
@@ -288,7 +289,13 @@ fn scan_directory(
                 } else {
                     format!("{}::{}", module_path, dir_name)
                 };
-                scan_directory(&path, crate_name, &new_module_path, models, feature_resolver)?;
+                scan_directory(
+                    &path,
+                    crate_name,
+                    &new_module_path,
+                    models,
+                    feature_resolver,
+                )?;
             } else if path.extension().map(|ext| ext == "rs").unwrap_or(false) {
                 let _ = scan_rust_file(&path, crate_name, module_path, models, feature_resolver);
             }
@@ -329,7 +336,7 @@ fn scan_rust_file(
             // we need to ensure we only include the version that actually has SmithyModel
             // under the current feature configuration
             let enabled_features = feature_resolver.get_enabled_crate_features(crate_name);
-            
+
             // Special handling for items that have multiple definitions with different derives
             if item_name == "FeatureMetadata" {
                 // FeatureMetadata only has SmithyModel in v1 version
@@ -368,9 +375,10 @@ fn is_item_available_for_features(
     }
 
     let enabled_features = feature_resolver.get_enabled_crate_features(crate_name);
-    
+
     // Parse each cfg attribute line
-    let cfg_lines: Vec<&str> = cfg_attrs.lines()
+    let cfg_lines: Vec<&str> = cfg_attrs
+        .lines()
         .map(|line| line.trim())
         .filter(|line| !line.is_empty() && line.starts_with("#[cfg("))
         .collect();
@@ -386,7 +394,7 @@ fn is_item_available_for_features(
             return false;
         }
     }
-    
+
     true
 }
 
@@ -395,7 +403,8 @@ fn evaluate_cfg_condition(cfg_line: &str, enabled_features: &HashSet<String>) ->
     // Simple feature check: #[cfg(feature = "v1")]
     if let Some(captures) = Regex::new(r#"#\[cfg\(feature\s*=\s*"([^"]+)"\)\]"#)
         .ok()
-        .and_then(|re| re.captures(cfg_line)) {
+        .and_then(|re| re.captures(cfg_line))
+    {
         if let Some(feature_match) = captures.get(1) {
             let feature_name = feature_match.as_str();
             return enabled_features.contains(feature_name);
@@ -405,7 +414,8 @@ fn evaluate_cfg_condition(cfg_line: &str, enabled_features: &HashSet<String>) ->
     // any() function: #[cfg(any(feature = "v1", feature = "v2"))]
     if let Some(captures) = Regex::new(r#"#\[cfg\(any\(([^)]+)\)\)\]"#)
         .ok()
-        .and_then(|re| re.captures(cfg_line)) {
+        .and_then(|re| re.captures(cfg_line))
+    {
         if let Some(any_content) = captures.get(1) {
             return evaluate_any_condition(any_content.as_str(), enabled_features);
         }
@@ -414,7 +424,8 @@ fn evaluate_cfg_condition(cfg_line: &str, enabled_features: &HashSet<String>) ->
     // all() function: #[cfg(all(feature = "v1", not(feature = "v2")))]
     if let Some(captures) = Regex::new(r#"#\[cfg\(all\(([^)]+)\)\)\]"#)
         .ok()
-        .and_then(|re| re.captures(cfg_line)) {
+        .and_then(|re| re.captures(cfg_line))
+    {
         if let Some(all_content) = captures.get(1) {
             return evaluate_all_condition(all_content.as_str(), enabled_features);
         }
@@ -423,7 +434,8 @@ fn evaluate_cfg_condition(cfg_line: &str, enabled_features: &HashSet<String>) ->
     // not() function: #[cfg(not(feature = "v1"))]
     if let Some(captures) = Regex::new(r#"#\[cfg\(not\(([^)]+)\)\)\]"#)
         .ok()
-        .and_then(|re| re.captures(cfg_line)) {
+        .and_then(|re| re.captures(cfg_line))
+    {
         if let Some(not_content) = captures.get(1) {
             return !evaluate_simple_feature_condition(not_content.as_str(), enabled_features);
         }
@@ -436,23 +448,23 @@ fn evaluate_cfg_condition(cfg_line: &str, enabled_features: &HashSet<String>) ->
 /// Evaluates any() condition - returns true if any condition is met
 fn evaluate_any_condition(condition: &str, enabled_features: &HashSet<String>) -> bool {
     let parts: Vec<&str> = condition.split(',').map(|s| s.trim()).collect();
-    
+
     for part in parts {
         if evaluate_simple_feature_condition(part, enabled_features) {
             return true;
         }
     }
-    
+
     false
 }
 
 /// Evaluates all() condition - returns true if all conditions are met
 fn evaluate_all_condition(condition: &str, enabled_features: &HashSet<String>) -> bool {
     let parts: Vec<&str> = condition.split(',').map(|s| s.trim()).collect();
-    
+
     for part in parts {
         if part.starts_with("not(") && part.ends_with(')') {
-            let inner = &part[4..part.len()-1];
+            let inner = &part[4..part.len() - 1];
             if evaluate_simple_feature_condition(inner, enabled_features) {
                 return false; // not() condition failed
             }
@@ -460,7 +472,7 @@ fn evaluate_all_condition(condition: &str, enabled_features: &HashSet<String>) -
             return false;
         }
     }
-    
+
     true
 }
 
@@ -468,13 +480,14 @@ fn evaluate_all_condition(condition: &str, enabled_features: &HashSet<String>) -
 fn evaluate_simple_feature_condition(condition: &str, enabled_features: &HashSet<String>) -> bool {
     if let Some(captures) = Regex::new(r#"feature\s*=\s*"([^"]+)""#)
         .ok()
-        .and_then(|re| re.captures(condition)) {
+        .and_then(|re| re.captures(condition))
+    {
         if let Some(feature_match) = captures.get(1) {
             let feature_name = feature_match.as_str();
             return enabled_features.contains(feature_name);
         }
     }
-    
+
     // If we can't parse it, assume it's false for safety
     false
 }
