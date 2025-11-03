@@ -589,7 +589,7 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
         content.push_str("    vec![\n");
 
         // Generate feature-gated model collection calls
-        for (_i, model) in models.iter().enumerate() {
+        for model in models.iter() {
             if !model.cfg_attrs.trim().is_empty() {
                 // Add cfg attributes for conditional compilation
                 content.push_str(&format!("        {}\n", model.cfg_attrs.trim()));
