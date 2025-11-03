@@ -271,17 +271,17 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
         }
 
         content.push_str("\npub fn discover_smithy_models() -> Vec<SmithyModel> {\n");
-        content.push_str("    let mut models = Vec::new();\n\n");
+        content.push_str("    let models = vec![\n");
 
         // Generate model collection calls
         for model in models {
             content.push_str(&format!(
-                "    models.push({}::generate_smithy_model());\n",
+                "        {}::generate_smithy_model(),\n",
                 model.struct_name
             ));
         }
 
-        content.push_str("\n    models\n");
+        content.push_str("    ];\n\n    models\n");
         content.push_str("}\n");
     } else {
         // Generate empty function if no models found
