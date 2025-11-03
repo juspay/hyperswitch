@@ -619,7 +619,6 @@ impl
             setup_mandate_details: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            state: None,
         })
     }
 }
@@ -921,7 +920,6 @@ impl
             connector_customer_id: router_data.connector_customer.clone(),
             state: None,
             merchant_account_metadata: HashMap::new(),
-            state: None,
             description: None,
             setup_mandate_details: None,
             statement_descriptor_name: None,
@@ -1876,7 +1874,6 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(authentication_data: AuthenticationData) -> Result<Self, Self::Error> {
-        use transformers::ForeignFrom;
         let cavv = if authentication_data.cavv.peek().is_empty() {
             None
         } else {
@@ -2087,7 +2084,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
             .transpose()
             .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
             .attach_printable("Failed to convert TransactionStatus from grpc to domain")?
-            .map(transformers::ForeignFrom::foreign_from);
+            .map(ForeignFrom::foreign_from);
         Ok(Self {
             trans_status,
             eci,
@@ -2122,9 +2119,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
     }
 }
 
-impl transformers::ForeignFrom<payments_grpc::TransactionStatus>
-    for common_enums::TransactionStatus
-{
+impl ForeignFrom<payments_grpc::TransactionStatus> for common_enums::TransactionStatus {
     fn foreign_from(value: payments_grpc::TransactionStatus) -> Self {
         match value {
             payments_grpc::TransactionStatus::Success => Self::Success,
@@ -2143,9 +2138,7 @@ impl transformers::ForeignFrom<payments_grpc::TransactionStatus>
     }
 }
 
-impl transformers::ForeignFrom<common_enums::TransactionStatus>
-    for payments_grpc::TransactionStatus
-{
+impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::TransactionStatus {
     fn foreign_from(value: common_enums::TransactionStatus) -> Self {
         match value {
             common_enums::TransactionStatus::Success => Self::Success,
