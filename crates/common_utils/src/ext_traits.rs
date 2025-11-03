@@ -484,9 +484,76 @@ impl ConfigExt for u32 {
     }
 }
 
+impl ConfigExt for u64 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
+impl ConfigExt for i32 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
+impl ConfigExt for i64 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
+impl ConfigExt for u16 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
+impl ConfigExt for u8 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
+impl ConfigExt for bool {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
 impl ConfigExt for String {
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()
+    }
+}
+
+impl ConfigExt for &str {
+    fn is_empty_after_trim(&self) -> bool {
+        self.trim().is_empty()
+    }
+}
+
+impl<T> ConfigExt for Vec<T> {
+    fn is_empty_after_trim(&self) -> bool {
+        self.is_empty()
+    }
+}
+
+impl<T> ConfigExt for Option<T>
+where
+    T: ConfigExt + Default + PartialEq<T>,
+{
+    fn is_default(&self) -> bool {
+        match self {
+            Some(value) => value.is_default(),
+            None => true, // None is considered default for Option
+        }
+    }
+
+    fn is_empty_after_trim(&self) -> bool {
+        match self {
+            Some(value) => value.is_empty_after_trim(),
+            None => true, // None is considered empty
+        }
     }
 }
 
@@ -528,6 +595,94 @@ impl XmlExt for &str {
         T: serde::de::DeserializeOwned,
     {
         de::from_str(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_ext_numeric_types() {
+        // Test numeric types - they should never be "empty"
+        assert!(!42u32.is_empty_after_trim());
+        assert!(!0u32.is_empty_after_trim());
+        assert!(!42u64.is_empty_after_trim());
+        assert!(!(-42i32).is_empty_after_trim());
+        assert!(!0i64.is_empty_after_trim());
+        assert!(!255u8.is_empty_after_trim());
+        assert!(!1000u16.is_empty_after_trim());
+    }
+
+    #[test]
+    fn test_config_ext_bool() {
+        // Test bool - should never be "empty"
+        assert!(!true.is_empty_after_trim());
+        assert!(!false.is_empty_after_trim());
+    }
+
+    #[test]
+    fn test_config_ext_string_types() {
+        // Test String
+        assert!(String::new().is_empty_after_trim());
+        assert!("   ".to_string().is_empty_after_trim());
+        assert!(!"hello".to_string().is_empty_after_trim());
+        assert!(!"  hello  ".to_string().is_empty_after_trim());
+
+        // Test &str
+        assert!("".is_empty_after_trim());
+        assert!("   ".is_empty_after_trim());
+        assert!(!"hello".is_empty_after_trim());
+        assert!(!"  hello  ".is_empty_after_trim());
+    }
+
+    #[test]
+    fn test_config_ext_vec() {
+        // Test Vec
+        let empty_vec: Vec<i32> = vec![];
+        let non_empty_vec = vec![1, 2, 3];
+        
+        assert!(empty_vec.is_empty_after_trim());
+        assert!(!non_empty_vec.is_empty_after_trim());
+    }
+
+    #[test]
+    fn test_config_ext_option() {
+        // Test Option<String>
+        let none_option: Option<String> = None;
+        let some_empty = Some(String::new());
+        let some_whitespace = Some("   ".to_string());
+        let some_value = Some("hello".to_string());
+
+        assert!(none_option.is_empty_after_trim());
+        assert!(none_option.is_default());
+        assert!(some_empty.is_empty_after_trim());
+        assert!(some_whitespace.is_empty_after_trim());
+        assert!(!some_value.is_empty_after_trim());
+        assert!(!some_value.is_default());
+
+        // Test Option<u32>
+        let none_u32: Option<u32> = None;
+        let some_u32 = Some(42u32);
+        let some_zero = Some(0u32);
+
+        assert!(none_u32.is_empty_after_trim());
+        assert!(none_u32.is_default());
+        assert!(!some_u32.is_empty_after_trim());
+        assert!(!some_zero.is_empty_after_trim());
+    }
+
+    #[test]
+    fn test_config_ext_is_default_or_empty() {
+        // Test the combined method
+        assert!(String::new().is_default_or_empty());
+        assert!("   ".to_string().is_default_or_empty());
+        assert!(!"hello".to_string().is_default_or_empty());
+        
+        let none_option: Option<String> = None;
+        let some_empty = Some(String::new());
+        assert!(none_option.is_default_or_empty());
+        assert!(some_empty.is_default_or_empty());
     }
 }
 
