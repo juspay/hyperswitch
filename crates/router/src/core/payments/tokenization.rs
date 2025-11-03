@@ -355,7 +355,8 @@ where
                     merchant_connector_id,
                     co_badged_card_data,
                     payment_method_type,
-                ).await;
+                )
+                .await;
                 //remove the lock aquired earlier
                 if let Some(la) = lock_action {
                     la.free_lock_action(

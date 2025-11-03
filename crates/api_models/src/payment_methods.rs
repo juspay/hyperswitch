@@ -1287,7 +1287,7 @@ fn saved_in_locker_default() -> bool {
 #[cfg(feature = "v1")]
 impl PartialEq for CardDetailFromLocker {
     fn eq(&self, other: &Self) -> bool {
-            self.last4_digits == other.last4_digits
+        self.last4_digits == other.last4_digits
             && self.expiry_month == other.expiry_month
             && self.expiry_year == other.expiry_year
             && self.card_isin == other.card_isin
