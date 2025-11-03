@@ -508,13 +508,7 @@ impl RedisTokenManager {
                         (last_external_attempt_at > existing_token_modified_at)
                             .then_some(last_external_attempt_at)
                     })
-                    .or_else(|| {
-                        existing_token
-                            .modified_at
-                            .is_none()
-                            .then(|| last_external_attempt_at)
-                            .flatten()
-                    })
+                    .or_else(|| existing_token.modified_at.is_none().then_some(last_external_attempt_at).flatten())
                     .map(|last_external_attempt_at| {
                         existing_token.modified_at = Some(last_external_attempt_at);
                         existing_token.error_code = error_code;
