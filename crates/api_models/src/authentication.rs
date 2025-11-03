@@ -159,6 +159,42 @@ impl ApiEventMetric for AuthenticationResponse {
 }
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationEligibilityCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method-specific data such as card details, wallet info, etc.
@@ -170,6 +206,10 @@ pub struct AuthenticationEligibilityRequest {
     /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
+
+    /// Can be used to specify the Payment Method Type
+    #[schema(value_type = Option<PaymentMethodType>, example = "debit")]
+    pub payment_method_type: Option<enums::PaymentMethodType>,
 
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
@@ -274,6 +314,130 @@ pub struct AuthenticationEligibilityResponse {
     /// Acquirer details information.
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationEligibilityCheckRequest {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Optional secret value used to identify and authorize the client making the request.
+    /// This can help ensure that the payment session is secure and valid.
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<masking::Secret<String>>,
+    /// The data for this authentication eligibility check.
+    pub eligibility_check_data: AuthenticationEligibilityCheckData,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AuthenticationEligibilityCheckResponse {
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    pub authentication_id: id_type::AuthenticationId,
+    // The next action for this authentication eligibility check.
+    pub sdk_next_action: AuthenticationSdkNextAction,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationSdkNextAction {
+    /// The next action is to await for a merchant callback
+    AwaitMerchantCallback,
+    /// The next action is to deny the payment with an error message
+    Deny { message: String },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationRetrieveEligibilityCheckRequest {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationRetrieveEligibilityCheckResponse {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// The data for this authentication eligibility check.
+    pub eligibility_check_data: AuthenticationEligibilityCheckResponseData,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationEligibilityCheckData {
+    ClickToPay(ClickToPayEligibilityCheckData),
+}
+
+#[cfg(feature = "v1")]
+impl AuthenticationEligibilityCheckData {
+    pub fn get_click_to_pay_data(&self) -> Option<&ClickToPayEligibilityCheckData> {
+        match self {
+            Self::ClickToPay(data) => Some(data),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationEligibilityCheckResponseData {
+    ClickToPayEnrollmentStatus(ClickToPayEligibilityCheckResponseData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayEligibilityCheckData {
+    // Visa specific eligibility check data
+    pub visa: Option<VisaEligibilityCheckData>,
+    // MasterCard specific eligibility check data
+    pub mastercard: Option<MasterCardEligibilityCheckData>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayEligibilityCheckResponseData {
+    // Visa specific eligibility check data
+    pub visa: Option<bool>,
+    // MasterCard specific eligibility check data
+    pub mastercard: Option<bool>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VisaEligibilityCheckData {
+    // Indicates whether the consumer is enrolled in Visa Secure program
+    pub consumer_present: bool,
+    // Status of the consumer in Visa Secure program]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consumer_status: Option<String>,
+    // Additional data for eligibility check
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub custom_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MasterCardEligibilityCheckData {
+    // Indicates whether the consumer is enrolled in MasterCard Identity Check program
+    pub consumer_present: bool,
+    // Session ID from MasterCard Identity Check program
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_lookup_session_id: Option<String>,
+    // Timestamp of the last time the card was used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_used_card_timestamp: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

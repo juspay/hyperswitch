@@ -129,6 +129,34 @@ impl
 {
 }
 
+impl subscriptions_api::SubscriptionCancelFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionCancel,
+        subscription_request_types::SubscriptionCancelRequest,
+        subscription_response_types::SubscriptionCancelResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::SubscriptionPauseFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionPause,
+        subscription_request_types::SubscriptionPauseRequest,
+        subscription_response_types::SubscriptionPauseResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::SubscriptionResumeFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionResume,
+        subscription_request_types::SubscriptionResumeRequest,
+        subscription_response_types::SubscriptionResumeResponse,
+    > for Stripebilling
+{
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripebilling
 where
     Self: ConnectorIntegration<Flow, Request, Response>,

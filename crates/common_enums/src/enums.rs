@@ -15,7 +15,7 @@ use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::RoutableConnectors;
+pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -355,6 +355,12 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 
+impl AuthenticationType {
+    pub fn is_three_ds(&self) -> bool {
+        matches!(self, Self::ThreeDs)
+    }
+}
+
 /// The status of the capture
 #[derive(
     Clone,
@@ -586,6 +592,7 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
 }
 
@@ -1518,6 +1525,29 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventObjectType {
+    PaymentDetails,
+    RefundDetails,
+    DisputeDetails,
+    MandateDetails,
+    PayoutDetails,
+    SubscriptionDetails,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Hash,
     Eq,
     PartialEq,
@@ -1537,6 +1567,7 @@ pub enum EventClass {
     Mandates,
     #[cfg(feature = "payouts")]
     Payouts,
+    Subscriptions,
 }
 
 impl EventClass {
@@ -1575,6 +1606,7 @@ impl EventClass {
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
             ]),
+            Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
     }
 }
@@ -1634,6 +1666,7 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    InvoicePaid,
 }
 
 #[derive(
@@ -1655,6 +1688,29 @@ pub enum WebhookDeliveryAttempt {
     InitialAttempt,
     AutomaticRetry,
     ManualRetry,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OutgoingWebhookEndpointStatus {
+    /// The webhook endpoint is active and operational.
+    Active,
+    /// The webhook endpoint is temporarily disabled.
+    Inactive,
+    /// The webhook endpoint is deprecated and can no longer be reactivated.
+    Deprecated,
 }
 
 // TODO: This decision about using KV mode or not,
@@ -2064,6 +2120,7 @@ pub enum PaymentMethodType {
     PermataBankTransfer,
     OpenBankingUk,
     PayBright,
+    Payjustnow,
     Paypal,
     Paze,
     Pix,
@@ -2076,6 +2133,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    SepaGuarenteedDebit,
     Skrill,
     Sofort,
     Swish,
@@ -2084,6 +2142,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     UpiIntent,
+    UpiQr,
     Vipps,
     VietQr,
     Venmo,
@@ -2190,6 +2249,7 @@ impl PaymentMethodType {
             Self::PermataBankTransfer => "Permata Bank Transfer",
             Self::OpenBankingUk => "Open Banking UK",
             Self::PayBright => "PayBright",
+            Self::Payjustnow => "Payjustnow",
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
@@ -2201,6 +2261,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2210,6 +2271,7 @@ impl PaymentMethodType {
             Self::Twint => "TWINT",
             Self::UpiCollect => "UPI Collect",
             Self::UpiIntent => "UPI Intent",
+            Self::UpiQr => "UPI QR",
             Self::Vipps => "Vipps",
             Self::VietQr => "VietQR",
             Self::Venmo => "Venmo",
@@ -2303,6 +2365,136 @@ pub enum GatewaySystem {
     #[default]
     Direct,
     UnifiedConnectorService,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Indicates the execution path through which the payment is processed.
+pub enum ExecutionPath {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
+    ShadowUnifiedConnectorService,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ShadowRolloutAvailability {
+    IsAvailable,
+    NotAvailable,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UcsAvailability {
+    Enabled,
+    Disabled,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ExecutionMode {
+    #[default]
+    Primary,
+    Shadow,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorIntegrationType {
+    UcsConnector,
+    DirectConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -7910,6 +8102,7 @@ pub enum PayoutType {
     Card,
     Bank,
     Wallet,
+    BankRedirect,
 }
 
 /// Type of entity to whom the payout is being carried out to, select from the given list of options
@@ -8226,6 +8419,10 @@ impl AuthenticationStatus {
     pub fn is_failed(self) -> bool {
         self == Self::Failed
     }
+
+    pub fn is_success(self) -> bool {
+        self == Self::Success
+    }
 }
 
 #[derive(
@@ -8441,12 +8638,6 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsView,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    OrganizationManage,
     AccountView,
     AccountManage,
     ReconReportsView,
@@ -9664,4 +9855,70 @@ pub enum GooglePayCardFundingSource {
     Prepaid,
     #[serde(other)]
     Unknown,
+}
+
+impl From<IntentStatus> for InvoiceStatus {
+    fn from(value: IntentStatus) -> Self {
+        match value {
+            IntentStatus::Succeeded => Self::InvoicePaid,
+            IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyCaptured
+            | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | IntentStatus::Processing
+            | IntentStatus::RequiresCustomerAction
+            | IntentStatus::RequiresConfirmation
+            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            IntentStatus::RequiresMerchantAction => Self::ManualReview,
+            IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
+            IntentStatus::Expired => Self::PaymentPendingTimeout,
+            IntentStatus::Failed | IntentStatus::Conflicted => Self::PaymentFailed,
+        }
+    }
+}
+
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive.
+/// - `Pending`: Subscription is pending activation.
+/// - `Trial`: Subscription is in a trial period.
+/// - `Paused`: Subscription is paused.
+/// - `Unpaid`: Subscription is unpaid.
+/// - `Onetime`: Subscription is a one-time payment.
+/// - `Cancelled`: Subscription has been cancelled.
+/// - `Failed`: Subscription has failed.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    strum::EnumString,
+    strum::Display,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionStatus {
+    /// Subscription is active.
+    Active,
+    /// Subscription is created but not yet active.
+    Created,
+    /// Subscription is inactive.
+    InActive,
+    /// Subscription is in pending state.
+    Pending,
+    /// Subscription is in trial state.
+    Trial,
+    /// Subscription is paused.
+    Paused,
+    /// Subscription is unpaid.
+    Unpaid,
+    /// Subscription is a one-time payment.
+    Onetime,
+    /// Subscription is cancelled.
+    Cancelled,
+    /// Subscription has failed.
+    Failed,
 }

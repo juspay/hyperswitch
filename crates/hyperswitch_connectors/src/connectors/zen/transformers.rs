@@ -769,7 +769,8 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AtomeRedirect {}
-            | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             )
             .into()),
@@ -784,10 +785,13 @@ impl TryFrom<&BankDebitData> for ZenPaymentsRequest {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Zen"),
-            )
-            .into()),
+            | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                )
+                .into())
+            }
         }
     }
 }

@@ -45,6 +45,7 @@
                       "v1/payments/payments--cancel-post-capture",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
+                      "v1/payments/payments--extend-authorization",
                       "v1/payments/payments--session-token",
                       "v1/payments/payments-link--retrieve",
                       "v1/payments/payments--list",
@@ -100,6 +101,14 @@
                     "pages": [
                       "v1/disputes/disputes--retrieve",
                       "v1/disputes/disputes--list"
+                    ]
+                  },
+                  {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
                     ]
                   },
                   {
@@ -213,6 +222,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
@@ -233,6 +244,22 @@
                   {
                     "group": "Schemas",
                     "pages": ["v1/schemas/outgoing--webhook"]
+                  },
+                  {
+                    "group": "Subscriptions",
+                    "pages": [
+                      "v1/subscriptions/create",
+                      "v1/subscriptions/confirm",
+                      "v1/subscriptions/create-and-confirm",
+                      "v1/subscriptions/update",
+                      "v1/subscriptions/get",
+                      "v1/subscriptions/get-plans",
+                      "v1/subscriptions/estimate",
+                      "v1/subscriptions/pause",
+                      "v1/subscriptions/resume",
+                      "v1/subscriptions/cancel"
+
+                    ]
                   }
                 ]
               }
@@ -268,7 +295,9 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check"
+                      "v2/payments/payments--gift-card-balance-check",
+                      "v2/payments/payments--apply-pm-data"
+
                     ]
                   },
                   {
@@ -282,6 +311,12 @@
                       "v2/payment-methods/payment-method--delete",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods",
                       "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                    ]
+                  },
+                  {
+                    "group": "Network Tokenization",
+                    "pages": [
+                      "v2/payment-methods/check-network-token-status"
                     ]
                   },
                   {

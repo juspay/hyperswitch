@@ -2698,16 +2698,9 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>,
     ) -> Result<Self, Self::Error> {
-        let payment_method_data = item
-            .router_data
-            .request
-            .payment_method_data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
-            })?;
+        let payment_method_data = item.router_data.request.payment_method_data.clone();
 
-        match payment_method_data.clone() {
+        match payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
@@ -4975,12 +4968,12 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
                     payment_information,
                 })
             }
-            enums::PayoutType::Bank | enums::PayoutType::Wallet => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "PayoutType is not supported".to_string(),
-                    connector: "Cybersource",
-                })?
-            }
+            enums::PayoutType::Bank
+            | enums::PayoutType::Wallet
+            | enums::PayoutType::BankRedirect => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutType is not supported".to_string(),
+                connector: "Cybersource",
+            })?,
         }
     }
 }
@@ -5034,12 +5027,13 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
                 };
                 Ok(Self::Cards(Box::new(CardPaymentInformation { card })))
             }
-            PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "PayoutMethod is not supported".to_string(),
-                    connector: "Cybersource",
-                })?
-            }
+            PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutMethod is not supported".to_string(),
+                connector: "Cybersource",
+            })?,
         }
     }
 }
@@ -5085,6 +5079,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, CybersourceFulfillResponse>> for Pa
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

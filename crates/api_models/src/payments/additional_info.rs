@@ -19,6 +19,7 @@ pub enum BankDebitAdditionalData {
     Becs(Box<BecsBankDebitAdditionalData>),
     #[smithy(value_type = "SepaBankDebitAdditionalData")]
     Sepa(Box<SepaBankDebitAdditionalData>),
+    SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
@@ -303,6 +304,8 @@ pub enum UpiAdditionalData {
     #[schema(value_type = UpiIntentData)]
     #[smithy(value_type = "UpiIntentData")]
     UpiIntent(Box<super::UpiIntentData>),
+    #[schema(value_type = UpiQrData)]
+    UpiQr(Box<super::UpiQrData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]

@@ -2761,3 +2761,32 @@ pub async fn redact_cgraph_cache(
 
     Ok(())
 }
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
+
+    Ok(())
+}
