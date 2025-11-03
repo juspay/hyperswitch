@@ -7378,3 +7378,19 @@ where
         _ => Ok(amount),
     }
 }
+
+#[macro_export]
+macro_rules! convert_connector_response_to_domain_response {
+    ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {
+        impl<F, T> TryFrom<ResponseRouterData<F, $connector_type, T, $response_type>>
+            for RouterData<F, T, $response_type>
+        {
+            type Error = error_stack::Report<errors::ConnectorError>;
+            fn try_from(
+                item: ResponseRouterData<F, $connector_type, T, $response_type>,
+            ) -> Result<Self, Self::Error> {
+                $convert_fn(item)
+            }
+        }
+    };
+}

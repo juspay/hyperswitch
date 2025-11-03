@@ -525,6 +525,7 @@ pub async fn payments_start(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -611,6 +612,7 @@ pub async fn payments_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 header_payload.clone(),
             )
         },
@@ -687,6 +689,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -815,6 +818,7 @@ pub async fn payments_post_session_tokens(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 header_payload.clone(),
             )
         },
@@ -874,6 +878,7 @@ pub async fn payments_update_metadata(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1012,6 +1017,7 @@ pub async fn payments_capture(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -1075,6 +1081,7 @@ pub async fn payments_dynamic_tax_calculation(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1202,6 +1209,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1482,6 +1490,7 @@ pub async fn payments_complete_authorize(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -1532,6 +1541,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -1664,6 +1674,7 @@ pub async fn payments_cancel_post_capture(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2071,6 +2082,7 @@ pub async fn payments_approve(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -2142,6 +2154,7 @@ pub async fn payments_reject(
                 },
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2251,6 +2264,7 @@ where
                     req,
                     auth_flow,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     eligible_connectors,
                     header_payload,
                 )
@@ -2273,6 +2287,7 @@ where
                     req,
                     auth_flow,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     eligible_connectors,
                     header_payload,
                 )
@@ -2323,6 +2338,7 @@ pub async fn payments_incremental_authorization(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2375,6 +2391,7 @@ pub async fn payments_extend_authorization(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )

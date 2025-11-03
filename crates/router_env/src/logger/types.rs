@@ -281,6 +281,12 @@ pub enum Flow {
     UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
+    /// Pause Subscription flow
+    PauseSubscription,
+    /// Resume Subscription flow
+    ResumeSubscription,
+    /// Cancel Subscription flow
+    CancelSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing

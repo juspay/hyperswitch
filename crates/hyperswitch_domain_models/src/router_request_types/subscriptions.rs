@@ -1,4 +1,4 @@
-use api_models::payments::Address;
+use api_models::{payments::Address, subscription};
 use common_utils::id_type;
 
 use crate::connector_endpoints;
@@ -47,6 +47,34 @@ impl Default for GetSubscriptionPlansRequest {
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlanPricesRequest {
     pub plan_price_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionPauseRequest {
+    pub subscription_id: id_type::SubscriptionId,
+    pub pause_option: Option<subscription::PauseOption>,
+    pub pause_date: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionResumeRequest {
+    pub subscription_id: id_type::SubscriptionId,
+    pub resume_option: Option<subscription::ResumeOption>,
+    pub resume_date: Option<time::PrimitiveDateTime>,
+    pub charges_handling: Option<subscription::ChargesHandling>,
+    pub unpaid_invoices_handling: Option<subscription::UnpaidInvoicesHandling>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancelRequest {
+    pub subscription_id: id_type::SubscriptionId,
+    pub cancel_option: Option<subscription::CancelOption>,
+    pub cancel_date: Option<time::PrimitiveDateTime>,
+    pub unbilled_charges_option: Option<subscription::UnbilledChargesOption>,
+    pub credit_option_for_current_term_charges: Option<subscription::CreditOption>,
+    pub account_receivables_handling: Option<subscription::AccountReceivablesHandling>,
+    pub refundable_credits_handling: Option<subscription::RefundableCreditsHandling>,
+    pub cancel_reason_code: Option<String>,
 }
 
 #[derive(Debug, Clone)]

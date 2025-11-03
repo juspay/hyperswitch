@@ -555,6 +555,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
@@ -845,6 +846,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -978,6 +980,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action,
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -2122,6 +2125,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
@@ -2157,6 +2161,7 @@ where
             operation.clone(),
             req,
             call_connector_action,
+            shadow_ucs_call_connector_action,
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
@@ -3145,6 +3150,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             services::api::AuthFlow::Merchant,
             connector_action,
             None,
+            None,
             HeaderPayload::default(),
         ))
         .await?;
@@ -3305,6 +3311,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 payment_sync_req,
                 services::api::AuthFlow::Merchant,
                 connector_action,
+                None,
                 None,
                 HeaderPayload::default(),
             ),
@@ -3650,6 +3657,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 services::api::AuthFlow::Merchant,
                 connector_action,
                 None,
+                None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
             ))
             .await?
@@ -3681,6 +3689,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     payment_sync_req,
                     services::api::AuthFlow::Merchant,
                     connector_action,
+                    None,
                     None,
                     HeaderPayload::default(),
                 ),
@@ -4257,6 +4266,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -4284,12 +4294,13 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
         Some(payment_data),
         call_connector_action.clone(),
+        shadow_ucs_call_connector_action.clone(),
     )
     .await?;
 
@@ -4298,7 +4309,7 @@ where
             // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
             ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     operation,
@@ -4320,7 +4331,7 @@ where
             // Process through Direct with Shadow UCS
             ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     connector,
@@ -4328,6 +4339,7 @@ where
                     payment_data,
                     customer,
                     call_connector_action,
+                    shadow_ucs_call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
@@ -4417,8 +4429,9 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
+        + Send
+        + Sync,
 {
     let add_access_token_result = router_data
         .add_access_token(
@@ -4815,12 +4828,13 @@ where
         .await?;
 
     // do order creation
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
         Some(payment_data),
         call_connector_action.clone(),
+        None,
     )
     .await?;
 
@@ -4958,15 +4972,16 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution_path = should_call_unified_connector_service(
+        let (execution, updated_state) = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
             call_connector_action.clone(),
+            None,
         )
         .await?;
-        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
+        if matches!(execution, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5026,7 +5041,7 @@ where
 
             Ok(router_data)
         } else {
-            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
+            if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
@@ -5040,8 +5055,15 @@ where
                 );
             }
 
+
+            let session_state = if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
+                &updated_state
+            } else {
+                state
+            };
+
             call_connector_service(
-                state,
+                session_state,
                 req_state,
                 merchant_context,
                 connector,
@@ -10728,6 +10750,7 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
         connector_transaction_id,
+        amount_capturable,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -10759,6 +10782,17 @@ pub async fn payments_manual_update(
         .attach_printable(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
+
+    if let Some(amount_capturable) = amount_capturable {
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
 
     let payment_intent = state
         .store
@@ -10800,6 +10834,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
+        amount_capturable,
     };
     let updated_payment_attempt = state
         .store
@@ -10841,6 +10876,7 @@ pub async fn payments_manual_update(
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+            amount_capturable: Some(updated_payment_attempt.amount_capturable),
         },
     ))
 }
