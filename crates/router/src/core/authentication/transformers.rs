@@ -212,7 +212,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_payment_method_migrated: None,
+        is_migrated_card: None,
     })
 }
 

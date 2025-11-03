@@ -4,7 +4,6 @@ pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
-use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -91,7 +90,7 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
-    pub is_payment_method_migrated: Option<bool>,
+    pub is_migrated_card: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]

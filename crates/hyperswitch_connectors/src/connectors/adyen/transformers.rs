@@ -1871,7 +1871,8 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    let shopper_reference = Some(match item.is_payment_method_migrated {
+    // is_migrated_card to be changed intto is_migrated_payment_method to cover all migrated payment methods.
+    let shopper_reference = Some(match item.is_migrated_card {
         Some(true) => match item.get_connector_customer_id() {
             Ok(connector_customer_id) => connector_customer_id,
             Err(_) => {

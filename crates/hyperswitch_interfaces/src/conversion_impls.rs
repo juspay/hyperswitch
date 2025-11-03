@@ -79,7 +79,7 @@ fn get_default_router_data<F, Req, Resp>(
         refund_id: None,
         connector_response: None,
         payment_method_status: None,
-        is_payment_method_migrated: None,
+        is_migrated_card: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
