@@ -9116,6 +9116,7 @@ pub struct ApplepaySessionTokenResponse {
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
