@@ -9655,8 +9655,9 @@ pub enum ExternalVaultEnabled {
     Skip,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "UPPERCASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum GooglePayCardFundingSource {
     Credit,
     Debit,

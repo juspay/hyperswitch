@@ -48,6 +48,19 @@ fn generate_struct_impl(
         .map(|doc| quote! { Some(#doc.to_string()) })
         .unwrap_or(quote! { None });
 
+    // Count flattened vs non-flattened fields to determine shape type
+    let flattened_fields: Vec<_> = fields.iter().filter(|f| f.flatten).collect();
+    let non_flattened_fields: Vec<_> = fields.iter().filter(|f| !f.flatten).collect();
+    
+    // Use smart runtime inspection for structs with only a single flattened field
+    let should_use_smart_generation = non_flattened_fields.is_empty() && flattened_fields.len() == 1;
+
+    if should_use_smart_generation {
+        // Generate smart logic that determines union vs structure at runtime based on the flattened type
+        return generate_union_from_flattened_struct(name, namespace, &flattened_fields[0], &struct_doc_expr);
+    }
+
+    // Otherwise, generate Structure (existing logic)
     let field_implementations = fields.iter().map(|field| {
         let field_name = &field.name;
         let value_type = &field.value_type;
@@ -182,6 +195,143 @@ fn generate_struct_impl(
                 };
 
                 shapes.insert(stringify!(#name).to_string(), shape);
+
+                smithy_core::SmithyModel {
+                    namespace: #namespace.to_string(),
+                    shapes
+                }
+            }
+        }
+    };
+
+    Ok(expanded)
+}
+
+
+fn generate_union_from_flattened_struct(
+    name: &syn::Ident,
+    namespace: &str,
+    flattened_field: &SmithyField,
+    struct_doc_expr: &proc_macro2::TokenStream,
+) -> syn::Result<TokenStream2> {
+    let value_type = &flattened_field.value_type;
+    
+    // Extract the inner type from Option<T> if it's an optional type
+    let inner_type = if value_type.starts_with("Option<") && value_type.ends_with('>') {
+        let start_idx = "Option<".len();
+        let end_idx = value_type.len() - 1;
+        &value_type[start_idx..end_idx]
+    } else {
+        value_type
+    };
+
+    let inner_type_ident = syn::parse_str::<syn::Type>(inner_type).unwrap();
+
+    let expanded = quote! {
+        impl smithy_core::SmithyModelGenerator for #name {
+            fn generate_smithy_model() -> smithy_core::SmithyModel {
+                let mut shapes = std::collections::HashMap::new();
+                let mut members = std::collections::HashMap::new();
+
+                // Get the flattened model and determine if it's actually an enum/union
+                let flattened_model = <#inner_type_ident as smithy_core::SmithyModelGenerator>::generate_smithy_model();
+                let flattened_struct_name = stringify!(#inner_type_ident).to_string();
+
+                // Check if the flattened type is actually an enum or union
+                let mut is_flattened_enum_or_union = false;
+                
+                // Find the target shape in the flattened model
+                for (shape_name, shape) in flattened_model.shapes.clone() {
+                    if shape_name == flattened_struct_name {
+                        match &shape {
+                            smithy_core::SmithyShape::Union { .. } | 
+                            smithy_core::SmithyShape::Enum { .. } => {
+                                is_flattened_enum_or_union = true;
+                            },
+                            smithy_core::SmithyShape::Structure { .. } => {
+                                is_flattened_enum_or_union = false;
+                            },
+                            _ => {
+                                is_flattened_enum_or_union = false;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if is_flattened_enum_or_union {
+                    // Generate as Union: flattened type is enum/union
+                    for (shape_name, shape) in flattened_model.shapes {
+                        if shape_name == flattened_struct_name {
+                            match shape {
+                                smithy_core::SmithyShape::Union { members: flattened_members, .. } => {
+                                    // If the flattened type is already a union, use its members
+                                    members.extend(flattened_members);
+                                },
+                                smithy_core::SmithyShape::Enum { values, .. } => {
+                                    // If the flattened type is an enum, convert enum values to union members
+                                    for (enum_name, enum_value) in values {
+                                        members.insert(enum_name, smithy_core::SmithyMember {
+                                            target: "smithy.api#Unit".to_string(),
+                                            documentation: enum_value.documentation,
+                                            traits: vec![],
+                                        });
+                                    }
+                                },
+                                _ => {
+                                    // Fallback case
+                                    members.insert("value".to_string(), smithy_core::SmithyMember {
+                                        target: flattened_struct_name.clone(),
+                                        documentation: None,
+                                        traits: vec![],
+                                    });
+                                }
+                            }
+                        } else {
+                            // Add all other shapes from the flattened model
+                            shapes.insert(shape_name, shape);
+                        }
+                    }
+
+                    // Create the union shape
+                    let shape = smithy_core::SmithyShape::Union {
+                        members,
+                        documentation: #struct_doc_expr,
+                        traits: vec![]
+                    };
+
+                    shapes.insert(stringify!(#name).to_string(), shape);
+                } else {
+                    // Generate as Structure: flattened type is struct, merge fields
+                    for (shape_name, shape) in flattened_model.shapes {
+                        if shape_name == flattened_struct_name {
+                            match shape {
+                                smithy_core::SmithyShape::Structure { members: flattened_members, .. } => {
+                                    members.extend(flattened_members);
+                                }
+                                _ => {
+                                    // Fallback - add as single field
+                                    members.insert("value".to_string(), smithy_core::SmithyMember {
+                                        target: flattened_struct_name.clone(),
+                                        documentation: None,
+                                        traits: vec![],
+                                    });
+                                }
+                            }
+                        } else {
+                            shapes.insert(shape_name, shape);
+                        }
+                    }
+
+                    // Create the structure shape
+                    let shape = smithy_core::SmithyShape::Structure {
+                        members,
+                        documentation: #struct_doc_expr,
+                        traits: vec![]
+                    };
+
+                    shapes.insert(stringify!(#name).to_string(), shape);
+                }
 
                 smithy_core::SmithyModel {
                     namespace: #namespace.to_string(),
