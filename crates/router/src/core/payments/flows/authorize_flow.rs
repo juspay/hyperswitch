@@ -10,6 +10,7 @@ use external_services::grpc_client;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
+    router_response_types,
 };
 use hyperswitch_interfaces::{api as api_interface, api::ConnectorSpecifications};
 use masking::ExposeInterface;
@@ -591,6 +592,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         lineage_ids,
                         merchant_connector_account,
                         merchant_context,
+                        connector_data.connector_name,
                         unified_connector_service_execution_mode,
                         merchant_order_reference_id,
                     )
@@ -973,14 +975,13 @@ async fn call_unified_connector_service_authorize(
 
             let payment_authorize_response = response.into_inner();
 
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_payment_authorize(
-                    payment_authorize_response.clone(),
-                )
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize UCS response")?;
+            let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
+            let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
@@ -989,7 +990,16 @@ async fn call_unified_connector_service_authorize(
                 .raw_connector_response
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(status_code);
+            router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+            // Populate connector_customer_id if present
+            ucs_data.connector_customer_id.map(|connector_customer_id| {
+                router_data.connector_customer = Some(connector_customer_id);
+            });
+
+            ucs_data.connector_response.map(|customer_response| {
+                router_data.connector_response = Some(customer_response);
+            });
 
             Ok((router_data, payment_authorize_response))
         },
@@ -999,6 +1009,84 @@ async fn call_unified_connector_service_authorize(
     // Copy back the updated data
     *router_data = updated_router_data;
     Ok(())
+}
+fn transform_redirection_response_for_pre_authenticate_flow(
+    connector: enums::connector_enums::Connector,
+    response_data: router_response_types::RedirectForm,
+) -> RouterResult<router_response_types::RedirectForm> {
+    match (connector, &response_data) {
+        (
+            enums::connector_enums::Connector::Cybersource,
+            router_response_types::RedirectForm::Form {
+                endpoint,
+                method: _,
+                ref form_fields,
+            },
+        ) => {
+            let access_token = form_fields.get("access_token").cloned().ok_or(
+                ApiErrorResponse::MissingRequiredField {
+                    field_name: "access_token",
+                },
+            )?;
+            let ddc_url = form_fields.get("ddc_url").unwrap_or(endpoint).clone();
+            let reference_id = form_fields.get("reference_id").cloned().ok_or(
+                ApiErrorResponse::MissingRequiredField {
+                    field_name: "reference_id",
+                },
+            )?;
+            Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            })
+        }
+        _ => Ok(response_data),
+    }
+}
+fn transform_response_for_pre_authenticate_flow(
+    connector: enums::connector_enums::Connector,
+    response_data: router_response_types::PaymentsResponseData,
+) -> RouterResult<router_response_types::PaymentsResponseData> {
+    match (connector, response_data.clone()) {
+        (
+            enums::connector_enums::Connector::Cybersource,
+            router_response_types::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                mandate_reference,
+                connector_metadata,
+                network_txn_id,
+                connector_response_reference_id,
+                incremental_authorization_allowed,
+                charges,
+            },
+        ) => {
+            let redirection_data = Box::new(
+                (*redirection_data)
+                    .clone()
+                    .map(|redirection_data| {
+                        transform_redirection_response_for_pre_authenticate_flow(
+                            connector,
+                            redirection_data,
+                        )
+                    })
+                    .transpose()?,
+            );
+            Ok(
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charges,
+                },
+            )
+        }
+        _ => Ok(response_data),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1014,6 +1102,7 @@ async fn call_unified_connector_service_pre_authenticate(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
+    connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> RouterResult<()> {
@@ -1077,6 +1166,10 @@ async fn call_unified_connector_service_pre_authenticate(
                 router_data.status = status;
                 response
             });
+            let router_data_response = match router_data_response {
+                Ok(response) => Ok(transform_response_for_pre_authenticate_flow(connector, response)?),
+                Err(err) => Err(err)
+            };
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_pre_authenticate_response
                 .raw_connector_response
@@ -1159,14 +1252,13 @@ async fn call_unified_connector_service_repeat_payment(
 
             let payment_repeat_response = response.into_inner();
 
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_payment_repeat(
-                    payment_repeat_response.clone(),
-                )
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize UCS response")?;
+            let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
+                payment_repeat_response.clone(),
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
+            let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
@@ -1175,7 +1267,17 @@ async fn call_unified_connector_service_repeat_payment(
                 .raw_connector_response
                 .clone()
                 .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(status_code);
+            router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+            // Populate connector_customer_id if present
+            ucs_data.connector_customer_id.map(|connector_customer_id| {
+                router_data.connector_customer = Some(connector_customer_id);
+            });
+
+            // Populate connector_response if present
+            ucs_data.connector_response.map(|connector_response| {
+                router_data.connector_response = Some(connector_response);
+            });
 
             Ok((router_data, payment_repeat_response))
         },

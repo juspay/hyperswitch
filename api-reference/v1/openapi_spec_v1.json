@@ -7551,6 +7551,220 @@
           }
         ]
       }
+    },
+    "/subscriptions/{subscription_id}/pause": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Pause Subscription",
+        "description": "Pause the subscription",
+        "operationId": "Pause Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseSubscriptionRequest"
+              },
+              "examples": {
+                "Pause subscription": {
+                  "value": {
+                    "pause_option": "immediately"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription paused successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PauseSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid pause data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/resume": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Resume Subscription",
+        "description": "Resume the subscription",
+        "operationId": "Resume Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeSubscriptionRequest"
+              },
+              "examples": {
+                "Resume subscription": {
+                  "value": {
+                    "resume_option": "immediately",
+                    "unpaid_invoices_handling": "schedule_payment_collection"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription resumed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid resume data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/cancel": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Cancel Subscription",
+        "description": "Cancel the subscription",
+        "operationId": "Cancel Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelSubscriptionRequest"
+              },
+              "examples": {
+                "Cancel subscription": {
+                  "value": {
+                    "cancel_option": "immediately",
+                    "credit_option_for_current_term_charges": "prorate",
+                    "refundable_credits_handling": "schedule_refund",
+                    "unbilled_charges_option": "invoice"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cancel data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7689,6 +7903,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "AccountReceivablesHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_payment_collection",
+          "write_off"
+        ]
       },
       "AchBankDebitAdditionalData": {
         "type": "object",
@@ -12119,6 +12341,108 @@
           }
         ]
       },
+      "CancelOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "end_of_term",
+          "specific_date"
+        ]
+      },
+      "CancelSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for cancelling a subscription.",
+        "properties": {
+          "cancel_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CancelOption"
+              }
+            ],
+            "nullable": true
+          },
+          "cancel_at": {
+            "type": "string",
+            "description": "Optional date when the subscription should be cancelled (if not provided, cancels immediately)",
+            "nullable": true
+          },
+          "unbilled_charges_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnbilledChargesOption"
+              }
+            ],
+            "nullable": true
+          },
+          "credit_option_for_current_term_charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditOption"
+              }
+            ],
+            "nullable": true
+          },
+          "account_receivables_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountReceivablesHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "refundable_credits_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundableCreditsHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "cancel_reason_code": {
+            "type": "string",
+            "description": "Reason code for canceling the subscription",
+            "nullable": true
+          }
+        }
+      },
+      "CancelSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully cancelling a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "cancelled_at": {
+            "type": "string",
+            "description": "Date when the subscription was cancelled",
+            "nullable": true
+          }
+        }
+      },
       "CaptureMethod": {
         "type": "string",
         "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
@@ -12960,6 +13284,13 @@
           }
         }
       },
+      "ChargesHandling": {
+        "type": "string",
+        "enum": [
+          "invoice_immediately",
+          "add_to_unbilled_charges"
+        ]
+      },
       "ClickToPayEligibilityCheckData": {
         "type": "object",
         "properties": {
@@ -13120,8 +13451,7 @@
       "ConfirmSubscriptionPaymentDetails": {
         "type": "object",
         "required": [
-          "payment_method",
-          "payment_method_data"
+          "payment_method"
         ],
         "properties": {
           "shipping": {
@@ -13152,7 +13482,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -13168,6 +13503,11 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "example": "token_sxJdmpUnpNsJk5VWzcjl",
             "nullable": true
           }
         }
@@ -13453,6 +13793,11 @@
           "description": {
             "type": "string",
             "description": "The description of the connector"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
+            "nullable": true
           },
           "category": {
             "$ref": "#/components/schemas/HyperswitchConnectorCategory"
@@ -14699,6 +15044,14 @@
           }
         }
       },
+      "CreditOption": {
+        "type": "string",
+        "enum": [
+          "none",
+          "prorate",
+          "full"
+        ]
+      },
       "CryptoData": {
         "type": "object",
         "properties": {
@@ -15354,6 +15707,115 @@
                 "$ref": "#/components/schemas/Address"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "CustomerPaymentMethodUpdateResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_method_id",
+          "payment_method"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier for a merchant",
+            "example": "merchant_1671528864"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "description": "Type of payment experience enabled with the connector",
+            "example": [
+              "redirect_to_url"
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z",
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
             "nullable": true
           }
         }
@@ -21108,6 +21570,13 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform eligibility check",
+            "enum": [
+              "eligibility_check"
+            ]
           }
         ]
       },
@@ -22114,6 +22583,71 @@
           }
         }
       },
+      "PauseOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "end_of_term",
+          "specific_date"
+        ]
+      },
+      "PauseSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for pausing a subscription.",
+        "properties": {
+          "pause_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PauseOption"
+              }
+            ],
+            "nullable": true
+          },
+          "pause_at": {
+            "type": "string",
+            "description": "Optional date when the subscription should be paused (if not provided, pauses immediately)",
+            "nullable": true
+          }
+        }
+      },
+      "PauseSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully pausing a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "paused_at": {
+            "type": "string",
+            "description": "Date when the subscription was paused",
+            "nullable": true
+          }
+        }
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -22608,6 +23142,11 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "example": "pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
@@ -23939,6 +24478,28 @@
           }
         ]
       },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -23981,7 +24542,8 @@
           "mandate_payment",
           "show_surcharge_breakup_screen",
           "request_external_three_ds_authentication",
-          "is_tax_calculation_enabled"
+          "is_tax_calculation_enabled",
+          "sdk_next_action"
         ],
         "properties": {
           "redirect_url": {
@@ -24037,6 +24599,9 @@
           "is_tax_calculation_enabled": {
             "type": "boolean",
             "description": "flag that indicates whether to calculate tax on the order amount"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
           }
         }
       },
@@ -24298,6 +24863,14 @@
             ],
             "nullable": true
           },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            ],
+            "nullable": true
+          },
           "client_secret": {
             "type": "string",
             "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
@@ -24493,6 +25066,11 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "example": "token_sxJdmpUnpNsJk5VWzcjl",
             "nullable": true
           }
         }
@@ -26146,6 +26724,13 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "extended_authorization_last_applied_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time at which extended authorization was last applied on this payment",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "request_extended_authorization": {
             "type": "boolean",
             "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
@@ -27657,6 +28242,13 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "extended_authorization_last_applied_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time at which extended authorization was last applied on this payment",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "request_extended_authorization": {
@@ -31881,6 +32473,13 @@
         },
         "additionalProperties": false
       },
+      "RefundableCreditsHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_refund"
+        ]
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -32252,6 +32851,86 @@
               "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
             "description": "The list of payment method types enabled for a connector account"
+          }
+        }
+      },
+      "ResumeOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "specific_date"
+        ]
+      },
+      "ResumeSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for resuming a subscription.",
+        "properties": {
+          "resume_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResumeOption"
+              }
+            ],
+            "nullable": true
+          },
+          "resume_date": {
+            "type": "string",
+            "description": "Optional date when the subscription should be resumed (if not provided, resumes immediately)",
+            "nullable": true
+          },
+          "charges_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargesHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "unpaid_invoices_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnpaidInvoicesHandling"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ResumeSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully resuming a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "next_billing_at": {
+            "type": "string",
+            "description": "Date when the subscription was resumed",
+            "nullable": true
           }
         }
       },
@@ -34889,6 +35568,20 @@
         "enum": [
           "tabs",
           "journey"
+        ]
+      },
+      "UnbilledChargesOption": {
+        "type": "string",
+        "enum": [
+          "invoice",
+          "delete"
+        ]
+      },
+      "UnpaidInvoicesHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_payment_collection"
         ]
       },
       "UpdateApiKeyRequest": {

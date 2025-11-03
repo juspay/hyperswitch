@@ -104,6 +104,12 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Placetopay",
+            })?
+        }
         let browser_info = item.router_data.request.get_browser_info()?;
         let ip_address = browser_info.get_ip_address()?;
         let user_agent = browser_info.get_user_agent()?;

@@ -2501,7 +2501,8 @@ pub struct PaymentIntentResponse {
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<Secret<String>>,
-    pub created: i32,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created: Option<PrimitiveDateTime>,
     pub customer: Option<Secret<String>>,
     pub payment_method: Option<Secret<String>>,
     pub description: Option<String>,
@@ -2776,19 +2777,34 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
     }
 }
 
-impl From<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseData {
-    fn from(item: &AdditionalPaymentMethodDetails) -> Self {
-        Self {
-            extended_authentication_applied: item.extended_authorization.as_ref().map(
-                |extended_authorization| {
-                    primitive_wrappers::ExtendedAuthorizationAppliedBool::from(matches!(
-                        extended_authorization.status,
-                        Some(StripeExtendedAuthorizationStatus::Enabled)
-                    ))
-                },
+fn get_extended_authorization_data(
+    item: &AdditionalPaymentMethodDetails,
+    created_at: Option<PrimitiveDateTime>,
+) -> Option<ExtendedAuthorizationResponseData> {
+    match item
+        .extended_authorization
+        .as_ref()
+        .map(|extended_authorization| {
+            matches!(
+                extended_authorization.status,
+                Some(StripeExtendedAuthorizationStatus::Enabled)
+            )
+        }) {
+        Some(true) => Some(ExtendedAuthorizationResponseData {
+            extended_authentication_applied: Some(
+                primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true),
             ),
             capture_before: item.capture_before,
-        }
+            extended_authorization_last_applied_at: created_at,
+        }),
+        Some(false) => Some(ExtendedAuthorizationResponseData {
+            extended_authentication_applied: Some(
+                primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false),
+            ),
+            capture_before: None,
+            extended_authorization_last_applied_at: None,
+        }),
+        None => None,
     }
 }
 
@@ -2888,6 +2904,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
+    created_at: Option<PrimitiveDateTime>,
 ) -> Option<ConnectorResponseData> {
     let is_overcapture_enabled = stripe_charge_enum.get_overcapture_status();
     let additional_payment_method_details =
@@ -2903,9 +2920,12 @@ fn extract_payment_method_connector_response_from_latest_charge(
     let additional_payment_method_data = additional_payment_method_details
         .as_ref()
         .map(AdditionalPaymentMethodConnectorResponse::from);
-    let extended_authorization_data = additional_payment_method_details
-        .as_ref()
-        .map(ExtendedAuthorizationResponseData::from);
+    let extended_authorization_data =
+        additional_payment_method_details
+            .as_ref()
+            .and_then(|additional_payment_methods_details| {
+                get_extended_authorization_data(additional_payment_methods_details, created_at)
+            });
 
     if additional_payment_method_data.is_some()
         || extended_authorization_data.is_some()
@@ -3031,11 +3051,16 @@ where
             })
         };
 
-        let connector_response_data = item
-            .response
-            .latest_charge
-            .as_ref()
-            .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let connector_response_data =
+            item.response
+                .latest_charge
+                .as_ref()
+                .and_then(|latest_charge| {
+                    extract_payment_method_connector_response_from_latest_charge(
+                        latest_charge,
+                        item.response.created,
+                    )
+                });
 
         let minor_amount_capturable = item
             .response
@@ -3302,11 +3327,16 @@ where
 
         let status = AttemptStatus::from(item.response.status.to_owned());
 
-        let connector_response_data = item
-            .response
-            .latest_charge
-            .as_ref()
-            .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let connector_response_data =
+            item.response
+                .latest_charge
+                .as_ref()
+                .and_then(|latest_charge| {
+                    extract_payment_method_connector_response_from_latest_charge(
+                        latest_charge,
+                        item.response.created,
+                    )
+                });
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
