@@ -840,11 +840,11 @@ where
 {
     let opt = Option::<String>::deserialize(deserializer)?;
     match opt.as_deref() {
-        None | Some("") => Ok(None), // "" or missing field → None
+        None | Some("") => Ok(None), 
         Some(s) => {
-            let t = serde_json::from_str::<T>(&format!("\"{}\"", s))
+            let value = T::deserialize(serde_json::Value::String(s.to_string()))
                 .map_err(serde::de::Error::custom)?;
-            Ok(Some(t))
+            Ok(Some(value))
         }
     }
 }
