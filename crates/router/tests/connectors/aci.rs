@@ -111,6 +111,7 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             acs_trans_id: None,
             authentication_type: None,
             transaction_id: None,
+            ucaf_collection_indicator: None,
         }),
         ..utils::PaymentAuthorizeType::default().0
     })
