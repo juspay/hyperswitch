@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.2
+
+### Miscellaneous Tasks
+
+- **router:** Logic change for proxy selection based on config ([#10070](https://github.com/juspay/hyperswitch/pull/10070)) ([`89400a1`](https://github.com/juspay/hyperswitch/commit/89400a11fd117a9d7be444718a7d2913bd7ffb14))
+
+**Full Changelog:** [`2025.10.31.1...2025.10.31.2`](https://github.com/juspay/hyperswitch/compare/2025.10.31.1...2025.10.31.2)
+
+- - -
+
 ## 2025.10.31.1
 
 ### Features
