@@ -1496,22 +1496,38 @@ async fn payouts_incoming_webhook_flow(
             .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable("Failed to fetch the payout")?;
 
-        let payout_error_details = connector
-            .get_payout_error_update_object(request_details)
-            .switch()
-            .attach_printable("Failed to get error object for payouts")?;
+        let status = common_enums::PayoutStatus::foreign_try_from(event_type)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("failed payout status mapping from event type")?;
 
-        let payout_attempt_update = PayoutAttemptUpdate::StatusUpdate {
-            connector_payout_id: payout_attempt.connector_payout_id.clone(),
-            status: common_enums::PayoutStatus::foreign_try_from(event_type)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("failed payout status mapping from event type")?,
-            error_message: payout_error_details.error_message,
-            error_code: payout_error_details.error_code,
-            is_eligible: payout_attempt.is_eligible,
-            unified_code: None,
-            unified_message: None,
-            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+        // if status is failure then update the error_code and error_message as well
+        let payout_attempt_update = if status.is_payout_failure() {
+            let payout_error_details = connector
+                .get_payout_error_update_object(request_details)
+                .switch()
+                .attach_printable("Failed to get error object for payouts")?;
+
+            PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_attempt.connector_payout_id.clone(),
+                status,
+                error_message: payout_error_details.error_message,
+                error_code: payout_error_details.error_code,
+                is_eligible: payout_attempt.is_eligible,
+                unified_code: None,
+                unified_message: None,
+                payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            }
+        } else {
+            PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_attempt.connector_payout_id.clone(),
+                status,
+                error_message: None,
+                error_code: None,
+                is_eligible: payout_attempt.is_eligible,
+                unified_code: None,
+                unified_message: None,
+                payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            }
         };
 
         let action_req =

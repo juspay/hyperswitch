@@ -372,14 +372,14 @@ impl IncomingWebhook for Adyenplatform {
             .parse_struct("AdyenplatformIncomingWebhook")
             .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let error_message = webhook_body.data.reason.or(webhook_body
+        let error_reason = webhook_body.data.reason.or(webhook_body
             .data
             .tracking
             .and_then(|tracking_data| tracking_data.reason));
 
         Ok(api_models::webhooks::PayoutStatusUpdate {
-            error_message,
-            error_code: None,
+            error_message: error_reason.clone(),
+            error_code: error_reason,
         })
     }
 
