@@ -297,6 +297,7 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     merchant_order_reference: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
+    /// metadata.store
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -1413,6 +1414,7 @@ pub struct AdyenRefundRequest {
     merchant_refund_reason: Option<AdyenRefundRequestReason>,
     reference: String,
     splits: Option<Vec<AdyenSplitData>>,
+    /// refund_connector_metadata.store
     store: Option<String>,
 }
 
@@ -2830,6 +2832,12 @@ fn get_device_fingerprint(metadata: serde_json::Value) -> Option<Secret<String>>
         .map(|fingerprint| Secret::new(fingerprint.to_string()))
 }
 
+fn get_store_id(metadata: serde_json::Value) -> Option<String> {
+    metadata
+        .get("store")
+        .and_then(|store| store.as_str())
+        .map(|store| store.to_string())
+}
 impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
@@ -2987,7 +2995,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3074,7 +3089,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3155,7 +3177,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3240,7 +3269,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3317,7 +3353,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3435,7 +3478,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3520,7 +3570,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -3651,7 +3708,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3747,7 +3811,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -3827,7 +3898,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -5017,7 +5095,14 @@ impl<F> TryFrom<&AdyenRouterData<&RefundsRouterData<F>>> for AdyenRefundRequest 
         .as_ref()
         {
                 Some(hyperswitch_domain_models::router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) =>  get_adyen_split_request(adyen_split_data, item.router_data.request.currency),
-                _ => (None, None),
+                _ => (
+                item.router_data
+                    .request
+                    .refund_connector_metadata
+                    .clone()
+                    .and_then(|metadata| get_store_id(metadata.expose())),
+                None,
+            ),
         };
 
         Ok(Self {
@@ -6366,7 +6451,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
