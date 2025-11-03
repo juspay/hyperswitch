@@ -199,6 +199,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
     Ok(router_data)
 }
@@ -459,6 +460,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
+        is_payment_method_migrated: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -545,6 +547,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
 
     Ok(router_data)
@@ -892,6 +895,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
 
     Ok(router_data)
@@ -1025,6 +1029,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
 
     Ok(router_data)
@@ -1389,6 +1394,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
 
     Ok(router_data)
@@ -1616,6 +1622,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_payment_method_migrated: None,
     };
 
     Ok(router_data)
@@ -1851,7 +1858,14 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.status),
+        is_payment_method_migrated: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.locker_id.is_none() && info.connector_mandate_details.is_some()),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -2049,7 +2063,14 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.status),
+        is_payment_method_migrated: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.locker_id.is_none() && info.connector_mandate_details.is_some()),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -4389,6 +4410,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            is_payment_method_migrated: None,
         })
     }
 }
@@ -4625,6 +4647,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            is_payment_method_migrated: payment_data
+                .payment_method_info
+                .as_ref()
+                .map(|info| info.locker_id.is_none() && info.connector_mandate_details.is_some()),
         })
     }
 }

@@ -1871,17 +1871,27 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    let shopper_reference = match item.get_connector_customer_id() {
-        Ok(connector_customer_id) => Some(connector_customer_id),
-        Err(_) => {
+    let shopper_reference = Some(match item.is_payment_method_migrated {
+        Some(true) => match item.get_connector_customer_id() {
+            Ok(connector_customer_id) => connector_customer_id,
+            Err(_) => {
+                let customer_id = item.get_customer_id()?;
+                format!(
+                    "{}_{}",
+                    item.merchant_id.get_string_repr(),
+                    customer_id.get_string_repr()
+                )
+            }
+        },
+        _ => {
             let customer_id = item.get_customer_id()?;
-            Some(format!(
+            format!(
                 "{}_{}",
                 item.merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
-            ))
+            )
         }
-    };
+    });
 
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {

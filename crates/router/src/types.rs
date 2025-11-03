@@ -1295,6 +1295,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             enable_overcapture: None,
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
+            is_payment_method_migrated: None,
         }
     }
 }
@@ -1362,6 +1363,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
+            is_payment_method_migrated: data.is_payment_method_migrated,
         }
     }
 }
@@ -1434,6 +1436,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_payment_method_migrated: None,
         }
     }
 }

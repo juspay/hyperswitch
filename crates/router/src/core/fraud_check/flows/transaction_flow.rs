@@ -155,6 +155,7 @@ impl
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_payment_method_migrated: None,
         };
 
         Ok(router_data)
