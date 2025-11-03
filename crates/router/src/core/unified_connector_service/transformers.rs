@@ -6,7 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    router_data::{ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
@@ -29,15 +29,40 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, Identifier, PaymentServiceTransformRequest,
+    self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
 };
 use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::{api, transformers},
+    types::{
+        api,
+        transformers::{self, ForeignFrom},
+    },
 };
+
+impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
+    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
+        Self {
+            token: masking::Secret::new(grpc_token.token.clone()),
+            expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+        }
+    }
+}
+
+impl ForeignFrom<&AccessToken> for ConnectorState {
+    fn foreign_from(access_token: &AccessToken) -> Self {
+        Self {
+            access_token: Some(payments_grpc::AccessToken {
+                token: access_token.token.peek().to_string(),
+                expires_in_seconds: Some(access_token.expires),
+                token_type: None,
+            }),
+            connector_customer_id: None,
+        }
+    }
+}
 impl
     transformers::ForeignTryFrom<(
         &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
@@ -108,6 +133,11 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
@@ -116,7 +146,7 @@ impl
 
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
-            state: None,
+            state,
         })
     }
 }
@@ -190,6 +220,7 @@ impl
             metadata: HashMap::new(),  // PaymentsAuthenticateData doesn't have metadata
             return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            state: None,
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -205,7 +236,6 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            state: None,
         })
     }
 }
@@ -279,6 +309,7 @@ impl
             metadata: HashMap::new(),
             return_url: None,
             continue_redirection_url: None,
+            state: None,
             merchant_account_metadata,
             redirection_response: router_data
                 .request
@@ -294,7 +325,6 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            state: None,
         })
     }
 }
@@ -378,6 +408,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            state: None,
             merchant_account_metadata,
             browser_info: router_data
                 .request
@@ -385,7 +416,6 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            state: None,
         })
     }
 }
@@ -589,6 +619,7 @@ impl
             setup_mandate_details: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
+            state: None,
         })
     }
 }
@@ -673,6 +704,11 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -733,8 +769,8 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
+            state,
             merchant_account_metadata,
-            state: None,
             description: None,
             setup_mandate_details: None,
             statement_descriptor_name: None,
@@ -883,6 +919,7 @@ impl
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
+            state: None,
             merchant_account_metadata: HashMap::new(),
             state: None,
             description: None,
@@ -933,6 +970,11 @@ impl
             .clone()
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
+
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -997,7 +1039,7 @@ impl
             payment_experience: None,
             connector_customer_id: router_data.connector_customer.clone(),
             merchant_account_metadata: HashMap::new(),
-            state: None,
+            state,
         })
     }
 }
@@ -1048,6 +1090,11 @@ impl
             }
         };
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -1081,7 +1128,7 @@ impl
             test_mode: router_data.test_mode,
             payment_method_type: None,
             merchant_account_metadata: HashMap::new(),
-            state: None,
+            state,
             return_url: None,
             description: None,
             connector_customer_id: None,
@@ -2426,6 +2473,11 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
@@ -2466,7 +2518,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
-            state: None,
+            state,
         })
     }
 }
@@ -2492,6 +2544,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )),
         });
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             transaction_id: Some(transaction_id),
@@ -2512,6 +2569,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
+            state,
             refund_metadata: router_data
                 .request
                 .refund_connector_metadata
@@ -2529,7 +2587,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         .unwrap_or_default()
                 })
                 .unwrap_or_default(),
-            state: None,
         })
     }
 }

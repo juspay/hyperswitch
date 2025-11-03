@@ -68,6 +68,9 @@ pub struct ConnectorAuthMetadata {
     /// Optional additional key used by some authentication types.
     pub key1: Option<Secret<String>>,
 
+    /// Optional second additional key used by multi-auth authentication types.
+    pub key2: Option<Secret<String>>,
+
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
 
@@ -546,6 +549,9 @@ pub fn build_unified_connector_service_grpc_headers(
     }
     if let Some(key1) = meta.key1 {
         metadata.append(consts::UCS_HEADER_KEY1, parse("key1", key1.peek())?);
+    }
+    if let Some(key2) = meta.key2 {
+        metadata.append(consts::UCS_HEADER_KEY2, parse("key2", key2.peek())?);
     }
     if let Some(api_secret) = meta.api_secret {
         metadata.append(

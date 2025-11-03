@@ -294,6 +294,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
         _call_connector_action: common_enums::CallConnectorAction,
+        _creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         // Call UCS for Complete Authorize flow
         Box::pin(call_unified_connector_service_complete_authorize(
