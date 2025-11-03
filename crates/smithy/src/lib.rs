@@ -61,7 +61,7 @@ fn generate_struct_impl(
         return generate_union_from_flattened_struct(
             name,
             namespace,
-            &flattened_fields[0],
+            flattened_fields[0],
             &struct_doc_expr,
         );
     }
