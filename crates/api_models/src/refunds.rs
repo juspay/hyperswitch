@@ -180,17 +180,20 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundUpdateRequest {
     #[serde(skip)]
     pub refund_id: String,
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     #[schema(max_length = 255, example = "Customer returned the product")]
+    #[smithy(value_type = "Option<String>")]
     pub reason: Option<String>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
