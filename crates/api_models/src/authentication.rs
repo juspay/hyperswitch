@@ -676,7 +676,7 @@ pub struct AuthenticationSyncResponse {
     pub directory_server_id: Option<String>,
 
     /// The tokens for vaulted data
-    pub token_data: Option<AuthTokenData>,
+    pub vault_token_data: Option<AuthTokenData>,
 
     /// Billing address.
     #[schema(value_type = Option<Address>)]

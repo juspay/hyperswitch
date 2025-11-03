@@ -2069,7 +2069,7 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
-        token_data: auth_token_data,
+        vault_token_data: auth_token_data,
         billing,
         shipping,
         browser_information: browser_info,
