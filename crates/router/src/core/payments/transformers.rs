@@ -3724,6 +3724,8 @@ where
             shipping_cost: payment_intent.shipping_cost,
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_last_applied_at: payment_attempt
+                .extended_authorization_last_applied_at,
             card_discovery: payment_attempt.card_discovery,
             force_3ds_challenge: payment_intent.force_3ds_challenge,
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
@@ -4036,6 +4038,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
+            extended_authorization_last_applied_at: pa.extended_authorization_last_applied_at,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,

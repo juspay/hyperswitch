@@ -571,6 +571,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub extended_authorization_last_applied_at: Option<time::PrimitiveDateTime>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 

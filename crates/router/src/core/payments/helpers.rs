@@ -4843,6 +4843,7 @@ impl AttemptType {
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
