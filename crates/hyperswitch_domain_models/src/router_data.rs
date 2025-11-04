@@ -814,7 +814,10 @@ impl
 
                 // Check for special processing case with partial authorization and split payments
                 let status = if self.status == common_enums::enums::AttemptStatus::Pending
-                    && payment_data.payment_intent.active_attempts_group_id.is_some()
+                    && payment_data
+                        .payment_intent
+                        .active_attempts_group_id
+                        .is_some()
                     && payment_data
                         .payment_intent
                         .enable_partial_authorization
@@ -1356,7 +1359,10 @@ impl
 
                 // Check for special processing case with partial authorization and split payments
                 let status = if self.status == common_enums::enums::AttemptStatus::Pending
-                    && payment_data.payment_intent.active_attempts_group_id.is_some()
+                    && payment_data
+                        .payment_intent
+                        .active_attempts_group_id
+                        .is_some()
                     && payment_data
                         .payment_intent
                         .enable_partial_authorization

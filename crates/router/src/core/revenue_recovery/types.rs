@@ -270,7 +270,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     .await;
                 }
 
-
                 // Reopen calculate workflow on payment failure
                 Box::pin(reopen_calculate_workflow_on_payment_failure(
                     state,
@@ -465,7 +464,7 @@ impl Action {
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                 payment_intent,
             );
-                let intent_status = recovery_payment_intent.status;
+        let intent_status = recovery_payment_intent.status;
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -503,14 +502,14 @@ impl Action {
                     )
                     .await;
 
-                            // unlocking the token
-                            if intent_status == common_enums::IntentStatus::Succeeded {
-                                storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    // unlocking the token
+                    if intent_status == common_enums::IntentStatus::Succeeded {
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                         state,
                   &connector_customer_id,
                     )
                         .await;
-                            }
+                    }
 
                     let event_status = common_enums::EventType::PaymentSucceeded;
 
@@ -591,14 +590,14 @@ impl Action {
                     )
                     .await;
 
-                            // unlocking the token
-                            if intent_status == common_enums::IntentStatus::Failed {
-                                storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    // unlocking the token
+                    if intent_status == common_enums::IntentStatus::Failed {
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
         state,
         &connector_customer_id,
     )
     .await;
-                            }
+                    }
 
                     // Reopen calculate workflow on payment failure
                     Box::pin(reopen_calculate_workflow_on_payment_failure(

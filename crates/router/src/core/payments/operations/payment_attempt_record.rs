@@ -262,9 +262,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
         let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::AttemptsGroupID);
         let amount_captured = payment_data.payment_intent.amount_captured;
-        let status = if amount_captured > Some(MinorUnit::new(0))  && *payment_data.payment_intent.enable_partial_authorization.unwrap_or(false.into()) {
+        let status = if amount_captured > Some(MinorUnit::new(0))
+            && *payment_data
+                .payment_intent
+                .enable_partial_authorization
+                .unwrap_or(false.into())
+        {
             common_enums::IntentStatus::PartiallyCapturedAndProcessing
-        }else {
+        } else {
             common_enums::IntentStatus::from(payment_data.payment_attempt.status)
         };
         let payment_intent_update =
