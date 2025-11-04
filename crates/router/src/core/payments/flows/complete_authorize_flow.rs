@@ -517,7 +517,7 @@ async fn call_unified_connector_service_authenticate(
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
-) -> RouterResult<Option<router_request_types::AuthenticationData>> {
+) -> RouterResult<Option<router_request_types::UcsAuthenticationData>> {
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -597,7 +597,7 @@ async fn call_unified_connector_service_authenticate(
                 .authentication_data
                 .clone()
                 .map(|grpc_authentication_data| {
-                    router_request_types::AuthenticationData::foreign_try_from(
+                    router_request_types::UcsAuthenticationData::foreign_try_from(
                         grpc_authentication_data,
                     )
                 })
@@ -634,7 +634,7 @@ async fn call_unified_connector_service_post_authenticate(
     merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
-) -> RouterResult<Option<router_request_types::AuthenticationData>> {
+) -> RouterResult<Option<router_request_types::UcsAuthenticationData>> {
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -708,7 +708,7 @@ async fn call_unified_connector_service_post_authenticate(
                 .authentication_data
                 .clone()
                 .map(|grpc_authentication_data| {
-                    router_request_types::AuthenticationData::foreign_try_from(
+                    router_request_types::UcsAuthenticationData::foreign_try_from(
                         grpc_authentication_data,
                     )
                 })

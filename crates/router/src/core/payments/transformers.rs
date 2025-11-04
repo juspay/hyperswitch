@@ -5807,7 +5807,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             authentication_data: payment_data
                 .authentication
                 .as_ref()
-                .map(AuthenticationData::foreign_try_from)
+                .map(router_request_types::UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
         })
     }

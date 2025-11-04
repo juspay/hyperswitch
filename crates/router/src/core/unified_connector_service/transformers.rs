@@ -1899,14 +1899,40 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(authentication_data: AuthenticationData) -> Result<Self, Self::Error> {
-        let cavv = if authentication_data.cavv.peek().is_empty() {
-            None
-        } else {
-            Some(authentication_data.cavv.expose().to_string())
-        };
         Ok(Self {
             eci: authentication_data.eci,
-            cavv,
+            cavv: Some(authentication_data.cavv.expose()),
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
+                |id| Identifier {
+                    id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+                },
+            ),
+            message_version: authentication_data
+                .message_version
+                .map(|message_version| message_version.to_string()),
+            ds_transaction_id: authentication_data.ds_trans_id,
+            trans_status: authentication_data
+                .trans_status
+                .map(payments_grpc::TransactionStatus::foreign_from)
+                .map(i32::from),
+            acs_transaction_id: authentication_data.acs_trans_id,
+            transaction_id: authentication_data.transaction_id,
+            ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
+    for payments_grpc::AuthenticationData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        authentication_data: router_request_types::UcsAuthenticationData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: authentication_data.eci,
+            cavv: authentication_data.cavv.map(ExposeInterface::expose),
             threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
                 |id| Identifier {
                     id_type: Some(payments_grpc::identifier::IdType::Id(id)),
@@ -2090,7 +2116,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for AuthenticationData {
+impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
+    for router_request_types::UcsAuthenticationData
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(response: payments_grpc::AuthenticationData) -> Result<Self, Self::Error> {
         let payments_grpc::AuthenticationData {
@@ -2113,7 +2141,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
         Ok(Self {
             trans_status,
             eci,
-            cavv: cavv.map(masking::Secret::new).unwrap_or_default(),
+            cavv: cavv.map(masking::Secret::new),
             threeds_server_transaction_id: threeds_server_transaction_id
                 .and_then(|id| id.id_type)
                 .and_then(|id_type| match id_type {
@@ -2131,13 +2159,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData> for Authent
                 })
                 .transpose()?,
             ds_trans_id: ds_transaction_id,
-            created_at: time::PrimitiveDateTime::MIN,
-            challenge_code: None,
-            challenge_cancel: None,
-            challenge_code_reason: None,
-            message_extension: None,
             acs_trans_id: acs_transaction_id,
-            authentication_type: None,
             transaction_id,
             ucaf_collection_indicator,
         })

@@ -809,7 +809,7 @@ pub struct CompleteAuthorizeData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
-    pub authentication_data: Option<AuthenticationData>,
+    pub authentication_data: Option<UcsAuthenticationData>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -1047,6 +1047,19 @@ impl
     ) -> Self {
         todo!()
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UcsAuthenticationData {
+    pub eci: Option<String>,
+    pub cavv: Option<Secret<String>>,
+    pub threeds_server_transaction_id: Option<String>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
+    pub ds_trans_id: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
+    pub transaction_id: Option<String>,
+    pub ucaf_collection_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
