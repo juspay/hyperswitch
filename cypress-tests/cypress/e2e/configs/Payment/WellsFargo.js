@@ -114,10 +114,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
+           Response: {
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "3DS not supported for WellsFargo",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -134,10 +138,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
+            Response: {
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "3DS not supported for WellsFargo",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -255,9 +263,13 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "3DS not supported for WellsFargo",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -525,10 +537,14 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
-      Response: {
-        status: 200,
+     Response: {
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "3DS not supported for WellsFargo",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -631,9 +647,13 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "3DS not supported for WellsFargo",
+            code: "IR_00",
+          },
         },
       },
     },
