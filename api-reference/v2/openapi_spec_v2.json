@@ -9053,6 +9053,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -9151,6 +9152,11 @@
           "description": {
             "type": "string",
             "description": "The description of the connector"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
+            "nullable": true
           },
           "category": {
             "$ref": "#/components/schemas/HyperswitchConnectorCategory"
@@ -16938,6 +16944,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payjustnow_redirect"
+            ],
+            "properties": {
+              "payjustnow_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -19294,6 +19311,7 @@
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
+          "payjustnow",
           "paypal",
           "paze",
           "pix",
@@ -24726,6 +24744,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",

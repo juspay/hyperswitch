@@ -4843,6 +4843,7 @@ impl AttemptType {
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
@@ -8335,7 +8336,7 @@ where
             header_payload.clone(),
         )
         .await?;
-
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
     // Calculate connector label once for reuse
     let connector_label =
         get_connector_label_for_customer(&merchant_connector_account, payment_data);
@@ -8375,6 +8376,7 @@ where
                 ExecutionMode::Primary, // UCS is called in primary mode
                 merchant_order_reference_id,
                 call_connector_action,
+                creds_identifier,
             )
             .await?;
     }
@@ -8536,6 +8538,8 @@ where
     let unified_connector_service_connector_label =
         get_connector_label_for_customer(&merchant_connector_account, payment_data);
 
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
@@ -8543,6 +8547,7 @@ where
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
     let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
+    let unified_connector_service_creds_identifier = creds_identifier.clone();
     let unified_connector_service_customer = customer.clone();
     let unified_connector_service_payment_attempt_data = payment_data.get_payment_attempt().clone();
     let unified_connector_service_connector_payment_id = payment_data
@@ -8597,6 +8602,7 @@ where
             unified_connector_service_merchant_order_reference_id,
             call_connector_action,
             shadow_ucs_call_connector_action,
+            unified_connector_service_creds_identifier,
             unified_connector_service_customer,
             unified_connector_service_payment_attempt_data,
             unified_connector_service_connector_label,
@@ -8631,6 +8637,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_order_reference_id: Option<String>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    creds_identifier: Option<String>,
     customer: Option<domain::Customer>,
     payment_attempt_data: PaymentAttempt,
     unified_connector_service_connector_label: Option<String>,
@@ -8669,6 +8676,7 @@ where
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
             shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
+            creds_identifier,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
