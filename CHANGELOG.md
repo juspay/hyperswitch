@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.2-hotfix1
+
+### Bug Fixes
+
+- **payouts:** Webhook error consumption ([#10115](https://github.com/juspay/hyperswitch/pull/10115)) ([`1aaa136`](https://github.com/juspay/hyperswitch/commit/1aaa136f80f58082dce861be0015c4113ad43a9e))
+
+**Full Changelog:** [`2025.10.31.2...2025.10.31.2-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.31.2...2025.10.31.2-hotfix1)
+
+- - -
+
 ## 2025.10.31.2
 
 ### Miscellaneous Tasks
