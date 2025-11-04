@@ -394,9 +394,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -413,9 +410,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -432,9 +426,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -451,9 +442,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -470,9 +458,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -490,9 +475,6 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {},
       Response: {
         status: 200,
@@ -502,9 +484,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -533,9 +512,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         currency: "USD",
         amount: 6000,
