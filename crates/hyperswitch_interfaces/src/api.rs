@@ -543,6 +543,11 @@ pub trait ConnectorSpecifications {
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
     }
+
+    /// Check if connector requires different access token per payment method type
+    fn requires_different_access_token_per_payment_method_type(&self) -> bool {
+        false
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type

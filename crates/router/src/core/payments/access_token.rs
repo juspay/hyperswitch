@@ -80,8 +80,8 @@ pub async fn add_access_token<
             .unwrap_or(connector.connector_name.to_string());
 
         let pmt_suffix = connector
-            .connector_name
-            .is_different_access_token_required_per_payment_method_type()
+            .connector
+            .requires_different_access_token_per_payment_method_type()
             .then(|| {
                 router_data
                     .payment_method_type

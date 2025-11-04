@@ -648,6 +648,18 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
+
+    /// Check if connector requires different access token per payment method type
+    fn requires_different_access_token_per_payment_method_type(&self) -> bool {
+        match self {
+            Self::Old(connector) => {
+                connector.requires_different_access_token_per_payment_method_type()
+            }
+            Self::New(connector) => {
+                connector.requires_different_access_token_per_payment_method_type()
+            }
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {
