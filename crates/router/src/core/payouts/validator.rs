@@ -61,10 +61,10 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 pub async fn validate_create_request(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
-    _req: &payouts::PayoutCreateRequest,
+    _req: &PayoutCreateRequest,
 ) -> RouterResult<(
     String,
-    Option<payouts::PayoutMethodData>,
+    Option<PayoutMethodData>,
     String,
     Option<domain::Customer>,
     Option<PaymentMethod>,
@@ -86,9 +86,9 @@ async fn validate_payout_type_and_method(
         (Some(api_enums::PayoutType::Wallet), Some(PayoutMethodData::Wallet(_))) => Ok(()),
         (
             Some(api_enums::PayoutType::BankRedirect),
-            Some(payouts::PayoutMethodData::BankRedirect(_)),
+            Some(PayoutMethodData::BankRedirect(_)),
         ) => Ok(()),
-        (_, Some(payouts::PayoutMethodData::Passthrough(_))) => Ok(()),
+        (_, Some(PayoutMethodData::Passthrough(_))) => Ok(()),
         (None, _) => Ok(()),
         _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Payout method data and payout type do not belong to the same type"
@@ -108,7 +108,7 @@ pub async fn validate_create_request(
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
     id_type::PayoutId,
-    Option<payouts::PayoutMethodData>,
+    Option<PayoutMethodData>,
     id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
@@ -291,7 +291,7 @@ pub async fn validate_create_request(
                 .await?
                 {
                     Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        (Some(card), _) => Ok(Some(PayoutMethodData::Card(
                             api_models::payouts::CardPayout {
                                 card_number: card.card_number.get_required_value("card_number")?,
                                 card_holder_name: card.card_holder_name,
@@ -301,7 +301,7 @@ pub async fn validate_create_request(
                                 expiry_year: card.expiry_year.get_required_value("expiry_year")?,
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        (_, Some(bank)) => Ok(Some(PayoutMethodData::Bank(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),
