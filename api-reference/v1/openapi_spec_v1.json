@@ -11395,6 +11395,14 @@
                   }
                 ],
                 "nullable": true
+              },
+              "interac": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InteracPaymentMethod"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -19261,6 +19269,14 @@
             "type": "string",
             "description": "Email linked with interac account",
             "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
+      },
+      "InteracPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "customer_info": {
             "nullable": true
           }
         }

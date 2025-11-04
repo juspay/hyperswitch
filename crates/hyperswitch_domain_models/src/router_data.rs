@@ -674,6 +674,9 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+    BankRedirect {
+        interac: Option<InteracCustomerInfo>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -687,6 +690,11 @@ pub struct ExtendedAuthorizationResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteracCustomerInfo {
+    pub customer_info: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize)]

@@ -813,6 +813,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::OpenBankingSessionToken,
         api_models::payments::BankDebitResponse,
         api_models::payments::BankRedirectResponse,
+        api_models::payments::InteracPaymentMethod,
         api_models::payments::BankTransferResponse,
         api_models::payments::CardRedirectResponse,
         api_models::payments::CardTokenResponse,

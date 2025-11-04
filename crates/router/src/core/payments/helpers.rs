@@ -44,7 +44,7 @@ use hyperswitch_domain_models::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
-    router_data::KlarnaSdkResponse,
+    router_data::{InteracCustomerInfo, KlarnaSdkResponse},
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -5201,24 +5201,28 @@ pub async fn get_additional_payment_data(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Eft { .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: Some(issuer.to_owned()),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::BancontactCard {
@@ -5239,6 +5243,7 @@ pub async fn get_additional_payment_data(
                             },
                         )),
                     ),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Blik { blik_code } => Ok(Some(
@@ -5251,6 +5256,7 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     }),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Giropay {
@@ -5273,12 +5279,14 @@ pub async fn get_additional_payment_data(
                             },
                         ),
                     )),
+                    interac: None,
                 },
             )),
             _ => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
         },
@@ -7017,6 +7025,16 @@ pub fn add_connector_response_to_additional_payment_data(
             },
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::BankRedirect { .. },
+            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                interac: Some(InteracCustomerInfo { customer_info }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::BankRedirect {
+            bank_name: None,
+            details: None,
+            interac: Some(api_models::payments::InteracPaymentMethod { customer_info }),
         },
 
         _ => additional_payment_data,
