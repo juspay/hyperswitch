@@ -600,7 +600,7 @@ impl
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            state.
+            state,
         })
     }
 }
@@ -974,7 +974,6 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type: None,
-            access_token: None,
             state,
         })
     }
