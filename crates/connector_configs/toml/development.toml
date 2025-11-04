@@ -7569,6 +7569,14 @@ options=["CRYPTOGRAM_3DS"]
 [zift]
 [zift.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[zift]
+[zift.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[zift]
+[zift.connector_auth.HeaderKey]
+api_key = "API Key"
 key1 = "TokenEx ID"
 
 [gigadat]
