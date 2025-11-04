@@ -1230,13 +1230,11 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().time(),
                 ));
 
-                println!("updated_token: {:?}", updated_token);
-
                 RedisTokenManager::upsert_payment_processor_token(
                     state,
                     customer_id,
                     updated_token,
-                );
+                ).await?;
 
                 logger::info!("Successfully deactivated old token.");
 
