@@ -1,7 +1,6 @@
 use common_enums::Currency;
 use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
-
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: id_type::SubscriptionId,
@@ -36,7 +35,7 @@ pub enum SubscriptionStatus {
     Created,
 }
 
-impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+impl From<SubscriptionStatus> for common_enums::SubscriptionStatus {
     fn from(status: SubscriptionStatus) -> Self {
         match status {
             SubscriptionStatus::Pending => Self::Pending,
@@ -67,6 +66,27 @@ pub struct SubscriptionPlans {
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlanPricesResponse {
     pub list: Vec<SubscriptionPlanPrices>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionPauseResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub paused_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionResumeResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancelResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub cancelled_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]

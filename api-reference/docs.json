@@ -104,6 +104,14 @@
                     ]
                   },
                   {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
+                    ]
+                  },
+                  {
                     "group": "Payouts",
                     "pages": [
                       "v1/payouts/payouts--create",
@@ -214,6 +222,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
@@ -244,7 +254,11 @@
                       "v1/subscriptions/update",
                       "v1/subscriptions/get",
                       "v1/subscriptions/get-plans",
-                      "v1/subscriptions/estimate"
+                      "v1/subscriptions/estimate",
+                      "v1/subscriptions/pause",
+                      "v1/subscriptions/resume",
+                      "v1/subscriptions/cancel"
+
                     ]
                   }
                 ]
@@ -281,7 +295,9 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check"
+                      "v2/payments/payments--gift-card-balance-check",
+                      "v2/payments/payments--apply-pm-data"
+
                     ]
                   },
                   {

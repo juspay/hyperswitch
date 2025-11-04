@@ -1584,6 +1584,20 @@ merchant_secret="Source verification key"
 [celero.connector_auth.HeaderKey]
 api_key="Celero API Key"
 
+[chargebee]
+[chargebee.connector_auth.HeaderKey]
+api_key = "Chargebee API Key"
+
+[chargebee.connector_webhook_details]
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
+
+[chargebee.metadata.site]
+name = "site"
+label = "Site"
+placeholder = "Enter chargebee site"
+required = true
+type = "Text"
 
 [checkbook]
 [[checkbook.bank_transfer]]
@@ -7600,6 +7614,56 @@ required=true
 type="Radio"
 options=["Hyperswitch"]
 
+[[tesouro.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[tesouro.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[tesouro.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[tesouro.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[tesouro.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[tesouro.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[tesouro.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["CRYPTOGRAM_3DS"]
+
 [payjustnow]
-[payjustnow.connector_auth.HeaderKey]
-api_key = "API Key"
+[payjustnow.connector_auth.BodyKey]
+api_key = "Signing Key"
+key1 = "Merchant Account Id"
+
+[[payjustnow.pay_later]]
+  payment_method_type = "payjustnow"
