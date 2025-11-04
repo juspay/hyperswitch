@@ -84,10 +84,9 @@ async fn validate_payout_type_and_method(
         (Some(api_enums::PayoutType::Card), Some(PayoutMethodData::Card(_))) => Ok(()),
         (Some(api_enums::PayoutType::Bank), Some(PayoutMethodData::Bank(_))) => Ok(()),
         (Some(api_enums::PayoutType::Wallet), Some(PayoutMethodData::Wallet(_))) => Ok(()),
-        (
-            Some(api_enums::PayoutType::BankRedirect),
-            Some(PayoutMethodData::BankRedirect(_)),
-        ) => Ok(()),
+        (Some(api_enums::PayoutType::BankRedirect), Some(PayoutMethodData::BankRedirect(_))) => {
+            Ok(())
+        }
         (_, Some(PayoutMethodData::Passthrough(_))) => Ok(()),
         (None, _) => Ok(()),
         _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
