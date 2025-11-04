@@ -797,6 +797,10 @@ impl Payments {
                         ),
                 )
                 .service(
+                    web::resource("/apply-payment-method-data")
+                        .route(web::post().to(payments::payments_apply_pm_data)),
+                )
+                .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
                 )
@@ -1274,6 +1278,18 @@ impl Subscription {
             .service(
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
             )
     }
 }

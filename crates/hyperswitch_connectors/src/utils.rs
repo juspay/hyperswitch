@@ -1358,7 +1358,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
 #[cfg(feature = "payouts")]
 impl CardData for api_models::payouts::ApplePayDecrypt {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let binding = self.expiry_month.clone();
+        let binding = self.expiry_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
@@ -6153,6 +6153,7 @@ pub enum PaymentMethodDataType {
     AtomeRedirect,
     Breadpay,
     FlexitiRedirect,
+    PayjustnowRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -6295,6 +6296,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 payment_method_data::PayLaterData::BreadpayRedirect {} => Self::Breadpay,
+                payment_method_data::PayLaterData::PayjustnowRedirect {} => {
+                    Self::PayjustnowRedirect
+                }
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -7377,4 +7381,20 @@ where
         Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
         _ => Ok(amount),
     }
+}
+
+#[macro_export]
+macro_rules! convert_connector_response_to_domain_response {
+    ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {
+        impl<F, T> TryFrom<ResponseRouterData<F, $connector_type, T, $response_type>>
+            for RouterData<F, T, $response_type>
+        {
+            type Error = error_stack::Report<errors::ConnectorError>;
+            fn try_from(
+                item: ResponseRouterData<F, $connector_type, T, $response_type>,
+            ) -> Result<Self, Self::Error> {
+                $convert_fn(item)
+            }
+        }
+    };
 }
