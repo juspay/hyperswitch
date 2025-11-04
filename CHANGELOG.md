@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.15.0-hotfix5
+
+### Bug Fixes
+
+- **workflow:** Pin cocogitto version to 6.3.0 in release-stable-version workflow ([#10116](https://github.com/juspay/hyperswitch/pull/10116)) ([`e3ed8a4`](https://github.com/juspay/hyperswitch/commit/e3ed8a42e2717b884b29393f2fbbbb0b85e6f514))
+
+**Full Changelog:** [`2025.10.15.0-hotfix4...2025.10.15.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.10.15.0-hotfix4...2025.10.15.0-hotfix5)
+
+- - -
+
 ## 2025.10.15.0-hotfix4
 
 ### Refactors
