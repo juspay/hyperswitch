@@ -8032,6 +8032,15 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+impl PayoutStatus {
+    pub fn is_payout_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+        )
+    }
+}
+
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,

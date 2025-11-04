@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.04.1
+
+### Features
+
+- **store:** Store id for adyen ([#10108](https://github.com/juspay/hyperswitch/pull/10108)) ([`1895e41`](https://github.com/juspay/hyperswitch/commit/1895e4129c9935d81bc67a7021306c3ff6e788ab))
+
+### Bug Fixes
+
+- **payouts:** Webhook error consumption ([#10096](https://github.com/juspay/hyperswitch/pull/10096)) ([`95a4ce4`](https://github.com/juspay/hyperswitch/commit/95a4ce4377e5f5195ba100eba9fcf6f623d3954d))
+- **revenue_recovery:** Change business status from EXECUTE_WORKFLOW_COMPLETE to EXECUTE_WORKFLOW_FAILURE ([#10092](https://github.com/juspay/hyperswitch/pull/10092)) ([`2201e2a`](https://github.com/juspay/hyperswitch/commit/2201e2a3f764dc2adae1e083fa9cc0a76b9c8507))
+- **workflow:** Pin cocogitto version to 6.3.0 in release-stable-version workflow ([#10105](https://github.com/juspay/hyperswitch/pull/10105)) ([`c70f59d`](https://github.com/juspay/hyperswitch/commit/c70f59dbd67b516f1aecc8f5408cc719e788d30d))
+
+**Full Changelog:** [`2025.11.04.0...2025.11.04.1`](https://github.com/juspay/hyperswitch/compare/2025.11.04.0...2025.11.04.1)
+
+- - -
+
 ## 2025.11.04.0
 
 ### Features
