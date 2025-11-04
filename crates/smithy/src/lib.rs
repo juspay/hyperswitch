@@ -411,32 +411,37 @@ fn generate_enum_impl(
                 let traits = if variant.constraints.is_empty() {
                     quote! { vec![] }
                 } else {
-                    let trait_tokens = variant.constraints
+                    let trait_tokens = variant
+                        .constraints
                         .iter()
                         .map(|constraint| match constraint {
                             SmithyConstraint::Pattern(pattern) => quote! {
                                 smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
                             },
                             SmithyConstraint::Range(min, max) => {
-                                let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                                let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let min_expr =
+                                    min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr =
+                                    max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
                                 quote! {
                                     smithy_core::SmithyTrait::Range {
                                         min: #min_expr,
                                         max: #max_expr
                                     }
                                 }
-                            },
+                            }
                             SmithyConstraint::Length(min, max) => {
-                                let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
-                                let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let min_expr =
+                                    min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr =
+                                    max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
                                 quote! {
                                     smithy_core::SmithyTrait::Length {
                                         min: #min_expr,
                                         max: #max_expr
                                     }
                                 }
-                            },
+                            }
                             SmithyConstraint::Required => quote! {
                                 smithy_core::SmithyTrait::Required
                             },
