@@ -11,7 +11,7 @@ const customerAcceptance = {
 };
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "4000000000002701",
   card_exp_month: "01",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
@@ -209,7 +209,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     }),
@@ -247,6 +247,37 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "cancelled",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be PaymentsCancel because it has a status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, partially_authorized_and_requires_capture",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    VoidAfterConfirm: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be PaymentsCancel because it has a status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, partially_authorized_and_requires_capture",
+            code: "IR_14",
+          },
         },
       },
     }),
