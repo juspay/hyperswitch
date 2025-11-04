@@ -757,6 +757,7 @@ pub enum AuthTokenData {
         #[schema(value_type = String)]
         token_expiration_year: masking::Secret<String>,
 
+        /// auth_token_type
         #[serde(rename = "type")]
         auth_token_type: AuthTokenType,
     },
@@ -777,12 +778,14 @@ pub enum AuthTokenData {
         #[schema(value_type = String)]
         card_expiry_year: masking::Secret<String>,
 
+        /// auth_token_type
         #[serde(rename = "type")]
         auth_token_type: AuthTokenType,
     },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum AuthTokenType {
     CardToken,
     NetworkToken,
