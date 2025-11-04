@@ -18,7 +18,6 @@ use crate::{
     },
     state::SubscriptionState as SessionState,
 };
-use api_models::enums::SubscriptionStatus;
 
 pub mod billing_processor_handler;
 pub mod errors;
