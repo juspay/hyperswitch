@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCancel, SubscriptionPause, SubscriptionResume,
+            GetSubscriptionEntitlements, GetSubscriptionEstimate, GetSubscriptionPlanPrices,
+            GetSubscriptionPlans, SubscriptionCancel, SubscriptionPause, SubscriptionResume,
         },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
@@ -51,9 +51,10 @@ use hyperswitch_domain_models::{
         authentication,
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
-            SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCancelRequest, SubscriptionCreateRequest, SubscriptionPauseRequest,
+            SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -75,9 +76,10 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
-            SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCancelResponse, SubscriptionCreateResponse, SubscriptionPauseResponse,
+            SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
@@ -144,9 +146,10 @@ use hyperswitch_interfaces::{
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
-            GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCancelFlow, SubscriptionCreate, SubscriptionPauseFlow,
-            SubscriptionRecordBackFlow, SubscriptionResumeFlow, Subscriptions,
+            GetSubscriptionEntitlementsFlow, GetSubscriptionEstimateFlow,
+            GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow, SubscriptionCancelFlow,
+            SubscriptionCreate, SubscriptionPauseFlow, SubscriptionRecordBackFlow,
+            SubscriptionResumeFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -7399,11 +7402,19 @@ macro_rules! default_imp_for_subscriptions {
            ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse> for $path::$connector
             {}
             impl GetSubscriptionPlanPricesFlow for $path::$connector {}
+            impl GetSubscriptionEntitlementsFlow for $path::$connector {}
             impl
             ConnectorIntegration<
             GetSubscriptionPlanPrices,
             GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlanPricesResponse
+            > for $path::$connector
+            {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionEntitlements,
+            GetSubscriptionEntitlementRequest,
+            GetSubscriptionEntitlementResponse
             > for $path::$connector
             {}
             impl
@@ -9816,11 +9827,22 @@ impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> GetSubscriptionPlanPricesFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionEntitlementsFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
         GetSubscriptionPlanPrices,
         GetSubscriptionPlanPricesRequest,
         GetSubscriptionPlanPricesResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionEntitlements,
+        GetSubscriptionEntitlementRequest,
+        GetSubscriptionEntitlementResponse,
     > for connectors::DummyConnector<T>
 {
 }

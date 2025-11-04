@@ -16,6 +16,9 @@ pub struct GetSubscriptionPlanPrices;
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimate;
 
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEntitlements;
+
 /// Generic structure for subscription MIT (Merchant Initiated Transaction) payment data
 #[derive(Debug, Clone)]
 pub struct SubscriptionMitPaymentData {

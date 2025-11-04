@@ -148,6 +148,24 @@ pub struct GetSubscriptionEstimateResponse {
     pub customer_id: Option<id_type::CustomerId>,
 }
 
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEntitlementResponse {
+    pub entitlement: Vec<Entitlement>,
+}
+
+// Entitlement
+#[derive(Debug, Clone)]
+pub struct Entitlement {
+    pub feature_id: Option<String>,
+    pub feature_name: Option<String>,
+    pub id: String,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub name: Option<String>,
+    pub object: Option<String>,
+    pub value: Option<bool>,
+}
+
 impl From<GetSubscriptionEstimateResponse>
     for api_models::subscription::EstimateSubscriptionResponse
 {

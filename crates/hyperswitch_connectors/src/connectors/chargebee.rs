@@ -27,14 +27,15 @@ use hyperswitch_domain_models::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
-        CreateConnectorCustomer,
+        CreateConnectorCustomer, GetSubscriptionEntitlements,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
-            SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCancelRequest, SubscriptionCreateRequest, SubscriptionPauseRequest,
+            SubscriptionResumeRequest,
         },
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
@@ -43,9 +44,10 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
-            SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCancelResponse, SubscriptionCreateResponse, SubscriptionPauseResponse,
+            SubscriptionResumeResponse,
         },
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
@@ -54,7 +56,8 @@ use hyperswitch_domain_models::{
         GetSubscriptionPlanPricesRouterData, GetSubscriptionPlansRouterData,
         InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SubscriptionCancelRouterData, SubscriptionCreateRouterData, SubscriptionPauseRouterData,
+        SubscriptionCancelRouterData, SubscriptionCreateRouterData,
+        SubscriptionEntitlementRouterData, SubscriptionPauseRouterData,
         SubscriptionResumeRouterData,
     },
 };
@@ -886,4 +889,95 @@ impl ConnectorSpecifications for Chargebee {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&CHARGEBEE_SUPPORTED_WEBHOOK_FLOWS)
     }
+}
+impl api::subscriptions::GetSubscriptionEntitlementsFlow for Chargebee {}
+impl
+    ConnectorIntegration<
+        GetSubscriptionEntitlements,
+        GetSubscriptionEntitlementRequest,
+        GetSubscriptionEntitlementResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        req: &SubscriptionEntitlementRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &SubscriptionEntitlementRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        let url = self
+            .base_url(connectors)
+            .to_string()
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+        Ok(format!("{url}v2/entitlements"))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn build_request(
+        &self,
+        req: &SubscriptionEntitlementRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::GetSubscriptionEntitlementType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::GetSubscriptionEntitlementType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        req: &SubscriptionEntitlementRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SubscriptionEntitlementRouterData, errors::ConnectorError> {
+        let response: chargebee::GetSubscriptionEntitlementResponse = res
+            .response
+            .parse_struct("chargebee GetSubscriptionEntitlementResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: req.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionEntitlements,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionEntitlementData,
+        GetSubscriptionEntitlementRequest,
+        GetSubscriptionEntitlementResponse,
+    > for Chargebee
+{
+    // TODO: implement functions when support enabled
 }
