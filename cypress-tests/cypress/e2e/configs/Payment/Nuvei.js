@@ -12,7 +12,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSCardDetails = {
   card_number: "4000027891380961",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
@@ -160,7 +160,7 @@ export const connectorDetails = {
           status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
-          ////removed payment_method from the response as it is different every time.
+          // payment_method_data removed - Nuvei returns dynamic card metadata (issuer, country) that varies per transaction
         },
       },
     },
