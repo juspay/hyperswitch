@@ -1957,8 +1957,8 @@ impl<F>
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
                     let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
 
-                    /// While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
-                    /// We are extracting that new card token info here to be sent back in mandate_id in router_data.
+                    // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
+                    // We are extracting that new card token info here to be sent back in mandate_id in router_data.
                     let mandate_reference_data = match item.data.request.payment_method_data {
                         PaymentMethodData::MandatePayment => {
                             if let Some(account_updater) = sale_response.account_updater.as_ref() {
@@ -1977,7 +1977,9 @@ impl<F>
                             .token_response
                             .clone()
                             .map(MandateReference::from),
-                    };                                      
+                    };     
+
+                    println!("mandate_reference_data: {:?}", mandate_reference_data);                                 
 
                     Ok(Self {
                         status,

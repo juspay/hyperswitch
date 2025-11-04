@@ -2684,8 +2684,40 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let attempt_status = updated_payment_attempt.status;
 
+        let mandate_reference_id =  response_router_data
+            .response
+            .clone()
+            .map(|resp| resp.get_mandate_reference())
+            .ok()
+            .flatten()
+            .and_then(|mandate_ref| mandate_ref.connector_mandate_id);
+
+        let mandate_metadata_json = response_router_data
+            .response
+            .clone()
+            .map(|resp| resp.get_mandate_reference())
+            .ok()
+            .flatten()
+            .and_then(|mandate_ref| mandate_ref.mandate_metadata);
+
+        let mandate_data =  Some(api_models::payments::MandateIds {
+            mandate_id: None,
+            mandate_reference_id: Some(
+                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    api_models::payments::ConnectorMandateReferenceId::new(
+                        mandate_reference_id,
+                        None,
+                        None,
+                        mandate_metadata_json,
+                        None,
+                    ),
+                ),
+            ),
+        });
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+        payment_data.mandate_data = mandate_data;
 
         if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {

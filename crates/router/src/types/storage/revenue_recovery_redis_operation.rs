@@ -9,6 +9,7 @@ use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+use masking::PeekInterface;
 
 use crate::{db::errors, types::storage::enums::RevenueRecoveryAlgorithmType, SessionState};
 
@@ -505,6 +506,7 @@ impl RedisTokenManager {
                     existing_token.modified_at = modified_at;
                     error_code.map(|err| existing_token.error_code = Some(err));
                     existing_token.is_hard_decline = token_data.is_hard_decline;
+                    token_data.is_active.map(|is_active| existing_token.is_active = Some(is_active));
                 });
             })
             .or_else(|| {
@@ -1064,5 +1066,224 @@ impl RedisTokenManager {
         let token_data = Self::get_tokens_with_retry_metadata(state, &token_map);
 
         Ok(token_data)
+    }
+
+
+    pub async fn handle_account_updater_token_update(
+        state: &SessionState,
+        customer_id: &str,
+        scheduled_token: &PaymentProcessorTokenStatus,
+        mandate_data: Option<api_models::payments::MandateIds>,
+        payment_attempt_id : &id_type::GlobalAttemptId
+    ) -> CustomResult<bool, errors::StorageError> {
+        match mandate_data {
+            Some(data) => {
+                logger::info!(
+                    customer_id = customer_id,
+                    "Mandate data provided, proceeding with token update."
+                );
+
+                let old_token_id = scheduled_token
+                    .payment_processor_token_details
+                    .payment_processor_token.clone();
+
+                let account_updater_action = Self::determine_account_updater_action_based_on_old_token_and_mandate_data(
+                    old_token_id.as_str(),
+                    data
+                )?;
+
+                account_updater_action.handle_account_updater_action(
+                    state,
+                    customer_id,
+                    &account_updater_action,
+                    scheduled_token,
+                    payment_attempt_id
+                ).await?;
+
+                logger::info!(
+                    customer_id = customer_id,
+                    "Successfully updated token with mandate data."
+                );
+
+                Ok(true)
+            }
+            None => {
+                logger::info!(
+                    customer_id = customer_id,
+                    "No mandate data provided, skipping token update. Since we didnt get any mandate data"
+                );
+                Ok(false)
+            }
+        }
+    }
+
+    fn determine_account_updater_action_based_on_old_token_and_mandate_data(
+        old_token: &str,
+        mandate_data: api_models::payments::MandateIds,
+    ) -> CustomResult<AccountUpdaterAction, errors::StorageError> {
+
+        let new_token = mandate_data.get_connector_mandate_id();
+        let account_updater_action = match new_token {
+            Some(new_token) => {
+                logger::info!(
+                    "Found token in mandate data, comparing with old token"
+                );
+                let is_token_equal  = (new_token == old_token);
+
+                logger::info!(
+                    "Old token and new token comparison result: {}",
+                    is_token_equal
+                );
+
+                if is_token_equal {
+                    logger::info!("Old token and new token are equal. Checking for expiry update");
+                    let mandate_metadata = mandate_data.get_connector_mandate_metadata();
+                    match mandate_metadata {
+                        Some(metadata) => {
+                            let additional_card_info  = serde_json::from_value::<api_models::payments::AdditionalCardInfo>(metadata.peek().clone())
+                                .map_err(|err| {
+                                    logger::error!("Failed to deserialize mandate metadata to additional_card_info: {}", err);
+                                    errors::StorageError::SerializationFailed
+                                })?;
+                            logger::info!("Mandate metadata found for expiry update.");
+                            AccountUpdaterAction::ExpiryUpdate(additional_card_info)
+                        }
+                        None => {
+                            logger::info!("No mandate metadata found for expiry update.");
+                            AccountUpdaterAction::ExistingToken
+                        }
+                    }
+
+                } else {
+                    logger::info!("Old token and new token are not equal.");
+                    match mandate_data.get_connector_mandate_metadata() {
+                        Some(metadata) => {
+                            let additional_card_info  = serde_json::from_value::<api_models::payments::AdditionalCardInfo>(metadata.peek().clone())
+                                .map_err(|err| {
+                                    logger::error!("Failed to deserialize mandate metadata to additional_card_info: {}", err);
+                                    errors::StorageError::SerializationFailed
+                                })?;
+                            logger::info!("Mandate metadata found for token update.");
+                            AccountUpdaterAction::TokenUpdate(new_token, additional_card_info)
+                        }
+                        None => {
+                            logger::warn!("No mandate metadata found for token update. No further action is taken");
+                            AccountUpdaterAction::NoAction
+                        }
+                    }
+                }
+            },
+            None => {
+                logger::warn!(
+                    "No new token found in mandate data while comparing with old token."
+                );
+                AccountUpdaterAction::NoAction
+            }
+        };
+
+        Ok(account_updater_action)
+    }
+}
+
+pub enum AccountUpdaterAction {
+    TokenUpdate(String, api_models::payments::AdditionalCardInfo),
+    ExpiryUpdate(api_models::payments::AdditionalCardInfo),
+    ExistingToken,
+    NoAction
+}
+
+impl AccountUpdaterAction {
+    async fn handle_account_updater_action(
+        &self,
+        state: &SessionState,
+        customer_id: &str,
+        account_updater_action: &Self,
+        scheduled_token: &PaymentProcessorTokenStatus,
+        attempt_id : &id_type::GlobalAttemptId,
+    ) -> CustomResult<(), errors::StorageError>
+    {
+        match account_updater_action {
+            Self::TokenUpdate(new_token, additional_card_info) => {
+                logger::info!(
+                    "Handling TokenUpdate action with new token"
+                );
+                // Implement token update logic here using additional_card_info if needed
+
+                let mut updated_token = scheduled_token.clone();
+                updated_token.is_active = Some(false);
+                updated_token.modified_at = Some(PrimitiveDateTime::new(
+                    OffsetDateTime::now_utc().date(),
+                    OffsetDateTime::now_utc().time(),
+                ));
+
+                println!("updated_token: {:?}", updated_token);
+
+                RedisTokenManager::upsert_payment_processor_token(
+                    state,
+                    customer_id,
+                    updated_token,
+                );
+
+                logger::info!("Successfully deactivated old token.");
+
+                let new_token  =  PaymentProcessorTokenStatus {
+                    payment_processor_token_details: PaymentProcessorTokenDetails {
+                        payment_processor_token: new_token.to_owned(),
+                        expiry_month: additional_card_info.card_exp_month.clone(),
+                        expiry_year: additional_card_info.card_exp_year.clone(),
+                        card_issuer: additional_card_info.card_issuer.clone(),
+                        last_four_digits: additional_card_info.last4.clone(),
+                        card_type: additional_card_info.card_type.clone(),
+                        card_network: additional_card_info.card_network.clone(),
+                    },
+                    inserted_by_attempt_id: attempt_id.to_owned(),
+                    error_code: None,
+                    daily_retry_history: HashMap::new(),
+                    scheduled_at: None,
+                    is_hard_decline: Some(false),
+                    modified_at: Some(PrimitiveDateTime::new(
+                        OffsetDateTime::now_utc().date(),
+                        OffsetDateTime::now_utc().time(),
+                    )),
+                    is_active: Some(true),
+                    account_update_history: None,
+                };
+
+                RedisTokenManager::upsert_payment_processor_token(
+                    state,
+                    customer_id,
+                    new_token,
+                ).await?;
+                logger::info!("Successfully updated token with new token information.")
+            }
+            Self::ExpiryUpdate(additional_card_info) => {
+                logger::info!("Handling ExpiryUpdate action");
+                // Implement expiry update logic here using additional_card_info
+
+                let mut updated_token = scheduled_token.clone();
+                updated_token.payment_processor_token_details.expiry_month =
+                    additional_card_info.card_exp_month.clone();
+                updated_token.payment_processor_token_details.expiry_year =
+                    additional_card_info.card_exp_year.clone();
+
+                let _ = RedisTokenManager::upsert_payment_processor_token(
+                    state,
+                    customer_id,
+                    updated_token,
+                ).await?;
+
+                logger::info!("Successfully updated token expiry information.")
+            }
+            Self::ExistingToken => {
+                logger::info!("Handling ExistingToken action - no changes needed");
+                // No action needed for existing token
+            }
+            Self::NoAction => {
+                logger::info!("No action to be taken for NoAction case");
+                // No action needed
+            }
+        };
+
+        Ok(())
     }
 }

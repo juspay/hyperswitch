@@ -424,13 +424,30 @@ impl Action {
         )
         .await;
 
+        println!("response: {:?}", response);
         let recovery_payment_intent =
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                 payment_intent,
             );
         // handle proxy api's response
         match response {
-            Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
+            Ok(payment_data) => {
+                
+                let _account_updater_result = storage::revenue_recovery_redis_operation::RedisTokenManager::handle_account_updater_token_update(
+                    state,
+                    &connector_customer_id,
+                    scheduled_token,
+                    payment_data.mandate_data.clone(),
+                    &payment_data.payment_attempt.id
+                ).await
+                .inspect_err(|e| {
+                    logger::error!(
+                        "Failed to handle account updater token update: {:?}",
+                        e
+                    );
+                });
+
+                match payment_data.payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
                     let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
@@ -580,6 +597,7 @@ impl Action {
                 RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR Payment");
                     Ok(Self::ManualReviewAction)
+                }
                 }
             },
             Err(err) =>

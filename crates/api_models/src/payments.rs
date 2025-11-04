@@ -1961,6 +1961,20 @@ impl MandateIds {
             Some(MandateReferenceId::NetworkMandateId(_))
         )
     }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn get_connector_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
