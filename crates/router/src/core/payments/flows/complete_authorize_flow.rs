@@ -248,7 +248,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             .get_preprocessing_flow_if_needed(current_flow);
         match optional_preprocessing_flow {
             Some(preprocessing_flow) => {
-                let updated_router_data = handle_preprocessing_through_unified_connector_service(
+                let updated_router_data = Box::pin(handle_preprocessing_through_unified_connector_service(
                     self,
                     state,
                     header_payload,
@@ -259,7 +259,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     unified_connector_service_execution_mode,
                     merchant_order_reference_id.clone(),
                     preprocessing_flow,
-                )
+                ))
                 .await?;
                 let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
                     response: &updated_router_data.response,
