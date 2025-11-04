@@ -6,10 +6,11 @@ use common_utils::ext_traits::StringExt;
 pub mod utils;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
-    AuthTokenData, AuthenticationEligibilityCheckRequest, AuthenticationEligibilityCheckResponse,
-    AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
-    AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
-    AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest, AuthenticationSyncResponse,
+    AuthTokenData, AuthTokenType, AuthenticationEligibilityCheckRequest,
+    AuthenticationEligibilityCheckResponse, AuthenticationEligibilityRequest,
+    AuthenticationEligibilityResponse, AuthenticationRetrieveEligibilityCheckRequest,
+    AuthenticationRetrieveEligibilityCheckResponse, AuthenticationSyncPostUpdateRequest,
+    AuthenticationSyncRequest, AuthenticationSyncResponse,
 };
 use api_models::{
     authentication::{
@@ -1864,6 +1865,7 @@ pub async fn authentication_sync_core(
                             token_cryptogram,
                             token_expiration_month,
                             token_expiration_year,
+                            auth_token_type: AuthTokenType::NetworkToken,
                         })
                     } else if let Some(pm_types::MultiVaultTokenData::Card {
                         card_number,
@@ -1877,6 +1879,7 @@ pub async fn authentication_sync_core(
                             card_cvc,
                             card_expiry_year,
                             card_expiry_month,
+                            auth_token_type: AuthTokenType::CardToken,
                         })
                     } else {
                         router_env::logger::error!(
