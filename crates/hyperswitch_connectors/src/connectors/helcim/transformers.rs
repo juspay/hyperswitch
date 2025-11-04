@@ -26,7 +26,7 @@ use crate::{
         ResponseRouterData,
     },
     utils::{
-        AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
         RefundsRequestData, RouterData as RouterDataUtils,
     },
@@ -183,7 +183,7 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
+                    utils::get_unimplemented_payment_method_error_message("Helcim"),
                 ))?
             }
         }
@@ -207,7 +207,7 @@ impl TryFrom<(&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card)> for Helci
             .get_billing()?
             .to_owned()
             .address
-            .ok_or_else(crate::utils::missing_field_err("billing.address"))?;
+            .ok_or_else(utils::missing_field_err("billing.address"))?;
 
         let billing_address = HelcimBillingAddress {
             name: req_address.get_full_name()?,
@@ -258,6 +258,12 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
     fn try_from(
         item: &HelcimRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Helcim",
+            })?
+        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
             PaymentMethodData::BankTransfer(_) => {
@@ -281,7 +287,7 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
+                    utils::get_unimplemented_payment_method_error_message("Helcim"),
                 ))?
             }
         }
