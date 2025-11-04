@@ -1,27 +1,34 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{pii, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{self, RefundsResponseRouterData},
+    utils::{PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RouterData as _},
+};
+
+const NO_REFUND_REASON: &str = "No reason provided";
 
 //TODO: Fill the struct with respective fields
 pub struct PayjustnowRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for PayjustnowRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(MinorUnit, T)> for PayjustnowRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -30,20 +37,53 @@ impl<T> From<(StringMinorUnit, T)> for PayjustnowRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PayjustnowPaymentsRequest {
-    amount: StringMinorUnit,
-    card: PayjustnowCard,
+    payjustnow: PayjustnowRequest,
+    checkout_total_cents: MinorUnit,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PayjustnowCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowRequest {
+    request_id: Option<String>,
+    merchant_order_reference: String,
+    order_amount_cents: MinorUnit,
+    order_items: Option<Vec<OrderItem>>,
+    customer: Option<Customer>,
+    billing_address: Option<Address>,
+    shipping_address: Option<Address>,
+    confirm_redirect_url: String,
+    cancel_redirect_url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderItem {
+    name: String,
+    sku: String,
+    quantity: u32,
+    price_cents: MinorUnit,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Customer {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    email: pii::Email,
+    phone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Address {
+    address_line1: Option<Secret<String>>,
+    address_line2: Option<Secret<String>>,
+    city: Option<String>,
+    province: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
 }
 
 impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for PayjustnowPaymentsRequest {
@@ -51,73 +91,116 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
     fn try_from(
         item: &PayjustnowRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
-            )
-            .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
+        let router_data = item.router_data;
+        let order_items = router_data
+            .request
+            .order_details
+            .as_ref()
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|order| {
+                        Ok(OrderItem {
+                            name: order.product_name.clone(),
+                            sku: order.product_id.clone().unwrap_or_default(),
+                            quantity: u32::from(order.quantity),
+                            price_cents: order.amount,
+                        })
+                    })
+                    .collect::<Result<Vec<OrderItem>, errors::ConnectorError>>()
+            })
+            .transpose()?;
+
+        let customer = router_data
+            .get_optional_billing_email()
+            .or_else(|| item.router_data.request.email.clone())
+            .map(|email| Customer {
+                first_name: router_data.get_optional_billing_first_name(),
+                last_name: router_data.get_optional_billing_last_name(),
+                email,
+                phone_number: router_data.get_optional_billing_phone_number(),
+            });
+
+        let billing_address = Some(Address {
+            address_line1: router_data.get_optional_billing_line1(),
+            address_line2: router_data.get_optional_billing_line2(),
+            city: router_data.get_optional_billing_city(),
+            province: router_data.get_optional_billing_state(),
+            postal_code: item.router_data.get_optional_billing_zip(),
+        });
+
+        let shipping_address = Some(Address {
+            address_line1: item.router_data.get_optional_shipping_line1(),
+            address_line2: item.router_data.get_optional_shipping_line2(),
+            city: item.router_data.get_optional_shipping_city(),
+            province: item.router_data.get_optional_shipping_state(),
+            postal_code: item.router_data.get_optional_shipping_zip(),
+        });
+
+        let router_return_url = item.router_data.request.get_router_return_url()?;
+
+        let payjustnow_request = PayjustnowRequest {
+            request_id: Some(item.router_data.payment_id.clone()),
+            merchant_order_reference: router_data.connector_request_reference_id.clone(),
+            order_amount_cents: item.amount,
+            order_items,
+            customer,
+            billing_address,
+            shipping_address,
+            confirm_redirect_url: router_return_url.clone(),
+            cancel_redirect_url: router_return_url,
+        };
+
+        Ok(Self {
+            payjustnow: payjustnow_request,
+            checkout_total_cents: item.amount,
+        })
     }
 }
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct PayjustnowAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) merchant_account_id: Secret<String>,
+    pub(super) signing_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for PayjustnowAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                signing_key: api_key.to_owned(),
+                merchant_account_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PayjustnowPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<PayjustnowPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: PayjustnowPaymentStatus) -> Self {
-        match item {
-            PayjustnowPaymentStatus::Succeeded => Self::Charged,
-            PayjustnowPaymentStatus::Failed => Self::Failure,
-            PayjustnowPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PayjustnowPaymentsResponse {
-    status: PayjustnowPaymentStatus,
-    id: String,
+    payment_url: String,
+    checkout_token: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PayjustnowPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PayjustnowPaymentsResponse, T, PaymentsResponseData>,
+        item: types::ResponseRouterData<F, PayjustnowPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = url::Url::parse(&item.response.payment_url.clone())
+            .ok()
+            .map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.checkout_token),
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -130,76 +213,247 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowPaymentsResponse, T, Payments
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct PayjustnowRefundRequest {
-    pub amount: StringMinorUnit,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowSyncRequest {
+    checkout_token: String,
 }
 
-impl<F> TryFrom<&PayjustnowRouterData<&RefundsRouterData<F>>> for PayjustnowRefundRequest {
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowCancelRequest {
+    checkout_token: String,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for PayjustnowCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PayjustnowRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            checkout_token: item.request.connector_transaction_id.clone(),
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+impl TryFrom<&PaymentsSyncRouterData> for PayjustnowSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let checkout_token = item.request.get_connector_transaction_id()?;
+        Ok(Self { checkout_token })
+    }
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl TryFrom<&RefundsRouterData<RSync>> for PayjustnowSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefundsRouterData<RSync>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            checkout_token: item.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayjustnowCheckoutStatus {
+    PendingOrder,
+    PendingPayment,
+    PaidPendingCallback,
+    Paid,
+    CancelledByMerchant,
+    CancelledByConsumer,
+    Expired,
+}
+
+impl From<PayjustnowCheckoutStatus> for enums::AttemptStatus {
+    fn from(item: PayjustnowCheckoutStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            PayjustnowCheckoutStatus::Paid | PayjustnowCheckoutStatus::PaidPendingCallback => {
+                Self::Charged
+            }
+            PayjustnowCheckoutStatus::PendingOrder | PayjustnowCheckoutStatus::PendingPayment => {
+                Self::AuthenticationPending
+            }
+            PayjustnowCheckoutStatus::CancelledByMerchant
+            | PayjustnowCheckoutStatus::CancelledByConsumer => Self::Voided,
+            PayjustnowCheckoutStatus::Expired => Self::Failure,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowSyncResponse {
+    checkout_token: String,
+    payment_url: Option<String>,
+    checkout_payment_status: PayjustnowCheckoutStatus,
+    payment_reference: Option<i64>,
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl<F, T> TryFrom<types::ResponseRouterData<F, PayjustnowSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: types::ResponseRouterData<F, PayjustnowSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.checkout_payment_status);
+        let redirection_data = item.response.payment_url.and_then(|url_string| {
+            url::Url::parse(&url_string)
+                .ok()
+                .map(|url| RedirectForm::from((url, Method::Get)))
+        });
+
         Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.checkout_token),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .payment_reference
+                    .map(|id| id.to_string()),
+                incremental_authorization_allowed: None,
+                charges: None,
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+//TODO: Fill the struct with respective fields
+// REFUND :
+// Type definition for RefundRequest
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowRefundRequest {
+    request_id: Option<String>,
+    checkout_token: String,
+    merchant_refund_reference: String,
+    refund_amount_cents: MinorUnit,
+    refund_description: String,
+}
+
+impl<F> TryFrom<&RefundsRouterData<F>> for PayjustnowRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_id: Some(item.request.refund_id.clone()),
+            checkout_token: item.request.connector_transaction_id.clone(),
+            merchant_refund_reference: item.request.refund_id.clone(),
+            refund_amount_cents: item.request.minor_refund_amount,
+            refund_description: item
+                .request
+                .reason
+                .clone()
+                .unwrap_or(NO_REFUND_REASON.to_string()),
+        })
+    }
+}
+
+// Type definition for Refund Response
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RefundStatus {
+    Success,
+    Failed,
+}
+
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(item: RefundStatus) -> Self {
+        match item {
+            RefundStatus::Success => Self::Success,
+            RefundStatus::Failed => Self::Failure,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowRefundResponse {
+    request_id: String,
+    refunded_amount_cents: MinorUnit,
+    refund_status: RefundStatus,
+    refund_status_at: String,
+    refund_status_description: String,
+}
+
+impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowRefundResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, PayjustnowRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.request_id,
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, PayjustnowRefundResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, PayjustnowRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.request_id,
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayjustnowRsyncStatus {
+    FullyRefunded,
+    PartiallyRefunded,
+    PaidPendingCallback,
+    Paid,
+}
+
+impl From<PayjustnowRsyncStatus> for enums::RefundStatus {
+    fn from(item: PayjustnowRsyncStatus) -> Self {
+        match item {
+            PayjustnowRsyncStatus::FullyRefunded | PayjustnowRsyncStatus::PartiallyRefunded => {
+                Self::Success
+            }
+            PayjustnowRsyncStatus::Paid | PayjustnowRsyncStatus::PaidPendingCallback => {
+                Self::Failure
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowRsyncResponse {
+    request_id: String,
+    checkout_payment_status: PayjustnowRsyncStatus,
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, PayjustnowRsyncResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, PayjustnowRsyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.request_id.clone(),
+                refund_status: enums::RefundStatus::from(item.response.checkout_payment_status),
             }),
             ..item.data
         })
@@ -209,11 +463,20 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayjustnowErrorResponse {
-    pub status_code: u16,
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayjustnowWebhookStatus {
+    PaidPendingCallback,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayjustnowWebhookDetails {
+    pub checkout_token: String,
+    pub checkout_payment_status: PayjustnowWebhookStatus,
 }

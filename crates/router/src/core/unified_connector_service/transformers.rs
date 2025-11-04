@@ -6,7 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    router_data::{ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
@@ -29,15 +29,40 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, Identifier, PaymentServiceTransformRequest,
+    self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
 };
 use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::{api, transformers},
+    types::{
+        api,
+        transformers::{self, ForeignFrom},
+    },
 };
+
+impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
+    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
+        Self {
+            token: masking::Secret::new(grpc_token.token.clone()),
+            expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+        }
+    }
+}
+
+impl ForeignFrom<&AccessToken> for ConnectorState {
+    fn foreign_from(access_token: &AccessToken) -> Self {
+        Self {
+            access_token: Some(payments_grpc::AccessToken {
+                token: access_token.token.peek().to_string(),
+                expires_in_seconds: Some(access_token.expires),
+                token_type: None,
+            }),
+            connector_customer_id: None,
+        }
+    }
+}
 impl
     transformers::ForeignTryFrom<(
         &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
@@ -108,14 +133,19 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
-            access_token: None,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
+            state,
         })
     }
 }
@@ -180,7 +210,7 @@ impl
             metadata: HashMap::new(),  // PaymentsAuthenticateData doesn't have metadata
             return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
+            state: None,
             browser_info: router_data
                 .request
                 .browser_info
@@ -240,7 +270,7 @@ impl
             metadata: HashMap::new(),
             return_url: None,
             continue_redirection_url: None,
-            access_token: None,
+            state: None,
             browser_info: router_data
                 .request
                 .browser_info
@@ -335,7 +365,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
+            state: None,
             browser_info: router_data
                 .request
                 .browser_info
@@ -382,7 +412,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            access_token: None,
             amount_to_capture: router_data
                 .request
                 .minor_amount_to_capture
@@ -407,6 +436,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     capture_reference: multiple_capture_request_data.capture_reference.clone(),
                 },
             ),
+            state: None,
         })
     }
 }
@@ -496,6 +526,11 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -514,7 +549,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            access_token: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -554,9 +588,19 @@ impl
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             metadata,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -643,7 +687,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            access_token: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -699,9 +742,19 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state: None,
         })
     }
 }
@@ -747,6 +800,11 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -790,7 +848,6 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
             session_token: None,
             order_tax_amount: None,
             order_category: None,
@@ -808,8 +865,18 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -860,6 +927,11 @@ impl
             }
         };
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -882,6 +954,16 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             email: router_data
@@ -892,8 +974,7 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type: None,
-            access_token: None,
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -2025,7 +2106,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
-        access_token: None,
+        state: None,
     })
 }
 
@@ -2092,6 +2173,11 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
@@ -2132,10 +2218,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
-            access_token: router_data
-                .access_token
-                .as_ref()
-                .map(|token| token.token.clone().expose()),
+            state,
         })
     }
 }
@@ -2161,6 +2244,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )),
         });
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             transaction_id: Some(transaction_id),
@@ -2181,10 +2269,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
-            access_token: router_data
-                .access_token
-                .as_ref()
-                .map(|token| token.token.clone().expose()),
+            state,
             refund_metadata: router_data
                 .request
                 .refund_connector_metadata
@@ -2294,7 +2379,6 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             cancellation_reason: router_data.request.cancellation_reason.clone(),
             all_keys_required: None,
             browser_info,
-            access_token: None,
             amount: router_data.request.amount,
             currency: currency.map(|c| c.into()),
             connector_metadata: router_data
@@ -2308,6 +2392,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            state: None,
         })
     }
 }
