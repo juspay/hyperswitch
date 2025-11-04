@@ -182,11 +182,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await;
 
                 // unlocking the token
-                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                    state,
-                    &connector_customer_id,
-                )
-                .await;
+                let intent_status = payment_intent.status;
+                if intent_status == common_enums::IntentStatus::Succeeded {
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id,
+                    )
+                    .await;
+                }
 
                 let payments_response = psync_response
                     .clone()
@@ -258,11 +261,15 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await;
 
                 // unlocking the token
-                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                    state,
-                    &connector_customer_id,
-                )
-                .await;
+                let intent_status = payment_intent.status;
+                if intent_status == common_enums::IntentStatus::Failed {
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        &connector_customer_id,
+                    )
+                    .await;
+                }
+
 
                 // Reopen calculate workflow on payment failure
                 Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -309,6 +316,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 }
 pub enum Decision {
     Execute,
+    PartialExecute,
     Psync(enums::AttemptStatus, id_type::GlobalAttemptId),
     InvalidDecision,
     ReviewForSuccessfulPayment,
@@ -326,6 +334,12 @@ impl Decision {
     ) -> RecoveryResult<Self> {
         logger::info!("Entering get_decision_based_on_params");
 
+        let active_attempt_id = revenue_recovery_data
+            .psync_data
+            .as_ref()
+            .and_then(|psync_data| psync_data.payment_intent.get_active_attempt_id())
+            .or(active_attempt_id);
+
         Ok(match (intent_status, called_connector, active_attempt_id) {
             (
                 enums::IntentStatus::Failed,
@@ -333,7 +347,30 @@ impl Decision {
                 None,
             ) => Self::Execute,
             (
+                enums::IntentStatus::PartiallyCaptured,
+                enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                None,
+            ) => Self::PartialExecute,
+            (
                 enums::IntentStatus::Processing,
+                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                Some(_),
+            ) => {
+                let psync_data = revenue_recovery_core::api::call_psync_api(
+                    state,
+                    payment_id,
+                    revenue_recovery_data,
+                    true,
+                    true,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)
+                .attach_printable("Error while executing the Psync call")?;
+                let payment_attempt = psync_data.payment_attempt;
+                Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
+            }
+            (
+                enums::IntentStatus::PartiallyCapturedAndProcessing,
                 enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
                 Some(_),
             ) => {
@@ -464,6 +501,7 @@ impl Action {
                     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                         payment_intent,
                     );
+                let intent_status = recovery_payment_intent.status;
                 // handle proxy api's response
                 match response {
                     Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -503,11 +541,13 @@ impl Action {
                             .await;
 
                             // unlocking the token
-                            let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                                state,
-                                &connector_customer_id,
-                            )
-                            .await;
+                            if intent_status == common_enums::IntentStatus::Succeeded {
+                                storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                  &connector_customer_id,
+                    )
+                        .await;
+                            }
 
                             let event_status = common_enums::EventType::PaymentSucceeded;
 
@@ -594,11 +634,13 @@ impl Action {
                             .await;
 
                             // unlocking the token
-                            let _unlock_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                                state,
-                                &connector_customer_id,
-                            )
-                            .await;
+                            if intent_status == common_enums::IntentStatus::Failed {
+                                storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+        state,
+        &connector_customer_id,
+    )
+    .await;
+                            }
 
                             // Reopen calculate workflow on payment failure
                             Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -852,11 +894,14 @@ impl Action {
                 .await;
 
                     // unlocking the token
-                    let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                    state,
-                    &connector_customer_id,
-                )
-                .await;
+                    let intent_status = payment_intent.status;
+                    if intent_status == common_enums::IntentStatus::Succeeded {
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+        state,
+        &connector_customer_id,
+    )
+    .await;
+                    }
 
                     Ok(Self::SuccessfulPayment(payment_attempt))
                 }
@@ -881,13 +926,15 @@ impl Action {
                             used_token.as_deref(),
                         )
                         .await;
-
+                    let intent_status = payment_intent.status;
                     // unlocking the token
-                    let _unlock_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                        state,
-                        &connector_customer_id,
-                    )
-                    .await;
+                    if intent_status == common_enums::IntentStatus::Failed {
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+        state,
+        &connector_customer_id,
+    )
+    .await;
+                    }
 
                     // Reopen calculate workflow on payment failure
                     Box::pin(reopen_calculate_workflow_on_payment_failure(

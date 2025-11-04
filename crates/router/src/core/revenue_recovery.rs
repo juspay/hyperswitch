@@ -184,7 +184,7 @@ pub async fn perform_execute_payment(
         revenue_recovery_metadata
             .payment_connector_transmission
             .unwrap_or_default(),
-        payment_intent.get_active_attempt_id().clone(),
+        payment_intent.get_active_attempt_id(),
         revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
     )
@@ -271,6 +271,7 @@ pub async fn perform_execute_payment(
                 }
             }
         }
+        types::Decision::PartialExecute => {}
 
         types::Decision::Psync(attempt_status, attempt_id) => {
             // find if a psync task is already present
