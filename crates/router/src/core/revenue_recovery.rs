@@ -294,7 +294,7 @@ pub async fn perform_execute_payment(
                     db.as_scheduler()
                         .finish_process_with_business_status(
                             execute_task_process.clone(),
-                            business_status::EXECUTE_WORKFLOW_COMPLETE,
+                            business_status::EXECUTE_WORKFLOW_FAILURE,
                         )
                         .await?;
 
