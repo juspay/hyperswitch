@@ -565,6 +565,7 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_migrated_card: None,
         }
     }
 
@@ -1013,6 +1014,7 @@ impl Default for PaymentAuthorizeType {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            is_migrated_card: None,
         };
         Self(data)
     }
