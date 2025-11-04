@@ -60,6 +60,7 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
+    #[schema(value_type = Option<String>)]
     pub name: Option<RoutingConfigName>,
     pub description: Option<String>,
     pub algorithm: Option<StaticRoutingAlgorithm>,
@@ -70,6 +71,7 @@ pub struct RoutingConfigRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(try_from = "String")]
+#[schema(value_type = String)]
 pub struct RoutingConfigName(String);
 
 impl RoutingConfigName {
