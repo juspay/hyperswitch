@@ -9865,6 +9865,14 @@
             "description": "The unique identifier for the directory server.",
             "nullable": true
           },
+          "token_data": {
+            "type": "object",
+            "description": "The tokens for vaulted data",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -9935,11 +9943,6 @@
           "three_ds_requestor_app_url": {
             "type": "string",
             "description": "Merchant app URL for OOB authentication.",
-            "nullable": true
-          },
-          "authentication_value": {
-            "type": "string",
-            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
             "nullable": true
           },
           "eci": {
