@@ -5284,23 +5284,47 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
+                let (card_exp_month, card_exp_year) = match apple_pay_wallet_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.application_expiration_month.clone()),
+                        Some(token.application_expiration_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                        card_exp_month,
+                        card_exp_year,
                     }),
                     google_pay: None,
                     samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
+                let (card_exp_month, card_exp_year) = match google_pay_pm_data
+                    .tokenization_data
+                    .get_decrypted_google_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.card_exp_month.clone()),
+                        Some(token.card_exp_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
                         last4: google_pay_pm_data.info.card_details.clone(),
                         card_network: google_pay_pm_data.info.card_network.clone(),
                         card_type: Some(google_pay_pm_data.pm_type.clone()),
+                        card_exp_month,
+                        card_exp_year,
                     }),
                     samsung_pay: None,
                 }))
@@ -5319,6 +5343,8 @@ pub async fn get_additional_payment_data(
                             .card_brand
                             .to_string(),
                         card_type: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
                     }),
                 }))
             }

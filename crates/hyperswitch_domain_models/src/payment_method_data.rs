@@ -2321,6 +2321,16 @@ impl From<Card> for ExtendedCardInfo {
 
 impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: ApplePayWalletData) -> Self {
+        let (card_exp_month, card_exp_year) = match item
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+        {
+            Some(token) => (
+                Some(token.application_expiration_month.clone()),
+                Some(token.application_expiration_year.clone()),
+            ),
+            None => (None, None),
+        };
         Self {
             last4: item
                 .payment_method
@@ -2334,16 +2344,30 @@ impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.payment_method.network,
             card_type: Some(item.payment_method.pm_type),
+            card_exp_month,
+            card_exp_year,
         }
     }
 }
 
 impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: GooglePayWalletData) -> Self {
+        let (card_exp_month, card_exp_year) = match item
+            .tokenization_data
+            .get_decrypted_google_pay_payment_data_optional()
+        {
+            Some(token) => (
+                Some(token.card_exp_month.clone()),
+                Some(token.card_exp_year.clone()),
+            ),
+            None => (None, None),
+        };
         Self {
             last4: item.info.card_details,
             card_network: item.info.card_network,
             card_type: Some(item.pm_type),
+            card_exp_month,
+            card_exp_year,
         }
     }
 }

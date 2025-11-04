@@ -4425,6 +4425,8 @@ pub struct ApplepayPaymentMethod {
     /// The type of the payment method
     #[serde(rename = "type")]
     pub pm_type: String,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7148,6 +7150,8 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
+                            card_exp_month: apple_pay_pm.card_exp_month,
+                            card_exp_year: apple_pay_pm.card_exp_year,
                         },
                     ))),
                 })),

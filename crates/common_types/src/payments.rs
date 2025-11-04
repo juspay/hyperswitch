@@ -471,6 +471,13 @@ impl GpayTokenizationData {
             .into()),
         }
     }
+    /// Get the optional decrypted Google Pay payment data
+    pub fn get_decrypted_google_pay_payment_data_optional(&self) -> Option<&GPayPredecryptData> {
+        match self {
+            Self::Decrypted(token) => Some(token),
+            Self::Encrypted(_) => None,
+        }
+    }
     /// Get the token from Google Pay tokenization data
     /// Returns the token string if encrypted data exists, otherwise returns an error
     pub fn get_encrypted_google_pay_token(&self) -> Result<String, errors::ValidationError> {

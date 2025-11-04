@@ -244,4 +244,8 @@ pub struct WalletAdditionalDataForCard {
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// Expiry Month of card
+    pub card_exp_month: Option<Secret<String>>,
+    /// Expiry Year of card
+    pub card_exp_year: Option<Secret<String>>,
 }
