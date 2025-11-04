@@ -895,15 +895,14 @@ async fn call_unified_connector_service_complete_authorize(
         payment_authorize_request,
         headers_builder,
         |mut router_data, payment_authorize_request, grpc_headers| async move {
-            let response = client
-                .payment_authorize(
-                    payment_authorize_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to complete authorize payment")?;
+            let response = Box::pin(client.payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to complete authorize payment")?;
 
             let payment_authorize_response = response.into_inner();
 

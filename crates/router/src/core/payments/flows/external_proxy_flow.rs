@@ -424,12 +424,12 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             payment_authorize_request.clone(),
             headers_builder,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
-                let response = client
+                let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,
                         connector_auth_metadata,
                         grpc_headers,
-                    )
+                    ))
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to authorize payment")?;

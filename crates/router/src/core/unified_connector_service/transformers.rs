@@ -167,7 +167,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Based on the pattern from PaymentServicePreAuthenticateRequest
         let currency = payments_grpc::Currency::foreign_try_from(
             router_data.request.currency.unwrap_or_default(),
         )?;
@@ -214,11 +213,11 @@ impl
                 .email
                 .clone()
                 .map(|e| e.expose().expose().into()),
-            customer_name: None, // PaymentsAuthenticateData doesn't have customer_name
+            customer_name: None,
             address: Some(address),
-            authentication_data: None, // PaymentsAuthenticateData doesn't have enrolled_for_3ds
-            metadata: HashMap::new(),  // PaymentsAuthenticateData doesn't have metadata
-            return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
+            authentication_data: None,
+            metadata: HashMap::new(),
+            return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
             redirection_response: router_data
@@ -257,7 +256,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Based on the pattern from PaymentServicePreAuthenticateRequest
         let currency = payments_grpc::Currency::foreign_try_from(
             router_data.request.currency.unwrap_or_default(),
         )?;
@@ -303,7 +301,7 @@ impl
                 .email
                 .clone()
                 .map(|e| e.expose().expose().into()),
-            customer_name: None, // PaymentsPostAuthenticateData doesn't have customer_name
+            customer_name: None,
             address: Some(address),
             authentication_data: None,
             metadata: HashMap::new(),
