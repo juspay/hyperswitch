@@ -2304,11 +2304,20 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
-        let is_moto = item.request.payment_channel == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder);
+        let is_moto = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::Card { .. }
+        ) && item.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
 
         let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
-            (Some(enums::FutureUsage::OnSession), true) => None,
+            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
             _ => item.request.setup_future_usage,
         };
 
@@ -2324,7 +2333,7 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
-            moto: Some(is_moto),
+            moto: is_moto,
         })
     }
 }
