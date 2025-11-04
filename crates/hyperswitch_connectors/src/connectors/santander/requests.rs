@@ -43,14 +43,14 @@ pub struct DiscountObject {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DiscountType {
-    #[serde(rename = "ISENTO")]
-    Free,
-    #[serde(rename = "VALOR_DATA_FIXA")]
-    FixedDateValue,
-    #[serde(rename = "VALOR_DIA_CORRIDO")]
-    ValueDayConductor,
-    #[serde(rename = "VALOR_DIA_UTIL")]
-    ValueWorthDay,
+    // Free
+    Isento,
+    // Fixed Date Value
+    ValorDataFixa,
+    // Value Day Conductor
+    ValorDiaCorrido,
+    // Value Worth Day
+    ValorDiaUtil,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -107,14 +107,14 @@ pub struct SantanderAuthRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProtestType {
-    #[serde(rename = "SEM_PROTESTO")]
-    WithoutProtest,
-    #[serde(rename = "DIAS_CORRIDOS")]
-    DaysConducted,
-    #[serde(rename = "DIAS_UTEIS")]
-    WorkingDays,
-    #[serde(rename = "CADASTRO_CONVENIO")]
-    RegistrationAgreement,
+    // Without Protest
+    SemProtesto,
+    // Days Conducted
+    DiasCorridos,
+    // Working Days
+    DiasUteis,
+    // Registration Agreement
+    CadastroConvenio,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,20 +124,20 @@ pub struct SantanderDebtor {
     pub cnpj: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpf: Option<Secret<String>>,
-    #[serde(rename = "nome")]
-    pub name: Secret<String>,
+    // Name
+    pub nome: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "logradouro")]
-    pub street: Option<Secret<String>>,
+    // Street
+    pub logradouro: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "cidade")]
-    pub city: Option<Secret<String>>,
+    // City
+    pub cidade: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "uf")]
-    pub state: Option<Secret<String>>,
+    // State
+    pub uf: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "cep")]
-    pub zip_code: Option<Secret<String>>,
+    // Zip Code
+    pub cep: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -155,15 +155,17 @@ pub enum SantanderPixRequestCalendar {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderPixImmediateCalendarRequest {
     #[serde(rename = "expiracao")]
-    pub expiration: i32,
+    // expiration
+    pub expiracao: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderPixDueDateCalendarRequest {
-    #[serde(rename = "dataDeVencimento")]
-    pub expiration_date: String,
-    #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_expiration: Option<i32>,
+    // Expiration Date
+    pub data_de_vencimento: String,
+    // Validity After Expiration
+    pub validade_apos_vencimento: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -187,20 +189,21 @@ pub struct SantanderBoletoCancelRequest {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderBoletoCancelOperation {
-    #[serde(rename = "PROTESTAR")]
-    Protest,
-    #[serde(rename = "CANCELAR_PROTESTO")]
-    CancelProtest,
-    #[serde(rename = "BAIXAR")]
+    // Protest
+    Protestar,
+    // Cancel Protest
+    CancelarProtesto,
     #[default]
-    WriteOff,
+    // Write Off
+    Baixar,
 }
 
 #[derive(Default, Debug, Serialize)]
 pub struct SantanderRefundRequest {
-    #[serde(rename = "valor")]
-    pub value: StringMajorUnit,
+    // value
+    pub valor: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -211,25 +214,26 @@ pub enum SantanderPaymentRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "camelCase")]
 pub struct SantanderPixQRPaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "calendario")]
-    pub calendar: Option<SantanderPixRequestCalendar>,
+    // calendar
+    pub calendario: Option<SantanderPixRequestCalendar>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
+    // debtor
+    pub devedor: Option<SantanderDebtor>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "valor")]
-    pub value: Option<SantanderValue>,
+    // value
+    pub valor: Option<SantanderValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "chave")]
-    pub key: Option<Secret<String>>,
+    // key
+    pub chave: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
+    // request_payer
+    pub solicitacao_pagador: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<responses::SantanderAdditionalInfo>>,
+    // additional_info
+    pub info_adicionais: Option<Vec<responses::SantanderAdditionalInfo>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -289,9 +293,10 @@ pub struct SantanderBoletoPaymentRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Environment {
-    #[serde(rename = "TESTE")]
-    Sandbox,
-    #[serde(rename = "PRODUCAO")]
-    Production,
+    // Sandbox
+    Teste,
+    // Production
+    Producao,
 }

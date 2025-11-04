@@ -26,57 +26,59 @@ pub struct Beneficiary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BoletoDocumentKind {
-    #[serde(rename = "DUPLICATA_MERCANTIL")]
-    DuplicateMercantil,
-    #[serde(rename = "DUPLICATA_SERVICO")]
-    DuplicateService,
-    #[serde(rename = "NOTA_PROMISSORIA")]
-    PromissoryNote,
-    #[serde(rename = "NOTA_PROMISSORIA_RURAL")]
-    RuralPromissoryNote,
-    #[serde(rename = "RECIBO")]
-    Receipt,
-    #[serde(rename = "APOLICE_SEGURO")]
-    InsurancePolicy,
-    #[serde(rename = "BOLETO_CARTAO_CREDITO")]
-    BillCreditCard,
-    #[serde(rename = "BOLETO_PROPOSTA")]
-    BillProposal,
-    #[serde(rename = "BOLETO_DEPOSITO_APORTE")]
-    BoletoDepositoAponte,
-    #[serde(rename = "CHEQUE")]
-    Check,
-    #[serde(rename = "NOTA_PROMISSORIA_DIRETA")]
-    DirectPromissoryNote,
-    #[serde(rename = "OUTROS")]
-    Others,
+    /// Mercantile Duplicate
+    DuplicataMercantil,
+    /// Service Duplicate
+    DuplicataServico,
+    /// Promissory Note
+    NotaPromissoria,
+    /// Rural Promissory Note
+    NotaPromissoriaRural,
+    /// Receipt
+    Recibo,
+    /// Insurance Policy
+    ApoliceSeguro,
+    /// Credit Card Bill
+    BoletoCartaoCredito,
+    /// Proposal Bill
+    BoletoProposta,
+    /// Deposit/Contribution Slip
+    BoletoDepositoAporte,
+    /// Check
+    Cheque,
+    /// Direct Promissory Note
+    NotaPromissoriaDireta,
+    /// Others
+    Outros,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderAdditionalInfo {
-    #[serde(rename = "nome")]
-    pub name: String,
-    #[serde(rename = "valor")]
-    pub value: String,
+    // Name
+    pub nome: String,
+    // Value
+    pub valor: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderPaymentStatus {
-    #[serde(rename = "ATIVA")]
-    Active,
-    #[serde(rename = "CONCLUIDA")]
-    Completed,
-    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
-    RemovedByReceivingUser,
-    #[serde(rename = "REMOVIDA_PELO_PSP")]
-    RemovedByPSP,
+    // Active
+    Ativa,
+    // Completed
+    Concluida,
+    // Removed By Receiving User
+    RemovidaPeloUsuarioRecebedor,
+    // Removed By Psp
+    RemovidaPeloPsp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SantanderVoidStatus {
-    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
-    RemovedByReceivingUser,
+    // RemovedByReceivingUser
+    RemovidaPeloUsuarioRecebedor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,30 +89,31 @@ pub enum SantanderPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SantanderPixQRCodePaymentsResponse {
     pub status: SantanderPaymentStatus,
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: Option<serde_json::Value>,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<requests::SantanderDebtor>,
+    // Calendar
+    pub calendario: SantanderCalendarResponse,
+    // Transaction Id
+    pub txid: String,
+    // revision
+    pub revisao: serde_json::Value,
+    // Debtor
+    pub devedor: requests::SantanderDebtor,
     pub location: Option<String>,
-    #[serde(rename = "recebedor")]
-    pub recipient: Option<Recipient>,
-    #[serde(rename = "valor")]
-    pub value: requests::SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+    // Recipient
+    pub recebedor: Option<Recipient>,
+    // Value
+    pub valor: requests::SantanderValue,
+    // Key
+    pub chave: Secret<String>,
+    // Request Payer
+    pub solicitacao_pagador: Option<String>,
+    // Additional Info
+    pub info_adicionais: Vec<SantanderAdditionalInfo>,
     pub pix: Option<Vec<SantanderPix>>,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<String>,
+    // pix_qr_code_data
+    pub pix_copia_e_cola: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,128 +158,137 @@ pub struct SantanderBoletoPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderPixQRCodeSyncResponse {
     pub status: SantanderPaymentStatus,
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: serde_json::Value,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<requests::SantanderDebtor>,
+    // Calendar
+    pub calendario: SantanderCalendarResponse,
+    // Transaction Id
+    pub txid: String,
+    // Revision
+    pub revisao: Option<serde_json::Value>,
+    // Debtor
+    pub devedor: Option<requests::SantanderDebtor>,
     pub location: Option<String>,
-    #[serde(rename = "valor")]
-    pub value: requests::SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+    // Value
+    pub valor: requests::SantanderValue,
+    // Key
+    pub chave: Secret<String>,
+    // Request Payer
+    pub solicitacao_pagador: Option<String>,
+    // Additional Info
+    pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<String>,
+    // Pix QR Code Data
+    pub pix_copia_e_cola: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixVoidResponse {
-    #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendarResponse,
-    #[serde(rename = "txid")]
-    pub transaction_id: String,
-    #[serde(rename = "revisao")]
-    pub revision: serde_json::Value,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<requests::SantanderDebtor>,
-    #[serde(rename = "recebedor")]
+    // Calendar
+    pub calendario: SantanderCalendarResponse,
+    // Transaction Id
+    pub txid: String,
+    // Revision
+    pub revisao: Option<serde_json::Value>,
+    // Debtor
+    pub devedor: Option<requests::SantanderDebtor>,
+    // Recipient
     pub recebedor: Recipient,
+    // Status
     pub status: SantanderPaymentStatus,
-    #[serde(rename = "valor")]
-    pub value: ValueResponse,
-    #[serde(rename = "pixCopiaECola")]
-    pub pix_qr_code_data: Option<Secret<String>>,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+    // Value
+    pub valor: ValueResponse,
+    // Pix QR Code Data
+    pub pix_copia_e_cola: Option<Secret<String>>,
+    // Key
+    pub chave: Secret<String>,
+    // Request Payer
+    pub solicitacao_pagador: Option<String>,
+    // Additional Info
+    pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ValueResponse {
-    #[serde(rename = "original")]
+    // Original payment amount
     pub original: String,
-    #[serde(rename = "multa")]
-    pub fine: Fine,
-    #[serde(rename = "juros")]
-    pub interest: Interest,
-    #[serde(rename = "desconto")]
-    pub discount: DiscountResponse,
+    // Fine (penalty) details
+    pub multa: Fine,
+    // Interest details
+    pub juros: Interest,
+    // Discount details
+    pub desconto: DiscountResponse,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Fine {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
+    // Type or mode of fine (e.g., percentage or fixed amount)
+    pub modalidade: String,
+    // Fine value or percentage applied
+    pub valor_perc: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Interest {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
+    // Type or mode of interest (e.g., daily rate or fixed)
+    pub modalidade: String,
+    // Interest value or percentage applied
+    pub valor_perc: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiscountResponse {
-    #[serde(rename = "modalidade")]
-    pub r#type: String,
-    #[serde(rename = "descontoDataFixa")]
-    pub fixed_date_discount: Vec<FixedDateDiscount>,
+    // Type or mode of discount (e.g., fixed date or percentage)
+    pub modalidade: String,
+    // List of discounts applicable on specific fixed dates
+    pub desconto_data_fixa: Vec<FixedDateDiscount>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FixedDateDiscount {
-    #[serde(rename = "data")]
-    pub date: String,
-    #[serde(rename = "valorPerc")]
-    pub perc_value: String,
+    // Date on which the discount is valid
+    pub data: String,
+    // Discount value or percentage applied
+    pub valor_perc: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Recipient {
+    // Recipient’s CNPJ (business tax ID)
     pub cnpj: Option<Secret<String>>,
-    #[serde(rename = "nome")]
-    pub name: Option<Secret<String>>,
-    #[serde(rename = "nomeFantasia")]
-    pub business_name: Option<Secret<String>>,
-    #[serde(rename = "logradouro")]
-    pub street: Option<Secret<String>>,
-    #[serde(rename = "cidade")]
-    pub city: Option<Secret<String>>,
-    #[serde(rename = "uf")]
-    pub state: Option<Secret<String>>,
-    #[serde(rename = "cep")]
-    pub zip_code: Option<Secret<String>>,
+    // Recipient’s legal name
+    pub nome: Option<Secret<String>>,
+    // Recipient’s business or trade name
+    pub nome_fantasia: Option<Secret<String>>,
+    // Street address of the recipient
+    pub logradouro: Option<Secret<String>>,
+    // City where the recipient is located
+    pub cidade: Option<Secret<String>>,
+    // State (federal unit) of the recipient
+    pub uf: Option<Secret<String>>,
+    // Postal code (ZIP code) of the recipient
+    pub cep: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderCalendarResponse {
-    #[serde(rename = "criacao")]
-    pub creation: String,
-    #[serde(rename = "expiracao")]
-    pub expiration: Option<String>,
-    #[serde(rename = "dataDeVencimento")]
-    pub due_date: Option<String>,
-    #[serde(rename = "validadeAposVencimento")]
-    pub validity_after_due: Option<serde_json::Value>,
+    // Date and time when the payment was created
+    pub criacao: String,
+    // Expiration time of the payment (if applicable)
+    pub expiracao: String,
+    // Due date for the payment
+    pub data_de_vencimento: Option<String>,
+    // Validity period after the due date
+    pub validade_apos_vencimento: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -294,15 +306,16 @@ pub struct SantanderBoletoPSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPix {
+    // Unique PIX transaction identifier
     pub end_to_end_id: Secret<String>,
-    #[serde(rename = "txid")]
-    pub transaction_id: Secret<String>,
-    #[serde(rename = "valor")]
-    pub value: String,
-    #[serde(rename = "horario")]
-    pub time: String,
-    #[serde(rename = "infoPagador")]
-    pub info_payer: Option<String>,
+    // Transaction ID associated with the payment
+    pub txid: Secret<String>,
+    // Transaction amount
+    pub valor: String,
+    // Timestamp when the transaction occurred
+    pub horario: String,
+    // Optional information provided by the payer
+    pub info_pagador: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -324,24 +337,27 @@ pub enum SantanderRefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderRefundResponse {
+    // Unique refund identifier
     pub id: Secret<String>,
+    // Unique RTR (Return) identifier
     pub rtr_id: Secret<String>,
-    #[serde(rename = "valor")]
-    pub value: StringMajorUnit,
-    #[serde(rename = "horario")]
-    pub time: SantanderTime,
+    // Refund amount
+    pub valor: StringMajorUnit,
+    // Time information related to the refund
+    pub horario: SantanderTime,
+    // Refund status
     pub status: SantanderRefundStatus,
-    #[serde(rename = "motivo")]
-    pub reason: String,
+    // Reason for the refund
+    pub motivo: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderTime {
-    #[serde(rename = "solicitacao")]
-    pub request: Option<String>,
-    #[serde(rename = "liquidacao")]
-    pub liquidation: Option<String>,
+    // Time when the refund was requested
+    pub solicitacao: Option<String>,
+    // Time when the refund was completed (settled)
+    pub liquidacao: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -436,18 +452,19 @@ pub struct SantanderPixQRCodeErrorResponse {
     pub status: String,
     pub detail: Option<String>,
     pub correlation_id: Option<String>,
-    #[serde(rename = "violacoes")]
-    pub violations: Option<Vec<SantanderViolations>>,
+    // Violations
+    pub violacoes: Option<Vec<SantanderViolations>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderViolations {
-    #[serde(rename = "razao")]
-    pub reason: Option<String>,
-    #[serde(rename = "propriedade")]
-    pub property: Option<String>,
-    #[serde(rename = "valor")]
-    pub value: Option<String>,
+    // Description or reason for the violation
+    pub razao: Option<String>,
+    // Name of the property or field that caused the violation
+    pub propriedade: Option<String>,
+    // Value associated with the violation
+    pub valor: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -511,26 +528,19 @@ pub enum WebhookPaymentType {
 /// Represents the channel through which a boleto payment was made.
 pub enum PaymentChannel {
     /// Payment made at a bank branch or ATM (self-service).
-    #[serde(rename = "AgenciasAutoAtendimento")]
-    BankBranchOrAtm,
+    AgenciasAutoAtendimento,
     /// Payment made through online banking.
-    #[serde(rename = "InternetBanking")]
-    OnlineBanking,
+    InternetBanking,
     /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
-    #[serde(rename = "CorrespondenteBancarioFisico")]
-    PhysicalCorrespondentAgent,
+    CorrespondenteBancarioFisico,
     /// Payment made via Santander’s call center.
-    #[serde(rename = "CentralDeAtendimento")]
-    CallCenter,
+    CentralDeAtendimento,
     /// Payment made via electronic file, typically for bulk company payments.
-    #[serde(rename = "ArquivoEletronico")]
-    ElectronicFile,
+    ArquivoEletronico,
     /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
-    #[serde(rename = "Dda")]
-    DirectDebitAuthorized,
+    Dda,
     /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
-    #[serde(rename = "CorrespondenteBancarioDigital")]
-    DigitalCorrespondentAgent,
+    CorrespondenteBancarioDigital,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -549,13 +559,14 @@ pub enum PaymentKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
+/// Represents the type of boleto payment or registration action.
 pub enum PaymentType {
-    #[serde(rename = "REGISTRO")]
-    Registration,
-    #[serde(rename = "DIVERGENTE")]
-    Divergent,
-    #[serde(rename = "PARCIAL")]
-    Partial,
+    /// Payment or record corresponds to a registration entry.
+    Registro,
+    /// Payment with a divergent (mismatched) amount or details.
+    Divergente,
+    /// Partial payment made for the billed amount.
+    Parcial,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

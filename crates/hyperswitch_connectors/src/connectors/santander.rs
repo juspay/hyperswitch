@@ -718,7 +718,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let original_amount = match response {
-            SantanderPaymentsResponse::PixQRCode(ref pix_data) => pix_data.value.original.clone(),
+            SantanderPaymentsResponse::PixQRCode(ref pix_data) => pix_data.valor.original.clone(),
             SantanderPaymentsResponse::Boleto(_) => {
                 convert_amount(
                     self.amount_converter,
@@ -906,7 +906,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
 
         let original_amount = match response {
             SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
-                pix_data.value.original.clone()
+                pix_data.valor.original.clone()
             }
             SantanderPaymentsSyncResponse::Boleto(_) => convert_amount(
                 self.amount_converter,
@@ -1280,7 +1280,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
             .parse_struct("santander RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let original_amount = response.value.clone();
+        let original_amount = response.valor.clone();
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
