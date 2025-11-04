@@ -2574,6 +2574,7 @@ pub enum PaymentMethodDataType {
     AtomeRedirect,
     BreadpayRedirect,
     FlexitiRedirect,
+    PayjustnowRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2715,6 +2716,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
+                domain::payments::PayLaterData::PayjustnowRedirect {} => Self::PayjustnowRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {

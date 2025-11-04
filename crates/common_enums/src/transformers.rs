@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::enums::PayoutStatus;
 use crate::enums::{
     AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType, IntentStatus,
-    MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus,
+    MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus, SubscriptionStatus,
 };
 
 impl Display for NumericCountryCodeParseError {
@@ -1888,6 +1888,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
             PaymentMethodType::Atome => Self::PayLater,
+            PaymentMethodType::Payjustnow => Self::PayLater,
             PaymentMethodType::Boleto => Self::Voucher,
             PaymentMethodType::Efecty => Self::Voucher,
             PaymentMethodType::PagoEfectivo => Self::Voucher,
@@ -2210,6 +2211,15 @@ impl From<MandateStatus> for Option<EventType> {
             MandateStatus::Active => Some(EventType::MandateActive),
             MandateStatus::Revoked => Some(EventType::MandateRevoked),
             MandateStatus::Inactive | MandateStatus::Pending => None,
+        }
+    }
+}
+
+impl From<SubscriptionStatus> for Option<EventType> {
+    fn from(value: SubscriptionStatus) -> Self {
+        match value {
+            SubscriptionStatus::Active => Some(EventType::InvoicePaid),
+            _ => None,
         }
     }
 }
