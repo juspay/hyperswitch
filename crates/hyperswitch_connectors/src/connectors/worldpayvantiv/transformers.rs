@@ -1,6 +1,5 @@
 use common_utils::{
-    ext_traits::Encode,
-    types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
+    ext_traits::Encode, pii, types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector}
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -29,6 +28,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -120,10 +120,10 @@ pub struct WorldpayvantivMetadataObject {
     pub merchant_config_currency: common_enums::Currency,
 }
 
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
+impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+        meta_data: &Option<pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
         let metadata = connector_utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -212,7 +212,7 @@ pub struct VantivAddressData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<common_utils::pii::Email>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<common_enums::CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -407,7 +407,7 @@ pub struct WorldpayvantivCardData {
     pub card_validation_num: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub enum WorldpayvativCardType {
     #[serde(rename = "VI")]
@@ -1306,8 +1306,8 @@ pub struct PaymentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountUpdater {
-    pub original_card_token_info : Option<CardTokenInfo>,
-    pub new_card_token_info: Option<CardTokenInfo>,
+    pub original_card_token_info : Option<AccountUpdaterCardTokenInfo>,
+    pub new_card_token_info: Option<AccountUpdaterCardTokenInfo>,
     pub extended_card_response: ExtendedCardResponse,
 }
 
@@ -1319,10 +1319,21 @@ pub struct ExtendedCardResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CardTokenInfo {
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdaterCardTokenInfo {
     pub cnp_token: Secret<String>,
     pub exp_date: Option<String>,
-    pub type_field: Option<String>,
+    #[serde(rename = "type")]
+    pub card_type: Option<WorldpayvativCardType>,
+    pub bin: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdaterCardTokenInfoMetadata {
+    pub exp_date: Option<String>,
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
     pub bin: Option<String>,
 }
 
@@ -1944,8 +1955,29 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                let mandate_reference_data = sale_response.token_response.clone().map(MandateReference::from);
-                let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
+                    let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
+
+                    /// While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
+                    /// We are extracting that new card token info here to be sent back in mandate_id in router_data.
+                    let mandate_reference_data = match item.data.request.payment_method_data {
+                        PaymentMethodData::MandatePayment => {
+                            if let Some(account_updater) = sale_response.account_updater.as_ref() {
+                                account_updater
+                                    .new_card_token_info
+                                    .clone()
+                                    .map(MandateReference::from)
+                            } else {
+                                sale_response
+                                    .token_response
+                                    .clone()
+                                    .map(MandateReference::from)
+                            }
+                        }
+                        _ => sale_response
+                            .token_response
+                            .clone()
+                            .map(MandateReference::from),
+                    };                                      
 
                     Ok(Self {
                         status,
@@ -2191,6 +2223,76 @@ impl From<TokenResponse> for MandateReference {
             connector_mandate_id: Some(token_data.cnp_token.expose()),
             payment_method_id: None,
             mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        }
+    }
+}
+
+impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCardInfo {
+    fn from(
+        token_data: &AccountUpdaterCardTokenInfo,
+    ) ->Self {
+        let card_exp_month = token_data
+        .exp_date
+        .as_ref()
+        .and_then(|exp_date| exp_date.as_str().get(0..2).map(|s| s.to_string()))
+        .map(Secret::new);
+    
+        let card_exp_year = token_data
+        .exp_date
+        .as_ref()
+        .and_then(|exp_date| exp_date.as_str().get(2..4).map(|s| s.to_string()))
+        .map(Secret::new);
+
+        Self {
+            card_issuer: None,
+            card_network: token_data
+                .card_type
+                .clone()
+                .map(common_enums::CardNetwork::from),
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            last4: None,
+            card_isin: token_data.bin.clone(),
+            card_extended_bin: None,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
+        }
+    }
+}
+
+impl From<WorldpayvativCardType> for common_enums::CardNetwork {
+    fn from(card_type: WorldpayvativCardType) -> Self {
+        match card_type {
+            WorldpayvativCardType::Visa =>Self::Visa,
+            WorldpayvativCardType::MasterCard => Self::Mastercard,
+            WorldpayvativCardType::AmericanExpress => Self::AmericanExpress,
+            WorldpayvativCardType::Discover => Self::Discover,
+            WorldpayvativCardType::JCB => Self::JCB,
+            WorldpayvativCardType::DinersClub => Self::DinersClub,
+            WorldpayvativCardType::UnionPay => Self::UnionPay,
+        }
+    }
+}
+
+impl From<AccountUpdaterCardTokenInfo> for MandateReference {
+    fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
+         let mandate_metadata = api_models::payments::AdditionalCardInfo::from(&token_data);
+
+        let mandate_metadata_json =  serde_json::to_value(&mandate_metadata).inspect_err(|e| logger::error!("Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo")).ok();
+
+        let mandate_metadata_secret_json = mandate_metadata_json.map(pii::SecretSerdeValue::new);
+
+        Self {
+            connector_mandate_id: Some(token_data.cnp_token.expose()),
+            payment_method_id: None,
+            mandate_metadata: mandate_metadata_secret_json,
             connector_mandate_request_reference_id: None,
         }
     }

@@ -281,6 +281,19 @@ impl PaymentsResponseData {
             None
         }
     }
+
+    pub fn get_mandate_reference(&self) -> Option<MandateReference> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.as_ref().clone()
+        } else {
+            None
+        }
+    }
+
+
 }
 
 #[derive(Debug, Clone, Serialize)]
