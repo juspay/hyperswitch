@@ -106,7 +106,7 @@ jobs:
       - name: Install cocogitto
         uses: taiki-e/install-action@v2
         with:
-          tool: cocogitto
+          tool: cocogitto@6.3.0
           checksum: true
 
       - name: Obtain previous and next tag information
