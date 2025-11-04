@@ -30,8 +30,7 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
-        GiftCardBalanceCheckRequestData, PaymentsExtendAuthorizationData,
-        PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData,
+        GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
@@ -62,7 +61,8 @@ use crate::{types::PayoutsResponseRouterData, utils::PayoutsData};
 use crate::{
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, PaymentsCancelResponseRouterData,
-        PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
+        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
         SubmitEvidenceRouterData,
     },
     utils::{
@@ -4019,24 +4019,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            AdyenBalanceResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AdyenBalanceResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4981,24 +4969,12 @@ pub struct AdyenExtendAuthorizationResponse {
     amount: Amount,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            AdyenExtendAuthorizationResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsExtendAuthorizationData, PaymentsResponseData>
+impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<AdyenExtendAuthorizationResponse>>
+    for PaymentsExtendAuthorizationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AdyenExtendAuthorizationResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsExtendAuthorizationResponseRouterData<AdyenExtendAuthorizationResponse>,
     ) -> Result<Self, Self::Error> {
         // Asynchronous authorization adjustment
         Ok(Self {
