@@ -160,6 +160,12 @@ fn generate_struct_impl(
                         SmithyConstraint::HttpQuery(name) => quote! {
                             smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
                         },
+                        SmithyConstraint::JsonName(name) => quote! {
+                            smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                        },
+                        SmithyConstraint::EnumValue(value) => quote! {
+                            smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                        },
                     })
                     .collect::<Vec<_>>();
 
@@ -401,11 +407,63 @@ fn generate_enum_impl(
                     quote! { #variant_name.to_string() }
                 };
 
+                // Generate traits for enum value
+                let traits = if variant.constraints.is_empty() {
+                    quote! { vec![] }
+                } else {
+                    let trait_tokens = variant.constraints
+                        .iter()
+                        .map(|constraint| match constraint {
+                            SmithyConstraint::Pattern(pattern) => quote! {
+                                smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                            },
+                            SmithyConstraint::Range(min, max) => {
+                                let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                quote! {
+                                    smithy_core::SmithyTrait::Range {
+                                        min: #min_expr,
+                                        max: #max_expr
+                                    }
+                                }
+                            },
+                            SmithyConstraint::Length(min, max) => {
+                                let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                quote! {
+                                    smithy_core::SmithyTrait::Length {
+                                        min: #min_expr,
+                                        max: #max_expr
+                                    }
+                                }
+                            },
+                            SmithyConstraint::Required => quote! {
+                                smithy_core::SmithyTrait::Required
+                            },
+                            SmithyConstraint::HttpLabel => quote! {
+                                smithy_core::SmithyTrait::HttpLabel
+                            },
+                            SmithyConstraint::HttpQuery(name) => quote! {
+                                smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                            },
+                            SmithyConstraint::JsonName(name) => quote! {
+                                smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                            },
+                            SmithyConstraint::EnumValue(value) => quote! {
+                                smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                            },
+                        })
+                        .collect::<Vec<_>>();
+
+                    quote! { vec![#(#trait_tokens),*] }
+                };
+
                 quote! {
                     enum_values.insert(#transformed_name, smithy_core::SmithyEnumValue {
                         name: #transformed_name,
                         documentation: #variant_doc,
                         is_default: false,
+                        traits: #traits,
                     });
                 }
             })
@@ -502,6 +560,12 @@ fn generate_enum_impl(
                                     },
                                     SmithyConstraint::HttpQuery(name) => quote! {
                                         smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::JsonName(name) => quote! {
+                                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::EnumValue(value) => quote! {
+                                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
                                     },
                                 })
                                 .collect::<Vec<_>>();
@@ -612,6 +676,12 @@ fn generate_enum_impl(
                                     },
                                     SmithyConstraint::HttpQuery(name) => quote! {
                                         smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::JsonName(name) => quote! {
+                                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::EnumValue(value) => quote! {
+                                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
                                     },
                                 })
                                 .collect::<Vec<_>>();
@@ -775,6 +845,12 @@ fn generate_tagged_enum_impl(
                     SmithyConstraint::HttpQuery(name) => quote! {
                         smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
                     },
+                    SmithyConstraint::JsonName(name) => quote! {
+                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                    },
+                    SmithyConstraint::EnumValue(value) => quote! {
+                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                    },
                 })
                 .collect::<Vec<_>>();
 
@@ -819,6 +895,7 @@ fn generate_tagged_enum_impl(
                     name: #transformed_name,
                     documentation: #variant_doc,
                     is_default: false,
+                    traits: vec![],
                 });
             }
         })
@@ -917,10 +994,17 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
                     let documentation = extract_documentation(&field.attrs);
                     let optional = value_type.trim().starts_with("Option<");
 
+                    // Apply JsonName trait if field has serde rename
+                    let mut constraints = field_attrs.constraints;
+                    if let Some(rename_value) = &serde_attrs.rename {
+                        // Add JsonName constraint for serde rename
+                        constraints.push(SmithyConstraint::JsonName(rename_value.clone()));
+                    }
+
                     smithy_fields.push(SmithyField {
                         name: field_name,
                         value_type,
-                        constraints: field_attrs.constraints,
+                        constraints,
                         documentation,
                         optional,
                         flatten: serde_attrs.flatten,
@@ -948,6 +1032,7 @@ fn extract_enum_variants(
         let variant_name = variant.ident.to_string();
         let documentation = extract_documentation(&variant.attrs);
         let variant_attrs = parse_smithy_field_attributes(&variant.attrs)?;
+        let variant_serde_attrs = parse_serde_attributes(&variant.attrs)?;
 
         // Extract fields from the variant
         let fields = match &variant.fields {
@@ -1003,10 +1088,17 @@ fn extract_enum_variants(
             }
         };
 
+        // Apply EnumValue trait if variant has serde rename
+        let mut constraints = variant_attrs.constraints;
+        if let Some(rename_value) = &variant_serde_attrs.rename {
+            // Add EnumValue constraint for serde rename
+            constraints.push(SmithyConstraint::EnumValue(rename_value.clone()));
+        }
+
         smithy_variants.push(SmithyEnumVariant {
             name: variant_name,
             fields,
-            constraints: variant_attrs.constraints,
+            constraints,
             documentation,
             nested_value_type: variant_attrs.nested_value_type,
             value_type: variant_attrs.value_type,
@@ -1027,12 +1119,14 @@ struct SmithyFieldAttributes {
 struct SerdeAttributes {
     flatten: bool,
     tag: Option<String>,
+    rename: Option<String>,
 }
 
 #[derive(Default)]
 struct SerdeEnumAttributes {
     rename_all: Option<String>,
     tag: Option<String>,
+    rename: Option<String>,
 }
 
 fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
@@ -1062,9 +1156,11 @@ fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
                         let _ = value.parse::<Lit>();
                     }
                 } else if meta.path.is_ident("rename") {
-                    // Parse and ignore the rename attribute
+                    // Parse and capture the rename attribute
                     if let Ok(value) = meta.value() {
-                        let _ = value.parse::<Lit>();
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_attributes.rename = Some(lit_str.value());
+                        }
                     }
                 } else if meta.path.is_ident("deny_unknown_fields") {
                     // Handle deny_unknown_fields (no value needed)
@@ -1101,6 +1197,11 @@ fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
                     }
                 } else if meta.path.is_ident("deserialize_with") {
                     // Handle deserialize_with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("alias") {
+                    // Handle alias attribute
                     if let Ok(value) = meta.value() {
                         let _ = value.parse::<Lit>();
                     }
@@ -1148,9 +1249,11 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                         let _ = value.parse::<Lit>();
                     }
                 } else if meta.path.is_ident("rename") {
-                    // Parse and ignore the rename attribute (used for enum renaming)
+                    // Parse and capture the rename attribute (used for enum renaming)
                     if let Ok(value) = meta.value() {
-                        let _ = value.parse::<Lit>();
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.rename = Some(lit_str.value());
+                        }
                     }
                 } else if meta.path.is_ident("deny_unknown_fields") {
                     // Handle deny_unknown_fields (no value needed)

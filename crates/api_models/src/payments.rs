@@ -1016,6 +1016,7 @@ pub struct PaymentsRequest {
         "type": "single",
         "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
+    #[smithy(value_type = "Option<Object>")]
     pub routing: Option<serde_json::Value>,
 
     /// This allows to manually select a connector with which the payment can go through.
@@ -5611,7 +5612,6 @@ pub struct PaymentMethodDataResponseWithBilling {
     #[serde(flatten)]
     #[smithy(value_type = "Option<PaymentMethodDataResponse>")]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
-    #[smithy(value_type = "Option<Address>")]
     pub billing: Option<Address>,
 }
 

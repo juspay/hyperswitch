@@ -80,6 +80,8 @@ pub struct SmithyEnumValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub documentation: Option<String>,
     pub is_default: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<SmithyTrait>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +103,10 @@ pub enum SmithyTrait {
     HttpQuery { name: String },
     #[serde(rename = "smithy.api#mixin")]
     Mixin,
+    #[serde(rename = "smithy.api#jsonName")]
+    JsonName { name: String },
+    #[serde(rename = "smithy.api#enumValue")]
+    EnumValue { value: String },
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +137,8 @@ pub enum SmithyConstraint {
     Required,
     HttpLabel,
     HttpQuery(String),
+    JsonName(String),
+    EnumValue(String),
 }
 
 pub trait SmithyModelGenerator {
