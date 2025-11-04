@@ -220,6 +220,11 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for authentication
         routes::authentication::authentication_create,
+        routes::authentication::authentication_eligibility,
+        routes::authentication::authentication_authenticate,
+        routes::authentication::authentication_redirect,
+        routes::authentication::authentication_sync,
+        routes::authentication::authentication_enabled_authn_methods_token,
 
         // Routes for platform account
         routes::platform::create_platform_account,
@@ -868,6 +873,16 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationEligibilityResponse,
         api_models::authentication::AuthenticationSyncRequest,
         api_models::authentication::AuthenticationSyncResponse,
+        api_models::authentication::AuthenticationSessionTokenRequest,
+        api_models::authentication::AuthenticationSessionResponse,
+        api_models::authentication::PostAuthenticationRequestPaymentMethodData,
+        api_models::authentication::AuthenticationAuthenticateRequest,
+        api_models::authentication::AuthenticationAuthenticateResponse,
+        api_models::authentication::ClickToPayDetails,
+        api_models::authentication::AuthenticationSyncPostUpdateRequest,
+        api_models::authentication::AuthenticationSessionToken,
+        api_models::authentication::AuthenticationPaymentMethodType,
+        api_models::authentication::AuthenticationPaymentMethodData,
         api_models::open_router::OpenRouterDecideGatewayRequest,
         api_models::open_router::DecideGatewayResponse,
         api_models::open_router::UpdateScorePayload,
@@ -880,6 +895,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::PaymentInfo,
         common_utils::id_type::PaymentId,
         common_utils::id_type::ProfileId,
+        common_utils::id_type::AuthenticationId,
         api_models::open_router::RankingAlgorithm,
         api_models::open_router::TxnStatus,
         api_models::open_router::PriorityLogicOutput,

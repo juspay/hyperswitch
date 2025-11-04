@@ -142,7 +142,6 @@ pub async fn authentication_sync(
 ) -> impl Responder {
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
-
     let (_merchant_id, authentication_id) = path.into_inner();
     let payload = AuthenticationSyncRequest {
         authentication_id,

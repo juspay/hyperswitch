@@ -894,24 +894,6 @@ impl
             None
         };
 
-        // let customer_details = customer_data
-        //     .map(|details| {
-        //         let customer_id = customer_id
-        //             .as_ref()
-        //             .ok_or(ApiErrorResponse::InternalServerError)
-        //             .attach_printable("Customer id not found in authentication create request")?;
-
-        //         Ok(CustomerDetails {
-        //             id: customer_id.clone(),
-        //             name: details.name,
-        //             email: details.email,
-        //             phone: details.phone,
-        //             phone_country_code: details.phone_country_code,
-        //             tax_registration_id: details.tax_registration_id,
-        //         })
-        //     })
-        //     .transpose()?;
-
         Ok(Self {
             authentication_id: authentication.authentication_id,
             client_secret: authentication
@@ -2079,6 +2061,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_metadata: hyperswitch_domain_models::payments::ClickToPayMetaData =
         merchant_connector_account
             .metadata
+            .clone()
             .parse_value("ClickToPayMetaData")
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while parsing ClickToPayMetaData")?;
@@ -2127,15 +2110,12 @@ pub async fn get_session_token_for_click_to_pay(
 
     validate_customer_details_for_click_to_pay(&customer_details)?;
 
-    let provider = match merchant_connector_account
-        .connector_name
-        .to_string()
-        .as_str()
-    {
-        "ctp_mastercard" => Some(common_enums::CtpServiceProvider::Mastercard),
-        "ctp_visa" => Some(common_enums::CtpServiceProvider::Visa),
-        _ => None,
-    };
+    let provider = merchant_connector_account
+        .get_ctp_service_provider()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Error while parsing ctp service provider from merchant connector account",
+        )?;
 
     let card_brands = [
         common_enums::CardNetwork::Mastercard,
