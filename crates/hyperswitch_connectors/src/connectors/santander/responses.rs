@@ -26,7 +26,6 @@ pub struct Beneficiary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BoletoDocumentKind {
     #[serde(rename = "DUPLICATA_MERCANTIL")]
     DuplicateMercantil,
@@ -357,7 +356,9 @@ pub enum SantanderErrorResponse {
 #[serde(untagged)]
 pub enum SantanderGenericErrorResponse {
     Pattern1(SantanderPattern1ErrorResponse),
+    // Validation Errors or when wrong access token is passed
     Pattern2(SantanderPattern2ErrorResponse),
+    // When JWT is expired
     Pattern3(SantanderPattern3ErrorResponse),
 }
 
@@ -619,5 +620,5 @@ pub struct SantanderTokenErrorResponse {
 pub struct QrDataUrlSantander {
     pub qr_code_url: url::Url,
     pub display_to_timestamp: Option<i64>,
-    pub variant: Option<api_models::payments::SantanderVariant>,
+    pub variant: Option<api_models::payments::ExpiryType>,
 }

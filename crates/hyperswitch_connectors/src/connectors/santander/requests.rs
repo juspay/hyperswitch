@@ -8,9 +8,9 @@ use crate::connectors::santander::responses;
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoUpdateRequest {
     #[serde(skip_deserializing)]
-    pub covenant_code: String,
+    pub covenant_code: Secret<String>,
     #[serde(skip_deserializing)]
-    pub bank_number: String,
+    pub bank_number: Secret<String>,
     pub due_date: Option<String>,
     pub discount: Option<Discount>,
     pub min_value_or_percentage: Option<f64>,
@@ -66,7 +66,7 @@ pub struct BoletoMetadataObject {
     pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
     pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
     pub workspace_id: String,
-    pub covenant_code: String, // max_size : 9
+    pub covenant_code: Secret<String>, // max_size : 9
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -181,8 +181,8 @@ pub enum SantanderPaymentsCancelRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoCancelRequest {
-    pub covenant_code: String,
-    pub bank_number: String,
+    pub covenant_code: Secret<String>,
+    pub bank_number: Secret<String>,
     pub operation: SantanderBoletoCancelOperation,
 }
 
@@ -238,7 +238,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub environment: Environment,
     pub nsu_code: String,
     pub nsu_date: String,
-    pub covenant_code: String,
+    pub covenant_code: Secret<String>,
     pub bank_number: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_number: Option<common_utils::id_type::CustomerId>,

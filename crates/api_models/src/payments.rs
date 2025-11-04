@@ -5214,6 +5214,7 @@ pub enum QrCodeInformation {
     QrCodeImageUrl {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
+        expiry_type: Option<ExpiryType>,
     },
     QrColorDataUrl {
         color_image_data_url: Url,
@@ -5221,16 +5222,11 @@ pub enum QrCodeInformation {
         display_text: Option<String>,
         border_color: Option<String>,
     },
-    QrDataUrlSantander {
-        qr_code_url: Url,
-        display_to_timestamp: Option<i64>,
-        variant: Option<SantanderVariant>,
-    },
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SantanderVariant {
+pub enum ExpiryType {
     Immediate,
     Scheduled,
 }

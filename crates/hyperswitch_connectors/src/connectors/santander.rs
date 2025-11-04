@@ -173,7 +173,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{}/bank_slips",
+                    "{:?}{}/workspaces/{:?}/bank_slips",
                     connectors.santander.secondary_base_url.clone(),
                     santander_constants::SANTANDER_VERSION,
                     boleto_mca_metadata.workspace_id
@@ -638,7 +638,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         "{}collection_bill_management/{}/workspaces/{}/bank_slips",
                         secondary_base_url,
                         santander_constants::SANTANDER_VERSION,
-                        boleto_mca_metadata.workspace_id
+                        boleto_mca_metadata.workspace_id.clone()
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -814,7 +814,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Pix) => match santander_variant {
-                    api_models::payments::SantanderVariant::Immediate => Ok(format!(
+                    api_models::payments::ExpiryType::Immediate => Ok(format!(
                         "{}api/v1/cob/{}",
                         self.base_url(connectors),
                         connector_transaction_id.ok_or(
@@ -823,7 +823,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             }
                         )?
                     )),
-                    api_models::payments::SantanderVariant::Scheduled => Ok(format!(
+                    api_models::payments::ExpiryType::Scheduled => Ok(format!(
                         "{}api/v1/cobv/{}",
                         self.base_url(connectors),
                         connector_transaction_id.ok_or(
@@ -841,7 +841,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{}/bank_slips",
+                    "{:?}{}/workspaces/{:?}/bank_slips",
                     connectors.santander.secondary_base_url.clone(),
                     santander_constants::SANTANDER_VERSION,
                     boleto_mca_metadata.workspace_id
@@ -1078,12 +1078,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Pix) => match santander_variant {
-                    api_models::payments::SantanderVariant::Immediate => Ok(format!(
+                    api_models::payments::ExpiryType::Immediate => Ok(format!(
                         "{}api/v1/cob/{}",
                         self.base_url(connectors),
                         req.request.connector_transaction_id
                     )),
-                    api_models::payments::SantanderVariant::Scheduled => Ok(format!(
+                    api_models::payments::ExpiryType::Scheduled => Ok(format!(
                         "{}api/v1/cobv/{}",
                         self.base_url(connectors),
                         req.request.connector_transaction_id
@@ -1097,7 +1097,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{}/bank_slips",
+                    "{:?}{}/workspaces/{:?}/bank_slips",
                     connectors.santander.secondary_base_url.clone(),
                     santander_constants::SANTANDER_VERSION,
                     boleto_mca_metadata.workspace_id
@@ -1215,11 +1215,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
 
                     let refund_id = req.request.connector_refund_id.clone();
                     Ok(format!(
-                        "{}{}{}{}{:?}",
+                        "{}pix/{end_to_end_id}/refund/{:?}",
                         self.base_url(connectors),
-                        "pix/",
-                        end_to_end_id,
-                        "/refund/",
                         refund_id
                     ))
                 }

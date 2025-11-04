@@ -90,7 +90,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest
 
         Ok(Self {
             covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+            bank_number: Secret::new(extract_bank_number(item.request.connector_meta.clone())?),
             due_date: update_metadata_fields.due_date,
             discount: update_metadata_fields.discount,
             min_value_or_percentage: update_metadata_fields.min_value_or_percentage,
@@ -183,17 +183,7 @@ pub fn generate_emv_string(
     let additional_data = format_field("62", &reference_label);
 
     let emv_without_crc = format!(
-        "{}{}{}{}{}{}{}{}{}{}",
-        payload_format_indicator,
-        point_of_initiation_method,
-        merchant_account_information,
-        merchant_category_code,
-        transaction_currency,
-        transaction_amount,
-        country_code,
-        merchant_name,
-        merchant_city,
-        additional_data
+        "{payload_format_indicator}{point_of_initiation_method}{merchant_account_information}{merchant_category_code}{transaction_currency}{transaction_amount}{country_code}{merchant_name}{merchant_city}{additional_data}",
     );
     // CRC16-CCITT-FALSE constant
     const CRC16_CCITT_FALSE: Algorithm<u16> = Algorithm {
@@ -479,36 +469,6 @@ impl
             beneficiary: None,
             document_kind: BoletoDocumentKind::DuplicateMercantil, // Need confirmation
             discount: None,
-            // discount: Some(Discount {
-            //     discount_type: DiscountType::Free,
-            //     discount_one: None,
-            //     discount_two: None,
-            //     discount_three: None,
-            // }),
-            // fine_percentage: value
-            //     .0
-            //     .router_data
-            //     .request
-            //     .feature_metadata
-            //     .as_ref()
-            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
-            //     .and_then(|fine| fine.fine_percentage.clone()),
-            // fine_quantity_days: value
-            //     .0
-            //     .router_data
-            //     .request
-            //     .feature_metadata
-            //     .as_ref()
-            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
-            //     .and_then(|days| days.fine_quantity_days.clone()),
-            // interest_percentage: value
-            //     .0
-            //     .router_data
-            //     .request
-            //     .feature_metadata
-            //     .as_ref()
-            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
-            //     .and_then(|interest| interest.interest_percentage.clone()),
             fine_percentage: None,
             fine_quantity_days: None,
             interest_percentage: None,
@@ -532,14 +492,6 @@ impl
             sharing: None,
             key: None,
             tx_id: None,
-            // messages: value
-            //     .0
-            //     .router_data
-            //     .request
-            //     .feature_metadata
-            //     .as_ref()
-            //     .and_then(|fm| fm.boleto_additional_details.as_ref())
-            //     .and_then(|messages| messages.messages.clone()),
             messages: None,
         })))
     }
@@ -927,7 +879,9 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
                     Ok(Self::Boleto(SantanderBoletoCancelRequest {
                         operation: SantanderBoletoCancelOperation::WriteOff,
                         covenant_code: boleto_mca_metadata.covenant_code.clone(),
-                        bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+                        bank_number: Secret::new(extract_bank_number(
+                            item.request.connector_meta.clone(),
+                        )?),
                     }))
                 }
                 _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -969,10 +923,7 @@ fn get_qr_code_data<F, T>(
     // Scheduled type Pix QR Code Response already has a formed emv string data for QR Code
     // HS doesnt need to create it
     if let Some(data) = pix_data.pix_qr_code_data.clone() {
-        return convert_pix_data_to_value(
-            data,
-            Some(api_models::payments::SantanderVariant::Scheduled),
-        );
+        return convert_pix_data_to_value(data, Some(api_models::payments::ExpiryType::Scheduled));
     }
 
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
@@ -1010,9 +961,9 @@ fn get_qr_code_data<F, T>(
     )?;
 
     let variant = if pix_data.pix_qr_code_data.is_some() {
-        Some(api_models::payments::SantanderVariant::Scheduled)
+        Some(api_models::payments::ExpiryType::Scheduled)
     } else {
-        Some(api_models::payments::SantanderVariant::Immediate)
+        Some(api_models::payments::ExpiryType::Immediate)
     };
 
     convert_pix_data_to_value(dynamic_pix_code, variant)
@@ -1020,7 +971,7 @@ fn get_qr_code_data<F, T>(
 
 fn convert_pix_data_to_value(
     data: String,
-    variant: Option<api_models::payments::SantanderVariant>,
+    variant: Option<api_models::payments::ExpiryType>,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let image_data = QrImage::new_from_data(data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
@@ -1028,10 +979,10 @@ fn convert_pix_data_to_value(
     let image_data_url = Url::parse(image_data.data.clone().as_str())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_info = QrCodeInformation::QrDataUrlSantander {
+    let qr_code_info = QrCodeInformation::QrCodeImageUrl {
         qr_code_url: image_data_url,
         display_to_timestamp: None,
-        variant,
+        expiry_type: variant,
     };
 
     Some(qr_code_info.encode_to_value())

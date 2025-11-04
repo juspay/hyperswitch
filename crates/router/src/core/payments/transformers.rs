@@ -3833,19 +3833,17 @@ pub fn qr_code_next_steps_check(
 
     let mut qr_code_instructions = qr_code_steps.transpose().ok().flatten();
 
-    if let Some(api_models::payments::QrCodeInformation::QrDataUrlSantander {
+    if let Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
         qr_code_url,
         display_to_timestamp,
-        ..
+        expiry_type,
     }) = qr_code_instructions.clone()
     {
-        qr_code_instructions = Some(
-            api_models::payments::QrCodeInformation::QrDataUrlSantander {
-                qr_code_url,
-                display_to_timestamp,
-                variant: None,
-            },
-        );
+        qr_code_instructions = Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
+            qr_code_url,
+            display_to_timestamp,
+            expiry_type,
+        });
     }
 
     Ok(qr_code_instructions)
@@ -4247,6 +4245,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
             api_models::payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
                 display_to_timestamp,
+                ..
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
                 image_data_url: None,
@@ -4265,17 +4264,6 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
                 border_color,
                 display_text,
-            },
-            api_models::payments::QrCodeInformation::QrDataUrlSantander {
-                qr_code_url,
-                display_to_timestamp,
-                variant: _,
-            } => Self::QrCodeInformation {
-                image_data_url: Some(qr_code_url),
-                display_to_timestamp,
-                qr_code_url: None,
-                border_color: None,
-                display_text: None,
             },
         }
     }
