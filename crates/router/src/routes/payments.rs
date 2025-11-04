@@ -11,7 +11,7 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 #[cfg(feature = "v2")]
-use crate::core::gift_card;
+use crate::core::payment_method_balance;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 use crate::{
@@ -525,6 +525,7 @@ pub async fn payments_start(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -611,6 +612,7 @@ pub async fn payments_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 header_payload.clone(),
             )
         },
@@ -687,6 +689,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -815,6 +818,7 @@ pub async fn payments_post_session_tokens(
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 header_payload.clone(),
             )
         },
@@ -874,6 +878,7 @@ pub async fn payments_update_metadata(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1012,6 +1017,7 @@ pub async fn payments_capture(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -1075,6 +1081,7 @@ pub async fn payments_dynamic_tax_calculation(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1202,6 +1209,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 header_payload.clone(),
             )
@@ -1482,6 +1490,7 @@ pub async fn payments_complete_authorize(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -1532,6 +1541,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -1664,6 +1674,7 @@ pub async fn payments_cancel_post_capture(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2037,6 +2048,7 @@ pub async fn payments_approve(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -2108,6 +2120,7 @@ pub async fn payments_reject(
                 },
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2217,6 +2230,7 @@ where
                     req,
                     auth_flow,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     eligible_connectors,
                     header_payload,
                 )
@@ -2239,6 +2253,7 @@ where
                     req,
                     auth_flow,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     eligible_connectors,
                     header_payload,
                 )
@@ -2289,6 +2304,7 @@ pub async fn payments_incremental_authorization(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -2341,6 +2357,7 @@ pub async fn payments_extend_authorization(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             )
@@ -3232,13 +3249,69 @@ pub async fn payment_check_gift_card_balance(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(gift_card::payments_check_gift_card_balance_core(
+            Box::pin(
+                payment_method_balance::payments_check_gift_card_balance_core(
+                    state,
+                    merchant_context,
+                    auth.profile,
+                    req_state,
+                    request,
+                    header_payload.clone(),
+                    payment_id,
+                ),
+            )
+            .await
+        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ApplyPaymentMethodData, payment_id))]
+pub async fn payments_apply_pm_data(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::ApplyPaymentMethodDataRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::ApplyPaymentMethodData;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: global_payment_id.clone(),
+        payload: json_payload.into_inner(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            Box::pin(payment_method_balance::payments_apply_pm_data_core(
                 state,
                 merchant_context,
-                auth.profile,
                 req_state,
                 request,
-                header_payload.clone(),
                 payment_id,
             ))
             .await

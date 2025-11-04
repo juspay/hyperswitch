@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
@@ -543,6 +543,8 @@ pub struct AdyenWebhookResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     event_code: WebhookEventCode,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    event_date: Option<PrimitiveDateTime>,
     // Raw acquirer refusal code
     refusal_code_raw: Option<String>,
     // Raw acquirer refusal reason
@@ -2543,7 +2545,8 @@ impl
             }
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::BreadpayRedirect {}
-            | PayLaterData::FlexitiRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::FlexitiRedirect {}
+            | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -4011,8 +4014,10 @@ impl
     }
 }
 
-fn build_connector_response(status: &AdyenWebhookStatus) -> Option<ConnectorResponseData> {
-    let extended_authentication_applied = match status {
+fn build_connector_response(
+    adyen_webhook_response: &AdyenWebhookResponse,
+) -> Option<ConnectorResponseData> {
+    let extended_authentication_applied = match adyen_webhook_response.status {
         AdyenWebhookStatus::AdjustedAuthorization => {
             Some(common_types::primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true))
         }
@@ -4022,9 +4027,14 @@ fn build_connector_response(status: &AdyenWebhookStatus) -> Option<ConnectorResp
         _ => None,
     };
 
+    let extended_authorization_last_applied_at = extended_authentication_applied
+        .filter(|val| *val.deref())
+        .and(adyen_webhook_response.event_date);
+
     let extend_authorization_response = ExtendedAuthorizationResponseData {
         extended_authentication_applied,
         capture_before: None,
+        extended_authorization_last_applied_at,
     };
 
     Some(ConnectorResponseData::new(
@@ -4188,7 +4198,7 @@ pub fn get_webhook_response(
     };
 
     let txn_amount = response.amount.as_ref().map(|amount| amount.value);
-    let connector_response = build_connector_response(&response.status);
+    let connector_response = build_connector_response(&response);
 
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
@@ -4913,7 +4923,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         // Asynchronous authorization adjustment
-        Ok(Self { ..item.data })
+        Ok(Self {
+            status: storage_enums::AttemptStatus::Pending,
+            ..item.data
+        })
     }
 }
 
@@ -4932,7 +4945,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsCaptureRouterData>> for AdyenCaptureReque
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.amount.to_owned(),
+                value: item.router_data.request.minor_amount_to_capture,
             },
         })
     }
@@ -4984,7 +4997,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 incremental_authorization_allowed: None,
                 charges,
             }),
-            amount_captured: Some(0),
+            amount_captured: None, // updated by Webhooks
             ..item.data
         })
     }
@@ -5454,6 +5467,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
             refusal_reason,
             refusal_reason_code,
             event_code: notif.event_code,
+            event_date: notif.event_date,
             refusal_code_raw: notif.additional_data.refusal_code_raw,
             refusal_reason_raw: notif.additional_data.refusal_reason_raw,
             recurring_detail_reference: notif.additional_data.recurring_detail_reference,
