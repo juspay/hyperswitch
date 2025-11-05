@@ -10,7 +10,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -42,7 +42,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts::NO_ERROR_MESSAGE,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, RefreshTokenType, Response},
@@ -178,13 +178,15 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                     santander_constants::SANTANDER_VERSION,
                     boleto_mca_metadata.workspace_id
                 )),
-                _ => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
                 }
                 .into()),
             },
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: req.payment_method.to_string(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -402,7 +404,11 @@ impl ConnectorCommon for Santander {
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
-                        code: response.status.as_str().unwrap_or("UNKNOWN").to_string(),
+                        code: response
+                            .status
+                            .as_str()
+                            .unwrap_or(NO_ERROR_CODE)
+                            .to_string(),
                         message,
                         reason: response.detail.clone(),
                         attempt_status: None,
@@ -420,7 +426,7 @@ impl ConnectorCommon for Santander {
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
-                        code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                        code: NO_ERROR_CODE.to_string(),
                         message: message.clone(),
                         reason: Some(message),
                         attempt_status: None,
@@ -437,7 +443,7 @@ impl ConnectorCommon for Santander {
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
-                        code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                        code: NO_ERROR_CODE.to_string(),
                         message: message.clone(),
                         reason: Some(detail),
                         attempt_status: None,
@@ -544,6 +550,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -719,14 +726,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let original_amount = match response {
             SantanderPaymentsResponse::PixQRCode(ref pix_data) => pix_data.valor.original.clone(),
-            SantanderPaymentsResponse::Boleto(_) => {
-                convert_amount(
-                    self.amount_converter,
-                    MinorUnit::new(data.request.amount),
-                    data.request.currency,
-                )?
-                // no amount field in the boleto response
-            }
+            SantanderPaymentsResponse::Boleto(ref boleto_data) => boleto_data.nominal_value.clone(),
         };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -803,7 +803,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             .request
             .connector_meta
             .clone()
-            .map(|b| b.parse_value("QrDataUrlSantander"))
+            .map(|qr_code_data| qr_code_data.parse_value("QrDataUrlSantander"))
             .transpose()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
