@@ -405,6 +405,7 @@ export const CONNECTOR_LISTS = {
       "stax",
       "wellsfargo",
       "worldpayxml",
+      "finix",
     ],
     // Add more exclusion lists
   },
