@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.05.0
+
+### Features
+
+- **connector:**
+  - [NOVALNET] Receive Chargeback Webhooks During Customer Dispute ([#10051](https://github.com/juspay/hyperswitch/pull/10051)) ([`35710bc`](https://github.com/juspay/hyperswitch/commit/35710bc2856aff9591a4d21edb86bbff48572582))
+  - [Zift] Add Template Code ([#10104](https://github.com/juspay/hyperswitch/pull/10104)) ([`172d14e`](https://github.com/juspay/hyperswitch/commit/172d14ee6b3263897c4e7396ad9cd71e52eb9843))
+- **docs:** Openapi spec for locker v2 ([#10071](https://github.com/juspay/hyperswitch/pull/10071)) ([`d735555`](https://github.com/juspay/hyperswitch/commit/d7355550714742a5c076f3325a5b2bf19c9be69b))
+- **events:** Taking request and response both for detail extraction for kafka events ([#9993](https://github.com/juspay/hyperswitch/pull/9993)) ([`e97c9c2`](https://github.com/juspay/hyperswitch/commit/e97c9c28c893ffb8fec6b6fcfb533acbb0eb642e))
+- Adding new field for merchant_account_metadata ([#9952](https://github.com/juspay/hyperswitch/pull/9952)) ([`6055d70`](https://github.com/juspay/hyperswitch/commit/6055d70c43ac8e2d6d349917934d1e7eda028a3f))
+
+### Bug Fixes
+
+- **core:** Preserve existing webhook details during business profile update ([#9957](https://github.com/juspay/hyperswitch/pull/9957)) ([`436893a`](https://github.com/juspay/hyperswitch/commit/436893a6f59aed9ed4732d7509390f5d72f52549))
+- Update method call to use router_store for merchant connector account updates ([#10062](https://github.com/juspay/hyperswitch/pull/10062)) ([`a81af9d`](https://github.com/juspay/hyperswitch/commit/a81af9d6bcc0169f6c7ddcac01d80247bfa33ce2))
+
+### Refactors
+
+- **Customer:** Introduced a wrapper function for the limit value in the Customer page and removed the profile_id field ([#9986](https://github.com/juspay/hyperswitch/pull/9986)) ([`db61eb5`](https://github.com/juspay/hyperswitch/commit/db61eb51071f7e55665fd686152129b7c6fae6e3))
+- **connector:** Use existing RouterData Type and RouterResponseData type for existing flows ([#10028](https://github.com/juspay/hyperswitch/pull/10028)) ([`4e62800`](https://github.com/juspay/hyperswitch/commit/4e62800b9079ae127b2991f78395e74eba8622c2))
+
+**Full Changelog:** [`2025.11.04.1...2025.11.05.0`](https://github.com/juspay/hyperswitch/compare/2025.11.04.1...2025.11.05.0)
+
+- - -
+
+## 2025.11.04.1
+
+### Features
+
+- **store:** Store id for adyen ([#10108](https://github.com/juspay/hyperswitch/pull/10108)) ([`1895e41`](https://github.com/juspay/hyperswitch/commit/1895e4129c9935d81bc67a7021306c3ff6e788ab))
+
+### Bug Fixes
+
+- **payouts:** Webhook error consumption ([#10096](https://github.com/juspay/hyperswitch/pull/10096)) ([`95a4ce4`](https://github.com/juspay/hyperswitch/commit/95a4ce4377e5f5195ba100eba9fcf6f623d3954d))
+- **revenue_recovery:** Change business status from EXECUTE_WORKFLOW_COMPLETE to EXECUTE_WORKFLOW_FAILURE ([#10092](https://github.com/juspay/hyperswitch/pull/10092)) ([`2201e2a`](https://github.com/juspay/hyperswitch/commit/2201e2a3f764dc2adae1e083fa9cc0a76b9c8507))
+- **workflow:** Pin cocogitto version to 6.3.0 in release-stable-version workflow ([#10105](https://github.com/juspay/hyperswitch/pull/10105)) ([`c70f59d`](https://github.com/juspay/hyperswitch/commit/c70f59dbd67b516f1aecc8f5408cc719e788d30d))
+
+**Full Changelog:** [`2025.11.04.0...2025.11.04.1`](https://github.com/juspay/hyperswitch/compare/2025.11.04.0...2025.11.04.1)
+
+- - -
+
 ## 2025.11.04.0
 
 ### Features

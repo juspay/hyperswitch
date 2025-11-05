@@ -31,7 +31,6 @@ thiserror = "1.0.69"
 time = "0.3.41"
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "1d0d1e2b31f20e3127e9bf2c5b759a7c4dd91484", package = "rust-grpc-client" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.09.24.0", package = "masking" }
-
 # First party crates
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }

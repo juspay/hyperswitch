@@ -22,9 +22,9 @@ use hyperswitch_domain_models::{
         VerifyWebhookSource,
     },
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData, PaymentsSyncData,
-        ResponseId, VerifyWebhookSourceRequestData,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -33,8 +33,9 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, RefreshTokenRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundsRouterData, SdkSessionUpdateRouterData, SetupMandateRouterData,
+        VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -52,7 +53,11 @@ use utils::ForeignTryFrom;
 #[cfg(feature = "payouts")]
 use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
-    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{
         self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo,
         AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
@@ -1672,24 +1677,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            PaypalExtendedAuthResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsExtendAuthorizationData, PaymentsResponseData>
+impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthResponse>>
+    for PaymentsExtendAuthorizationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            PaypalExtendedAuthResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthResponse>,
     ) -> Result<Self, Self::Error> {
         let extend_authorization_response = ExtendedAuthorizationResponseData {
             extended_authentication_applied: is_extend_authorization_applied(
@@ -2238,16 +2231,16 @@ fn get_redirect_url(
     Ok(link)
 }
 
-impl<F>
+impl
     ForeignTryFrom<(
-        ResponseRouterData<F, PaypalSyncResponse, PaymentsSyncData, PaymentsResponseData>,
+        PaymentsSyncResponseRouterData<PaypalSyncResponse>,
         Option<common_enums::PaymentExperience>,
-    )> for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+    )> for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         (item, payment_experience): (
-            ResponseRouterData<F, PaypalSyncResponse, PaymentsSyncData, PaymentsResponseData>,
+            PaymentsSyncResponseRouterData<PaypalSyncResponse>,
             Option<common_enums::PaymentExperience>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -2443,19 +2436,10 @@ impl
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, PaypalThreeDsSyncResponse, PaymentsSyncData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>> for PaymentsSyncRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            PaypalThreeDsSyncResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             // status is hardcoded because this try_from will only be reached in card 3ds before the completion of complete authorize flow.
@@ -2476,19 +2460,10 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, PaypalThreeDsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            PaypalThreeDsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<PaypalThreeDsResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
