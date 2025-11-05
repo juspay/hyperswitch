@@ -689,14 +689,16 @@ pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
     pub tracking: Option<AdyenplatformTrackingData>,
+    pub reason: Option<String>,
     pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformTrackingData {
-    status: TrackingStatus,
-    estimated_arrival_time: Option<String>,
+    pub status: TrackingStatus,
+    pub reason: Option<String>,
+    pub estimated_arrival_time: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
