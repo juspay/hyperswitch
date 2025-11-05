@@ -137,6 +137,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }

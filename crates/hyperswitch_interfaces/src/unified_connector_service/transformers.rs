@@ -259,6 +259,7 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
+            payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
     }
@@ -287,6 +288,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
                     extended_authentication_applied: data
                         .extended_authentication_applied
                         .map(ExtendedAuthorizationAppliedBool::from),
+                    extended_authorization_last_applied_at: None, // This field has to be added to UCS
                 }
             });
 
