@@ -410,6 +410,12 @@ pub struct IncomingWebhookDetails {
     pub resource_object: Vec<u8>,
 }
 
+#[cfg(feature = "payouts")]
+pub struct PayoutWebhookUpdate {
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
