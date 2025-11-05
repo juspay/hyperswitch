@@ -1317,7 +1317,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             enable_overcapture: None,
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
-            billing_descriptor: None,
+            billing_descriptor: data.request.billing_descriptor.clone(),
         }
     }
 }
