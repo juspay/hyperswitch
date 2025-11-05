@@ -4,8 +4,7 @@ use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisi
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
-    fp_utils,
-    pii,
+    fp_utils, pii,
 };
 use euclid::frontend::ast::Program;
 pub use euclid::{
@@ -1217,7 +1216,9 @@ impl SuccessBasedRoutingConfig {
 
     pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
         fp_utils::when(
-            self.params.is_none() && self.config.is_none() && self.decision_engine_configs.is_none(),
+            self.params.is_none()
+                && self.config.is_none()
+                && self.decision_engine_configs.is_none(),
             || {
                 Err(ValidationError::MissingRequiredField {
                     field_name: "All fields in SuccessBasedRoutingConfig cannot be null"
