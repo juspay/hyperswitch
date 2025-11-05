@@ -2021,9 +2021,9 @@ where
             shipping_address,
             device_details,
             url_details: Some(UrlDetails {
-                success_url: "https://www.google.com".to_string(),
-                failure_url: "https://www.google.com".to_string(),
-                pending_url: "https://www.google.com".to_string(),
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url.clone(),
             }),
             amount_details,
             items: l2_l3_items,

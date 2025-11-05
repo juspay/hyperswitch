@@ -1073,11 +1073,11 @@ pub struct PaymentsRequest {
     pub shipping: Option<Address>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    #[schema(max_length = 255, example = "Hyperswitch Router", deprecated)]
     pub statement_descriptor_name: Option<String>,
 
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.
-    #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    #[schema(max_length = 255, example = "Payment for shoes purchase", deprecated)]
     pub statement_descriptor_suffix: Option<String>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount

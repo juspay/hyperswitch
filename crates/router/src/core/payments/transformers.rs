@@ -8,8 +8,6 @@ use api_models::payments::{
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
-use common_types::payments::BillingDescriptor;
-#[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils, pii,
@@ -1534,6 +1532,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         is_stored_credential: None,
+        billing_descriptor: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4407,26 +4406,6 @@ fn get_off_session(
 }
 
 #[cfg(feature = "v1")]
-fn get_billing_descriptor(payment_intent: &storage::PaymentIntent) -> Option<BillingDescriptor> {
-    payment_intent
-        .billing_descriptor
-        .as_ref()
-        .map(|descriptor| BillingDescriptor {
-            name: descriptor.name.clone(),
-            city: descriptor.city.clone(),
-            phone: descriptor.phone.clone(),
-            statement_descriptor: descriptor
-                .statement_descriptor
-                .clone()
-                .or_else(|| payment_intent.statement_descriptor_name.clone()),
-            statement_descriptor_suffix: descriptor
-                .statement_descriptor_suffix
-                .clone()
-                .or_else(|| payment_intent.statement_descriptor_suffix.clone()),
-        })
-}
-
-#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -4586,7 +4565,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.payment_intent.off_session,
         );
 
-        let billing_descriptor = get_billing_descriptor(&payment_data.payment_intent);
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -5625,7 +5604,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_data.payment_intent.off_session,
         );
 
-        let billing_descriptor = get_billing_descriptor(&payment_data.payment_intent);
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
         Ok(Self {
             currency: payment_data.currency,
