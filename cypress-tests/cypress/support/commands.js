@@ -947,6 +947,15 @@ Cypress.Commands.add(
   }
 );
 
+// NOTE: The following `customerListCall` command tests the OLD `/customers/list` endpoint.
+// A new API `/api/customers/list_with_count` has been introduced to include pagination
+// and total count in the response.
+//
+// Once the new endpoint is stable and fully rolled out in production,
+// this old endpoint and related test (`customerListCall`) will be deprecated and removed.
+
+// OLD customer list (to be deprecated later)
+
 Cypress.Commands.add("customerListCall", (globalState) => {
   cy.request({
     method: "GET",
@@ -966,6 +975,74 @@ Cypress.Commands.add("customerListCall", (globalState) => {
     });
   });
 });
+
+// NEW customer list (with count and pagination)
+
+Cypress.Commands.add("customerListWithCountCallTest", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/api/customers/list_with_count?limit=20&offset=0`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("data");
+      expect(response.body).to.have.property("total_count");
+    });
+  });
+});
+
+Cypress.Commands.add("customerListPaginationCallTest", (globalState) => {
+  const limit = 5;
+  const offset = 5;
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/api/customers/list_with_count?limit=${limit}&offset=${offset}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("data");
+    });
+  });
+});
+
+Cypress.Commands.add("customerListLimitValidationCallTest", (globalState) => {
+  const endpoint = `${globalState.get("baseUrl")}/api/customers/list_with_count`;
+
+  [0, 101].forEach((limit) => {
+    cy.request({
+      method: "GET",
+      url: `${endpoint}?limit=${limit}&offset=0`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.be.oneOf([400, 422]);
+        expect(response.body.message.toLowerCase()).to.include("limit");
+      });
+    });
+  });
+});
+
 
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
