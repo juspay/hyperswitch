@@ -1037,6 +1037,21 @@ impl EliminationRoutingConfig {
                 },
             ))
     }
+
+    pub fn validate_fields_not_all_null(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        if self.params.is_none()
+            && self.elimination_analyser_config.is_none()
+            && self.decision_engine_configs.is_none()
+        {
+            Err(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "All fields in EliminationRoutingConfig cannot be null".to_string(),
+                },
+            ))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1198,6 +1213,21 @@ impl SuccessBasedRoutingConfig {
                     field_name: "decision_engine_configs".to_string(),
                 },
             ))
+    }
+
+    pub fn validate_fields_not_all_null(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        if self.params.is_none()
+            && self.config.is_none()
+            && self.decision_engine_configs.is_none()
+        {
+            Err(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "All fields in SuccessBasedRoutingConfig cannot be null".to_string(),
+                },
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 

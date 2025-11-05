@@ -2250,7 +2250,15 @@ pub async fn create_specific_dynamic_routing_setup(
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let success_config = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    config
+                        .validate_fields_not_all_null()
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in SuccessBasedRoutingConfig cannot be null"
+                                .to_string(),
+                        })?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2275,7 +2283,15 @@ pub async fn create_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let elimination_config = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    config
+                        .validate_fields_not_all_null()
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in EliminationRoutingConfig cannot be null"
+                                .to_string(),
+                        })?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),
