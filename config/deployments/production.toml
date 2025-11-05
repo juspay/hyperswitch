@@ -168,6 +168,7 @@ worldpayvantiv.secondary_base_url = "https://onlinessr.vantivcnp.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com" # pre-live environment
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
+zift.base_url = "https://sandbox-secure.zift.io/gates/xurl?"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
 zsl.base_url = "https://apirh.prodoffalb.net/"
@@ -265,7 +266,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,stripe,nuvei,worldpayvantiv"
+connector_list = "adyen,archipel,checkout,cybersource,stripe,nuvei,worldpayvantiv"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

@@ -4,6 +4,7 @@ const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
   card_exp_month: "10",
   card_exp_year: "28",
+  card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -11,6 +12,7 @@ const successfulNo3DSCardDetails = {
 const successfulNoThreeDsCardDetailsRequest = {
   card_number: "4530910000012345",
   card_exp_month: "10",
+  card_exp_year: "28",
   card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
@@ -394,9 +396,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -413,9 +412,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -432,9 +428,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -451,9 +444,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -470,9 +460,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -490,9 +477,6 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {},
       Response: {
         status: 200,
@@ -502,9 +486,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -533,9 +514,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        TRIGGER_SKIP: false,
-      },
       Request: {
         currency: "USD",
         amount: 6000,
