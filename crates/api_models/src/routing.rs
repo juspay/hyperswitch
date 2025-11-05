@@ -1216,13 +1216,12 @@ impl SuccessBasedRoutingConfig {
     }
 
     pub fn validate_fields_not_all_null(&self) -> Result<(), error_stack::Report<ValidationError>> {
-        if self.params.is_none()
-            && self.config.is_none()
-            && self.decision_engine_configs.is_none()
+        if self.params.is_none() && self.config.is_none() && self.decision_engine_configs.is_none()
         {
             Err(error_stack::Report::new(
                 ValidationError::MissingRequiredField {
-                    field_name: "All fields in SuccessBasedRoutingConfig cannot be null".to_string(),
+                    field_name: "All fields in SuccessBasedRoutingConfig cannot be null"
+                        .to_string(),
                 },
             ))
         } else {
