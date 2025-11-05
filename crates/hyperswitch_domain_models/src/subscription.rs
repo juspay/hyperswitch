@@ -73,6 +73,7 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -139,6 +140,7 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: self.merchant_reference_id,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            coupon_codes: self.coupon_codes,
         })
     }
 
@@ -168,6 +170,7 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: item.merchant_reference_id,
             plan_id: item.plan_id,
             item_price_id: item.item_price_id,
+            coupon_codes: item.coupon_codes,
         })
     }
 
@@ -187,6 +190,7 @@ impl super::behaviour::Conversion for Subscription {
             self.merchant_reference_id,
             self.plan_id,
             self.item_price_id,
+            self.coupon_codes,
         ))
     }
 }

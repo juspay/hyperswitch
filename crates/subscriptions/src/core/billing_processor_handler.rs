@@ -170,6 +170,7 @@ impl BillingHandler {
         state: &SessionState,
         subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
         billing_address: Option<api_models::payments::Address>,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
@@ -187,6 +188,7 @@ impl BillingHandler {
                     field_name: "billing",
                 },
             )?,
+            coupon_codes,
             auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
             connector_params: self.connector_params.clone(),
         };

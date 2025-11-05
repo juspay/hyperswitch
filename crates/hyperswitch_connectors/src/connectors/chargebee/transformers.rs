@@ -68,7 +68,31 @@ pub struct ChargebeeSubscriptionCreateRequest {
     pub billing_address_zip: Option<Secret<String>>,
     #[serde(rename = "billing_address[country]")]
     pub billing_address_country: Option<common_enums::CountryAlpha2>,
+    #[serde(
+        serialize_with = "serialize_coupon_ids",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[serde(flatten)]
+    pub coupon_codes: Option<Vec<String>>,
     pub auto_collection: ChargebeeAutoCollection,
+}
+fn serialize_coupon_ids<S>(coupons: &Option<Vec<String>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeMap;
+
+    match coupons {
+        Some(coupon_list) if !coupon_list.is_empty() => {
+            let mut map = serializer.serialize_map(Some(coupon_list.len()))?;
+            for (index, coupon) in coupon_list.iter().enumerate() {
+                let key = format!("coupon_ids[{}]", index);
+                map.serialize_entry(&key, coupon)?;
+            }
+            map.end()
+        }
+        _ => serializer.serialize_none(),
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -112,6 +136,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             billing_address_state: item.router_data.get_optional_billing_state(),
             billing_address_zip: item.router_data.get_optional_billing_zip(),
             billing_address_country: item.router_data.get_optional_billing_country(),
+            coupon_codes: req.coupon_codes.clone(),
             auto_collection: req.auto_collection.clone().into(),
         })
     }

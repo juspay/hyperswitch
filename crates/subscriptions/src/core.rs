@@ -60,6 +60,7 @@ pub async fn create_subscription(
             &profile.clone(),
             request.plan_id.clone(),
             Some(request.item_price_id.clone()),
+            request.coupon_codes.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -67,7 +68,7 @@ pub async fn create_subscription(
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
         plan_id: request.plan_id.clone(),
         item_price_id: request.item_price_id.clone(),
-        coupon_code: None,
+        coupon_codes: request.coupon_codes.clone(),
     };
 
     let estimate = billing_handler
@@ -210,6 +211,7 @@ pub async fn create_and_confirm_subscription(
             &profile.clone(),
             request.plan_id.clone(),
             Some(request.item_price_id.clone()),
+            request.coupon_codes.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -243,6 +245,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             subs_handler.subscription.clone(),
             Some(request.item_price_id.clone()),
+            request.coupon_codes.clone(),
             request.get_billing_address(),
         )
         .await?;
@@ -399,6 +402,7 @@ pub async fn confirm_subscription(
             &state,
             subscription.clone(),
             subscription.item_price_id.clone(),
+            subscription.coupon_codes.clone(),
             payment_response.get_billing_address(),
         )
         .await?;
@@ -549,7 +553,7 @@ pub async fn update_subscription(
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
         plan_id: Some(request.plan_id.clone()),
         item_price_id: request.item_price_id.clone(),
-        coupon_code: None,
+        coupon_codes: None,
     };
 
     let estimate = billing_handler

@@ -137,7 +137,7 @@ impl From<GetSubscriptionEstimateResponse>
             currency: value.currency,
             plan_id: None,
             item_price_id: None,
-            coupon_code: None,
+            coupon_codes: None,
             customer_id: value.customer_id,
             line_items: value
                 .line_items

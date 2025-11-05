@@ -538,7 +538,7 @@ impl
             payment: Some(payment_response.clone()),
             customer_id: Some(subscription.customer_id.clone()),
             item_price_id: subscription.item_price_id.clone(),
-            coupon: None,
+            coupon_codes: subscription.coupon_codes.clone(),
             billing_processor_subscription_id: subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
         })

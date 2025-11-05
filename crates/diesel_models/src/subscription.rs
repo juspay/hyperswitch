@@ -24,6 +24,7 @@ pub struct SubscriptionNew {
     merchant_reference_id: Option<String>,
     plan_id: Option<String>,
     item_price_id: Option<String>,
+    coupon_codes: Option<Vec<String>>,
 }
 
 #[derive(
@@ -47,6 +48,8 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub coupon_codes: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -77,6 +80,7 @@ impl SubscriptionNew {
         merchant_reference_id: Option<String>,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
@@ -96,6 +100,7 @@ impl SubscriptionNew {
             merchant_reference_id,
             plan_id,
             item_price_id,
+            coupon_codes,
         }
     }
 

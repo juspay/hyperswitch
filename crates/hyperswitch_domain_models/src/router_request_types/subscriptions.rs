@@ -16,6 +16,7 @@ pub struct SubscriptionCreateRequest {
     pub subscription_items: Vec<SubscriptionItem>,
     pub billing_address: Address,
     pub auto_collection: SubscriptionAutoCollection,
+    pub coupon_codes: Option<Vec<String>>,
     pub connector_params: connector_endpoints::ConnectorParams,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

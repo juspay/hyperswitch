@@ -48,6 +48,7 @@ impl<'a> SubscriptionHandler<'a> {
         profile: &hyperswitch_domain_models::business_profile::Profile,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
     ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -73,6 +74,7 @@ impl<'a> SubscriptionHandler<'a> {
             merchant_reference_id,
             plan_id,
             item_price_id,
+            coupon_codes,
         };
 
         subscription.generate_and_set_client_secret();
@@ -301,7 +303,7 @@ impl SubscriptionWithHandler<'_> {
             payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
             item_price_id: self.subscription.item_price_id.clone(),
-            coupon: None,
+            coupon_codes: self.subscription.coupon_codes.clone(),
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
         })
@@ -331,6 +333,7 @@ impl SubscriptionWithHandler<'_> {
                     },
                 )
                 .transpose()?,
+            self.subscription.coupon_codes.clone(),
         ))
     }
 

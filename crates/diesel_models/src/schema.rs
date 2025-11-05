@@ -1614,6 +1614,7 @@ diesel::table! {
         plan_id -> Nullable<Varchar>,
         #[max_length = 128]
         item_price_id -> Nullable<Varchar>,
+        coupon_codes -> Nullable<Array<Nullable<Text>>>,
     }
 }
 

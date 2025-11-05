@@ -37,8 +37,8 @@ pub struct CreateSubscriptionRequest {
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
 
-    /// Optional coupon code applied to the subscription.
-    pub coupon_code: Option<String>,
+    /// Optional coupon codes applied to the subscription.
+    pub coupon_codes: Option<Vec<String>>,
 
     /// customer ID associated with this subscription.
     pub customer_id: CustomerId,
@@ -83,8 +83,8 @@ pub struct SubscriptionResponse {
     /// Merchant identifier owning this subscription.
     pub merchant_id: MerchantId,
 
-    /// Optional coupon code applied to this subscription.
-    pub coupon_code: Option<String>,
+    /// Optional coupon codes applied to this subscription.
+    pub coupon_codes: Option<Vec<String>>,
 
     /// Optional customer ID associated with this subscription.
     pub customer_id: CustomerId,
@@ -99,7 +99,7 @@ pub struct SubscriptionResponse {
 impl SubscriptionResponse {
     /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
     ///
-    /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
+    /// By default, `client_secret`, `coupon_codes`, and `customer` fields are `None`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: SubscriptionId,
@@ -113,6 +113,7 @@ impl SubscriptionResponse {
         customer_id: CustomerId,
         payment: Option<PaymentResponseData>,
         invoice: Option<Invoice>,
+        coupon_codes: Option<Vec<String>>,
     ) -> Self {
         Self {
             id,
@@ -123,10 +124,10 @@ impl SubscriptionResponse {
             profile_id,
             client_secret,
             merchant_id,
-            coupon_code: None,
             customer_id,
             payment,
             invoice,
+            coupon_codes,
         }
     }
 }
@@ -409,7 +410,7 @@ pub struct CreateAndConfirmSubscriptionRequest {
     pub item_price_id: String,
 
     /// Identifier for the coupon code for the subscription.
-    pub coupon_code: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
 
     /// Identifier for customer.
     pub customer_id: CustomerId,
@@ -460,8 +461,8 @@ pub struct ConfirmSubscriptionResponse {
     /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: Option<String>,
 
-    /// Optional coupon code applied to this subscription.
-    pub coupon: Option<String>,
+    /// Optional coupon codes applied to this subscription.
+    pub coupon_codes: Option<Vec<String>>,
 
     /// Associated profile ID.
     pub profile_id: ProfileId,
@@ -552,7 +553,7 @@ pub struct EstimateSubscriptionQuery {
     pub item_price_id: String,
 
     /// Identifier for the coupon code for the subscription.
-    pub coupon_code: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
 }
 
 impl ApiEventMetric for EstimateSubscriptionQuery {}
@@ -568,7 +569,7 @@ pub struct EstimateSubscriptionResponse {
     /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: Option<String>,
     /// Identifier for the coupon code for the subscription.
-    pub coupon_code: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
     /// Identifier for customer.
     pub customer_id: Option<CustomerId>,
     pub line_items: Vec<SubscriptionLineItem>,
