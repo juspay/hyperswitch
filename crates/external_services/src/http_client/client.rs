@@ -87,6 +87,8 @@ pub fn get_client_builder(
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
 
+    logger::debug!("Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}", proxy_config.http_url.clone(), proxy_config.https_url.clone());
+
     // Proxy all HTTPS traffic through the configured HTTPS proxy
     if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
