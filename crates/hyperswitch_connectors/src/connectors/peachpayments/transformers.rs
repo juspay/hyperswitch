@@ -436,7 +436,8 @@ impl
         };
 
         let routing_reference = RoutingReference {
-            merchant_payment_method_route_id: connector_merchant_config.merchant_payment_method_route_id,
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
         };
 
         let network_token_data = NetworkTokenDetails {
@@ -505,7 +506,8 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
         };
 
         let routing_reference = RoutingReference {
-            merchant_payment_method_route_id: connector_merchant_config.merchant_payment_method_route_id,
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
         };
 
         let card = CardDetails {
