@@ -346,7 +346,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .merchant_reference_id(merchant_reference_id)
                     .lineage_ids(lineage_ids);
                 let connector_name = self.connector.clone();
-                let updated_router_data = Box::pin(ucs_logging_wrapper(
+                let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
                     self.clone(),
                     state,
                     payment_get_request,
@@ -415,7 +415,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .map(|raw_connector_response| raw_connector_response.expose().into());
                         router_data.connector_http_status_code = Some(status_code);
 
-                        Ok((router_data, payment_get_response))
+                        Ok((router_data, (), payment_get_response))
                     },
                 ))
                 .await?;

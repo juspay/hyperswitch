@@ -1454,13 +1454,13 @@ pub fn extract_webhook_content_from_ucs_response(
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
 #[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
-pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOutput>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
-) -> RouterResult<RouterData<T, Req, Resp>>
+) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
     T: std::fmt::Debug + Clone + Send + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
@@ -1473,7 +1473,8 @@ where
             external_services::grpc_client::GrpcHeadersUcs,
         ) -> Fut
         + Send,
-    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
+    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, FlowOutput, GrpcResp)>>
+        + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
     tracing::Span::current().record("flow_type", std::any::type_name::<T>());
@@ -1512,7 +1513,7 @@ where
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
-        Ok((updated_router_data, grpc_response)) => {
+        Ok((updated_router_data, flow_output, grpc_response)) => {
             let status = updated_router_data
                 .connector_http_status_code
                 .unwrap_or(200);
@@ -1522,7 +1523,11 @@ where
                 |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
             );
 
-            (status, Some(grpc_response_body), Ok(updated_router_data))
+            (
+                status,
+                Some(grpc_response_body),
+                Ok((updated_router_data, flow_output)),
+            )
         }
         Err(error) => {
             // Update error metrics for UCS calls
@@ -1572,8 +1577,8 @@ where
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
-        router_data.external_latency =
-            Some(router_data.external_latency.unwrap_or(0) + external_latency);
+        router_data.0.external_latency =
+            Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
 }
@@ -1730,10 +1735,11 @@ pub async fn call_unified_connector_service_for_refund_execute(
             updated_router_data.response = refund_response_data;
             updated_router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, grpc_response))
+            Ok((updated_router_data, (), grpc_response))
         },
     ))
     .await
+    .map(|(router_data, _flow_response)| router_data)
 }
 
 /// Execute UCS refund sync request using RefundService.Get gRPC method
@@ -1801,8 +1807,9 @@ pub async fn call_unified_connector_service_for_refund_sync(
             updated_router_data.response = refund_response_data;
             updated_router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, grpc_response))
+            Ok((updated_router_data, (), grpc_response))
         },
     ))
     .await
+    .map(|(router_data, _flow_response)| router_data)
 }

@@ -5803,6 +5803,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+                .transpose()?,
         })
     }
 }

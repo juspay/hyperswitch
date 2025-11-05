@@ -418,18 +418,18 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(ucs_logging_wrapper(
+        let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
             payment_authorize_request.clone(),
             headers_builder,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
-                let response = client
+                let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,
                         connector_auth_metadata,
                         grpc_headers,
-                    )
+                    ))
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to authorize payment")?;
@@ -454,7 +454,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                Ok((router_data, payment_authorize_response))
+                Ok((router_data,(), payment_authorize_response))
             }
         )).await?;
 
