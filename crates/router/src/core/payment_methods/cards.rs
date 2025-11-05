@@ -1881,6 +1881,12 @@ pub async fn update_customer_payment_method(
             .into());
         }
 
+        if pm.payment_method_data.is_some() {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The Payment Method Data is not NULL".to_string(),
+            })?
+        }
+
         let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
         let key_manager_state = (&state).into();
         let pm_data_encrypted = create_encrypted_data(
