@@ -1286,13 +1286,13 @@ pub fn create_authorize_url(
 }
 
 pub fn create_webhook_url(
-    _router_base_url: &str,
+    router_base_url: &str,
     merchant_id: &id_type::MerchantId,
     merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
-        "https://638363b56a8e.ngrok-free.app",
+        router_base_url,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
     )
