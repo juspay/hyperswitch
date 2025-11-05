@@ -71,7 +71,6 @@ impl VerifyConnectorData {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
-            is_migrated_card: None,
         }
     }
 
