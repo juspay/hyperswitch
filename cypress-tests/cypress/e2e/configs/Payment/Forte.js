@@ -280,15 +280,16 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    ResponseCustom: {
-      status: 400,
-      body: {
-        code: "IR_16",
-        message: "You cannot cancel this payment because it has status processing",
-        type: "invalid_request",
+      ResponseCustom: {
+        status: 400,
+        body: {
+          code: "IR_16",
+          message:
+            "You cannot cancel this payment because it has status processing",
+          type: "invalid_request",
+        },
       },
-    },
-   }),
+    }),
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -317,7 +318,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "A reverse action can only be performed on original transaction that are of sale action type.",
+          error_message:
+            "A reverse action can only be performed on original transaction that are of sale action type.",
         },
       },
     },
@@ -329,7 +331,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "A reverse action can only be performed on original transaction that are of sale action type.",
+          error_message:
+            "A reverse action can only be performed on original transaction that are of sale action type.",
         },
       },
     },
@@ -375,7 +378,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -398,7 +401,7 @@ export const connectorDetails = {
     },
     // 3DS Save Card flows - Not implemented
     SaveCardUse3DSAutoCapture: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -417,7 +420,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSManualCapture: {
-     Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -776,7 +779,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -799,7 +802,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -819,7 +822,7 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -841,7 +844,7 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -858,7 +861,7 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -875,7 +878,7 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -914,8 +917,9 @@ export const connectorDetails = {
         status: 400,
         body: {
           code: "IR_14",
-          message: "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
-          type: "invalid_request"
+          message:
+            "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+          type: "invalid_request",
         },
       },
     },
