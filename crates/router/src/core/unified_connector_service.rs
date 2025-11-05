@@ -217,27 +217,13 @@ where
 
     // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let (shadow_key_exists, _shadow_percentage) =
-        get_rollout_config_info(state, &shadow_rollout_key).await;
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     // Simplified decision logic: Shadow takes priority, then rollout, then direct
-    let shadow_rollout_availability = if shadow_key_exists {
-        // Block 1: Shadow key exists - check if it's enabled
-        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
-
-        if shadow_percentage != 0.0 {
-            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            router_env::logger::debug!(
-                shadow_key = %shadow_rollout_key,
-                shadow_percentage = shadow_percentage,
-                rollout_enabled = rollout_result.should_execute,
-                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
-            );
-            // Shadow disabled, result is the same regardless of rollout status
-            ShadowRolloutAvailability::NotAvailable
-        }
+    let shadow_rollout_availability = if shadow_rollout_result.should_execute {
+        // Block 1: Shadow key exists and it's enabled
+        router_env::logger::debug!(shadow_rollout_key = %shadow_rollout_key, "Shadow key enabled, using shadow mode for comparison");
+        ShadowRolloutAvailability::IsAvailable
     } else if rollout_result.should_execute {
         // Block 2: No shadow key, but rollout is enabled - use primary UCS
         router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
