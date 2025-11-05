@@ -1973,9 +1973,7 @@ impl<F>
                             .token_response
                             .clone()
                             .map(MandateReference::from),
-                    };     
-
-                    println!("mandate_reference_data: {:?}", mandate_reference_data);                                 
+                    };                                     
 
                     Ok(Self {
                         status,
@@ -2283,7 +2281,7 @@ impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
          let mandate_metadata = api_models::payments::AdditionalCardInfo::from(&token_data);
 
-        let mandate_metadata_json =  serde_json::to_value(&mandate_metadata).inspect_err(|e| logger::error!("Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo")).ok();
+        let mandate_metadata_json =  serde_json::to_value(&mandate_metadata).inspect_err(|_| logger::error!("Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo")).ok();
 
         let mandate_metadata_secret_json = mandate_metadata_json.map(pii::SecretSerdeValue::new);
 
