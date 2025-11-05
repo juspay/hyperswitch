@@ -292,8 +292,6 @@ impl PaymentsResponseData {
             None
         }
     }
-
-
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -1,5 +1,7 @@
 use common_utils::{
-    ext_traits::Encode, pii, types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector}
+    ext_traits::Encode,
+    pii,
+    types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -123,9 +125,7 @@ pub struct WorldpayvantivMetadataObject {
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        meta_data: &Option<pii::SecretSerdeValue>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata = connector_utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "metadata",
@@ -1302,13 +1302,13 @@ pub struct PaymentResponse {
     pub network_transaction_id: Option<Secret<String>>,
     pub approved_amount: Option<MinorUnit>,
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
-    pub account_updater : Option<AccountUpdater>
+    pub account_updater: Option<AccountUpdater>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountUpdater {
-    pub original_card_token_info : Option<AccountUpdaterCardTokenInfo>,
+    pub original_card_token_info: Option<AccountUpdaterCardTokenInfo>,
     pub new_card_token_info: Option<AccountUpdaterCardTokenInfo>,
     pub extended_card_response: ExtendedCardResponse,
 }
@@ -1972,8 +1972,8 @@ impl<F>
                         _ => sale_response
                             .token_response
                             .clone()
-                            .map(MandateReference::from),
-                    };                                     
+                            .map(MandateReference::from)
+                    };
 
                     Ok(Self {
                         status,
@@ -2225,20 +2225,18 @@ impl From<TokenResponse> for MandateReference {
 }
 
 impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCardInfo {
-    fn from(
-        token_data: &AccountUpdaterCardTokenInfo,
-    ) ->Self {
+    fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
-        .exp_date
-        .as_ref()
-        .and_then(|exp_date| exp_date.as_str().get(0..2).map(|s| s.to_string()))
-        .map(Secret::new);
-    
+            .exp_date
+            .as_ref()
+            .and_then(|exp_date| exp_date.as_str().get(0..2).map(|s| s.to_string()))
+            .map(Secret::new);
+
         let card_exp_year = token_data
-        .exp_date
-        .as_ref()
-        .and_then(|exp_date| exp_date.as_str().get(2..4).map(|s| s.to_string()))
-        .map(Secret::new);
+            .exp_date
+            .as_ref()
+            .and_then(|exp_date| exp_date.as_str().get(2..4).map(|s| s.to_string()))
+            .map(Secret::new);
 
         Self {
             card_issuer: None,
@@ -2266,7 +2264,7 @@ impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCard
 impl From<WorldpayvativCardType> for common_enums::CardNetwork {
     fn from(card_type: WorldpayvativCardType) -> Self {
         match card_type {
-            WorldpayvativCardType::Visa =>Self::Visa,
+            WorldpayvativCardType::Visa => Self::Visa,
             WorldpayvativCardType::MasterCard => Self::Mastercard,
             WorldpayvativCardType::AmericanExpress => Self::AmericanExpress,
             WorldpayvativCardType::Discover => Self::Discover,
@@ -2279,9 +2277,15 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-         let mandate_metadata = api_models::payments::AdditionalCardInfo::from(&token_data);
+        let mandate_metadata = api_models::payments::AdditionalCardInfo::from(&token_data);
 
-        let mandate_metadata_json =  serde_json::to_value(&mandate_metadata).inspect_err(|_| logger::error!("Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo")).ok();
+        let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
+            .inspect_err(|_| {
+                logger::error!(
+                    "Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo"
+                )
+            })
+            .ok();
 
         let mandate_metadata_secret_json = mandate_metadata_json.map(pii::SecretSerdeValue::new);
 

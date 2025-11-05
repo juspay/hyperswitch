@@ -4,12 +4,11 @@ use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecor
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
-use masking::PeekInterface;
 
 use crate::{db::errors, types::storage::enums::RevenueRecoveryAlgorithmType, SessionState};
 
@@ -520,8 +519,10 @@ impl RedisTokenManager {
                         existing_token.modified_at = Some(last_external_attempt_at);
                         existing_token.error_code = error_code;
                         existing_token.is_hard_decline = token_data.is_hard_decline;
-                        token_data.is_active.map(|is_active| existing_token.is_active = Some(is_active));
-                });
+                        token_data
+                            .is_active
+                            .map(|is_active| existing_token.is_active = Some(is_active));
+                    });
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);
@@ -1082,13 +1083,12 @@ impl RedisTokenManager {
         Ok(token_data)
     }
 
-
     pub async fn handle_account_updater_token_update(
         state: &SessionState,
         customer_id: &str,
         scheduled_token: &PaymentProcessorTokenStatus,
         mandate_data: Option<api_models::payments::MandateIds>,
-        payment_attempt_id : &id_type::GlobalAttemptId
+        payment_attempt_id: &id_type::GlobalAttemptId,
     ) -> CustomResult<bool, errors::StorageError> {
         match mandate_data {
             Some(data) => {
@@ -1099,20 +1099,24 @@ impl RedisTokenManager {
 
                 let old_token_id = scheduled_token
                     .payment_processor_token_details
-                    .payment_processor_token.clone();
+                    .payment_processor_token
+                    .clone();
 
-                let account_updater_action = Self::determine_account_updater_action_based_on_old_token_and_mandate_data(
-                    old_token_id.as_str(),
-                    data
-                )?;
+                let account_updater_action =
+                    Self::determine_account_updater_action_based_on_old_token_and_mandate_data(
+                        old_token_id.as_str(),
+                        data,
+                    )?;
 
-                account_updater_action.handle_account_updater_action(
-                    state,
-                    customer_id,
-                    &account_updater_action,
-                    scheduled_token,
-                    payment_attempt_id
-                ).await?;
+                account_updater_action
+                    .handle_account_updater_action(
+                        state,
+                        customer_id,
+                        &account_updater_action,
+                        scheduled_token,
+                        payment_attempt_id,
+                    )
+                    .await?;
 
                 logger::info!(
                     customer_id = customer_id,
@@ -1135,14 +1139,11 @@ impl RedisTokenManager {
         old_token: &str,
         mandate_data: api_models::payments::MandateIds,
     ) -> CustomResult<AccountUpdaterAction, errors::StorageError> {
-
         let new_token = mandate_data.get_connector_mandate_id();
         let account_updater_action = match new_token {
             Some(new_token) => {
-                logger::info!(
-                    "Found token in mandate data, comparing with old token"
-                );
-                let is_token_equal  = (new_token == old_token);
+                logger::info!("Found token in mandate data, comparing with old token");
+                let is_token_equal = (new_token == old_token);
 
                 logger::info!(
                     "Old token and new token comparison result: {}",
@@ -1167,7 +1168,6 @@ impl RedisTokenManager {
                             AccountUpdaterAction::ExistingToken
                         }
                     }
-
                 } else {
                     logger::info!("Old token and new token are not equal.");
                     match mandate_data.get_connector_mandate_metadata() {
@@ -1186,11 +1186,9 @@ impl RedisTokenManager {
                         }
                     }
                 }
-            },
+            }
             None => {
-                logger::warn!(
-                    "No new token found in mandate data while comparing with old token."
-                );
+                logger::warn!("No new token found in mandate data while comparing with old token.");
                 AccountUpdaterAction::NoAction
             }
         };
@@ -1203,7 +1201,7 @@ pub enum AccountUpdaterAction {
     TokenUpdate(String, api_models::payments::AdditionalCardInfo),
     ExpiryUpdate(api_models::payments::AdditionalCardInfo),
     ExistingToken,
-    NoAction
+    NoAction,
 }
 
 impl AccountUpdaterAction {
@@ -1213,14 +1211,11 @@ impl AccountUpdaterAction {
         customer_id: &str,
         account_updater_action: &Self,
         scheduled_token: &PaymentProcessorTokenStatus,
-        attempt_id : &id_type::GlobalAttemptId,
-    ) -> CustomResult<(), errors::StorageError>
-    {
+        attempt_id: &id_type::GlobalAttemptId,
+    ) -> CustomResult<(), errors::StorageError> {
         match account_updater_action {
             Self::TokenUpdate(new_token, additional_card_info) => {
-                logger::info!(
-                    "Handling TokenUpdate action with new token"
-                );
+                logger::info!("Handling TokenUpdate action with new token");
                 // Implement token update logic here using additional_card_info if needed
 
                 let mut updated_token = scheduled_token.clone();
@@ -1234,11 +1229,12 @@ impl AccountUpdaterAction {
                     state,
                     customer_id,
                     updated_token,
-                ).await?;
+                )
+                .await?;
 
                 logger::info!("Successfully deactivated old token.");
 
-                let new_token  =  PaymentProcessorTokenStatus {
+                let new_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: PaymentProcessorTokenDetails {
                         payment_processor_token: new_token.to_owned(),
                         expiry_month: additional_card_info.card_exp_month.clone(),
@@ -1261,11 +1257,8 @@ impl AccountUpdaterAction {
                     account_update_history: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(
-                    state,
-                    customer_id,
-                    new_token,
-                ).await?;
+                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
+                    .await?;
                 logger::info!("Successfully updated token with new token information.")
             }
             Self::ExpiryUpdate(additional_card_info) => {
@@ -1282,7 +1275,8 @@ impl AccountUpdaterAction {
                     state,
                     customer_id,
                     updated_token,
-                ).await?;
+                )
+                .await?;
 
                 logger::info!("Successfully updated token expiry information.")
             }
