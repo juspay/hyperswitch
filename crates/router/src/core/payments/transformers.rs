@@ -1501,7 +1501,6 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
                 .get_amount_as_i64(),
         ),
         confirm: true,
-        statement_descriptor_suffix: None,
         customer_acceptance: None,
         mandate_id: None,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
@@ -5614,7 +5613,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_method_data: (payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?),
-            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
             off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),

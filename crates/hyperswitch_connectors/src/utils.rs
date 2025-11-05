@@ -33,7 +33,6 @@ use common_enums::{
         UsStatesAbbreviation,
     },
 };
-use common_types::payments::BillingDescriptor;
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{CustomResult, ParsingError, ReportSwitchExt},
@@ -6928,17 +6927,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
-        billing_descriptor: data
-            .request
-            .statement_descriptor_suffix
-            .as_ref()
-            .map(|suffix| BillingDescriptor {
-                name: None,
-                city: None,
-                phone: None,
-                statement_descriptor: None,
-                statement_descriptor_suffix: Some(suffix.clone()),
-            }),
+        billing_descriptor: data.request.billing_descriptor.clone(),
     }
 }
 
