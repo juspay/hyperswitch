@@ -9,7 +9,7 @@ use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
+    types::{ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -253,7 +253,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 match state
                     .store
                     .find_payment_method(
-                        &(state.into()),
                         merchant_context.get_merchant_key_store(),
                         payment_method_id,
                         storage_scheme,
@@ -479,7 +478,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             payment_data.payment_intent = state
                 .store
                 .update_payment_intent(
-                    &state.into(),
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
                     key_store,
@@ -747,11 +745,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 
                         let m_db = db.clone().store;
                         let payment_intent = payment_data.payment_intent.clone();
-                        let key_manager_state: KeyManagerState = db.into();
 
                         let updated_payment_intent = m_db
                             .update_payment_intent(
-                                &key_manager_state,
                                 payment_intent,
                                 payment_intent_update,
                                 key_store,
@@ -892,7 +888,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                 if status.is_success() {
                     let m_db = db.clone().store;
                     let payment_intent = payment_data.payment_intent.clone();
-                    let key_manager_state: KeyManagerState = db.into();
 
                     let payment_intent_update =
                         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
@@ -907,7 +902,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
 
                     let updated_payment_intent = m_db
                         .update_payment_intent(
-                            &key_manager_state,
                             payment_intent,
                             payment_intent_update,
                             key_store,
@@ -1295,7 +1289,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             match state
                 .store
                 .find_payment_method(
-                    &(state.into()),
                     merchant_context.get_merchant_key_store(),
                     payment_method_id,
                     merchant_context.get_merchant_account().storage_scheme,
@@ -1845,7 +1838,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                     )?;
                                         // Update the payment method table with the active mandate record
                                         payment_methods::cards::update_payment_method_connector_mandate_details(
-                                                        state,
                                                         key_store,
                                                         &*state.store,
                                                         payment_method,
@@ -2200,11 +2192,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_key_store = key_store.clone();
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
-    let key_manager_state: KeyManagerState = state.into();
     let payment_intent_fut = tokio::spawn(
         async move {
             m_db.update_payment_intent(
-                &key_manager_state,
                 m_payment_data_payment_intent,
                 m_payment_intent_update,
                 &m_key_store,
@@ -2448,7 +2438,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let payment_method = match state
             .store
-            .find_payment_method(&(state.into()), key_store, id, storage_scheme)
+            .find_payment_method(key_store, id, storage_scheme)
             .await
         {
             Ok(payment_method) => payment_method,
@@ -2510,13 +2500,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(
-                &(state.into()),
-                key_store,
-                payment_method,
-                pm_update,
-                storage_scheme,
-            )
+            .update_payment_method(key_store, payment_method, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

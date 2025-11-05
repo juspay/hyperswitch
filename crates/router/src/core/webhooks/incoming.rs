@@ -922,15 +922,10 @@ async fn process_webhook_business_logic(
     }
 
     let profile_id = &merchant_connector_account.profile_id;
-    let key_manager_state = &(state).into();
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -2705,11 +2700,9 @@ async fn update_connector_mandate_details(
             get_payment_attempt_from_object_reference_id(state, object_ref_id, merchant_context)
                 .await?;
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
-            let key_manager_state = &state.into();
             let payment_method_info = state
                 .store
                 .find_payment_method(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     payment_method_id,
                     merchant_context.get_merchant_account().storage_scheme,
@@ -2813,7 +2806,6 @@ async fn update_connector_mandate_details(
             state
                 .store
                 .update_payment_method(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     payment_method_info,
                     pm_update,

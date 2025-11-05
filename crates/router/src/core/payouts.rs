@@ -760,7 +760,6 @@ pub async fn payouts_list_core(
                     #[cfg(feature = "v1")]
                     Some(customer_id) => db
                         .find_customer_by_customer_id_merchant_id(
-                            &(&state).into(),
                             &customer_id,
                             merchant_id,
                             merchant_context.get_merchant_key_store(),
@@ -1199,7 +1198,6 @@ pub async fn create_recipient(
                             let customer_id = customer.customer_id.to_owned();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_customer_id_merchant_id(
-                                    &state.into(),
                                     customer_id,
                                     merchant_context.get_merchant_account().get_id().to_owned(),
                                     customer,
@@ -2185,7 +2183,6 @@ pub async fn create_recipient_disburse_account(
 
                     payout_data.payment_method = Some(
                         db.update_payment_method(
-                            &(state.into()),
                             merchant_context.get_merchant_key_store(),
                             pm_method,
                             pm_update,
@@ -3035,7 +3032,6 @@ pub async fn make_payout_data(
     let customer_details = customer_id
         .async_map(|customer_id| async move {
             db.find_customer_optional_by_customer_id_merchant_id(
-                &state.into(),
                 customer_id,
                 merchant_id,
                 merchant_context.get_merchant_key_store(),
@@ -3151,7 +3147,6 @@ pub async fn make_payout_data(
         .clone()
         .async_map(|pm_id| async move {
             db.find_payment_method(
-                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 &pm_id,
                 merchant_context.get_merchant_account().storage_scheme,
@@ -3223,11 +3218,9 @@ async fn validate_and_get_business_profile(
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Profile> {
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
     if let Some(business_profile) = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
         merchant_key_store,
         Some(profile_id),
         merchant_id,
@@ -3236,7 +3229,7 @@ async fn validate_and_get_business_profile(
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+        db.find_business_profile_by_profile_id(merchant_key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),

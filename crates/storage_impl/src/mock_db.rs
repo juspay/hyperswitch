@@ -67,9 +67,17 @@ pub struct MockDb {
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
+    pub key_manager_state: Option<KeyManagerState>,
+    pub domain_merchant_key_store: Option<MerchantKeyStore>,
 }
 
 impl MockDb {
+    pub fn get_key_manager_state(&self) -> CustomResult<&KeyManagerState, StorageError> {
+        Ok(self
+            .key_manager_state
+            .as_ref()
+            .ok_or_else(|| StorageError::DecryptionError)?)
+    }
     pub async fn new(redis: &RedisSettings) -> error_stack::Result<Self, StorageError> {
         Ok(Self {
             addresses: Default::default(),
@@ -116,13 +124,14 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
+            key_manager_state: None,
+            domain_merchant_key_store: None,
         })
     }
 
     /// Returns an option of the resource if it exists
     pub async fn find_resource<D, R>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         resources: MutexGuard<'_, Vec<D>>,
         filter_fn: impl Fn(&&D) -> bool,
@@ -135,7 +144,11 @@ impl MockDb {
         match resource {
             Some(res) => Ok(Some(
                 res.convert(
-                    state,
+                    &self
+                        .key_manager_state
+                        .as_ref()
+                        .ok_or_else(|| StorageError::DecryptionError)?
+                        .clone(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -149,7 +162,6 @@ impl MockDb {
     /// Throws errors when the requested resource is not found
     pub async fn get_resource<D, R>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         resources: MutexGuard<'_, Vec<D>>,
         filter_fn: impl Fn(&&D) -> bool,
@@ -159,10 +171,7 @@ impl MockDb {
         D: Sync + ReverseConversion<R> + Clone,
         R: Conversion,
     {
-        match self
-            .find_resource(state, key_store, resources, filter_fn)
-            .await?
-        {
+        match self.find_resource(key_store, resources, filter_fn).await? {
             Some(res) => Ok(res),
             None => Err(StorageError::ValueNotFound(error_message).into()),
         }
@@ -170,7 +179,6 @@ impl MockDb {
 
     pub async fn get_resources<D, R>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         resources: MutexGuard<'_, Vec<D>>,
         filter_fn: impl Fn(&&D) -> bool,
@@ -188,7 +196,7 @@ impl MockDb {
                 .into_iter()
                 .map(|pm| async {
                     pm.convert(
-                        state,
+                        self.get_key_manager_state()?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -205,7 +213,6 @@ impl MockDb {
 
     pub async fn update_resource<D, R>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         mut resources: MutexGuard<'_, Vec<D>>,
         resource_updated: D,
@@ -220,7 +227,7 @@ impl MockDb {
             *pm = resource_updated.clone();
             let result = resource_updated
                 .convert(
-                    state,
+                    self.get_key_manager_state()?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

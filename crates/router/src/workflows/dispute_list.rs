@@ -69,7 +69,6 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                &(state).into(),
                 merchant_context.get_merchant_key_store(),
                 &tracking_data.profile_id,
             )

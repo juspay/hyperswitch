@@ -153,12 +153,7 @@ async fn validate_profile(
 ) -> UserResult<()> {
     state
         .store
-        .find_business_profile_by_merchant_id_profile_id(
-            &state.into(),
-            key_store,
-            merchant_id,
-            profile_id,
-        )
+        .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))
         .map(|_| ())

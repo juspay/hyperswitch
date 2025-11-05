@@ -1288,7 +1288,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
         connector_transaction_id: &str,
@@ -1296,7 +1295,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
-            key_manager_state,
             merchant_key_store,
             storage_scheme,
             DieselPaymentAttempt::find_by_profile_id_connector_transaction_id(
@@ -1509,14 +1507,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
-            key_manager_state,
             merchant_key_store,
             storage_scheme,
             DieselPaymentAttempt::find_by_id(&conn, attempt_id),

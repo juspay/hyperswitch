@@ -62,11 +62,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             )
             .await?;
         let business_profile = db
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                &key_store,
-                &tracking_data.business_profile_id,
-            )
+            .find_business_profile_by_profile_id(&key_store, &tracking_data.business_profile_id)
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();

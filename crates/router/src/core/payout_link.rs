@@ -138,7 +138,6 @@ pub async fn initiate_payout_link(
             // Fetch customer
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
                     merchant_context.get_merchant_key_store(),

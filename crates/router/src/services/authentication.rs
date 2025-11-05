@@ -517,7 +517,7 @@ where
 
         let profile = state
             .store()
-            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+            .find_business_profile_by_profile_id(&key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1184,11 +1184,7 @@ where
         let key_manager_state = &(&state.session_state()).into();
         let profile = state
             .store()
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                &auth_data.key_store,
-                &profile_id,
-            )
+            .find_business_profile_by_profile_id(&auth_data.key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -2375,7 +2371,6 @@ where
             let _profile = state
                 .store()
                 .find_business_profile_by_merchant_id_profile_id(
-                    key_manager_state,
                     &key_store,
                     &merchant_id,
                     &profile_id,
@@ -2509,7 +2504,7 @@ where
 
         let profile = state
             .store()
-            .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
+            .find_business_profile_by_profile_id(&key_store, &self.profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: self.profile_id.get_string_repr().to_owned(),
@@ -2645,7 +2640,7 @@ where
 
         let profile = state
             .store()
-            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+            .find_business_profile_by_profile_id(&key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 

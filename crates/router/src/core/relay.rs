@@ -233,7 +233,6 @@ pub async fn relay<T: RelayInterface>(
 
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             merchant_id,
             &profile_id_from_auth_layer,
@@ -323,7 +322,6 @@ pub async fn relay_retrieve(
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     db.find_business_profile_by_merchant_id_profile_id(
-        key_manager_state,
         merchant_context.get_merchant_key_store(),
         merchant_id,
         &profile_id_from_auth_layer,

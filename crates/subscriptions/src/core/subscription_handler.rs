@@ -77,10 +77,9 @@ impl<'a> SubscriptionHandler<'a> {
 
         subscription.generate_and_set_client_secret();
 
-        let key_manager_state = &(self.state).into();
         let merchant_key_store = self.merchant_context.get_merchant_key_store();
         let new_subscription = db
-            .insert_subscription_entry(key_manager_state, merchant_key_store, subscription)
+            .insert_subscription_entry(merchant_key_store, subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("subscriptions: unable to insert subscription entry to database")?;
@@ -98,14 +97,12 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_context: &MerchantContext,
         customer_id: &common_utils::id_type::CustomerId,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
 
         state
             .store
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer_id,
                 merchant_id,
                 merchant_key_store,
@@ -152,14 +149,12 @@ impl<'a> SubscriptionHandler<'a> {
         customer: customer::Customer,
         customer_update: customer::CustomerUpdate,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let db = state.store.as_ref();
 
         let updated_customer = db
             .update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer.customer_id.clone(),
                 merchant_id.clone(),
                 customer,
@@ -180,12 +175,11 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_context: &MerchantContext,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::business_profile::Profile> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = merchant_context.get_merchant_key_store();
 
         state
             .store
-            .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+            .find_business_profile_by_profile_id(merchant_key_store, profile_id)
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_string(),
@@ -197,15 +191,12 @@ impl<'a> SubscriptionHandler<'a> {
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
     ) -> errors::SubscriptionResult<()> {
         let subscription_id = client_secret.get_subscription_id()?;
-
-        let key_manager_state = &(self.state).into();
         let key_store = self.merchant_context.get_merchant_key_store();
 
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
-                key_manager_state,
                 key_store,
                 self.merchant_context.get_merchant_account().get_id(),
                 subscription_id.to_string(),
@@ -259,7 +250,6 @@ impl<'a> SubscriptionHandler<'a> {
             .state
             .store
             .find_by_merchant_id_subscription_id(
-                &(self.state).into(),
                 self.merchant_context.get_merchant_key_store(),
                 self.merchant_context.get_merchant_account().get_id(),
                 subscription_id.get_string_repr().to_string().clone(),
@@ -341,7 +331,6 @@ impl SubscriptionWithHandler<'_> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
-                &(self.handler.state).into(),
                 self.handler.merchant_context.get_merchant_key_store(),
                 self.handler
                     .merchant_context

@@ -56,6 +56,16 @@ pub struct RouterStore<T: DatabaseStore> {
     cache_store: Arc<RedisStore>,
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
+    pub key_manager_state: Option<KeyManagerState>,
+}
+
+impl<T: DatabaseStore> RouterStore<T> {
+    fn get_key_manager_state(&self) -> error_stack::Result<&KeyManagerState, StorageError> {
+        Ok(self
+            .key_manager_state
+            .as_ref()
+            .ok_or_else(|| StorageError::DecryptionError)?)
+    }
 }
 
 #[async_trait::async_trait]
@@ -143,6 +153,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             cache_store,
             master_encryption_key: encryption_key,
             request_id: None,
+            key_manager_state: None,
         })
     }
 
@@ -164,7 +175,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn call_database<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query: R,
     ) -> error_stack::Result<D, StorageError>
@@ -181,7 +191,11 @@ impl<T: DatabaseStore> RouterStore<T> {
                 error.change_context(new_err)
             })?
             .convert(
-                state,
+                &self
+                    .key_manager_state
+                    .as_ref()
+                    .ok_or_else(|| StorageError::DecryptionError)?
+                    .clone(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -191,7 +205,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn find_optional_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query_fut: R,
     ) -> error_stack::Result<Option<D>, StorageError>
@@ -209,7 +222,11 @@ impl<T: DatabaseStore> RouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        state,
+                        &self
+                            .key_manager_state
+                            .as_ref()
+                            .ok_or_else(|| StorageError::DecryptionError)?
+                            .clone(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -222,7 +239,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn find_resources<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query: R,
     ) -> error_stack::Result<Vec<D>, StorageError>
@@ -243,7 +259,11 @@ impl<T: DatabaseStore> RouterStore<T> {
             .map(|resource| async {
                 resource
                     .convert(
-                        state,
+                        &self
+                            .key_manager_state
+                            .as_ref()
+                            .ok_or_else(|| StorageError::DecryptionError)?
+                            .clone(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -277,6 +297,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             cache_store: Arc::new(cache_store),
             master_encryption_key: encryption_key,
             request_id: None,
+            key_manager_state: None,
         })
     }
 }

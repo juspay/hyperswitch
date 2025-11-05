@@ -21,11 +21,7 @@ pub async fn create_profile_acquirer(
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
     let mut business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_key_store,
-            &request.profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_key_store, &request.profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: request.profile_id.get_string_repr().to_owned(),
@@ -117,7 +113,7 @@ pub async fn update_profile_acquirer_config(
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
     let mut business_profile = db
-        .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)
+        .find_business_profile_by_profile_id(merchant_key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

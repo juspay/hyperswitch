@@ -776,7 +776,6 @@ pub async fn frm_fulfillment_core(
     let db = &*state.clone().store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &req.payment_id.clone(),
             merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),

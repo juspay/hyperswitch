@@ -60,7 +60,6 @@ pub async fn create_customer(
         merchant_id,
         merchant_account: merchant_context.get_merchant_account(),
         key_store: merchant_context.get_merchant_key_store(),
-        key_manager_state,
     };
 
     // We first need to validate whether the customer with the given customer id already exists
@@ -87,7 +86,6 @@ pub async fn create_customer(
     let customer = db
         .insert_customer(
             domain_customer,
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -420,7 +418,6 @@ struct MerchantReferenceIdForCustomer<'a> {
     merchant_id: &'a id_type::MerchantId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
 }
 
 #[cfg(feature = "v1")]
@@ -445,7 +442,6 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
         match db
             .find_customer_by_customer_id_merchant_id(
-                self.key_manager_state,
                 cus,
                 self.merchant_id,
                 self.key_store,
@@ -527,7 +523,6 @@ pub async fn retrieve_customer(
 
     let response = db
         .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-            key_manager_state,
             &customer_id,
             merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
@@ -599,12 +594,7 @@ pub async fn list_customers(
     };
 
     let domain_customers = db
-        .list_customers_by_merchant_id(
-            &(&state).into(),
-            &merchant_id,
-            &key_store,
-            customer_list_constraints,
-        )
+        .list_customers_by_merchant_id(&merchant_id, &key_store, customer_list_constraints)
         .await
         .switch()?;
 
@@ -648,7 +638,6 @@ pub async fn list_customers_with_count(
 
     let domain_customers = db
         .list_customers_by_merchant_id_with_count(
-            &(&state).into(),
             &merchant_id,
             &key_store,
             customer_list_constraints,
@@ -883,7 +872,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let customer_orig = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 self,
                 merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
@@ -908,7 +896,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 self,
                 merchant_context.get_merchant_account().get_id(),
@@ -949,7 +936,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                     }
 
                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                        key_manager_state,
                         merchant_context.get_merchant_key_store(),
                         merchant_context.get_merchant_account().get_id(),
                         &pm.payment_method_id,
@@ -1070,7 +1056,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         };
 
         db.update_customer_by_customer_id_merchant_id(
-            key_manager_state,
             self.clone(),
             merchant_context.get_merchant_account().get_id().to_owned(),
             customer_orig,
@@ -1107,7 +1092,6 @@ pub async fn update_customer(
         merchant_reference_id: &update_customer.customer_id,
         merchant_account: merchant_context.get_merchant_account(),
         key_store: merchant_context.get_merchant_key_store(),
-        key_manager_state,
     };
 
     #[cfg(feature = "v2")]
@@ -1115,7 +1099,6 @@ pub async fn update_customer(
         id: &update_customer.id,
         merchant_account: merchant_context.get_merchant_account(),
         key_store: merchant_context.get_merchant_key_store(),
-        key_manager_state,
     };
 
     let customer = verify_id_for_update_customer
@@ -1257,7 +1240,6 @@ struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: &'a id_type::CustomerId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
 }
 
 #[cfg(feature = "v2")]
@@ -1277,7 +1259,6 @@ impl VerifyIdForUpdateCustomer<'_> {
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                self.key_manager_state,
                 self.merchant_reference_id,
                 self.merchant_account.get_id(),
                 self.key_store,
@@ -1377,7 +1358,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 domain_customer.customer_id.to_owned(),
                 merchant_context.get_merchant_account().get_id().to_owned(),
                 domain_customer.to_owned(),

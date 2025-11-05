@@ -327,9 +327,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
 
         // Fetch customer details if present
         let db = &*self.state.store;
-        let key_manager_state: &KeyManagerState = &self.state.into();
         db.find_customer_optional_by_customer_id_merchant_id(
-            key_manager_state,
             customer_id,
             self.merchant_account.get_id(),
             self.key_store,
@@ -435,7 +433,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
 
         db.insert_customer(
             domain_customer,
-            key_manager_state,
             self.key_store,
             self.merchant_account.storage_scheme,
         )

@@ -339,7 +339,6 @@ pub async fn render_pm_collect_link(
 
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
-                        &(&state).into(),
                         &customer_id,
                         &req.merchant_id,
                         merchant_context.get_merchant_key_store(),

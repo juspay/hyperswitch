@@ -544,7 +544,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
             &customer_id,
             &merchant_id,
             merchant_context.get_merchant_key_store(),
@@ -579,7 +578,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let response = db
         .insert_payment_method(
-            &state.into(),
             merchant_context.get_merchant_key_store(),
             domain_pm::PaymentMethod {
                 customer_id: customer_id.to_owned(),

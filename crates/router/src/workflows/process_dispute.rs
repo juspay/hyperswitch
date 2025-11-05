@@ -74,7 +74,6 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                &(state).into(),
                 merchant_context.get_merchant_key_store(),
                 &payment_attempt.profile_id,
             )

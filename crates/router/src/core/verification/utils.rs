@@ -153,7 +153,6 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &state.into(),
             &payment_id,
             auth_data.merchant_account.get_id(),
             &auth_data.key_store,

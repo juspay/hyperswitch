@@ -171,12 +171,10 @@ pub async fn find_payment_intent_from_payment_id_type(
     payment_id_type: payments::PaymentIdType,
     merchant_context: &domain::MerchantContext,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
-    let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &payment_id,
                 merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
@@ -194,7 +192,6 @@ pub async fn find_payment_intent_from_payment_id_type(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &attempt.payment_id,
                 merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
@@ -213,7 +210,6 @@ pub async fn find_payment_intent_from_payment_id_type(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &attempt.payment_id,
                 merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
@@ -264,7 +260,6 @@ pub async fn find_payment_intent_from_refund_id_type(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
         &attempt.payment_id,
         merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
@@ -300,7 +295,6 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
     db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -1267,14 +1261,9 @@ pub async fn trigger_refund_outgoing_webhook(
 ) -> RouterResult<()> {
     let refund_status = refund.refund_status;
 
-    let key_manager_state = &(state).into();
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1341,15 +1330,10 @@ pub async fn trigger_payouts_webhook(
     merchant_context: &domain::MerchantContext,
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state).into();
     let profile_id = &payout_response.profile_id;
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

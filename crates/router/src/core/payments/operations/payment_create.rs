@@ -81,7 +81,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_context).await;
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
@@ -102,7 +101,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // If profile id is not passed, get it from the business_country and business_label
         #[cfg(feature = "v1")]
         let profile_id = core_utils::get_profile_id_from_business_details(
-            key_manager_state,
             request.business_country,
             request.business_label.as_ref(),
             merchant_context,
@@ -125,7 +123,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(
                 db,
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 Some(&profile_id),
                 merchant_id,
@@ -135,7 +132,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile
         } else {
             db.find_business_profile_by_profile_id(
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 &profile_id,
             )
@@ -338,7 +334,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent = db
             .insert_payment_intent(
-                key_manager_state,
                 payment_intent_new,
                 merchant_context.get_merchant_key_store(),
                 storage_scheme,
@@ -936,7 +931,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::PaymentCreateUpdate {
                     return_url: None,

@@ -467,7 +467,6 @@ where
     );
 
     let db = &*state.store;
-    let key_manager_state = &state.into();
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
             payment_data
@@ -650,7 +649,6 @@ where
 
     let payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),

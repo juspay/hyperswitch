@@ -560,7 +560,6 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    &(state.into()),
                                     merchant_context.get_merchant_key_store(),
                                     payment_method_id,
                                     merchant_context.get_merchant_account().storage_scheme,
@@ -627,7 +626,6 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    &(state.into()),
                                     merchant_context.get_merchant_key_store(),
                                     customer_id,
                                     merchant_context.get_merchant_account().get_id(),
@@ -683,7 +681,6 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        &(state.into()),
                                         merchant_context.get_merchant_key_store(),
                                         &payment_method_id,
                                         merchant_context.get_merchant_account().storage_scheme,
@@ -714,7 +711,6 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            &(state.into()),
                             merchant_context.get_merchant_key_store(),
                             &payment_method_id,
                             merchant_context.get_merchant_account().storage_scheme,
@@ -763,13 +759,11 @@ pub async fn get_token_for_recurring_mandate(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-    let key_manager_state: KeyManagerState = state.into();
     let original_payment_intent = mandate
         .original_payment_id
         .as_ref()
         .async_map(|payment_id| async {
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 payment_id,
                 &mandate.merchant_id,
                 merchant_context.get_merchant_key_store(),
@@ -828,7 +822,6 @@ pub async fn get_token_for_recurring_mandate(
 
     let payment_method = db
         .find_payment_method(
-            &(state.into()),
             merchant_context.get_merchant_key_store(),
             payment_method_id.as_str(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -1787,7 +1780,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         Some(customer_id) => {
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    key_manager_state,
                     &customer_id,
                     merchant_id,
                     key_store,
@@ -1852,7 +1844,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
-                            key_manager_state,
                             customer_id,
                             merchant_id.to_owned(),
                             c,
@@ -1893,7 +1884,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         tax_registration_id: encryptable_customer.tax_registration_id,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
-                    db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
+                    db.insert_customer(new_customer, key_store, storage_scheme)
                         .await
                 }
             })
@@ -1902,7 +1893,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    key_manager_state,
                     customer_id,
                     merchant_id,
                     key_store,
@@ -2788,12 +2778,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
             if let Some(ref payment_method_id) = data.payment_method_id {
                 state
                     .store
-                    .find_payment_method(
-                        &(state.into()),
-                        merchant_key_store,
-                        payment_method_id,
-                        storage_scheme,
-                    )
+                    .find_payment_method(merchant_key_store, payment_method_id, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")
@@ -2805,12 +2790,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
-            .find_payment_method(
-                &(state.into()),
-                merchant_key_store,
-                &data.payment_method_id,
-                storage_scheme,
-            )
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieveing payment method from DB")
@@ -3347,13 +3327,7 @@ pub(super) async fn filter_by_constraints(
 ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
-        .filter_payment_intent_by_constraints(
-            &(state).into(),
-            merchant_id,
-            constraints,
-            key_store,
-            storage_scheme,
-        )
+        .filter_payment_intent_by_constraints(merchant_id, constraints, key_store, storage_scheme)
         .await?;
     Ok(result)
 }
@@ -4012,7 +3986,6 @@ pub async fn verify_payment_intent_time_and_client_secret(
             #[cfg(feature = "v1")]
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
-                    &state.into(),
                     &payment_id,
                     merchant_context.get_merchant_account().get_id(),
                     merchant_context.get_merchant_key_store(),
@@ -4887,7 +4860,6 @@ impl AttemptType {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
                 let db = &*state.store;
-                let key_manager_state = &state.into();
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
                     request
@@ -4923,7 +4895,6 @@ impl AttemptType {
 
                 let updated_payment_intent = db
                     .update_payment_intent(
-                        key_manager_state,
                         fetched_payment_intent,
                         storage::PaymentIntentUpdate::StatusAndAttemptUpdate {
                             status: payment_intent_status_fsm(
@@ -8198,7 +8169,6 @@ async fn save_new_connector_customer_id_from_ucs(
                     let db = &*state.store;
                     let _ = db
                         .update_customer_by_customer_id_merchant_id(
-                            &state.into(),
                             customer_data.customer_id.clone(),
                             customer_data.merchant_id.clone(),
                             customer_data.clone(),

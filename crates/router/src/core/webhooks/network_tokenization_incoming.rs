@@ -352,7 +352,6 @@ pub async fn handle_metadata_update(
             let db = &*state.store;
 
             db.update_payment_method(
-                &key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 payment_method.clone(),
                 pm_update,
@@ -446,11 +445,9 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
     payment_method_id: &str,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
             key_store,
             payment_method_id,
             merchant_account.storage_scheme,

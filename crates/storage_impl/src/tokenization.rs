@@ -111,7 +111,6 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         self.call_database(
-            key_manager_state,
             merchant_key_store,
             tokenization_record.update_with_id(
                 &conn,

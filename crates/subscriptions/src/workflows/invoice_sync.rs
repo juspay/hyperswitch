@@ -67,18 +67,13 @@ impl<'a> InvoiceSyncHandler<'a> {
 
         let profile = state
             .store
-            .find_business_profile_by_profile_id(
-                &(state).into(),
-                &key_store,
-                &tracking_data.profile_id,
-            )
+            .find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
             .await
             .attach_printable("Subscriptions: Failed to fetch Business Profile from DB")?;
 
         let customer = state
             .store
             .find_customer_by_customer_id_merchant_id(
-                &(state).into(),
                 &tracking_data.customer_id,
                 merchant_account.get_id(),
                 &key_store,
@@ -90,7 +85,6 @@ impl<'a> InvoiceSyncHandler<'a> {
         let subscription = state
             .store
             .find_by_merchant_id_subscription_id(
-                &state.into(),
                 &key_store,
                 merchant_account.get_id(),
                 tracking_data.subscription_id.get_string_repr().to_string(),
@@ -101,7 +95,6 @@ impl<'a> InvoiceSyncHandler<'a> {
         let invoice = state
             .store
             .find_invoice_by_invoice_id(
-                &state.into(),
                 &key_store,
                 tracking_data.invoice_id.get_string_repr().to_string(),
             )
@@ -182,11 +175,9 @@ impl<'a> InvoiceSyncHandler<'a> {
         profile_id: &common_utils::id_type::ProfileId,
         merchant_account: &domain::merchant_account::MerchantAccount,
     ) -> Result<subscription_types::ConfirmSubscriptionResponse, errors::ProcessTrackerError> {
-        let key_manager_state = &(&state).into();
-
         let invoice = state
             .store
-            .find_invoice_by_invoice_id(key_manager_state, key_store, invoice_id.clone())
+            .find_invoice_by_invoice_id(key_store, invoice_id.clone())
             .await
             .map_err(|err| {
                 logger::error!(
@@ -201,7 +192,6 @@ impl<'a> InvoiceSyncHandler<'a> {
         let subscription = state
             .store
             .find_by_merchant_id_subscription_id(
-                key_manager_state,
                 key_store,
                 merchant_account.get_id(),
                 invoice.subscription_id.get_string_repr().to_string(),

@@ -289,7 +289,7 @@ pub async fn get_single_profile_id(
 
             Ok(state
                 .store
-                .list_profile_by_merchant_id(&state.into(), &key_store, merchant_id)
+                .list_profile_by_merchant_id(&key_store, merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()

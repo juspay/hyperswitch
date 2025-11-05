@@ -998,7 +998,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             // Validate whether profile_id passed in request is valid and is linked to the merchant
             core_utils::validate_and_get_business_profile(
                 state.store.as_ref(),
-                key_manager_state,
                 key_store,
                 Some(profile_id),
                 merchant_id,
@@ -2417,7 +2416,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         self,
         merchant_context: &domain::MerchantContext,
         db: &dyn StorageInterface,
-        key_manager_state: &KeyManagerState,
+        _key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::Profile> {
         match self.profile_id.or(merchant_context
             .get_merchant_account()
@@ -2429,7 +2428,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
                 let business_profile = core_utils::validate_and_get_business_profile(
                     db,
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     Some(&profile_id),
                     merchant_context.get_merchant_account().get_id(),
@@ -2447,7 +2445,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     let profile_name = format!("{business_country}_{business_label}");
                     let business_profile = db
                         .find_business_profile_by_profile_name_merchant_id(
-                            key_manager_state,
                             merchant_context.get_merchant_key_store(),
                             &profile_name,
                             merchant_context.get_merchant_account().get_id(),
@@ -3044,7 +3041,6 @@ pub async fn delete_connector(
 
     let business_profile = db
         .find_business_profile_by_profile_id(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &mca.profile_id,
         )
@@ -3760,7 +3756,7 @@ pub async fn list_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let profiles = db
-        .list_profile_by_merchant_id(&(&state).into(), &key_store, &merchant_id)
+        .list_profile_by_merchant_id(&key_store, &merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
@@ -3784,7 +3780,7 @@ pub async fn retrieve_profile(
     let db = state.store.as_ref();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(&(&state).into(), &key_store, &profile_id)
+        .find_business_profile_by_profile_id(&key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4191,7 +4187,7 @@ pub async fn update_profile(
     let key_manager_state = &(&state).into();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .find_business_profile_by_profile_id(&key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4409,7 +4405,7 @@ pub async fn extended_card_info_toggle(
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .find_business_profile_by_profile_id(&key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4459,7 +4455,7 @@ pub async fn connector_agnostic_mit_toggle(
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .find_business_profile_by_profile_id(&key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

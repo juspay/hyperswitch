@@ -62,7 +62,6 @@ pub async fn refund_create_core(
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &req.payment_id,
             merchant_id,
             merchant_context.get_merchant_key_store(),
@@ -657,7 +656,6 @@ pub async fn refund_retrieve_core(
     let payment_id = &refund.payment_id;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             payment_id,
             merchant_id,
             merchant_context.get_merchant_key_store(),
@@ -1891,7 +1889,6 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
-                    &(state.into()),
                     &payment_attempt.payment_id,
                     &refund.merchant_id,
                     &key_store,

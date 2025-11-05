@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
@@ -52,12 +51,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let key_manager_state: &KeyManagerState = &state.into();
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
                 &payment_id,
                 merchant_id,
                 merchant_context.get_merchant_key_store(),
@@ -98,7 +95,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 profile_id,
             )

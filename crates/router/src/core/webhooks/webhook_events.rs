@@ -280,7 +280,7 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read business profile ID from event to retry")?;
     let business_profile = store
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &business_profile_id)
+        .find_business_profile_by_profile_id(&key_store, &business_profile_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find business profile")?;
@@ -382,7 +382,6 @@ async fn get_account_and_key_store(
         Some(profile_id) => {
             let business_profile = store
                 .find_business_profile_by_merchant_id_profile_id(
-                    key_manager_state,
                     &merchant_key_store,
                     &merchant_id,
                     &profile_id,

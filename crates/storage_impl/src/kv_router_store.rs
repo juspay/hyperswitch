@@ -35,11 +35,24 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
     pub router_store: RouterStore<T>,
+    pub key_manager_state: Option<KeyManagerState>,
+    pub merchant_key_store: Option<MerchantKeyStore>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
     pub request_id: Option<String>,
     pub soft_kill_mode: bool,
+}
+
+impl<T: DatabaseStore> KVRouterStore<T> {
+    pub fn get_key_manager_state(
+        &self,
+    ) -> error_stack::Result<&KeyManagerState, errors::StorageError> {
+        Ok(self
+            .key_manager_state
+            .as_ref()
+            .ok_or_else(|| errors::StorageError::DecryptionError)?)
+    }
 }
 
 pub struct InsertResourceParams<'a> {
@@ -159,6 +172,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             ttl_for_kv,
             request_id,
             soft_kill_mode: soft_kill.unwrap_or(false),
+            key_manager_state: None,
+            merchant_key_store: None,
         }
     }
 
@@ -204,7 +219,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -263,7 +277,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         res()
             .await?
             .convert(
-                state,
+                &self
+                    .key_manager_state
+                    .as_ref()
+                    .ok_or_else(|| errors::StorageError::DecryptionError)?
+                    .clone(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -273,7 +291,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_optional_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -334,7 +351,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        state,
+                        &self
+                            .key_manager_state
+                            .as_ref()
+                            .ok_or_else(|| errors::StorageError::DecryptionError)?
+                            .clone(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -347,7 +368,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn insert_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         create_resource_fut: R,
@@ -416,7 +436,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             }
         }?
         .convert(
-            state,
+            &self
+                .key_manager_state
+                .as_ref()
+                .ok_or_else(|| errors::StorageError::DecryptionError)?
+                .clone(),
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -426,7 +450,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn update_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         update_resource_fut: R,
@@ -482,7 +505,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             _ => Err(errors::StorageError::KVError.into()),
         }?
         .convert(
-            state,
+            &self
+                .key_manager_state
+                .as_ref()
+                .ok_or_else(|| errors::StorageError::DecryptionError)?
+                .clone(),
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -491,7 +518,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
     pub async fn filter_resources<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         filter_resource_db_fut: R,
@@ -534,7 +560,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .into_iter()
             .map(|pm| async {
                 pm.convert(
-                    state,
+                    &self
+                        .key_manager_state
+                        .as_ref()
+                        .ok_or_else(|| errors::StorageError::DecryptionError)?
+                        .clone(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

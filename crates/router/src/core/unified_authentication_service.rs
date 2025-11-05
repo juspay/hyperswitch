@@ -643,9 +643,7 @@ pub async fn authentication_create_core(
     let db = &*state.store;
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
-    let key_manager_state = (&state).into();
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
         &merchant_context,
@@ -656,11 +654,7 @@ pub async fn authentication_create_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -916,7 +910,6 @@ pub async fn authentication_eligibility_core(
     let key_manager_state = (&state).into();
 
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
         &merchant_context,
@@ -927,11 +920,7 @@ pub async fn authentication_eligibility_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1190,11 +1179,7 @@ pub async fn authentication_authenticate_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1419,11 +1404,7 @@ pub async fn authentication_sync_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(merchant_context.get_merchant_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1672,10 +1653,8 @@ pub async fn authentication_post_sync_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let key_manager_state = (&state).into();
     let business_profile = db
         .find_business_profile_by_profile_id(
-            &key_manager_state,
             merchant_context.get_merchant_key_store(),
             &authentication.profile_id,
         )

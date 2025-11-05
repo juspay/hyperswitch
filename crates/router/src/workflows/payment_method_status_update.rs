@@ -46,12 +46,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
             .await?;
 
         let payment_method = db
-            .find_payment_method(
-                &(state.into()),
-                &key_store,
-                &pm_id,
-                merchant_account.storage_scheme,
-            )
+            .find_payment_method(&key_store, &pm_id, merchant_account.storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
@@ -70,7 +65,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
 
         let res = db
             .update_payment_method(
-                &(state.into()),
                 &key_store,
                 payment_method,
                 pm_update,

@@ -326,7 +326,6 @@ async fn store_bank_details_in_payment_methods(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &payload.payment_id,
             merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
@@ -341,7 +340,6 @@ async fn store_bank_details_in_payment_methods(
 
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
-            &((&state).into()),
             merchant_context.get_merchant_key_store(),
             &customer_id,
             merchant_context.get_merchant_account().get_id(),
@@ -537,7 +535,6 @@ async fn store_bank_details_in_payment_methods(
     }
 
     store_in_db(
-        &state,
         merchant_context.get_merchant_key_store(),
         update_entries,
         new_entries,
@@ -562,26 +559,20 @@ async fn store_bank_details_in_payment_methods(
 }
 
 async fn store_in_db(
-    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     update_entries: Vec<(domain::PaymentMethod, storage::PaymentMethodUpdate)>,
     new_entries: Vec<domain::PaymentMethod>,
     db: &dyn StorageInterface,
     storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state.into());
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| {
-            db.update_payment_method(key_manager_state, key_store, pm, pm_update, storage_scheme)
-        })
+        .map(|(pm, pm_update)| db.update_payment_method(key_store, pm, pm_update, storage_scheme))
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| {
-            db.insert_payment_method(key_manager_state, key_store, pm_new, storage_scheme)
-        })
+        .map(|pm_new| db.insert_payment_method(key_store, pm_new, storage_scheme))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);

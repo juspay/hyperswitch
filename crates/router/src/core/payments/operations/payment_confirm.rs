@@ -79,8 +79,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
-        let key_manager_state = &state.into();
-
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let (currency, amount);
@@ -96,7 +94,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // Parallel calls - level 0
         let mut payment_intent = store
             .find_payment_intent_by_payment_id_merchant_id(
-                key_manager_state,
                 &payment_id,
                 &m_merchant_id,
                 merchant_context.get_merchant_key_store(),
@@ -163,17 +160,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let store = state.store.clone();
-        let key_manager_state_clone = key_manager_state.clone();
         let key_store_clone = merchant_context.get_merchant_key_store().clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
                 store
-                    .find_business_profile_by_profile_id(
-                        &key_manager_state_clone,
-                        &key_store_clone,
-                        &profile_id,
-                    )
+                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::ProfileNotFound {
@@ -2050,13 +2042,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_storage_scheme = storage_scheme.to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
-        let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
-                    &key_manager_state,
                     m_payment_data_payment_intent,
                     storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                         amount: payment_data.payment_intent.amount,
@@ -2123,12 +2113,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 let m_updated_customer = updated_customer.clone();
                 let session_state = state.clone();
                 let m_db = session_state.store.clone();
-                let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
                         let m_customer_customer_id = customer.customer_id.to_owned();
                         m_db.update_customer_by_customer_id_merchant_id(
-                            &key_manager_state,
                             m_customer_customer_id,
                             m_customer_merchant_id,
                             customer,
