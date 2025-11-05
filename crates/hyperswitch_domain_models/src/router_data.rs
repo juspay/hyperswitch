@@ -694,7 +694,7 @@ pub struct KlarnaSdkResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteracCustomerInfo {
-    pub customer_info: Option<serde_json::Value>,
+    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Serialize)]

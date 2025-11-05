@@ -3358,7 +3358,7 @@ pub struct KlarnaSdkPaymentMethod {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct InteracPaymentMethod {
-    pub customer_info: Option<serde_json::Value>,
+    pub customer_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

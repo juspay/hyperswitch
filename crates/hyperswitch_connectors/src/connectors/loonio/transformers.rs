@@ -4,7 +4,12 @@ use std::collections::HashMap;
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    id_type,
+    pii::{self, Email},
+    request::Method,
+    types::FloatMajorUnit,
+};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{
@@ -211,7 +216,7 @@ impl From<LoonioTransactionStatus> for enums::AttemptStatus {
 pub struct LoonioTransactionSyncResponse {
     pub transaction_id: String,
     pub state: LoonioTransactionStatus,
-    pub customer_bank_info: Option<serde_json::Value>,
+    pub customer_bank_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -411,7 +416,7 @@ pub struct LoonioWebhookBody {
     pub id: i32,
     #[serde(rename = "type")]
     pub transaction_type: LoonioWebhookTransactionType,
-    pub customer_info: Option<serde_json::Value>,
+    pub customer_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
