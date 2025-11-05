@@ -13688,6 +13688,7 @@
         "type": "object",
         "properties": {
           "customer_info": {
+            "type": "object",
             "nullable": true
           }
         }
