@@ -2694,6 +2694,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .response
             .clone()
             .map(|resp| resp.get_mandate_reference())
+            .inspect_err(|e| logger::error!("error in the response: {:?}", e))
             .ok()
             .flatten()
             .and_then(|mandate_ref| mandate_ref.connector_mandate_id);
@@ -2702,6 +2703,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .response
             .clone()
             .map(|resp| resp.get_mandate_reference())
+            .inspect_err(|e| logger::error!("error in the response: {:?}", e))
             .ok()
             .flatten()
             .and_then(|mandate_ref| mandate_ref.mandate_metadata);

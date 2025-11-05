@@ -1324,7 +1324,7 @@ pub struct ExtendedCardResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AccountUpdaterCardTokenInfo {
     pub cnp_token: Secret<String>,
-    pub exp_date: Option<String>,
+    pub exp_date: Option<Secret<String>>,
     #[serde(rename = "type")]
     pub card_type: Option<WorldpayvativCardType>,
     pub bin: Option<String>,
@@ -1333,7 +1333,7 @@ pub struct AccountUpdaterCardTokenInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountUpdaterCardTokenInfoMetadata {
-    pub exp_date: Option<String>,
+    pub exp_date: Option<Secret<String>>,
     #[serde(rename = "type")]
     pub card_type: Option<String>,
     pub bin: Option<String>,
@@ -2229,13 +2229,13 @@ impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCard
         let card_exp_month = token_data
             .exp_date
             .as_ref()
-            .and_then(|exp_date| exp_date.as_str().get(0..2).map(|s| s.to_string()))
+            .and_then(|exp_date| exp_date.peek().as_str().get(0..2).map(|s| s.to_string()))
             .map(Secret::new);
 
         let card_exp_year = token_data
             .exp_date
             .as_ref()
-            .and_then(|exp_date| exp_date.as_str().get(2..4).map(|s| s.to_string()))
+            .and_then(|exp_date| exp_date.peek().as_str().get(2..4).map(|s| s.to_string()))
             .map(Secret::new);
 
         Self {
