@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.2-hotfix2
+
+### Bug Fixes
+
+- **connectors:** [Adyen] add migrated payment method check ([#10136](https://github.com/juspay/hyperswitch/pull/10136)) ([`da39fbd`](https://github.com/juspay/hyperswitch/commit/da39fbdb08a6ebbd2f71a82997e8356a87aaf0c0))
+
+**Full Changelog:** [`2025.10.31.2-hotfix1...2025.10.31.2-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.10.31.2-hotfix1...2025.10.31.2-hotfix2)
+
+- - -
+
 ## 2025.10.31.2-hotfix1
 
 ### Bug Fixes
