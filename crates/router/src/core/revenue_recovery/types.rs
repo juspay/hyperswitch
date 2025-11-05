@@ -424,7 +424,6 @@ impl Action {
         )
         .await;
 
-        println!("response: {:?}", response);
         let recovery_payment_intent =
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                 payment_intent,
