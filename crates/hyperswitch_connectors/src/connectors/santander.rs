@@ -35,8 +35,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::NO_ERROR_MESSAGE,
@@ -1100,5 +1100,17 @@ impl ConnectorSpecifications for Santander {
 
     fn requires_different_access_token_per_payment_method_type(&self) -> bool {
         true
+    }
+}
+
+impl ConnectorAccessTokenSuffix for Santander {
+    fn get_access_token_suffix_from_connector<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(router_data
+            .payment_method_type
+            .as_ref()
+            .map(|pmt| pmt.to_string()))
     }
 }

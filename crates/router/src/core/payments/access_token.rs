@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorSpecifications};
 
 use crate::{
     consts,
@@ -39,7 +39,7 @@ pub async fn get_cached_access_token_for_ucs(
             .unwrap_or(connector.connector_name.to_string());
 
         let cached_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name, None)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -137,22 +137,16 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
-        let pmt_suffix = connector
+        let key_suffix = connector
             .connector
-            .requires_different_access_token_per_payment_method_type()
-            .then(|| {
-                router_data
-                    .payment_method_type
-                    .as_ref()
-                    .map(|pmt| pmt.to_string())
-            })
-            .flatten();
+            .get_access_token_suffix_from_connector(router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let old_access_token = store
             .get_access_token(
                 merchant_id,
                 &merchant_connector_id_or_connector_name,
-                pmt_suffix.clone(),
+                key_suffix.clone(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -239,7 +233,7 @@ pub async fn add_access_token<
                                 merchant_id,
                                 &merchant_connector_id_or_connector_name,
                                 modified_access_token_with_expiry.clone(),
-                                pmt_suffix.clone(),
+                                key_suffix.clone(),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)

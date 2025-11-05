@@ -93,7 +93,7 @@ pub async fn get_access_token_from_ucs_response(
 
     if let Ok(Some(cached_token)) = session_state
         .store
-        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name, None)
         .await
     {
         if cached_token.token.peek() == ucs_access_token.token.peek() {
@@ -139,6 +139,7 @@ pub async fn set_access_token_for_ucs(
             merchant_id,
             &merchant_connector_id_or_connector_name,
             modified_access_token,
+            None,
         )
         .await
     {
