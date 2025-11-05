@@ -11563,21 +11563,29 @@
           "name": {
             "type": "string",
             "description": "name to be put in billing description",
+            "example": "John Doe",
             "nullable": true
           },
           "city": {
             "type": "string",
             "description": "city to be put in billing description",
+            "example": "San Francisco",
             "nullable": true
           },
           "phone": {
             "type": "string",
             "description": "phone to be put in billing description",
+            "example": "9123456789",
             "nullable": true
           },
           "statement_descriptor": {
             "type": "string",
             "description": "a short description for the payment",
+            "nullable": true
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.",
             "nullable": true
           }
         }

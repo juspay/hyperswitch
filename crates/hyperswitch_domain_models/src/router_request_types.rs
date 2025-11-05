@@ -40,8 +40,6 @@ pub struct PaymentsAuthorizeData {
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
-    pub statement_descriptor_suffix: Option<String>,
-    pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -1447,6 +1445,7 @@ pub struct SetupMandateRequestData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
     pub is_stored_credential: Option<bool>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Debug, Clone)]

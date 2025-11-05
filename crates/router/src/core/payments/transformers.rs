@@ -8,6 +8,8 @@ use api_models::payments::{
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
+use common_types::payments::BillingDescriptor;
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils, pii,
@@ -405,8 +407,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         off_session: None,
         setup_mandate_details: None,
         confirm: true,
-        statement_descriptor_suffix: None,
-        statement_descriptor: None,
         capture_method: Some(payment_data.payment_intent.capture_method),
         amount: payment_data
             .payment_attempt
@@ -4347,8 +4347,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             customer_name,
             currency: payment_data.currency,
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             capture_method: Some(payment_data.payment_intent.capture_method),
             router_return_url,
             webhook_url,
@@ -4406,6 +4404,26 @@ fn get_off_session(
         (Some(_), _) | (_, Some(true)) => Some(true),
         (None, None) => None,
     }
+}
+
+#[cfg(feature = "v1")]
+fn get_billing_descriptor(payment_intent: &storage::PaymentIntent) -> Option<BillingDescriptor> {
+    payment_intent
+        .billing_descriptor
+        .as_ref()
+        .map(|descriptor| BillingDescriptor {
+            name: descriptor.name.clone(),
+            city: descriptor.city.clone(),
+            phone: descriptor.phone.clone(),
+            statement_descriptor: descriptor
+                .statement_descriptor
+                .clone()
+                .or_else(|| payment_intent.statement_descriptor_name.clone()),
+            statement_descriptor_suffix: descriptor
+                .statement_descriptor_suffix
+                .clone()
+                .or_else(|| payment_intent.statement_descriptor_suffix.clone()),
+        })
 }
 
 #[cfg(feature = "v1")]
@@ -4568,6 +4586,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.payment_intent.off_session,
         );
 
+        let billing_descriptor = get_billing_descriptor(&payment_data.payment_intent);
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
@@ -4575,8 +4595,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
-            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
-            statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
             order_tax_amount: payment_data
@@ -4629,7 +4647,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
-            billing_descriptor: payment_data.payment_intent.billing_descriptor,
+            billing_descriptor,
         })
     }
 }
@@ -5607,6 +5625,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_data.payment_intent.off_session,
         );
 
+        let billing_descriptor = get_billing_descriptor(&payment_data.payment_intent);
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -5645,6 +5665,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             related_transaction_id: None,
             enrolled_for_3ds: true,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            billing_descriptor,
         })
     }
 }

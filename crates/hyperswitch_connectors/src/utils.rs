@@ -33,6 +33,7 @@ use common_enums::{
         UsStatesAbbreviation,
     },
 };
+use common_types::payments::BillingDescriptor;
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{CustomResult, ParsingError, ReportSwitchExt},
@@ -6884,7 +6885,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         currency: data.request.currency,
         payment_method_data: data.request.payment_method_data.clone(),
         confirm: data.request.confirm,
-        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
         mandate_id: data.request.mandate_id.clone(),
         setup_future_usage: data.request.setup_future_usage,
         off_session: data.request.off_session,
@@ -6895,7 +6895,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         amount: 0,
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
-        statement_descriptor: None,
         capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
@@ -6929,7 +6928,17 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
-        billing_descriptor: None,
+        billing_descriptor: data
+            .request
+            .statement_descriptor_suffix
+            .as_ref()
+            .map(|suffix| BillingDescriptor {
+                name: None,
+                city: None,
+                phone: None,
+                statement_descriptor: None,
+                statement_descriptor_suffix: Some(suffix.clone()),
+            }),
     }
 }
 

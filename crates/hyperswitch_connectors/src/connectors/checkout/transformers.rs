@@ -365,8 +365,8 @@ pub struct CheckoutLineItem {
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutBillingDescriptor {
-    pub name: Option<String>,
-    pub city: Option<String>,
+    pub name: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
     pub reference: Option<String>,
 }
 

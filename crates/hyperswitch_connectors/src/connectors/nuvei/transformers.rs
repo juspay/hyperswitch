@@ -113,7 +113,9 @@ trait NuveiAuthorizePreprocessingCommon {
         Ok(None)
     }
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
-    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor>;
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -200,8 +202,35 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
 
-    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
-        None
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
+                merchant_phone: descriptor.phone.clone(),
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -281,16 +310,35 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
 
-    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
-        self.billing_descriptor
-            .as_ref()
-            .map(|descriptor| NuveiDynamicDescriptor {
-                merchant_name: descriptor
-                    .name
-                    .as_ref()
-                    .map(|name| name.trim().chars().take(25).collect()),
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
                 merchant_phone: descriptor.phone.clone(),
-            })
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -370,8 +418,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
 
-    fn get_dynamic_descriptor(&self) -> Option<NuveiDynamicDescriptor> {
-        None
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
     }
 }
 
@@ -480,8 +530,8 @@ pub enum IsRebilling {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiDynamicDescriptor {
-    pub merchant_name: Option<String>,
-    pub merchant_phone: Option<String>,
+    pub merchant_name: Option<Secret<String>>,
+    pub merchant_phone: Option<Secret<String>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -1960,7 +2010,7 @@ where
             request_data.device_details.clone()
         };
 
-        let dynamic_descriptor = item.request.get_dynamic_descriptor();
+        let dynamic_descriptor = item.request.get_dynamic_descriptor()?;
 
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
@@ -1971,9 +2021,9 @@ where
             shipping_address,
             device_details,
             url_details: Some(UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url.clone(),
+                success_url: "https://www.google.com".to_string(),
+                failure_url: "https://www.google.com".to_string(),
+                pending_url: "https://www.google.com".to_string(),
             }),
             amount_details,
             items: l2_l3_items,
