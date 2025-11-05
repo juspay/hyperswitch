@@ -10,10 +10,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId, SetupMandateRequestData,
-    },
+    router_request_types::{PaymentsSyncData, ResponseId, SetupMandateRequestData},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -29,7 +26,10 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self as connector_utils, AdditionalCardInfo, CardData, PaymentsAuthorizeRequestData,
         PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
@@ -1045,24 +1045,10 @@ pub struct TesouroTransactionMetadata {
     pub payment_id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            TesouroAuthorizeResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TesouroAuthorizeResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<TesouroAuthorizeResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {
@@ -1374,19 +1360,12 @@ pub struct TesouroGraphQlErrorExtensions {
     pub reason: Option<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, TesouroCaptureResponse, PaymentsCaptureData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TesouroCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<TesouroCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {
@@ -1526,13 +1505,10 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, TesouroVoidResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, TesouroVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<TesouroVoidResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {

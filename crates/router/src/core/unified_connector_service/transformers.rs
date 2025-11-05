@@ -6,7 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    router_data::{ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
@@ -29,15 +29,40 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, Identifier, PaymentServiceTransformRequest,
+    self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
 };
 use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::{api, transformers},
+    types::{
+        api,
+        transformers::{self, ForeignFrom},
+    },
 };
+
+impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
+    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
+        Self {
+            token: masking::Secret::new(grpc_token.token.clone()),
+            expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+        }
+    }
+}
+
+impl ForeignFrom<&AccessToken> for ConnectorState {
+    fn foreign_from(access_token: &AccessToken) -> Self {
+        Self {
+            access_token: Some(payments_grpc::AccessToken {
+                token: access_token.token.peek().to_string(),
+                expires_in_seconds: Some(access_token.expires),
+                token_type: None,
+            }),
+            connector_customer_id: None,
+        }
+    }
+}
 impl
     transformers::ForeignTryFrom<(
         &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
@@ -108,14 +133,150 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
-            access_token: None,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
+            state,
+        })
+    }
+}
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            uas_flows::Authenticate,
+            router_request_types::PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            uas_flows::Authenticate,
+            router_request_types::PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateRequest
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    common_enums::PaymentMethodType::Credit, // Default to Credit for now
+                )
+            })
+            .transpose()?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.amount.unwrap_or(0),
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .minor_amount
+                .map(|amount| amount.get_amount_as_i64())
+                .unwrap_or(0),
+            payment_method,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_name: None, // PaymentsAuthenticateData doesn't have customer_name
+            address: Some(address),
+            authentication_data: None, // PaymentsAuthenticateData doesn't have enrolled_for_3ds
+            metadata: HashMap::new(),  // PaymentsAuthenticateData doesn't have metadata
+            return_url: None,          // PaymentsAuthenticateData doesn't have router_return_url
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            state: None,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            uas_flows::PostAuthenticate,
+            router_request_types::PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServicePostAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            uas_flows::PostAuthenticate,
+            router_request_types::PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Based on the pattern from PaymentServicePreAuthenticateRequest
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.amount.unwrap_or(0),
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .minor_amount
+                .map(|amount| amount.get_amount_as_i64())
+                .unwrap_or(0),
+            payment_method: None,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_name: None, // PaymentsPostAuthenticateData doesn't have customer_name
+            address: Some(address),
+            authentication_data: None,
+            metadata: HashMap::new(),
+            return_url: None,
+            continue_redirection_url: None,
+            state: None,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -204,7 +365,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
+            state: None,
             browser_info: router_data
                 .request
                 .browser_info
@@ -251,7 +412,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            access_token: None,
             amount_to_capture: router_data
                 .request
                 .minor_amount_to_capture
@@ -276,6 +436,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     capture_reference: multiple_capture_request_data.capture_reference.clone(),
                 },
             ),
+            state: None,
         })
     }
 }
@@ -365,6 +526,11 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -383,7 +549,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            access_token: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -423,9 +588,19 @@ impl
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             metadata,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -512,7 +687,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            access_token: None,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -568,9 +742,19 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state: None,
         })
     }
 }
@@ -616,6 +800,11 @@ impl
             .map(payments_grpc::CustomerAcceptance::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -659,7 +848,6 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
             session_token: None,
             order_tax_amount: None,
             order_category: None,
@@ -677,8 +865,18 @@ impl
             customer_acceptance,
             browser_info,
             payment_experience: None,
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -729,6 +927,11 @@ impl
             }
         };
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -751,6 +954,16 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata: router_data
+                .connector_meta_data
+                .as_ref()
+                .and_then(|meta| meta.peek().as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             email: router_data
@@ -761,8 +974,7 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type: None,
-            access_token: None,
-            merchant_account_metadata: HashMap::new(),
+            state,
         })
     }
 }
@@ -804,31 +1016,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
             }
         };
 
-        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
-            Some(redirection_data) => match redirection_data.form_type {
-                Some(ref form_type) => match form_type {
-                    payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
-                        };
-                        (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
-                            None,
-                        )
-                    }
-                    _ => (
-                        None,
-                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
-                    ),
-                },
-                None => (None, None),
-            },
-            None => (None, None),
-        };
+        let redirection_data = response
+            .redirection_data
+            .clone()
+            .map(RedirectForm::foreign_try_from)
+            .transpose()?;
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -858,7 +1050,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                     resource_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
-                    connector_metadata,
+                    connector_metadata: None,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
@@ -1044,7 +1236,6 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from(response.status())?),
             };
-
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
@@ -1059,7 +1250,6 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
-
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -1081,7 +1271,6 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 status,
             ))
         };
-
         Ok(response)
     }
 }
@@ -1570,6 +1759,216 @@ impl transformers::ForeignTryFrom<storage_enums::FutureUsage> for payments_grpc:
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServicePostAuthenticateResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
+        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+            Some(redirection_data) => match redirection_data.form_type {
+                Some(ref form_type) => match form_type {
+                    payments_grpc::redirect_form::FormType::Uri(uri) => {
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
+                            sdk_uri: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        };
+                        (
+                            Some(sdk_uri_info.encode_to_value())
+                                .transpose()
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            None,
+                        )
+                    }
+                    _ => (
+                        None,
+                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                    ),
+                },
+                None => (None, None),
+            },
+            None => (None, None),
+        };
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceAuthenticateResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
+        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+            Some(redirection_data) => match redirection_data.form_type {
+                Some(ref form_type) => match form_type {
+                    payments_grpc::redirect_form::FormType::Uri(uri) => {
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
+                            sdk_uri: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        };
+                        (
+                            Some(sdk_uri_info.encode_to_value())
+                                .transpose()
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            None,
+                        )
+                    }
+                    _ => (
+                        None,
+                        Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
+                    ),
+                },
+                None => (None, None),
+            },
+            None => (None, None),
+        };
+
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: connector_response_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
+    }
+}
+
 impl transformers::ForeignTryFrom<common_types::payments::CustomerAcceptance>
     for payments_grpc::CustomerAcceptance
 {
@@ -1707,7 +2106,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
-        access_token: None,
+        state: None,
     })
 }
 
@@ -1774,6 +2173,11 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
@@ -1814,10 +2218,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
-            access_token: router_data
-                .access_token
-                .as_ref()
-                .map(|token| token.token.clone().expose()),
+            state,
         })
     }
 }
@@ -1843,6 +2244,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )),
         });
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id,
             transaction_id: Some(transaction_id),
@@ -1863,10 +2269,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         "Failed to convert browser info".to_string(),
                     )
                 })?,
-            access_token: router_data
-                .access_token
-                .as_ref()
-                .map(|token| token.token.clone().expose()),
+            state,
             refund_metadata: router_data
                 .request
                 .refund_connector_metadata
@@ -1976,7 +2379,6 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             cancellation_reason: router_data.request.cancellation_reason.clone(),
             all_keys_required: None,
             browser_info,
-            access_token: None,
             amount: router_data.request.amount,
             currency: currency.map(|c| c.into()),
             connector_metadata: router_data
@@ -1990,6 +2392,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            state: None,
         })
     }
 }

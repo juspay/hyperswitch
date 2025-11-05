@@ -33,7 +33,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -65,12 +65,91 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
-        transformers::ForeignTryFrom, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
-        UcsSetupMandateResponseData,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
     },
 };
 
 pub mod transformers;
+
+pub async fn get_access_token_from_ucs_response(
+    session_state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    creds_identifier: Option<String>,
+    ucs_state: Option<&unified_connector_service_client::payments::ConnectorState>,
+) -> Option<AccessToken> {
+    let ucs_access_token = ucs_state
+        .and_then(|state| state.access_token.as_ref())
+        .map(AccessToken::foreign_from)?;
+
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let merchant_connector_id_or_connector_name = merchant_connector_id
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(creds_identifier.map(|id| id.to_string()))
+        .unwrap_or(connector_name.to_string());
+
+    if let Ok(Some(cached_token)) = session_state
+        .store
+        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+        .await
+    {
+        if cached_token.token.peek() == ucs_access_token.token.peek() {
+            return None;
+        }
+    }
+
+    Some(ucs_access_token)
+}
+
+pub async fn set_access_token_for_ucs(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+    access_token: AccessToken,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    creds_identifier: Option<String>,
+) -> Result<(), errors::StorageError> {
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let merchant_connector_id_or_connector_name = merchant_connector_id
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(creds_identifier.map(|id| id.to_string()))
+        .unwrap_or(connector_name.to_string());
+
+    let modified_access_token = AccessToken {
+        expires: access_token
+            .expires
+            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+        ..access_token
+    };
+
+    logger::debug!(
+        access_token_expiry_after_modification = modified_access_token.expires,
+        merchant_id = ?merchant_id,
+        connector_name = connector_name,
+        merchant_connector_id_or_connector_name = merchant_connector_id_or_connector_name
+    );
+
+    if let Err(access_token_set_error) = state
+        .store
+        .set_access_token(
+            merchant_id,
+            &merchant_connector_id_or_connector_name,
+            modified_access_token,
+        )
+        .await
+    {
+        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+        // Payments should not fail, once the access token is successfully created
+        // The next request will create new access token, if required
+        logger::error!(access_token_set_error=?access_token_set_error, "Failed to store UCS access token");
+    }
+
+    Ok(())
+}
 
 // Re-export webhook transformer types for easier access
 pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
@@ -88,22 +167,25 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-/// Gets the rollout percentage for a given config key
-async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+/// Checks if a config key exists and returns its percentage if present
+/// Returns (key_exists, rollout_percentage)
+async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
-                Ok(config) => Some(config.rollout_percent),
-                Err(_) => {
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>().ok()
-                }
-            }
+            // Key exists, try to parse percentage
+            let percentage =
+                match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                    Ok(config) => Some(config.rollout_percent),
+                    Err(_) => {
+                        // Fallback to legacy format (simple float)
+                        rollout_config.config.parse::<f64>().ok()
+                    }
+                };
+            (true, percentage)
         }
-        Err(_) => None,
+        Err(_) => (false, None), // Key doesn't exist
     }
 }
 
@@ -176,6 +258,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R, D>(
     router_data: &RouterData<F, T, R>,
     payment_data: Option<&D>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(ExecutionPath, SessionState)>
 where
     D: OperationSessionGetters<F>,
@@ -211,33 +294,38 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
 
-    // Check both rollout keys to determine priority based on shadow percentage
+    // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let (shadow_key_exists, _shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
 
-    // Get shadow percentage to determine priority
-    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
-        .await
-        .unwrap_or(0.0);
+    // Simplified decision logic: Shadow takes priority, then rollout, then direct
+    let shadow_rollout_availability = if shadow_key_exists {
+        // Block 1: Shadow key exists - check if it's enabled
+        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
 
-    let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
-            // Shadow is present and percentage is non-zero, use shadow
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is present with non-zero percentage, using shadow"
-            );
-            ShadowRolloutAvailability::IsAvailable
-        } else if rollout_result.should_execute {
-            // Either shadow is 0.0 or not present, use rollout if available
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is 0.0 or not present, using rollout"
-            );
+        if shadow_percentage != 0.0 {
+            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
             ShadowRolloutAvailability::IsAvailable
         } else {
+            router_env::logger::debug!(
+                shadow_key = %shadow_rollout_key,
+                shadow_percentage = shadow_percentage,
+                rollout_enabled = rollout_result.should_execute,
+                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
+            );
+            // Shadow disabled, result is the same regardless of rollout status
             ShadowRolloutAvailability::NotAvailable
-        };
+        }
+    } else if rollout_result.should_execute {
+        // Block 2: No shadow key, but rollout is enabled - use primary UCS
+        router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
+        ShadowRolloutAvailability::NotAvailable
+    } else {
+        // Block 3: Neither shadow nor rollout enabled - use direct
+        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Neither shadow nor rollout enabled, using Direct mode" );
+        ShadowRolloutAvailability::NotAvailable
+    };
 
     // Single decision point using pattern matching
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -269,7 +357,14 @@ where
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
-                (GatewaySystem::Direct, ExecutionPath::Direct)
+                if shadow_ucs_call_connector_action.is_some() {
+                    (
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    )
+                } else {
+                    (GatewaySystem::Direct, ExecutionPath::Direct)
+                }
             }
             CallConnectorAction::Trigger
             | CallConnectorAction::Avoid
@@ -431,7 +526,7 @@ fn decide_execution_path(
         // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
         (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
             Ok((
-                GatewaySystem::UnifiedConnectorService,
+                GatewaySystem::Direct,
                 ExecutionPath::ShadowUnifiedConnectorService,
             ))
         }
@@ -562,36 +657,89 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     merchant_context: &MerchantContext,
     connector_name: &str,
-) -> RouterResult<bool> {
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        logger::debug!(
-            connector = connector_name.to_string(),
-            "Unified Connector Service client is not available for webhooks"
-        );
-        return Ok(false);
-    }
-
-    let ucs_config_key = consts::UCS_ENABLED;
-
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        return Ok(false);
-    }
-
+) -> RouterResult<ExecutionPath> {
+    // Extract context information
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let config_key = format!(
-        "{}_{}_{}_Webhooks",
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
+
+    let flow_name = "Webhooks";
+
+    // Check UCS availability using idiomatic helper
+    let ucs_availability = check_ucs_availability(state).await;
+
+    // Build rollout keys - webhooks don't use payment method, so use a simplified key format
+    let rollout_key = format!(
+        "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_name
+        connector_name,
+        flow_name
+    );
+    let shadow_rollout_key = format!("{rollout_key}_shadow");
+
+    // Determine connector integration type
+    let connector_integration_type =
+        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+
+    // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
+    let previous_gateway = None;
+
+    // Check both rollout keys to determine priority based on shadow percentage
+    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+
+    // Get shadow percentage to determine priority
+    let (_shadow_key_exists, shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
+
+    let shadow_rollout_availability =
+        if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
+            // Shadow is present and percentage is non-zero, use shadow
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
+                "Shadow rollout is present with non-zero percentage for webhooks, using shadow"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else if rollout_result.should_execute {
+            // Either shadow is 0.0 or not present, use rollout if available
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
+                "Shadow rollout is 0.0 or not present for webhooks, using rollout"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else {
+            ShadowRolloutAvailability::NotAvailable
+        };
+
+    // Use the same decision logic as payments, with no call_connector_action to consider
+    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+        router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
+        (GatewaySystem::Direct, ExecutionPath::Direct)
+    } else {
+        // UCS is enabled, use decide function with no previous gateway for webhooks
+        decide_execution_path(
+            connector_integration_type,
+            previous_gateway,
+            shadow_rollout_availability,
+        )?
+    };
+
+    router_env::logger::info!(
+        "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
     );
 
-    let rollout_result = should_execute_based_on_rollout(state, &config_key).await?;
-
-    Ok(rollout_result.should_execute)
+    Ok(execution_path)
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -680,6 +828,33 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(upi_type),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+            bank_redirect_data,
+        ) => match bank_redirect_data {
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
+                issuer,
+                country,
+            } => {
+                let open_banking_uk = payments_grpc::OpenBankingUk {
+                    issuer: issuer.map(|issuer| issuer.to_string()),
+                    country: country.map(|country| country.to_string()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OnlineBanking(
+                            payments_grpc::OnlineBankingPaymentMethodType {
+                                online_banking_type: Some(
+                                    payments_grpc::online_banking_payment_method_type::OnlineBankingType::OpenBankingUk(open_banking_uk)
+                                ),
+                            }
+                        )),
+                    })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank redirect type: {bank_redirect_data:?}"
+            ))
+            .into()),
+        },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
             match payment_method_type {
                 PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
@@ -830,6 +1005,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_SIGNATURE_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
+            key2: None,
             api_secret: Some(api_secret.clone()),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -839,6 +1015,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_BODY_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
+            key2: None,
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -848,6 +1025,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_HEADER_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: None,
+            key2: None,
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -857,8 +1035,24 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_CURRENCY_AUTH_KEY.to_string(),
             api_key: None,
             key1: None,
+            key2: None,
             api_secret: None,
             auth_key_map: Some(auth_key_map.clone()),
+            merchant_id: Secret::new(merchant_id.to_string()),
+        }),
+        ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
+            key2: Some(key2.clone()),
+            api_secret: Some(api_secret.clone()),
+            auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
@@ -939,6 +1133,28 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
         connector_customer_id,
         connector_response,
     })
+}
+
+pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
+    response: payments_grpc::PaymentServicePostAuthenticateResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_authenticate(
+    response: payments_grpc::PaymentServiceAuthenticateResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(

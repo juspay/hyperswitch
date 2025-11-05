@@ -86,6 +86,14 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Pre Authenticate from gRPC Server")]
     PaymentPreAuthenticateFailure,
 
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Authenticate from gRPC Server")]
+    PaymentAuthenticateFailure,
+
+    /// Failed to perform Payment Authenticate from gRPC Server
+    #[error("Failed to perform Payment Poat Authenticate from gRPC Server")]
+    PaymentPostAuthenticateFailure,
+
     /// Failed to perform Payment Get from gRPC Server
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
@@ -279,6 +287,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
                     extended_authentication_applied: data
                         .extended_authentication_applied
                         .map(ExtendedAuthorizationAppliedBool::from),
+                    extended_authorization_last_applied_at: None, // This field has to be added to UCS
                 }
             });
 
