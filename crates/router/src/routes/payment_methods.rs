@@ -847,26 +847,25 @@ pub async fn payment_method_update_api(
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
-
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            cards::update_customer_payment_method(state, merchant_context, req, &payment_method_id)
+        |state, _, req, _| {
+            let value = payment_method_id.clone();
+            async move {
+                let merchant_id = req.merchant_id.clone();
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account, key_store),
+                ));
+                cards::update_customer_payment_method(state, merchant_context, req, &value).await
+            }
         },
-        &*auth,
+        &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
