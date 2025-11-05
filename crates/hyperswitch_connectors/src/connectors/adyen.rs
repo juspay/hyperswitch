@@ -2252,6 +2252,7 @@ impl IncomingWebhook for Adyen {
             }),
             wallet: None,
             client_secret: None,
+            merchant_id: None,
         }))
     }
 }

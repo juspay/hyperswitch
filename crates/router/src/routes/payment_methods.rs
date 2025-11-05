@@ -11,6 +11,8 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
@@ -1061,41 +1063,37 @@ pub async fn payment_method_update_api(
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth {
-        allow_connected_scope_operation: true,
-        allow_platform_self_operation: true,
-    };
-
-    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        move |state, auth: auth::AuthenticationData, mut req, _| {
-            let payment_method_id = payment_method_id.clone();
-            Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
-                if let Some(client_secret) = auth.client_secret {
-                    req.client_secret = Some(client_secret);
-                }
-
-                Box::pin(cards::update_customer_payment_method(
-                    state,
-                    auth.platform.get_provider().clone(),
-                    auth.platform.get_initiator().cloned(),
-                    req,
-                    &payment_method_id,
+        |state, _, req, _| {
+            let value = payment_method_id.clone();
+            async move {
+                let merchant_id = req.merchant_id.clone().get_required_value("merchant_id")?;
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
                     None,
-                ))
+                );
+                cards::update_customer_payment_method(
+                    state,
+                    platform.get_provider().to_owned(),
+                    None,
+                    req,
+                    &value,
+                    None,
+                )
                 .await
-            })
+            }
         },
-        &*auth,
+        &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

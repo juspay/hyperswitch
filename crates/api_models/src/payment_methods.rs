@@ -526,6 +526,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    /// Merchant id
+    pub merchant_id: Option<id_type::MerchantId>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
