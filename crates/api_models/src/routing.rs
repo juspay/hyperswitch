@@ -4,6 +4,7 @@ use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisi
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
+    fp_utils,
     pii,
 };
 use euclid::frontend::ast::Program;
@@ -1038,19 +1039,18 @@ impl EliminationRoutingConfig {
             ))
     }
 
-    pub fn validate_fields_not_all_null(&self) -> Result<(), error_stack::Report<ValidationError>> {
-        if self.params.is_none()
-            && self.elimination_analyser_config.is_none()
-            && self.decision_engine_configs.is_none()
-        {
-            Err(error_stack::Report::new(
-                ValidationError::MissingRequiredField {
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none()
+                && self.elimination_analyser_config.is_none()
+                && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
                     field_name: "All fields in EliminationRoutingConfig cannot be null".to_string(),
-                },
-            ))
-        } else {
-            Ok(())
-        }
+                }
+                .into())
+            },
+        )
     }
 }
 
@@ -1215,18 +1215,17 @@ impl SuccessBasedRoutingConfig {
             ))
     }
 
-    pub fn validate_fields_not_all_null(&self) -> Result<(), error_stack::Report<ValidationError>> {
-        if self.params.is_none() && self.config.is_none() && self.decision_engine_configs.is_none()
-        {
-            Err(error_stack::Report::new(
-                ValidationError::MissingRequiredField {
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none() && self.config.is_none() && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
                     field_name: "All fields in SuccessBasedRoutingConfig cannot be null"
                         .to_string(),
-                },
-            ))
-        } else {
-            Ok(())
-        }
+                }
+                .into())
+            },
+        )
     }
 }
 

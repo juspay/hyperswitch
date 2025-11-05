@@ -2251,7 +2251,7 @@ pub async fn create_specific_dynamic_routing_setup(
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let success_config = match &payload {
                 routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
-                    config.validate_fields_not_all_null().change_context(
+                    config.validate().change_context(
                         errors::ApiErrorResponse::InvalidRequestData {
                             message: "All fields in SuccessBasedRoutingConfig cannot be null"
                                 .to_string(),
@@ -2284,7 +2284,7 @@ pub async fn create_specific_dynamic_routing_setup(
         routing_types::DynamicRoutingType::EliminationRouting => {
             let elimination_config = match &payload {
                 routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
-                    config.validate_fields_not_all_null().change_context(
+                    config.validate().change_context(
                         errors::ApiErrorResponse::InvalidRequestData {
                             message: "All fields in EliminationRoutingConfig cannot be null"
                                 .to_string(),
