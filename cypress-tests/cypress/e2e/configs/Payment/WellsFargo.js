@@ -36,6 +36,12 @@ const multiUseMandateData = {
   },
 };
 
+const threeDsValidationData = {
+  type: "invalid_request",
+  message: "3DS not supported for WellsFargo",
+  code: "IR_00",
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -117,11 +123,7 @@ export const connectorDetails = {
            Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for WellsFargo",
-            code: "IR_00",
-          },
+          error: threeDsValidationData,
         },
       },
     },
@@ -141,11 +143,7 @@ export const connectorDetails = {
             Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for WellsFargo",
-            code: "IR_00",
-          },
+          error: threeDsValidationData,
         },
       },
     },
@@ -265,11 +263,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for WellsFargo",
-            code: "IR_00",
-          },
+          error: threeDsValidationData,
         },
       },
     },
@@ -540,11 +534,7 @@ export const connectorDetails = {
      Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for WellsFargo",
-            code: "IR_00",
-          },
+          error: threeDsValidationData,
         },
       },
     },
@@ -649,11 +639,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for WellsFargo",
-            code: "IR_00",
-          },
+          error: threeDsValidationData,
         },
       },
     },
