@@ -204,6 +204,17 @@ base_url = "https://live.hyperswitch.io"
 force_two_factor_auth = true
 force_cookies = false
 
+[oidc]
+
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
+[[oidc.clients]]
+client_id = ""
+client_secret = ""
+redirect_uri = ""
+
 [frm]
 enabled = false
 

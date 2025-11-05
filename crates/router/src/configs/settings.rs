@@ -111,6 +111,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: OidcSettings,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
@@ -700,6 +701,51 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub keys: Vec<OidcKey>,
+    pub clients: Vec<OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl Default for OidcSettings {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            clients: Vec::new(),
+        }
+    }
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.clients.iter().find(|c| c.client_id == client_id)
+    }
+
+    /// Get the latest (first) signing key for creating new tokens
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        self.keys.first()
+    }
+
+    /// Get all keys for JWKS endpoint (for token validation)
+    pub fn get_all_keys(&self) -> &[OidcKey] {
+        &self.keys
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

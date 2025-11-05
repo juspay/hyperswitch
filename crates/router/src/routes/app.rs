@@ -62,7 +62,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*, oidc,
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
@@ -1714,6 +1714,20 @@ impl Hypersense {
                 web::resource("/signout")
                     .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
+    }
+}
+
+pub struct Oidc;
+
+impl Oidc {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/.well-known/openid-configuration")
+                    .route(web::get().to(oidc::oidc_discovery)),
+            )
+            .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
     }
 }
 
