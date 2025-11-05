@@ -1794,6 +1794,7 @@ impl AddressDetailsData for AddressDetails {
 
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1810,6 +1811,23 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
     }
 }
 
