@@ -30,8 +30,7 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
-        GiftCardBalanceCheckRequestData, PaymentsExtendAuthorizationData,
-        PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData,
+        GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
@@ -62,7 +61,8 @@ use crate::{types::PayoutsResponseRouterData, utils::PayoutsData};
 use crate::{
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, PaymentsCancelResponseRouterData,
-        PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
+        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
         SubmitEvidenceRouterData,
     },
     utils::{
@@ -297,6 +297,7 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     merchant_order_reference: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
+    /// metadata.store
     store: Option<String>,
     device_fingerprint: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -1415,6 +1416,7 @@ pub struct AdyenRefundRequest {
     merchant_refund_reason: Option<AdyenRefundRequestReason>,
     reference: String,
     splits: Option<Vec<AdyenSplitData>>,
+    /// refund_connector_metadata.store
     store: Option<String>,
 }
 
@@ -1873,17 +1875,28 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    let shopper_reference = match item.get_connector_customer_id() {
-        Ok(connector_customer_id) => Some(connector_customer_id),
-        Err(_) => {
+    // is_migrated_card to be changed intto is_migrated_payment_method to cover all migrated payment methods.
+    let shopper_reference = Some(match item.is_migrated_card {
+        Some(true) => match item.get_connector_customer_id() {
+            Ok(connector_customer_id) => connector_customer_id,
+            Err(_) => {
+                let customer_id = item.get_customer_id()?;
+                format!(
+                    "{}_{}",
+                    item.merchant_id.get_string_repr(),
+                    customer_id.get_string_repr()
+                )
+            }
+        },
+        _ => {
             let customer_id = item.get_customer_id()?;
-            Some(format!(
+            format!(
                 "{}_{}",
                 item.merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
-            ))
+            )
         }
-    };
+    });
 
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {
@@ -2545,7 +2558,8 @@ impl
             }
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::BreadpayRedirect {}
-            | PayLaterData::FlexitiRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::FlexitiRedirect {}
+            | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2840,6 +2854,12 @@ fn get_device_fingerprint(metadata: serde_json::Value) -> Option<Secret<String>>
         .map(|fingerprint| Secret::new(fingerprint.to_string()))
 }
 
+fn get_store_id(metadata: serde_json::Value) -> Option<String> {
+    metadata
+        .get("store")
+        .and_then(|store| store.as_str())
+        .map(|store| store.to_string())
+}
 impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
@@ -2997,7 +3017,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3084,7 +3111,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3165,7 +3199,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3250,7 +3291,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3327,7 +3375,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3445,7 +3500,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3530,7 +3592,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -3661,7 +3730,14 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
 
         let device_fingerprint = item
@@ -3757,7 +3833,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -3837,7 +3920,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data
@@ -3940,24 +4030,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            AdyenBalanceResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AdyenBalanceResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4902,24 +4980,12 @@ pub struct AdyenExtendAuthorizationResponse {
     amount: Amount,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            AdyenExtendAuthorizationResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsExtendAuthorizationData, PaymentsResponseData>
+impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<AdyenExtendAuthorizationResponse>>
+    for PaymentsExtendAuthorizationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AdyenExtendAuthorizationResponse,
-            PaymentsExtendAuthorizationData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsExtendAuthorizationResponseRouterData<AdyenExtendAuthorizationResponse>,
     ) -> Result<Self, Self::Error> {
         // Asynchronous authorization adjustment
         Ok(Self {
@@ -5037,7 +5103,14 @@ impl<F> TryFrom<&AdyenRouterData<&RefundsRouterData<F>>> for AdyenRefundRequest 
         .as_ref()
         {
                 Some(hyperswitch_domain_models::router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) =>  get_adyen_split_request(adyen_split_data, item.router_data.request.currency),
-                _ => (None, None),
+                _ => (
+                item.router_data
+                    .request
+                    .refund_connector_metadata
+                    .clone()
+                    .and_then(|metadata| get_store_id(metadata.expose())),
+                None,
+            ),
         };
 
         Ok(Self {
@@ -6391,7 +6464,14 @@ impl
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (None, None),
+            _ => (
+                item.router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .and_then(get_store_id),
+                None,
+            ),
         };
         let device_fingerprint = item
             .router_data

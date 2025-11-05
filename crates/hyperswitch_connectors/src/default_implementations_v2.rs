@@ -433,6 +433,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -584,6 +585,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -723,6 +725,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -869,6 +872,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1020,6 +1024,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1172,6 +1177,7 @@ default_imp_for_new_connector_integration_fetch_disputes!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1324,6 +1330,7 @@ default_imp_for_new_connector_integration_dispute_sync!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1475,6 +1482,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1625,6 +1633,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1786,6 +1795,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1939,6 +1949,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2092,6 +2103,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2245,6 +2257,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2398,6 +2411,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2551,6 +2565,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2704,6 +2719,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2857,6 +2873,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3010,6 +3027,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3161,6 +3179,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3314,6 +3333,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3467,6 +3487,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3620,6 +3641,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3773,6 +3795,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -3926,6 +3949,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4075,6 +4099,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4192,6 +4217,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4340,6 +4366,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4480,6 +4507,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4659,6 +4687,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -4809,6 +4838,7 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
     connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard

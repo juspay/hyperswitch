@@ -89,6 +89,7 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub is_migrated_card: Option<bool>,
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
