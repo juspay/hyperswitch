@@ -97,7 +97,6 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
         }),
         enrolled_for_3ds: true,
         authentication_data: Some(AuthenticationData {
-            trans_status: None,
             eci: Some("05".to_string()),
             cavv: Secret::new("jJ81HADVRtXfCBATEp01CJUAAAA".to_string()),
             threeds_server_transaction_id: Some("9458d8d4-f19f-4c28-b5c7-421b1dd2e1aa".to_string()),
@@ -110,8 +109,6 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             message_extension: None,
             acs_trans_id: None,
             authentication_type: None,
-            transaction_id: None,
-            ucaf_collection_indicator: None,
         }),
         ..utils::PaymentAuthorizeType::default().0
     })

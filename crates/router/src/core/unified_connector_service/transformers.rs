@@ -1911,13 +1911,10 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .message_version
                 .map(|message_version| message_version.to_string()),
             ds_transaction_id: authentication_data.ds_trans_id,
-            trans_status: authentication_data
-                .trans_status
-                .map(payments_grpc::TransactionStatus::foreign_from)
-                .map(i32::from),
+            trans_status: None,
             acs_transaction_id: authentication_data.acs_trans_id,
-            transaction_id: authentication_data.transaction_id,
-            ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
         })
     }
 }

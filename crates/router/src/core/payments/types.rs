@@ -417,7 +417,6 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("cavv must not be null when authentication_status is success")?;
             Ok(Self {
-                trans_status: authentication.trans_status.clone(),
                 eci: authentication.eci.clone(),
                 created_at: authentication.created_at,
                 cavv,
@@ -430,8 +429,6 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
-                transaction_id: authentication.connector_authentication_id.clone(),
-                ucaf_collection_indicator: None,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

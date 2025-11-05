@@ -1075,10 +1075,7 @@ pub struct AuthenticationData {
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub acs_trans_id: Option<String>,
-    pub trans_status: Option<common_enums::TransactionStatus>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
-    pub transaction_id: Option<String>,
-    pub ucaf_collection_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
