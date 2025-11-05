@@ -737,8 +737,7 @@ pub fn extract_rsa_public_key_components(
     private_key_pem: &str,
 ) -> CustomResult<(String, String), errors::CryptoError> {
     use base64::Engine;
-    use rsa::pkcs1::DecodeRsaPrivateKey;
-    use rsa::pkcs8::DecodePrivateKey;
+    use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
 
     let parsed_pem =
         pem::parse(private_key_pem).change_context(errors::CryptoError::EncodingFailed)?;
