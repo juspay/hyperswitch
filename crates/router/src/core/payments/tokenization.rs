@@ -336,7 +336,7 @@ where
                     _ => None,
                 };
 
-                let result = save_payment_method_data_helper(
+                let payment_method_id = create_or_fetch_payment_method_helper(
                     state,
                     merchant_context,
                     optional_pm_details,
@@ -365,7 +365,7 @@ where
                     )
                     .await?;
                 }
-                result?
+                payment_method_id?
             } else {
                 None
             };
@@ -431,7 +431,7 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn save_payment_method_data_helper(
+pub async fn create_or_fetch_payment_method_helper(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     optional_pm_details: Option<PaymentMethodsData>,

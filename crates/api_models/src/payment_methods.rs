@@ -1295,9 +1295,6 @@ impl PartialEq for CardDetailFromLocker {
 }
 
 #[cfg(feature = "v1")]
-impl Eq for CardDetailFromLocker {}
-
-#[cfg(feature = "v1")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
