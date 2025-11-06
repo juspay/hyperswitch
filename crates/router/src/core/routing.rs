@@ -734,8 +734,15 @@ pub async fn link_routing_config(
                             Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        .map_err(|err| match err.current_context() {
+                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
+                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                .attach_printable("Decision engine config not found")
+                            }
+                            _ => err
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to setup decision engine dynamic routing"),
+                        })?;
                         }
                     }
                 }
