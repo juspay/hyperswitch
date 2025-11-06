@@ -208,7 +208,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",// this is an async process
+          status: "processing", // this is an async process
         },
       },
     },
