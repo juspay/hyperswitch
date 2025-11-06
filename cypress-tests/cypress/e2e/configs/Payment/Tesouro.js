@@ -212,7 +212,7 @@ export const connectorDetails = {
         },
       },
     },
-     Void: {
+    Void: {
       Request: {},
       Response: {
         status: 200,
