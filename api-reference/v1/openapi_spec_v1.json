@@ -9489,7 +9489,9 @@
         "required": [
           "display_name",
           "network",
-          "type"
+          "type",
+          "card_exp_month",
+          "card_exp_year"
         ],
         "properties": {
           "display_name": {
@@ -9503,6 +9505,16 @@
           "type": {
             "type": "string",
             "description": "The type of the payment method"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25"
           }
         }
       },
@@ -25142,7 +25154,9 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network"
+          "card_network",
+          "card_exp_month",
+          "card_exp_year"
         ],
         "properties": {
           "last4": {
@@ -25157,6 +25171,16 @@
             "type": "string",
             "description": "The type of payment method",
             "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card Expiry Month",
+            "example": "10"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card Expiry Year",
+            "example": "25"
           }
         }
       },
@@ -36887,7 +36911,9 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network"
+          "card_network",
+          "card_exp_month",
+          "card_exp_year"
         ],
         "properties": {
           "last4": {
@@ -36902,6 +36928,16 @@
             "type": "string",
             "description": "The type of payment method",
             "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Expiry Month of card",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Expiry Year of card",
+            "example": "25"
           }
         }
       },
