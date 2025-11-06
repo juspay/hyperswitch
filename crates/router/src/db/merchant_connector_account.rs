@@ -16,7 +16,7 @@ pub trait ConnectorAccessToken {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
-        payment_method_type: Option<String>,
+        access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError>;
 
     async fn set_access_token(
@@ -24,7 +24,7 @@ pub trait ConnectorAccessToken {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
-        payment_method_type: Option<String>,
+        access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<(), errors::StorageError>;
 }
 
@@ -35,7 +35,7 @@ impl ConnectorAccessToken for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
-        payment_method_type: Option<String>,
+        access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
@@ -43,7 +43,7 @@ impl ConnectorAccessToken for Store {
         let key = common_utils::access_token::create_access_token_key(
             merchant_id,
             merchant_connector_id_or_connector_name,
-            payment_method_type,
+            access_token_key_suffix_from_connector,
         );
 
         let maybe_token = self
@@ -68,12 +68,12 @@ impl ConnectorAccessToken for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: &str,
         access_token: types::AccessToken,
-        payment_method_type: Option<String>,
+        access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<(), errors::StorageError> {
         let key = common_utils::access_token::create_access_token_key(
             merchant_id,
             merchant_connector_id_or_connector_name,
-            payment_method_type,
+            access_token_key_suffix_from_connector,
         );
         let serialized_access_token = access_token
             .encode_to_string_of_json()
@@ -92,7 +92,7 @@ impl ConnectorAccessToken for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _merchant_connector_id_or_connector_name: &str,
-        _payment_method_type: Option<String>,
+        _access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<Option<types::AccessToken>, errors::StorageError> {
         Ok(None)
     }
@@ -102,7 +102,7 @@ impl ConnectorAccessToken for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _merchant_connector_id_or_connector_name: &str,
         _access_token: types::AccessToken,
-        _payment_method_type: Option<String>,
+        _access_token_key_suffix_from_connector: Option<String>,
     ) -> CustomResult<(), errors::StorageError> {
         Ok(())
     }
