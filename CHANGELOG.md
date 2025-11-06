@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.06.0
+
+### Features
+
+- **authentication:** Add click to pay support for modular authentication ([#10004](https://github.com/juspay/hyperswitch/pull/10004)) ([`e0538de`](https://github.com/juspay/hyperswitch/commit/e0538deb55665367dd6e4bcbf34c741c2f29348e))
+- **connector:**
+  - Mandates + setup mandate for tesouro CARDS ([#10063](https://github.com/juspay/hyperswitch/pull/10063)) ([`0d6fe4a`](https://github.com/juspay/hyperswitch/commit/0d6fe4a130a3783d402726aae179cb1b350e0f61))
+  - Add cybersource to network_transaction_id_supported_connectors list in production config ([#10008](https://github.com/juspay/hyperswitch/pull/10008)) ([`166025d`](https://github.com/juspay/hyperswitch/commit/166025de2656b69051d797c3fcd66774fddae525))
+- Add support to call ucs authorize function during complete authorize ([#10091](https://github.com/juspay/hyperswitch/pull/10091)) ([`1d3def3`](https://github.com/juspay/hyperswitch/commit/1d3def33b7b963e8a380ab90389453a87778d12b))
+
+### Bug Fixes
+
+- **connector:** [worldpayvantiv] remove raw_connector_response logger ([#10134](https://github.com/juspay/hyperswitch/pull/10134)) ([`c852ca9`](https://github.com/juspay/hyperswitch/commit/c852ca939a20fa974ec84e90f443438771d07522))
+- **connectors:** [Adyen] add migrated payment method check ([#10094](https://github.com/juspay/hyperswitch/pull/10094)) ([`2abb747`](https://github.com/juspay/hyperswitch/commit/2abb747af2df41a05a720cffa7120affc108f222))
+
+**Full Changelog:** [`2025.11.05.0...2025.11.06.0`](https://github.com/juspay/hyperswitch/compare/2025.11.05.0...2025.11.06.0)
+
+- - -
+
 ## 2025.11.05.0
 
 ### Features
