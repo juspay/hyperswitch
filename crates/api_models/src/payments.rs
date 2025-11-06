@@ -5956,6 +5956,9 @@ pub struct PaymentsListResponseItem {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
+
+    /// Indicates if the payment amount is split across multiple payment methods
+    pub is_split_payment: bool,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
