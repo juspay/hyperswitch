@@ -727,7 +727,11 @@ impl DynamicRoutingAlgorithmRef {
         self.success_based_algorithm
             .as_ref()
             .map(|success_based_routing| {
-                if success_based_routing.algorithm_id_with_timestamp.algorithm_id.is_none() {
+                if success_based_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
                     return false;
                 }
                 success_based_routing.enabled_feature
