@@ -446,8 +446,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
         | AttemptStatus::Failure
-        | AttemptStatus::Expired 
-        => true,
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending

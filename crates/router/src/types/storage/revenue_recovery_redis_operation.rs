@@ -54,20 +54,14 @@ pub struct PaymentProcessorTokenStatus {
 
 impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCardInfo {
     fn from(data: &PaymentProcessorTokenDetails) -> Self {
-            Self {
-            card_exp_month: data
-                .expiry_month
-                .clone(),
-            card_exp_year: data
-                .expiry_year
-                .clone(),
+        Self {
+            card_exp_month: data.expiry_month.clone(),
+            card_exp_year: data.expiry_year.clone(),
             card_issuer: data.card_issuer.clone(),
             card_network: data.card_network.clone(),
             card_type: data.card_type.clone(),
-            last4: data
-                .last_four_digits
-                .clone(),
-            card_isin : data.card_isin.clone(),
+            last4: data.last_four_digits.clone(),
+            card_isin: data.card_isin.clone(),
             card_issuing_country: None,
             bank_code: None,
             card_extended_bin: None,
@@ -1272,7 +1266,7 @@ impl AccountUpdaterAction {
                         last_four_digits: None,
                         card_type: None,
                         card_network: updated_mandate_details.card_network.clone(),
-                        card_isin : updated_mandate_details.card_isin.clone(),
+                        card_isin: updated_mandate_details.card_isin.clone(),
                     },
                     inserted_by_attempt_id: attempt_id.to_owned(),
                     error_code: None,
@@ -1294,8 +1288,12 @@ impl AccountUpdaterAction {
                             OffsetDateTime::now_utc().date(),
                             OffsetDateTime::now_utc().time(),
                         ),
-                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(&scheduled_token.payment_processor_token_details)),
-                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(updated_mandate_details)),
+                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            &scheduled_token.payment_processor_token_details,
+                        )),
+                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            updated_mandate_details,
+                        )),
                     }]),
                 };
 
@@ -1318,8 +1316,10 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 ));
-                updated_token.account_update_history.get_or_insert(vec![]).push(
-                    AccountUpdateHistoryRecord {
+                updated_token
+                    .account_update_history
+                    .get_or_insert(vec![])
+                    .push(AccountUpdateHistoryRecord {
                         old_token: scheduled_token
                             .payment_processor_token_details
                             .payment_processor_token
@@ -1332,10 +1332,13 @@ impl AccountUpdaterAction {
                             OffsetDateTime::now_utc().date(),
                             OffsetDateTime::now_utc().time(),
                         ),
-                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(&scheduled_token.payment_processor_token_details)),
-                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(&updated_token.payment_processor_token_details)),
-                    },
-                );
+                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            &scheduled_token.payment_processor_token_details,
+                        )),
+                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            &updated_token.payment_processor_token_details,
+                        )),
+                    });
 
                 let _ = RedisTokenManager::upsert_payment_processor_token(
                     state,

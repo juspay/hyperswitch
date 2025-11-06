@@ -457,7 +457,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                         None,
                                         None,
                                         None,
-                                        None
+                                        None,
                                     ),
                                 ),
                             ),
@@ -562,7 +562,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     Some(common_utils::generate_id_with_len(
                         consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
-                    None
+                    None,
                 ),
             ));
 

@@ -9448,7 +9448,7 @@ where
                     mandate_reference_record
                         .connector_mandate_request_reference_id
                         .clone(),
-                    None
+                    None,
                 ),
             ))
         }

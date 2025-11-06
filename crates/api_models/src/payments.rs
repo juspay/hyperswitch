@@ -2003,10 +2003,10 @@ pub struct ConnectorMandateReferenceId {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UpdatedMandateDetails {
-    pub card_network : Option<common_enums::CardNetwork>,
-    pub card_exp_month : Option<Secret<String>>,
-    pub card_exp_year : Option<Secret<String>>,
-    pub card_isin : Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_isin: Option<String>,
 }
 
 impl From<AdditionalCardInfo> for UpdatedMandateDetails {
@@ -2057,7 +2057,7 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
-            updated_mandate_details
+            updated_mandate_details,
         }
     }
 
