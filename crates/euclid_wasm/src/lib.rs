@@ -38,7 +38,7 @@ use api_models::payment_methods::CountryCodeWithName;
 use common_enums::PayoutStatus;
 use common_enums::{
     CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
-    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus, SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -381,6 +381,14 @@ pub fn get_connector_config(key: &str) -> JsResult {
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 
+#[wasm_bindgen(js_name = getBillingConnectorConfig)]
+pub fn get_billing_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::BillingConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_billing_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
 #[cfg(feature = "payouts")]
 #[wasm_bindgen(js_name = getPayoutConnectorConfig)]
 pub fn get_payout_connector_config(key: &str) -> JsResult {
@@ -511,6 +519,12 @@ pub fn get_valid_webhook_status(key: &str) -> JsResult {
         #[cfg(feature = "payouts")]
         EventClass::Payouts => {
             let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Subscriptions => {
+            let statuses: Vec<SubscriptionStatus> = SubscriptionStatus::iter()
                 .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
                 .collect();
             Ok(serde_wasm_bindgen::to_value(&statuses)?)

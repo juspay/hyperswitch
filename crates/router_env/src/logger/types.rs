@@ -281,6 +281,12 @@ pub enum Flow {
     UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
+    /// Pause Subscription flow
+    PauseSubscription,
+    /// Resume Subscription flow
+    ResumeSubscription,
+    /// Cancel Subscription flow
+    CancelSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -660,6 +666,10 @@ pub enum Flow {
     AuthenticationAuthenticate,
     /// Authentication Session Token flow
     AuthenticationSessionToken,
+    /// Authentication Eligibility Check flow
+    AuthenticationEligibilityCheck,
+    /// Authentication Retrieve Eligibility Check flow
+    AuthenticationRetrieveEligibilityCheck,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -686,6 +696,8 @@ pub enum Flow {
     PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
+    /// Apply payment method data flow
+    ApplyPaymentMethodData,
 }
 
 /// Trait for providing generic behaviour to flow metric

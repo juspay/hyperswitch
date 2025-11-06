@@ -243,6 +243,20 @@ impl PaymentMethod {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_migrated_card(&self) -> bool {
+        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
+            && self.locker_id.is_none()
+            && self.connector_mandate_details.is_some()
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn is_migrated_card(&self) -> bool {
+        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
+            && self.locker_id.is_none()
+            && self.connector_mandate_details.is_some()
+    }
+
     #[cfg(feature = "v2")]
     pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
         self.payment_method_type = Some(payment_method_type);
@@ -1203,7 +1217,7 @@ impl PaymentMethodBalanceKey {
 /// This struct stores the balance and currency information for a specific
 /// payment method to be stored in the HashMap in Redis
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodBalance {
     pub balance: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,

@@ -42,7 +42,7 @@ pub use hyperswitch_interfaces::{
     },
     api_client::{
         call_connector_api, execute_connector_processing_step, handle_response,
-        handle_ucs_response, store_raw_connector_response_if_required,
+        store_raw_connector_response_if_required,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -106,6 +106,12 @@ pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
 pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
+pub type BoxedSubscriptionPauseInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionPauseData, Req, Res>;
+pub type BoxedSubscriptionResumeInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionResumeData, Req, Res>;
+pub type BoxedSubscriptionCancelInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCancelData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -312,8 +318,13 @@ where
         }
     };
 
+    let values: Vec<&serde_json::Value> = [Some(&serialized_request), serialized_response.as_ref()]
+        .into_iter()
+        .flatten()
+        .collect();
+
     let infra = extract_mapped_fields(
-        &serialized_request,
+        &values,
         state.enhancement.as_ref(),
         state.infra_components.as_ref(),
     );
@@ -1848,7 +1859,7 @@ pub fn get_payment_link_status(
 }
 
 pub fn extract_mapped_fields(
-    value: &serde_json::Value,
+    values: &[&serde_json::Value],
     mapping: Option<&HashMap<String, String>>,
     existing_enhancement: Option<&serde_json::Value>,
 ) -> Option<serde_json::Value> {
@@ -1864,9 +1875,19 @@ pub fn extract_mapped_fields(
     };
 
     for (dot_path, output_key) in mapping {
-        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+        let mut extracted_value = None;
+
+        // Try to extract from values in order of priority
+        for value in values {
+            if let Some(found_value) = extract_field_by_dot_path(value, dot_path) {
+                extracted_value = Some(found_value);
+                break;
+            }
+        }
+
+        if let Some(value) = extracted_value {
             if let Some(obj) = enhancement.as_object_mut() {
-                obj.insert(output_key.clone(), extracted_value);
+                obj.insert(output_key.clone(), value);
             }
         }
     }
