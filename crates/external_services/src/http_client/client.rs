@@ -13,9 +13,7 @@ static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 static PROXY_CLIENT_CACHE: OnceCell<Mutex<HashMap<String, reqwest::Client>>> = OnceCell::new();
 
-use router_env::{logger, metric_attributes};
-
-use super::metrics;
+use router_env::logger;
 
 
 trait ProxyClientCacheKey {
@@ -23,13 +21,6 @@ trait ProxyClientCacheKey {
     fn has_proxy_config(&self) -> bool;
 }
 
-/// Helper function to extract host from proxy URL for metrics
-fn extract_proxy_host(url_opt: &Option<String>) -> String {
-    url_opt.as_ref()
-        .and_then(|url| url::Url::parse(url).ok())
-        .and_then(|parsed_url| parsed_url.host_str().map(|s| s.to_string()))
-        .unwrap_or_else(|| "none".to_string())
-}
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
@@ -219,16 +210,6 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
     if let Some(cache_key) = proxy_config.cache_key() {
         logger::debug!("Using proxy-specific client cache with key: {}", cache_key);
         
-        // Create simple metrics attributes for proxy client tracking
-        let http_proxy_host = extract_proxy_host(&proxy_config.http_url);
-        let https_proxy_host = extract_proxy_host(&proxy_config.https_url);
-            
-        let proxy_metrics_tag = metric_attributes!(
-            ("client_type", "proxy"),
-            ("http_proxy_host", http_proxy_host),
-            ("https_proxy_host", https_proxy_host)
-        );
-        
         // Use proxy-specific client cache
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
         let mut cache_lock = cache.lock().map_err(|_| {
@@ -238,7 +219,6 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         
         if let Some(client) = cache_lock.get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for key: {}", cache_key);
-            metrics::HTTP_CLIENT_CACHE_HIT.add(1, proxy_metrics_tag);
             return Ok(client.clone());
         }
         
@@ -249,14 +229,10 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             proxy_config.https_url
         );
         
-        metrics::HTTP_CLIENT_CACHE_MISS.add(1, proxy_metrics_tag);
-        
         let client = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
             .build()
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to construct proxy client")?;
-        
-        metrics::HTTP_CLIENT_CREATED.add(1, proxy_metrics_tag);
         
         cache_lock.insert(cache_key.clone(), client.clone());
         logger::debug!("Cached new proxy client with key: {}", cache_key);
@@ -264,21 +240,15 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
     } else {
         logger::debug!("No proxy configuration detected, using DEFAULT_CLIENT");
         
-        let default_metrics_tag = metric_attributes!(("client_type", "default"));
-        
         // Use DEFAULT_CLIENT for non-proxy scenarios
-        let client = DEFAULT_CLIENT
+        Ok(DEFAULT_CLIENT
             .get_or_try_init(|| {
                 logger::info!("Initializing DEFAULT_CLIENT (no proxy configuration)");
-                metrics::HTTP_CLIENT_CREATED.add(1, default_metrics_tag);
                 apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
                     .build()
                     .change_context(HttpClientError::ClientConstructionFailed)
                     .attach_printable("Failed to construct default client")
             })?
-            .clone();
-            
-        metrics::HTTP_CLIENT_CACHE_HIT.add(1, default_metrics_tag);
-        Ok(client)
+            .clone())
     }
 }
