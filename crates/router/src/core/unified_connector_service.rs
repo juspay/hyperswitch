@@ -42,8 +42,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod, wallet_payment_method_type::WalletType,
+    CardDetails, CardPaymentMethodType, CryptoCurrency, CryptoCurrencyPaymentMethodType,
+    PaymentServiceAuthorizeResponse, RewardPaymentMethodType, WalletPaymentMethodType,
 };
 
 #[cfg(feature = "v2")]
@@ -872,6 +873,36 @@ pub fn build_unified_connector_service_payment_method(
                 ))
                 .into()),
             }
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+            match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
+                    mifinity_data,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                        wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
+                            date_of_birth: Some(
+                                mifinity_data.date_of_birth.peek().to_string().into(),
+                            ),
+                            language_preference: mifinity_data.language_preference,
+                        })),
+                    })),
+                }),
+                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "Unimplemented payment method subtype: {payment_method_type:?}"
+                ))
+                .into()),
+            }
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => {
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Crypto(CryptoCurrencyPaymentMethodType {
+                    crypto_currency: Some(CryptoCurrency {
+                        pay_currency: crypto_data.pay_currency.clone(),
+                        network: crypto_data.network.clone(),
+                    }),
+                })),
+            })
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
