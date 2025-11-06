@@ -2379,6 +2379,7 @@ pub enum PayLaterData {
     AlmaRedirect {},
     AtomeRedirect {},
     BreadpayRedirect {},
+    PayjustnowRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for PayLaterData {
@@ -2421,7 +2422,8 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::KlarnaSdk { .. }
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {}
-            | Self::BreadpayRedirect {} => None,
+            | Self::BreadpayRedirect {}
+            | Self::PayjustnowRedirect {} => None,
         }
     }
 }
@@ -3014,6 +3016,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
+            Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
         }
     }
 }
@@ -3281,6 +3284,7 @@ pub enum AdditionalPaymentData {
         bank_name: Option<common_enums::BankNames>,
         #[serde(flatten)]
         details: Option<additional_info::BankRedirectDetails>,
+        interac: Option<InteracPaymentMethod>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -3350,6 +3354,12 @@ impl AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracPaymentMethod {
+    #[schema(value_type = Option<Object>)]
+    pub customer_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4638,6 +4648,9 @@ pub struct BankRedirectResponse {
     #[serde(flatten)]
     #[schema(value_type = Option<BankRedirectDetails>)]
     pub details: Option<additional_info::BankRedirectDetails>,
+    /// customer info for interac payment method
+    #[schema(value_type = Option<InteracPaymentMethod>)]
+    pub interac: Option<InteracPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5743,6 +5756,11 @@ pub struct PaymentsResponse {
     /// flag that indicates if extended authorization is applied on this payment or not
     #[schema(value_type = Option<bool>)]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+
+    /// date and time at which extended authorization was last applied on this payment
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
 
     /// Optional boolean value to extent authorization period of this payment
     ///
@@ -7151,9 +7169,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
-            AdditionalPaymentData::BankRedirect { bank_name, details } => {
-                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
-            }
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                details,
+                interac,
+            } => Self::BankRedirect(Box::new(BankRedirectResponse {
+                bank_name,
+                details,
+                interac,
+            })),
             AdditionalPaymentData::Crypto { details } => {
                 Self::Crypto(Box::new(CryptoResponse { details }))
             }

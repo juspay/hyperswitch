@@ -258,7 +258,6 @@ pub async fn customers_list_with_count(
             list_customers_with_count(
                 state,
                 auth.merchant_account.get_id().to_owned(),
-                None,
                 auth.key_store,
                 request,
             )
@@ -296,7 +295,6 @@ pub async fn customers_list_with_count(
             list_customers_with_count(
                 state,
                 auth.merchant_account.get_id().to_owned(),
-                None,
                 auth.key_store,
                 request,
             )

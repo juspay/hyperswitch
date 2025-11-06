@@ -519,6 +519,25 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+        }
+    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,

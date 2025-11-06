@@ -2093,6 +2093,7 @@ pub enum PaymentMethodType {
     PermataBankTransfer,
     OpenBankingUk,
     PayBright,
+    Payjustnow,
     Paypal,
     Paze,
     Pix,
@@ -2221,6 +2222,7 @@ impl PaymentMethodType {
             Self::PermataBankTransfer => "Permata Bank Transfer",
             Self::OpenBankingUk => "Open Banking UK",
             Self::PayBright => "PayBright",
+            Self::Payjustnow => "Payjustnow",
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
@@ -2561,7 +2563,9 @@ pub enum PaymentChannel {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CtpServiceProvider {
+    #[strum(serialize = "ctp_visa")]
     Visa,
+    #[strum(serialize = "ctp_mastercard")]
     Mastercard,
 }
 
@@ -8318,6 +8322,14 @@ impl AuthenticationConnectors {
             | Self::Gpayments => false,
             Self::Cardinal => true,
         }
+    }
+
+    pub fn is_pre_auth_required_in_post_authn_flow(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
+    }
+
+    pub fn is_click_to_pay(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
     }
 }
 
