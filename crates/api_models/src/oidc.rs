@@ -35,14 +35,6 @@ pub struct Jwk {
     pub e: String,
 }
 
-/// OIDC Error Query Parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OidcErrorQuery {
-    pub error: String,
-    pub state: Option<String>,
-    pub error_description: Option<String>,
-}
-
 /// OIDC Authorization Endpoint Query Parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcAuthorizeQuery {
@@ -85,7 +77,6 @@ pub struct OidcTokenResponse {
 // Event metric implementations for OIDC types
 impl ApiEventMetric for OidcDiscoveryResponse {}
 impl ApiEventMetric for JwksResponse {}
-impl ApiEventMetric for OidcErrorQuery {}
 impl ApiEventMetric for OidcAuthorizeQuery {}
 impl ApiEventMetric for AuthCodeData {}
 impl ApiEventMetric for OidcTokenRequest {}
