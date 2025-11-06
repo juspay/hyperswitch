@@ -248,6 +248,6 @@ pub struct WalletAdditionalDataForCard {
     #[schema(value_type = String, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
     /// Expiry Year of card
-    #[schema(value_type = String, example = "2050")]
+    #[schema(value_type = String, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
 }
