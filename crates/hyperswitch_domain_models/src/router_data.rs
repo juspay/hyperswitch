@@ -89,6 +89,7 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub is_migrated_card: Option<bool>,
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
@@ -674,6 +675,9 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+    BankRedirect {
+        interac: Option<InteracCustomerInfo>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -687,6 +691,11 @@ pub struct ExtendedAuthorizationResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteracCustomerInfo {
+    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Serialize)]

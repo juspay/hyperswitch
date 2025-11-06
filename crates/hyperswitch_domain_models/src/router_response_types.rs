@@ -656,12 +656,6 @@ pub enum AuthenticationResponseData {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorizeRedirectResponse {
-    pub params: Option<masking::Secret<String>>,
-    pub payload: Option<pii::SecretSerdeValue>,
-}
-
 /// Represents details of a payment method.
 #[derive(Debug, Clone)]
 pub struct PaymentMethodDetails {

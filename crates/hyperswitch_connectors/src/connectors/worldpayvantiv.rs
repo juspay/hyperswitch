@@ -368,8 +368,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        // For certification purposes, to be removed later
-        router_env::logger::info!(raw_connector_response=?res.response);
         let response: worldpayvantiv::CnpOnlineResponse =
             connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
