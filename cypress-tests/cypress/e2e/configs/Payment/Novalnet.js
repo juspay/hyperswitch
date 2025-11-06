@@ -506,7 +506,7 @@ export const connectorDetails = {
         },
       },
     },
-      MandateMultiUseNo3DSManualCapture: {
+    MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
