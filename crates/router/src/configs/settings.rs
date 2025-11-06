@@ -703,7 +703,7 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct OidcSettings {
     pub keys: Vec<OidcKey>,
@@ -721,15 +721,6 @@ pub struct OidcClient {
     pub client_id: String,
     pub client_secret: Secret<String>,
     pub redirect_uri: String,
-}
-
-impl Default for OidcSettings {
-    fn default() -> Self {
-        Self {
-            keys: Vec::new(),
-            clients: Vec::new(),
-        }
-    }
 }
 
 impl OidcSettings {
