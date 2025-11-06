@@ -1,15 +1,21 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use actix_http::header::{HeaderMap, AUTHORIZATION};
-use api_models::oidc::{
-    AuthCodeData, Jwk, JwksResponse, OidcAuthorizeQuery, OidcDiscoveryResponse, OidcTokenRequest,
-    OidcTokenResponse,
+use api_models::{
+    oidc::{
+        AuthCodeData, Jwk, JwksResponse, OidcAuthorizeQuery, OidcDiscoveryResponse,
+        OidcTokenRequest, OidcTokenResponse,
+    },
+    payments::RedirectionResponse,
 };
 use base64::Engine;
 use common_utils::ext_traits::StringExt;
 use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
+use router_env::tracing;
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
+use url::Url;
 
 use crate::{
     consts::{
@@ -27,9 +33,6 @@ use crate::{
     services::{api::ApplicationResponse, authentication::UserFromToken},
     utils::user::{get_base_url, get_redis_connection_for_global_tenant},
 };
-use api_models::payments::RedirectionResponse;
-use router_env::tracing;
-use url::Url;
 
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
