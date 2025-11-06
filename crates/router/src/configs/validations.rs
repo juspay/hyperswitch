@@ -355,3 +355,16 @@ impl super::settings::ChatSettings {
         })
     }
 }
+
+impl super::settings::HypersenseSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.enabled && self.api_url.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "hypersense api url must be set if hypersense is enabled".into(),
+            ))
+        })
+    }
+}
+

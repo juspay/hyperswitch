@@ -1730,6 +1730,10 @@ impl Hypersense {
                 web::resource("/signout")
                     .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
+            .service(
+                web::resource("/fee_estimate/{tail:.*}")
+                    .route(web::post().to(hypersense_routes::get_fee_estimate)),
+            )
     }
 }
 

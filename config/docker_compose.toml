@@ -1266,6 +1266,10 @@ enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
+[hypersense]
+enabled = true
+api_url = "http://0.0.0.0:8081"
+
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
