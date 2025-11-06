@@ -1,7 +1,5 @@
 pub mod tesouro_queries;
 use api_models::payments::AdditionalPaymentData;
-pub mod tesouro_queries;
-use api_models::payments::AdditionalPaymentData;
 use common_enums::enums;
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::types::FloatMajorUnit;
@@ -12,10 +10,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId, SetupMandateRequestData,
-    },
+    router_request_types::{PaymentsSyncData, ResponseId, SetupMandateRequestData},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -369,16 +364,6 @@ pub enum TesouroAutomaticCapture {
 pub enum TesouroWalletType {
     ApplePay,
     GooglePay,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TesouroAuthorizeRecurringAcquirerTokenDetails {
-    pub expiration_month: Option<Secret<String>>,
-    pub expiration_year: Option<Secret<String>>,
-    pub token: Secret<String>,
-    pub security_code: TesouroSecurityCode,
-    pub wallet_type: Option<TesouroWalletType>,
 }
 
 #[derive(Debug, Serialize)]

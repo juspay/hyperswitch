@@ -3286,9 +3286,9 @@ pub enum AdditionalPaymentData {
         details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
-        apple_pay: Option<ApplepayPaymentMethod>,
-        google_pay: Option<additional_info::WalletAdditionalDataForCard>,
-        samsung_pay: Option<additional_info::WalletAdditionalDataForCard>,
+        apple_pay: Option<Box<ApplepayPaymentMethod>>,
+        google_pay: Option<Box<additional_info::WalletAdditionalDataForCard>>,
+        samsung_pay: Option<Box<additional_info::WalletAdditionalDataForCard>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -7156,10 +7156,10 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                     ))),
                 })),
                 (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                    details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
                 (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
+                    details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
