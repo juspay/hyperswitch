@@ -95,6 +95,7 @@ pub async fn construct_webhook_router_data(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -143,6 +144,8 @@ pub async fn construct_webhook_router_data(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }

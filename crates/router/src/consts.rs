@@ -2,10 +2,10 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr, sync};
 
 use api_models::enums::Country;
-use common_utils::consts;
+use common_utils::{consts, id_type};
 pub use hyperswitch_domain_models::consts::{
     CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
     ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
@@ -274,6 +274,12 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
+pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
+    #[allow(clippy::expect_used)]
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+});
+
 /// Default payment attempt id
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
     "irrelevant_connector_request_reference_id";
@@ -327,8 +333,29 @@ pub const UCS_AUTH_BODY_KEY: &str = "body-key";
 /// Header value indicating that header-key-based authentication is used.
 pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
 
+/// Header value indicating that multi-key-based authentication is used.
+pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
+
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// Superposition configuration keys
+pub mod superposition {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    #[test]
+    fn test_profile_id_unavailable_initialization() {
+        // Just access the lazy static to ensure it doesn't panic during initialization
+        let _profile_id = super::PROFILE_ID_UNAVAILABLE.clone();
+        // If we get here without panicking, the test passes
+    }
+}

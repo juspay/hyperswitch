@@ -948,7 +948,7 @@ pub async fn create_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
-            create_payment_method_card_core(
+            Box::pin(create_payment_method_card_core(
                 state,
                 req,
                 merchant_context,
@@ -957,7 +957,7 @@ pub async fn create_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-            )
+            ))
             .await
         }
         api::PaymentMethodCreateData::ProxyCard(_) => {
@@ -3437,6 +3437,8 @@ fn construct_zero_auth_payments_request(
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
         return_raw_connector_response: None,
+        enable_partial_authorization: None,
+        webhook_url: None,
     })
 }
 
@@ -3788,6 +3790,7 @@ async fn create_single_use_tokenization_flow(
             tenant_id: state.tenant.tenant_id.clone(),
             status: common_enums::enums::AttemptStatus::default(),
             payment_method: common_enums::enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: auth_type,
             description: None,
             address: payment_method_session_address,
@@ -3830,6 +3833,8 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
+            is_migrated_card: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(
@@ -3908,4 +3913,100 @@ async fn get_single_use_token_from_store(
         .await
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to get payment method token from redis")
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn fetch_payment_method(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<domain::PaymentMethod> {
+    let db = &state.store;
+    let key_manager_state = &state.into();
+    let merchant_account = merchant_context.get_merchant_account();
+    let key_store = merchant_context.get_merchant_key_store();
+
+    db.find_payment_method(
+        key_manager_state,
+        key_store,
+        payment_method_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Payment method not found for network token status check")
+}
+
+#[cfg(feature = "v2")]
+pub async fn check_network_token_status(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<payment_methods::NetworkTokenStatusCheckResponse> {
+    // Retrieve the payment method from the database
+    let payment_method =
+        fetch_payment_method(&state, &merchant_context, &payment_method_id).await?;
+
+    // Call the network token status check function
+    let network_token_status_check_response = if payment_method.status
+        == common_enums::PaymentMethodStatus::Active
+    {
+        // Check if the payment method has network token data
+        when(
+            payment_method
+                .network_token_requestor_reference_id
+                .is_none(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_method_id",
+                })
+            },
+        )?;
+        match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await
+        {
+            Ok(network_token_details) => {
+                let status = match network_token_details.token_status {
+                    pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
+                    pm_types::TokenStatus::Suspended => api_enums::TokenStatus::Suspended,
+                    pm_types::TokenStatus::Deactivated => api_enums::TokenStatus::Deactivated,
+                };
+
+                payment_methods::NetworkTokenStatusCheckResponse::SuccessResponse(
+                    payment_methods::NetworkTokenStatusCheckSuccessResponse {
+                        status,
+                        token_expiry_month: network_token_details.token_expiry_month,
+                        token_expiry_year: network_token_details.token_expiry_year,
+                        card_last_four: network_token_details.card_last_4,
+                        card_expiry: network_token_details.card_expiry,
+                        token_last_four: network_token_details.token_last_4,
+                        payment_method_id,
+                        customer_id: payment_method.customer_id,
+                    },
+                )
+            }
+            Err(e) => {
+                let err_message = e.current_context().to_string();
+                logger::debug!("Network token status check failed: {:?}", e);
+
+                payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
+                    payment_methods::NetworkTokenStatusCheckFailureResponse {
+                        error_message: err_message,
+                    },
+                )
+            }
+        }
+    } else {
+        let err_message = "Payment Method is not active".to_string();
+        logger::debug!("Payment Method is not active");
+
+        payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
+            payment_methods::NetworkTokenStatusCheckFailureResponse {
+                error_message: err_message,
+            },
+        )
+    };
+    Ok(services::ApplicationResponse::Json(
+        network_token_status_check_response,
+    ))
 }

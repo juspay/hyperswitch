@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -52,6 +53,22 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerListRequestWithConstraints {
+    /// Offset
+    #[schema(example = 32)]
+    pub offset: Option<u32>,
+    /// Limit
+    #[schema(example = 32)]
+    pub limit: Option<CustomerListLimit>,
+    /// Unique identifier for a customer
+    pub customer_id: Option<id_type::CustomerId>,
+    /// Filter with created time range
+    #[serde(flatten)]
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[cfg(feature = "v1")]
@@ -385,4 +402,12 @@ pub struct CustomerUpdateRequestInternal {
 pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CustomerListResponse {
+    /// List of customers
+    pub data: Vec<CustomerResponse>,
+    /// Total count of customers
+    pub total_count: usize,
 }

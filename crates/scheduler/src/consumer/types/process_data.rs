@@ -30,6 +30,26 @@ impl Default for ConnectorPTMapping {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct SubscriptionInvoiceSyncPTMapping {
+    pub default_mapping: RetryMapping,
+    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
+    pub max_retries_count: i32,
+}
+
+impl Default for SubscriptionInvoiceSyncPTMapping {
+    fn default() -> Self {
+        Self {
+            custom_merchant_mapping: HashMap::new(),
+            default_mapping: RetryMapping {
+                start_after: 60,
+                frequencies: vec![(300, 5)],
+            },
+            max_retries_count: 5,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct PaymentMethodsPTMapping {
     pub default_mapping: RetryMapping,
     pub custom_pm_mapping: HashMap<enums::PaymentMethod, RetryMapping>,

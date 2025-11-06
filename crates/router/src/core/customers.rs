@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
@@ -590,6 +591,8 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -615,6 +618,56 @@ pub async fn list_customers(
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
+}
+
+#[instrument(skip(state))]
+pub async fn list_customers_with_count(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequestWithConstraints,
+) -> errors::CustomerResponse<customers::CustomerListResponse> {
+    let db = state.store.as_ref();
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request
+            .limit
+            .map(|l| *l)
+            .unwrap_or_else(|| *CustomerListLimit::default()),
+        offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: request.time_range,
+    };
+
+    let domain_customers = db
+        .list_customers_by_merchant_id_with_count(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
+        .await
+        .switch()?;
+
+    #[cfg(feature = "v1")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(feature = "v2")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            total_count: domain_customers.1,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]

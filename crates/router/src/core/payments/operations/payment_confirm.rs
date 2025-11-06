@@ -832,6 +832,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -862,12 +863,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_id = &payment_data.payment_intent.customer_id;
 
         match payment_method_data {
-            Some(api_models::payments::PaymentMethodData::Card(_card)) => {
+            Some(api_models::payments::PaymentMethodData::Card(card)) => {
                 payment_data.card_testing_guard_data =
                     card_testing_guard_utils::validate_card_testing_guard_checks(
                         state,
-                        request,
-                        payment_method_data,
+                        request.browser_info.as_ref(),
+                        card.card_number.clone(),
                         customer_id,
                         business_profile,
                     )
@@ -1292,6 +1293,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &payment_data.payment_attempt.merchant_id,
                             Some(&payment_data.payment_intent.payment_id),
                             payment_data.payment_method_data.as_ref(),
+                            payment_data.payment_attempt.payment_method_type,
                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                             &connector_mca.connector_name,
                             &authentication_id,
@@ -1377,6 +1379,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
+                            None,
                             None
                         )
                         .await?;
@@ -1428,6 +1431,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
+                    None
                 )
                 .await?;
             let acquirer_configs = authentication
@@ -1464,7 +1468,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
                 merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
-                endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+                endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
                 three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
@@ -1478,6 +1482,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &payment_data.payment_attempt.merchant_id,
                         Some(&payment_data.payment_intent.payment_id),
                         payment_data.payment_method_data.as_ref(),
+                        payment_data.payment_attempt.payment_method_type,
                         &three_ds_connector_account,
                         &authentication_connector_name,
                         &authentication.authentication_id,
@@ -1591,10 +1596,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication
                 };
 
-                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?;
+                let tokenized_data = if updated_authentication.authentication_status.is_success() {
+                    Some(crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?)
+                } else {
+                    None
+                };
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: Some(masking::Secret::new(tokenized_data.value1)),
+                    cavv: tokenized_data.map(|tokenized_data| masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };
 
@@ -1934,7 +1943,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
-
+        let is_stored_credential = helpers::is_stored_credential(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+            payment_data.payment_attempt.is_stored_credential,
+        );
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1988,6 +2002,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .network_transaction_id
                             .clone(),
+                        is_stored_credential,
                         request_extended_authorization: payment_data
                             .payment_attempt
                             .request_extended_authorization,
@@ -2200,7 +2215,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
+        request.validate_stored_credential().change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "is_stored_credential should be true when reusing stored payment method data"
+                        .to_string(),
+            },
+        )?;
         let payment_id = request
             .payment_id
             .clone()

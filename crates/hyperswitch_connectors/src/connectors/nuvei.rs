@@ -1,6 +1,8 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
+#[cfg(feature = "payouts")]
+use api_models::webhooks::PayoutIdType;
 use api_models::{
     payments::PaymentIdType,
     webhooks::{IncomingWebhookEvent, RefundIdType},
@@ -43,6 +45,11 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundsRouterData,
     },
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -163,6 +170,87 @@ impl api::PaymentsCompleteAuthorize for Nuvei {}
 impl api::ConnectorAccessToken for Nuvei {}
 impl api::PaymentsPreProcessing for Nuvei {}
 impl api::PaymentPostCaptureVoid for Nuvei {}
+
+impl api::Payouts for Nuvei {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Nuvei {}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nuvei {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}ppp/api/v1/payout.do",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nuvei::NuveiPayoutRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: nuvei::NuveiPayoutResponse =
+            res.response.parse_struct("NuveiPayoutResponse").switch()?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nuvei {
     fn get_headers(
@@ -1025,6 +1113,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {
     }
 }
 
+fn has_payout_prefix(id_option: &Option<String>) -> bool {
+    // - Default value returns false if the Option is `None`.
+    // - The argument is a closure that runs if the Option is `Some`.
+    //   It takes the contained value (`s`) and its result is returned.
+    id_option
+        .as_deref()
+        .is_some_and(|s| s.starts_with("payout_"))
+}
+
 #[async_trait::async_trait]
 impl IncomingWebhook for Nuvei {
     fn get_webhook_source_verification_algorithm(
@@ -1106,34 +1203,54 @@ impl IncomingWebhook for Nuvei {
         let webhook = get_webhook_object_from_body(request.body)?;
         // Extract transaction ID from the webhook
         match &webhook {
-            nuvei::NuveiWebhook::PaymentDmn(notification) => match notification.transaction_type {
-                Some(nuvei::NuveiTransactionType::Auth)
-                | Some(nuvei::NuveiTransactionType::Sale)
-                | Some(nuvei::NuveiTransactionType::Settle)
-                | Some(nuvei::NuveiTransactionType::Void)
-                | Some(nuvei::NuveiTransactionType::Auth3D)
-                | Some(nuvei::NuveiTransactionType::InitAuth3D) => {
-                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        PaymentIdType::ConnectorTransactionId(
-                            notification
-                                .transaction_id
-                                .clone()
-                                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                        ),
-                    ))
+            nuvei::NuveiWebhook::PaymentDmn(notification) => {
+                // if prefix contains 'payout_' then it is a payout related webhook
+                if has_payout_prefix(&notification.client_request_id) {
+                    #[cfg(feature = "payouts")]
+                    {
+                        Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                            PayoutIdType::PayoutAttemptId(
+                                notification
+                                    .client_request_id
+                                    .clone()
+                                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                            ),
+                        ))
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                    }
+                } else {
+                    match notification.transaction_type {
+                        Some(nuvei::NuveiTransactionType::Auth)
+                        | Some(nuvei::NuveiTransactionType::Sale)
+                        | Some(nuvei::NuveiTransactionType::Settle)
+                        | Some(nuvei::NuveiTransactionType::Void)
+                        | Some(nuvei::NuveiTransactionType::Auth3D)
+                        | Some(nuvei::NuveiTransactionType::InitAuth3D) => {
+                            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                                PaymentIdType::ConnectorTransactionId(
+                                    notification.transaction_id.clone().ok_or(
+                                        errors::ConnectorError::MissingConnectorTransactionID,
+                                    )?,
+                                ),
+                            ))
+                        }
+                        Some(nuvei::NuveiTransactionType::Credit) => {
+                            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                                RefundIdType::ConnectorRefundId(
+                                    notification
+                                        .transaction_id
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+                                ),
+                            ))
+                        }
+                        None => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+                    }
                 }
-                Some(nuvei::NuveiTransactionType::Credit) => {
-                    Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                        RefundIdType::ConnectorRefundId(
-                            notification
-                                .transaction_id
-                                .clone()
-                                .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
-                        ),
-                    ))
-                }
-                None => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
-            },
+            }
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     PaymentIdType::ConnectorTransactionId(
@@ -1154,7 +1271,22 @@ impl IncomingWebhook for Nuvei {
         // Map webhook type to event type
         match webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                if let Some((status, transaction_type)) =
+                if has_payout_prefix(&notification.client_request_id) {
+                    #[cfg(feature = "payouts")]
+                    {
+                        if let Some((status, transaction_type)) =
+                            notification.status.zip(notification.transaction_type)
+                        {
+                            nuvei::map_notification_to_event_for_payout(status, transaction_type)
+                        } else {
+                            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                        }
+                    }
+                    #[cfg(not(feature = "payouts"))]
+                    {
+                        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                    }
+                } else if let Some((status, transaction_type)) =
                     notification.status.zip(notification.transaction_type)
                 {
                     nuvei::map_notification_to_event(status, transaction_type)
@@ -1163,11 +1295,7 @@ impl IncomingWebhook for Nuvei {
                 }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                if let Some(dispute_event) = notification.chargeback.dispute_unified_status_code {
-                    nuvei::map_dispute_notification_to_event(dispute_event)
-                } else {
-                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-                }
+                nuvei::map_dispute_notification_to_event(&notification.chargeback)
             }
         }
     }
@@ -1208,18 +1336,18 @@ impl IncomingWebhook for Nuvei {
         let dispute_unified_status_code = webhook
             .chargeback
             .dispute_unified_status_code
+            .clone()
             .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let connector_dispute_id = webhook
             .chargeback
             .dispute_id
+            .clone()
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(disputes::DisputePayload {
             amount,
             currency,
-            dispute_stage: api_models::enums::DisputeStage::from(
-                dispute_unified_status_code.clone(),
-            ),
+            dispute_stage: nuvei::get_dispute_stage(&webhook.chargeback)?,
             connector_dispute_id,
             connector_reason: webhook.chargeback.chargeback_reason,
             connector_reason_code: webhook.chargeback.chargeback_reason_category,

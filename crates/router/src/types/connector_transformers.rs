@@ -24,7 +24,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Blackhawknetwork => Self::Blackhawknetwork,
-            api_enums::Connector::Bluecode => Self::Bluecode,
+            api_enums::Connector::Calida => Self::Calida,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Breadpay => Self::Breadpay,
@@ -61,6 +61,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
+            api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -93,6 +94,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Klarna => Self::Klarna,
+            api_enums::Connector::Loonio => Self::Loonio,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
@@ -112,6 +114,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
+            api_enums::Connector::Payjustnow => Self::Payjustnow,
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
@@ -146,6 +149,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripe => Self::Stripe,
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Thunes => Self::Thunes,
+            api_enums::Connector::Tesouro => Self::Tesouro,
             api_enums::Connector::Tokenex => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Tokenex is not a routable connector".to_string(),

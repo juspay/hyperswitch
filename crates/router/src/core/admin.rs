@@ -23,6 +23,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -2577,6 +2578,9 @@ pub async fn create_connector(
             },
         )?;
 
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
+
     #[cfg(feature = "v1")]
     disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
 
@@ -2869,7 +2873,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             key_manager_state,
-            mca,
+            mca.clone(),
             payment_connector.into(),
             &key_store,
         )
@@ -2886,6 +2890,37 @@ pub async fn update_connector(
 
             )
         })?;
+
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // redact routing cache on connector updation
+    #[cfg(feature = "v1")]
+    let merchant_config = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    #[cfg(feature = "v1")]
+    if req.disabled.unwrap_or(false) {
+        merchant_config
+            .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    } else {
+        merchant_config
+            .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    }
 
     let response = updated_mca.foreign_try_into()?;
 
@@ -2956,6 +2991,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
@@ -3486,6 +3523,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
+            is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
         }))
     }
 
@@ -3803,7 +3841,20 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
-        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+        let webhook_details = self
+            .webhook_details
+            .map(|webhook_details| {
+                let existing_webhook_details = business_profile
+                    .webhook_details
+                    .clone()
+                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
+
+                match existing_webhook_details {
+                    Some(existing_details) => existing_details.merge(webhook_details),
+                    None => webhook_details,
+                }
+            })
+            .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
             let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
@@ -3990,6 +4041,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
+                is_l2_l3_enabled: self.is_l2_l3_enabled,
             },
         )))
     }

@@ -679,6 +679,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
                     request_extended_authorization: payment_attempt.request_extended_authorization,
                     extended_authorization_applied: payment_attempt.extended_authorization_applied,
+                    extended_authorization_last_applied_at: payment_attempt
+                        .extended_authorization_last_applied_at,
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
@@ -695,6 +697,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     network_transaction_id: payment_attempt.network_transaction_id.clone(),
                     is_overcapture_enabled: None,
                     network_details: payment_attempt.network_details.clone(),
+                    is_stored_credential: payment_attempt.is_stored_credential,
+                    authorized_amount: payment_attempt.authorized_amount,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1890,6 +1894,7 @@ impl DataModelExt for PaymentAttempt {
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
+            extended_authorization_last_applied_at: self.extended_authorization_last_applied_at,
             capture_before: self.capture_before,
             processor_transaction_data,
             card_discovery: self.card_discovery,
@@ -1906,6 +1911,8 @@ impl DataModelExt for PaymentAttempt {
             network_transaction_id: self.network_transaction_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
         }
     }
 
@@ -1984,6 +1991,8 @@ impl DataModelExt for PaymentAttempt {
             connector_mandate_detail: storage_model.connector_mandate_detail,
             request_extended_authorization: storage_model.request_extended_authorization,
             extended_authorization_applied: storage_model.extended_authorization_applied,
+            extended_authorization_last_applied_at: storage_model
+                .extended_authorization_last_applied_at,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
@@ -2002,6 +2011,8 @@ impl DataModelExt for PaymentAttempt {
             network_transaction_id: storage_model.network_transaction_id,
             is_overcapture_enabled: storage_model.is_overcapture_enabled,
             network_details: storage_model.network_details,
+            is_stored_credential: storage_model.is_stored_credential,
+            authorized_amount: storage_model.authorized_amount,
         }
     }
 }
@@ -2086,6 +2097,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
+            extended_authorization_last_applied_at: self.extended_authorization_last_applied_at,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -2095,6 +2107,8 @@ impl DataModelExt for PaymentAttemptNew {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
         }
     }
 
@@ -2168,6 +2182,8 @@ impl DataModelExt for PaymentAttemptNew {
             connector_mandate_detail: storage_model.connector_mandate_detail,
             request_extended_authorization: storage_model.request_extended_authorization,
             extended_authorization_applied: storage_model.extended_authorization_applied,
+            extended_authorization_last_applied_at: storage_model
+                .extended_authorization_last_applied_at,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             processor_merchant_id: storage_model
@@ -2181,6 +2197,8 @@ impl DataModelExt for PaymentAttemptNew {
             connector_request_reference_id: storage_model.connector_request_reference_id,
             network_transaction_id: storage_model.network_transaction_id,
             network_details: storage_model.network_details,
+            is_stored_credential: storage_model.is_stored_credential,
+            authorized_amount: storage_model.authorized_amount,
         }
     }
 }

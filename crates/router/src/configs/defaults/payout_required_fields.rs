@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::{
     enums::{
         CountryAlpha2, FieldType,
-        PaymentMethod::{BankTransfer, Card, Wallet},
+        PaymentMethod::{BankRedirect, BankTransfer, Card, Wallet},
         PaymentMethodType, PayoutConnectors,
     },
     payment_methods::RequiredFieldInfo,
@@ -38,7 +38,7 @@ impl Default for PayoutRequiredFields {
                     // Adyen
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Adyenplatform,
-                        PaymentMethodType::Sepa,
+                        PaymentMethodType::SepaBankTransfer,
                     ),
                     // Ebanx
                     get_connector_payment_method_type_fields(
@@ -61,6 +61,25 @@ impl Default for PayoutRequiredFields {
                         PaymentMethodType::Paypal,
                     ),
                 ])),
+            ),
+            (
+                // TODO: Refactor to support multiple connectors, each having its own set of required fields.
+                BankRedirect,
+                PaymentMethodTypeInfo(HashMap::from([{
+                    let (pmt, mut gidadat_fields) = get_connector_payment_method_type_fields(
+                        PayoutConnectors::Gigadat,
+                        PaymentMethodType::Interac,
+                    );
+
+                    let (_, loonio_fields) = get_connector_payment_method_type_fields(
+                        PayoutConnectors::Loonio,
+                        PaymentMethodType::Interac,
+                    );
+
+                    gidadat_fields.fields.extend(loonio_fields.fields);
+
+                    (pmt, gidadat_fields)
+                }])),
             ),
         ]))
     }
@@ -117,7 +136,7 @@ fn get_billing_details_for_payment_method(
             ]);
 
             // Add first_name for bank payouts only
-            if payment_method_type == PaymentMethodType::Sepa {
+            if payment_method_type == PaymentMethodType::SepaBankTransfer {
                 fields.insert(
                     "billing.address.first_name".to_string(),
                     RequiredFieldInfo {
@@ -209,7 +228,7 @@ fn get_connector_payment_method_type_fields(
                 },
             )
         }
-        PaymentMethodType::Sepa => {
+        PaymentMethodType::SepaBankTransfer => {
             common_fields.extend(get_sepa_fields());
             (
                 payment_method_type,
@@ -229,6 +248,24 @@ fn get_connector_payment_method_type_fields(
         // Wallets
         PaymentMethodType::Paypal => {
             common_fields.extend(get_paypal_fields());
+            (
+                payment_method_type,
+                ConnectorFields {
+                    fields: HashMap::from([(
+                        connector.into(),
+                        RequiredFieldFinal {
+                            mandate: HashMap::new(),
+                            non_mandate: HashMap::new(),
+                            common: common_fields,
+                        },
+                    )]),
+                },
+            )
+        }
+
+        // Bank Redirect
+        PaymentMethodType::Interac => {
+            common_fields.extend(get_interac_fields());
             (
                 payment_method_type,
                 ConnectorFields {
@@ -369,6 +406,18 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
         RequiredFieldInfo {
             required_field: "payout_method_data.wallet.telephone_number".to_string(),
             display_name: "telephone_number".to_string(),
+            field_type: FieldType::Text,
+            value: None,
+        },
+    )])
+}
+
+fn get_interac_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([(
+        "payout_method_data.bank_redirect.email".to_string(),
+        RequiredFieldInfo {
+            required_field: "payout_method_data.bank_redirect.email".to_string(),
+            display_name: "email".to_string(),
             field_type: FieldType::Text,
             value: None,
         },
@@ -535,6 +584,64 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
                     required_field: "billing.address.first_name".to_string(),
                     display_name: "billing_address_first_name".to_string(),
                     field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+        ]),
+        PayoutConnectors::Loonio => HashMap::from([
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+        ]),
+        PayoutConnectors::Gigadat => HashMap::from([
+            (
+                "billing.address.first_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.first_name".to_string(),
+                    display_name: "billing_address_first_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.number".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.phone.number".to_string(),
+                    display_name: "phone".to_string(),
+                    field_type: FieldType::UserPhoneNumber,
+                    value: None,
+                },
+            ),
+            (
+                "billing.phone.country_code".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.phone.country_code".to_string(),
+                    display_name: "dialing_code".to_string(),
+                    field_type: FieldType::UserPhoneNumberCountryCode,
                     value: None,
                 },
             ),

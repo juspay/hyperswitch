@@ -152,8 +152,8 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Bluecode => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                enums::Connector::Calida => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Calida::new())))
                 }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
@@ -254,6 +254,9 @@ impl ConnectorData {
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
                 }
+                enums::Connector::Finix => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Finix::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
@@ -309,6 +312,9 @@ impl ConnectorData {
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
+                enums::Connector::Loonio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Loonio::new())))
+                }
                 enums::Connector::Mollie => {
                     // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
@@ -346,6 +352,9 @@ impl ConnectorData {
                 enums::Connector::Payload => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
                 }
+                enums::Connector::Payjustnow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payjustnow::new())))
+                }
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }
@@ -360,7 +369,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
                 enums::Connector::Powertranz => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Powertranz)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Powertranz::new())))
                 }
                 enums::Connector::Prophetpay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
@@ -435,6 +444,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tesouro => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tesouro::new())))
+                }
                 enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))

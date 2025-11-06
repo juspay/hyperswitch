@@ -1,6 +1,6 @@
 use common_utils::{
     ext_traits::Encode,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -14,9 +14,9 @@ use hyperswitch_domain_models::{
         Dsync, Fetch, Retrieve, Upload,
     },
     router_request_types::{
-        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData, ResponseId,
-        RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
+        SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -34,6 +34,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         AcceptDisputeRouterData, DisputeSyncRouterData, FetchDisputeRouterData,
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         RefundsResponseRouterData, ResponseRouterData, RetrieveFileRouterData,
         SubmitEvidenceRouterData,
     },
@@ -562,6 +563,21 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 ..item.data
             })
         } else {
+            let required_conversion_type = common_utils::types::StringMajorUnitForConnector;
+            let minor_amount_captured = item
+                .response
+                .payment_detail
+                .and_then(|details| {
+                    details.amount.map(|amount| {
+                        common_utils::types::AmountConvertor::convert_back(
+                            &required_conversion_type,
+                            amount,
+                            item.data.request.currency,
+                        )
+                    })
+                })
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -576,6 +592,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
+                minor_amount_captured,
                 ..item.data
             })
         }
@@ -938,7 +955,7 @@ where
 {
     let l2_l3_data = item.get_optional_l2_l3_data();
     if let Some(l2_l3_data) = l2_l3_data {
-        let line_item_data = l2_l3_data.order_details.as_ref().map(|order_details| {
+        let line_item_data = l2_l3_data.get_order_details().map(|order_details| {
             order_details
                 .iter()
                 .enumerate()
@@ -961,43 +978,44 @@ where
                 .collect()
         });
 
-        let tax_exempt = match l2_l3_data.tax_status {
+        let tax_exempt = match l2_l3_data.get_tax_status() {
             Some(common_enums::TaxStatus::Exempt) => Some(true),
             Some(common_enums::TaxStatus::Taxable) => Some(false),
             None => None,
         };
         let customer_reference =
-            get_vantiv_customer_reference(&l2_l3_data.merchant_order_reference_id);
+            get_vantiv_customer_reference(&l2_l3_data.get_merchant_order_reference_id());
 
-        let detail_tax: Option<DetailTax> = if l2_l3_data.merchant_tax_registration_id.is_some()
-            && l2_l3_data.order_details.is_some()
-        {
-            Some(DetailTax {
-                tax_included_in_total: match tax_exempt {
-                    Some(false) => Some(true),
-                    Some(true) | None => Some(false),
-                },
-                card_acceptor_tax_id: l2_l3_data.merchant_tax_registration_id.clone(),
-                tax_amount: l2_l3_data.order_details.as_ref().map(|orders| {
-                    orders
-                        .iter()
-                        .filter_map(|order| order.total_tax_amount)
-                        .fold(MinorUnit::zero(), |acc, tax| acc + tax)
-                }),
-            })
-        } else {
-            None
-        };
+        let detail_tax: Option<DetailTax> =
+            if l2_l3_data.get_merchant_tax_registration_id().is_some()
+                && l2_l3_data.get_order_details().is_some()
+            {
+                Some(DetailTax {
+                    tax_included_in_total: match tax_exempt {
+                        Some(false) => Some(true),
+                        Some(true) | None => Some(false),
+                    },
+                    card_acceptor_tax_id: l2_l3_data.get_merchant_tax_registration_id(),
+                    tax_amount: l2_l3_data.get_order_details().map(|orders| {
+                        orders
+                            .iter()
+                            .filter_map(|order| order.total_tax_amount)
+                            .fold(MinorUnit::zero(), |acc, tax| acc + tax)
+                    }),
+                })
+            } else {
+                None
+            };
         let enhanced_data = EnhancedData {
             customer_reference,
-            sales_tax: l2_l3_data.order_tax_amount,
+            sales_tax: l2_l3_data.get_order_tax_amount(),
             tax_exempt,
-            discount_amount: l2_l3_data.discount_amount,
-            shipping_amount: l2_l3_data.shipping_cost,
-            duty_amount: l2_l3_data.duty_amount,
-            ship_from_postal_code: l2_l3_data.shipping_origin_zip,
-            destination_postal_code: l2_l3_data.shipping_destination_zip,
-            destination_country_code: l2_l3_data.shipping_country,
+            discount_amount: l2_l3_data.get_discount_amount(),
+            shipping_amount: l2_l3_data.get_shipping_cost(),
+            duty_amount: l2_l3_data.get_duty_amount(),
+            ship_from_postal_code: l2_l3_data.get_shipping_origin_zip(),
+            destination_postal_code: l2_l3_data.get_shipping_zip(),
+            destination_country_code: l2_l3_data.get_shipping_country(),
             detail_tax,
             line_item_data,
         };
@@ -1208,7 +1226,7 @@ pub struct PaymentDetail {
     pub response_reason_message: Option<String>,
     pub reject_type: Option<String>,
     pub dupe_txn_id: Option<u64>,
-    pub amount: Option<String>,
+    pub amount: Option<StringMajorUnit>,
     pub purchase_currency: Option<String>,
     pub post_day: Option<String>,
     pub reported_timestamp: Option<String>,
@@ -1382,14 +1400,10 @@ pub struct CreditResponse {
     pub location: Option<String>,
 }
 
-impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
-where
-    F: Send,
-{
+impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsCaptureRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>,
+        item: PaymentsCaptureResponseRouterData<CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.capture_response {
             Some(capture_response) => {
@@ -1499,12 +1513,10 @@ fn get_vantiv_customer_reference(customer_id: &Option<String>) -> Option<String>
     })
 }
 
-impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.auth_reversal_response {
             Some(auth_reversal_response) => {
@@ -1921,6 +1933,7 @@ impl<F>
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
+                        minor_amount_captured: sale_response.approved_amount,
                         ..item.data
                     })
                 }
@@ -1994,6 +2007,11 @@ impl<F>
                             None
                         },
                         minor_amount_capturable: if payment_flow_type == WorldpayvantivPaymentFlow::Auth {
+                            auth_response.approved_amount
+                        } else {
+                            None
+                        },
+                        minor_amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
                             auth_response.approved_amount
                         } else {
                             None
