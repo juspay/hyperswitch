@@ -1716,8 +1716,7 @@ pub struct Hypersense;
 
 impl Hypersense {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/hypersense")
-            .app_data(web::Data::new(state))
+        let mut routes = web::scope("/hypersense")
             .service(
                 web::resource("/token")
                     .route(web::get().to(hypersense_routes::get_hypersense_token)),
@@ -1729,11 +1728,15 @@ impl Hypersense {
             .service(
                 web::resource("/signout")
                     .route(web::post().to(hypersense_routes::signout_hypersense_token)),
-            )
-            .service(
+            );
+            if state.conf.hypersense.enabled {
+            routes = routes.service(
                 web::resource("/fee_estimate/{tail:.*}")
                     .route(web::post().to(hypersense_routes::get_fee_estimate)),
             )
+        }
+        routes.app_data(web::Data::new(state))
+
     }
 }
 

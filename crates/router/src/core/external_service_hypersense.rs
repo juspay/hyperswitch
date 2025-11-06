@@ -21,7 +21,6 @@ pub async fn get_hypersense_fee_estimate(
     json_payload: external_service_hypersense_api::ExternalFeeEstimatePayload,
     user: authentication::UserFromToken,
 ) -> RouterResponse<external_service_hypersense_api::ExternalFeeEstimateResponse> {
-    // TODO: get base url from config
     let url = format!(
         "{}/fee-analysis/{}?{}",
         state.conf.hypersense.api_url, api_path, query_params

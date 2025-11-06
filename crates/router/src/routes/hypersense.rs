@@ -107,15 +107,12 @@ pub async fn get_fee_estimate(
         },
     );
 
-    // Extract merchant_id and profile_id from the JWT and wrap them into the payload
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         json_payload.into_inner(),
         |state, user: authentication::UserFromToken, json_payload, _| {
-            // build a new payload that includes merchant_id and profile_id from token
-
             external_service_hypersense::get_hypersense_fee_estimate(
                 state,
                 api_path.clone(),
