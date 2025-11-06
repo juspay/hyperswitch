@@ -4,7 +4,6 @@ const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
   card_exp_month: "10",
   card_exp_year: "28",
-  card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -12,7 +11,6 @@ const successfulNo3DSCardDetails = {
 const successfulNoThreeDsCardDetailsRequest = {
   card_number: "4530910000012345",
   card_exp_month: "10",
-  card_exp_year: "28",
   card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
