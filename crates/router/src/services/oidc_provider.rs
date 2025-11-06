@@ -199,6 +199,7 @@ pub fn build_oidc_redirect_url(
     Ok(url.to_string())
 }
 
+#[cfg(feature = "v1")]
 pub async fn process_authorize_request(
     state: SessionState,
     payload: OidcAuthorizeQuery,
