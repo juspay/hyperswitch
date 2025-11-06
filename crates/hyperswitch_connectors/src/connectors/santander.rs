@@ -1097,10 +1097,6 @@ impl ConnectorSpecifications for Santander {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SANTANDER_SUPPORTED_WEBHOOK_FLOWS)
     }
-
-    fn requires_different_access_token_per_payment_method_type(&self) -> bool {
-        true
-    }
 }
 
 impl ConnectorAccessTokenSuffix for Santander {
