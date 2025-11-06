@@ -4425,7 +4425,11 @@ pub struct ApplepayPaymentMethod {
     /// The type of the payment method
     #[serde(rename = "type")]
     pub pm_type: String,
+    /// The card's expiry month
+    #[schema(value_type = String, example = "12")]
     pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = String, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
 }
 
