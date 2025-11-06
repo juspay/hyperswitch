@@ -3284,6 +3284,7 @@ pub enum AdditionalPaymentData {
         bank_name: Option<common_enums::BankNames>,
         #[serde(flatten)]
         details: Option<additional_info::BankRedirectDetails>,
+        interac: Option<InteracPaymentMethod>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -3353,6 +3354,12 @@ impl AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracPaymentMethod {
+    #[schema(value_type = Option<Object>)]
+    pub customer_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4641,6 +4648,9 @@ pub struct BankRedirectResponse {
     #[serde(flatten)]
     #[schema(value_type = Option<BankRedirectDetails>)]
     pub details: Option<additional_info::BankRedirectDetails>,
+    /// customer info for interac payment method
+    #[schema(value_type = Option<InteracPaymentMethod>)]
+    pub interac: Option<InteracPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7159,9 +7169,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
-            AdditionalPaymentData::BankRedirect { bank_name, details } => {
-                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
-            }
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                details,
+                interac,
+            } => Self::BankRedirect(Box::new(BankRedirectResponse {
+                bank_name,
+                details,
+                interac,
+            })),
             AdditionalPaymentData::Crypto { details } => {
                 Self::Crypto(Box::new(CryptoResponse { details }))
             }
