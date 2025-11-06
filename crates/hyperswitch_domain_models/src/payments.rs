@@ -828,6 +828,11 @@ impl PaymentIntent {
     pub fn get_currency(&self) -> storage_enums::Currency {
         self.amount_details.currency
     }
+
+    pub fn is_split_payment(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
+    }
 }
 
 #[cfg(feature = "v1")]

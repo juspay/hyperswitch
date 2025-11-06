@@ -4139,8 +4139,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             allowed_payment_method_types: pi.allowed_payment_method_types,
             authorization_count: pi.authorization_count,
             modified_at: pa.as_ref().map(|p| p.modified_at),
-            is_split_payment: pi.split_txns_enabled == enums::SplitTxnsEnabled::Enable
-                && pi.active_attempt_id_type == enums::ActiveAttemptIDType::AttemptsGroupID,
+            is_split_payment: pi.is_split_payment(),
         }
     }
 }
