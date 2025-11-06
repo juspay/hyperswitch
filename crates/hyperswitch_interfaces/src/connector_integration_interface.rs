@@ -731,7 +731,7 @@ impl ConnectorAccessTokenSuffix for ConnectorEnum {
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.get_access_token_suffix_from_connector(router_data),
-            Self::New(_connector) => Ok(None),
+            Self::New(connector) => connector.get_access_token_suffix_from_connector(router_data),
         }
     }
 }
