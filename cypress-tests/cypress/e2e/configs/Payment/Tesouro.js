@@ -212,6 +212,15 @@ export const connectorDetails = {
         },
       },
     },
+     Void: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
     Refund: {
       Request: {
         amount: 6000,
