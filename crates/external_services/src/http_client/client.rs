@@ -238,7 +238,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         
         if let Some(client) = cache_lock.get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for key: {}", cache_key);
-            metrics::HTTP_CLIENT_CACHE_HIT.add(1, proxy_metrics_tag);
+            metrics::HTTP_CLIENT_CACHE_HIT.add(1, &proxy_metrics_tag);
             return Ok(client.clone());
         }
         
@@ -249,14 +249,14 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             proxy_config.https_url
         );
         
-        metrics::HTTP_CLIENT_CACHE_MISS.add(1, proxy_metrics_tag.clone());
+        metrics::HTTP_CLIENT_CACHE_MISS.add(1, &proxy_metrics_tag);
         
         let client = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
             .build()
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to construct proxy client")?;
         
-        metrics::HTTP_CLIENT_CREATED.add(1, proxy_metrics_tag);
+        metrics::HTTP_CLIENT_CREATED.add(1, &proxy_metrics_tag);
         
         cache_lock.insert(cache_key.clone(), client.clone());
         logger::debug!("Cached new proxy client with key: {}", cache_key);
@@ -270,7 +270,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         let client = DEFAULT_CLIENT
             .get_or_try_init(|| {
                 logger::info!("Initializing DEFAULT_CLIENT (no proxy configuration)");
-                metrics::HTTP_CLIENT_CREATED.add(1, default_metrics_tag.clone());
+                metrics::HTTP_CLIENT_CREATED.add(1, &default_metrics_tag);
                 apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
                     .build()
                     .change_context(HttpClientError::ClientConstructionFailed)
@@ -278,7 +278,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             })?
             .clone();
             
-        metrics::HTTP_CLIENT_CACHE_HIT.add(1, default_metrics_tag);
+        metrics::HTTP_CLIENT_CACHE_HIT.add(1, &default_metrics_tag);
         Ok(client)
     }
 }
