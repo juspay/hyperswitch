@@ -1,6 +1,7 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
+use api_models::subscription as api;
 use common_enums::{connector_enums, enums};
 use common_utils::{
     errors::CustomResult,
@@ -15,28 +16,22 @@ use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{
-        refunds::{Execute, RSync},
-        subscriptions::SubscriptionCreate,
-        CreateConnectorCustomer, InvoiceRecordBack,
-    },
-    router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest,
-        subscriptions::{SubscriptionAutoCollection, SubscriptionCreateRequest},
-        ConnectorCustomerData, ResponseId,
-    },
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{subscriptions::SubscriptionAutoCollection, ResponseId},
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionInvoiceData,
-            SubscriptionLineItem, SubscriptionStatus,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionInvoiceData, SubscriptionLineItem, SubscriptionPauseResponse,
+            SubscriptionResumeResponse, SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{
         GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
-        PaymentsAuthorizeRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, RefundsRouterData, SubscriptionCancelRouterData,
+        SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -45,6 +40,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
+    convert_connector_response_to_domain_response,
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
@@ -159,6 +155,10 @@ pub struct ChargebeeSubscriptionDetails {
     pub next_billing_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub pause_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    cancelled_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -189,25 +189,10 @@ impl From<ChargebeeSubscriptionStatus> for SubscriptionStatus {
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            SubscriptionCreate,
-            ChargebeeSubscriptionCreateResponse,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    > for hyperswitch_domain_models::types::SubscriptionCreateRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            SubscriptionCreate,
-            ChargebeeSubscriptionCreateResponse,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeeSubscriptionCreateResponse,
+    SubscriptionCreateResponse,
+    |item: ResponseRouterData<_, ChargebeeSubscriptionCreateResponse, _, _>| {
         let subscription = &item.response.subscription;
         Ok(Self {
             response: Ok(SubscriptionCreateResponse {
@@ -223,7 +208,7 @@ impl
             ..item.data
         })
     }
-}
+);
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
@@ -340,13 +325,10 @@ pub struct ChargebeePaymentsResponse {
     id: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeePaymentsResponse,
+    PaymentsResponseData,
+    |item: ResponseRouterData<_, ChargebeePaymentsResponse, _, _>| {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -362,7 +344,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsR
             ..item.data
         })
     }
-}
+);
 
 //TODO: Fill the struct with respective fields
 // REFUND :
@@ -985,25 +967,10 @@ pub struct ChargebeeRecordbackInvoice {
     pub id: common_utils::id_type::PaymentReferenceId,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            InvoiceRecordBack,
-            ChargebeeRecordbackResponse,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse,
-        >,
-    > for InvoiceRecordBackRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            InvoiceRecordBack,
-            ChargebeeRecordbackResponse,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse,
-        >,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeeRecordbackResponse,
+    InvoiceRecordBackResponse,
+    |item: ResponseRouterData<_, ChargebeeRecordbackResponse, _, _>| {
         let merchant_reference_id = item.response.invoice.id;
         Ok(Self {
             response: Ok(InvoiceRecordBackResponse {
@@ -1012,7 +979,7 @@ impl
             ..item.data
         })
     }
-}
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeListPlansResponse {
@@ -1038,19 +1005,10 @@ pub struct ChargebeeItem {
     pub description: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, SubscriptionEstimateResponse, T, GetSubscriptionEstimateResponse>>
-    for RouterData<F, T, GetSubscriptionEstimateResponse>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            F,
-            SubscriptionEstimateResponse,
-            T,
-            GetSubscriptionEstimateResponse,
-        >,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    SubscriptionEstimateResponse,
+    GetSubscriptionEstimateResponse,
+    |item: ResponseRouterData<_, SubscriptionEstimateResponse, _, _>| {
         let estimate = item.response.estimate;
         Ok(Self {
             response: Ok(GetSubscriptionEstimateResponse {
@@ -1081,16 +1039,12 @@ impl<F, T>
             ..item.data
         })
     }
-}
+);
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>>
-    for RouterData<F, T, GetSubscriptionPlansResponse>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeeListPlansResponse,
+    GetSubscriptionPlansResponse,
+    |item: ResponseRouterData<_, ChargebeeListPlansResponse, _, _>| {
         let plans = item
             .response
             .list
@@ -1106,7 +1060,7 @@ impl<F, T>
             ..item.data
         })
     }
-}
+);
 
 #[derive(Debug, Serialize)]
 pub struct ChargebeeCustomerCreateRequest {
@@ -1197,26 +1151,10 @@ pub struct ChargebeeCustomerDetails {
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            CreateConnectorCustomer,
-            ChargebeeCustomerCreateResponse,
-            ConnectorCustomerData,
-            PaymentsResponseData,
-        >,
-    > for hyperswitch_domain_models::types::ConnectorCustomerRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: ResponseRouterData<
-            CreateConnectorCustomer,
-            ChargebeeCustomerCreateResponse,
-            ConnectorCustomerData,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeeCustomerCreateResponse,
+    PaymentsResponseData,
+    |item: ResponseRouterData<_, ChargebeeCustomerCreateResponse, _, _>| {
         let customer_response = &item.response.customer;
 
         Ok(Self {
@@ -1237,7 +1175,7 @@ impl
             ..item.data
         })
     }
-}
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeSubscriptionEstimateRequest {
@@ -1306,20 +1244,10 @@ pub enum ChargebeeTrialPeriodUnit {
     Month,
 }
 
-impl<F, T>
-    TryFrom<
-        ResponseRouterData<F, ChargebeeGetPlanPricesResponse, T, GetSubscriptionPlanPricesResponse>,
-    > for RouterData<F, T, GetSubscriptionPlanPricesResponse>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            F,
-            ChargebeeGetPlanPricesResponse,
-            T,
-            GetSubscriptionPlanPricesResponse,
-        >,
-    ) -> Result<Self, Self::Error> {
+convert_connector_response_to_domain_response!(
+    ChargebeeGetPlanPricesResponse,
+    GetSubscriptionPlanPricesResponse,
+    |item: ResponseRouterData<_, ChargebeeGetPlanPricesResponse, _, _>| {
         let plan_prices = item
             .response
             .list
@@ -1349,7 +1277,7 @@ impl<F, T>
             ..item.data
         })
     }
-}
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionEstimateResponse {
@@ -1453,3 +1381,155 @@ impl From<ChargebeeInvoiceStatus> for connector_enums::InvoiceStatus {
         }
     }
 }
+
+// Pause Subscription structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ChargebeePauseSubscriptionRequest {
+    #[serde(rename = "pause_option")]
+    pub pause_option: Option<api::PauseOption>,
+    #[serde(rename = "resume_date", skip_serializing_if = "Option::is_none")]
+    pub resume_date: Option<i64>,
+}
+
+impl From<&SubscriptionPauseRouterData> for ChargebeePauseSubscriptionRequest {
+    fn from(req: &SubscriptionPauseRouterData) -> Self {
+        Self {
+            pause_option: req.request.pause_option.clone(),
+            resume_date: req
+                .request
+                .pause_date
+                .map(|date| date.assume_utc().unix_timestamp()),
+        }
+    }
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeePauseSubscriptionResponse {
+    pub subscription: ChargebeeSubscriptionDetails,
+}
+
+// Resume Subscription structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ChargebeeResumeSubscriptionRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_option: Option<api::ResumeOption>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_date: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub charges_handling: Option<api::ChargesHandling>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpaid_invoices_handling: Option<api::UnpaidInvoicesHandling>,
+}
+
+impl From<&SubscriptionResumeRouterData> for ChargebeeResumeSubscriptionRequest {
+    fn from(req: &SubscriptionResumeRouterData) -> Self {
+        Self {
+            resume_option: req.request.resume_option.clone(),
+            resume_date: req
+                .request
+                .resume_date
+                .map(|date| date.assume_utc().unix_timestamp()),
+            charges_handling: req.request.charges_handling.clone(),
+            unpaid_invoices_handling: req.request.unpaid_invoices_handling.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeResumeSubscriptionResponse {
+    pub subscription: ChargebeeSubscriptionDetails,
+}
+
+// Cancel Subscription structures
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ChargebeeCancelSubscriptionRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancel_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancel_option: Option<api::CancelOption>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unbilled_charges_option: Option<api::UnbilledChargesOption>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_option_for_current_term_charges: Option<api::CreditOption>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_receivables_handling: Option<api::AccountReceivablesHandling>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refundable_credits_handling: Option<api::RefundableCreditsHandling>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancel_reason_code: Option<String>,
+}
+
+impl From<&SubscriptionCancelRouterData> for ChargebeeCancelSubscriptionRequest {
+    fn from(req: &SubscriptionCancelRouterData) -> Self {
+        Self {
+            cancel_at: req
+                .request
+                .cancel_date
+                .map(|date| date.assume_utc().unix_timestamp()),
+            cancel_option: req.request.cancel_option.clone(),
+            unbilled_charges_option: req.request.unbilled_charges_option.clone(),
+            credit_option_for_current_term_charges: req
+                .request
+                .credit_option_for_current_term_charges
+                .clone(),
+            account_receivables_handling: req.request.account_receivables_handling.clone(),
+            refundable_credits_handling: req.request.refundable_credits_handling.clone(),
+            cancel_reason_code: req.request.cancel_reason_code.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeCancelSubscriptionResponse {
+    pub subscription: ChargebeeSubscriptionDetails,
+}
+
+convert_connector_response_to_domain_response!(
+    ChargebeePauseSubscriptionResponse,
+    SubscriptionPauseResponse,
+    |item: ResponseRouterData<_, ChargebeePauseSubscriptionResponse, _, _>| {
+        let subscription = item.response.subscription;
+        Ok(Self {
+            response: Ok(SubscriptionPauseResponse {
+                subscription_id: subscription.id.clone(),
+                status: subscription.status.clone().into(),
+                paused_at: subscription.pause_date,
+            }),
+            ..item.data
+        })
+    }
+);
+
+convert_connector_response_to_domain_response!(
+    ChargebeeResumeSubscriptionResponse,
+    SubscriptionResumeResponse,
+    |item: ResponseRouterData<_, ChargebeeResumeSubscriptionResponse, _, _>| {
+        let subscription = item.response.subscription;
+        Ok(Self {
+            response: Ok(SubscriptionResumeResponse {
+                subscription_id: subscription.id.clone(),
+                status: subscription.status.clone().into(),
+                next_billing_at: subscription.next_billing_at,
+            }),
+            ..item.data
+        })
+    }
+);
+
+convert_connector_response_to_domain_response!(
+    ChargebeeCancelSubscriptionResponse,
+    SubscriptionCancelResponse,
+    |item: ResponseRouterData<_, ChargebeeCancelSubscriptionResponse, _, _>| {
+        let subscription = item.response.subscription;
+        Ok(Self {
+            response: Ok(SubscriptionCancelResponse {
+                subscription_id: subscription.id.clone(),
+                status: subscription.status.clone().into(),
+                cancelled_at: subscription.cancelled_at,
+            }),
+            ..item.data
+        })
+    }
+);

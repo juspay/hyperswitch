@@ -8,7 +8,8 @@ use hyperswitch_domain_models::{
     errors::api_error_response as errors,
     router_data_v2::flow_common_types::{
         GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
+        InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
+        SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest, subscriptions as subscription_request_types,
@@ -99,6 +100,7 @@ impl BillingHandler {
             merchant_connector_id,
         })
     }
+
     pub async fn create_customer_on_connector(
         &self,
         state: &SessionState,
@@ -165,6 +167,7 @@ impl BillingHandler {
             .into()),
         }
     }
+
     pub async fn create_subscription_on_connector(
         &self,
         state: &SessionState,
@@ -210,18 +213,7 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
-
-        match response {
-            Ok(response_data) => Ok(response_data),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
+        self.handle_connector_response(response)
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn record_back_to_billing_processor(
@@ -268,18 +260,7 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
-
-        match response {
-            Ok(response_data) => Ok(response_data),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
+        self.handle_connector_response(response)
     }
 
     pub async fn get_subscription_estimate(
@@ -300,25 +281,15 @@ impl BillingHandler {
         )?;
         let connector_integration = self.connector_enum.get_connector_integration();
 
-        let response = Box::pin(self.call_connector(
-            state,
-            router_data,
-            "get subscription estimate from connector",
-            connector_integration,
-        ))
-        .await?;
-
-        match response {
-            Ok(response_data) => Ok(response_data),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "get subscription estimate from connector",
+                connector_integration,
+            )
+            .await?;
+        self.handle_connector_response(response)
     }
 
     pub async fn get_subscription_plans(
@@ -348,18 +319,7 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
-
-        match response {
-            Ok(resp) => Ok(resp),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string().clone(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
+        self.handle_connector_response(response)
     }
 
     pub async fn get_subscription_plan_prices(
@@ -388,17 +348,109 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
-        match response {
-            Ok(resp) => Ok(resp),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string().clone(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
+        self.handle_connector_response(response)
+    }
+
+    pub async fn pause_subscription_on_connector(
+        &self,
+        state: &SessionState,
+        subscription: &hyperswitch_domain_models::subscription::Subscription,
+        request: &subscription_types::PauseSubscriptionRequest,
+    ) -> SubscriptionResult<subscription_response_types::SubscriptionPauseResponse> {
+        let pause_subscription_request = subscription_request_types::SubscriptionPauseRequest {
+            subscription_id: subscription.id.clone(),
+            pause_option: request.pause_option.clone(),
+            pause_date: request.pause_at,
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            pause_subscription_request,
+            SubscriptionPauseData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_enum.get_connector_integration();
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "pause subscription",
+                connector_integration,
+            )
+            .await?;
+        self.handle_connector_response(response)
+    }
+
+    pub async fn resume_subscription_on_connector(
+        &self,
+        state: &SessionState,
+        subscription: &hyperswitch_domain_models::subscription::Subscription,
+        request: &subscription_types::ResumeSubscriptionRequest,
+    ) -> SubscriptionResult<subscription_response_types::SubscriptionResumeResponse> {
+        let resume_subscription_request = subscription_request_types::SubscriptionResumeRequest {
+            subscription_id: subscription.id.clone(),
+            resume_date: request.resume_date,
+            charges_handling: request.charges_handling.clone(),
+            resume_option: request.resume_option.clone(),
+            unpaid_invoices_handling: request.unpaid_invoices_handling.clone(),
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            resume_subscription_request,
+            SubscriptionResumeData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_enum.get_connector_integration();
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "resume subscription",
+                connector_integration,
+            )
+            .await?;
+        self.handle_connector_response(response)
+    }
+
+    pub async fn cancel_subscription_on_connector(
+        &self,
+        state: &SessionState,
+        subscription: &hyperswitch_domain_models::subscription::Subscription,
+        request: &subscription_types::CancelSubscriptionRequest,
+    ) -> SubscriptionResult<subscription_response_types::SubscriptionCancelResponse> {
+        let cancel_subscription_request = subscription_request_types::SubscriptionCancelRequest {
+            subscription_id: subscription.id.clone(),
+            cancel_date: request.cancel_at,
+            account_receivables_handling: request.account_receivables_handling.clone(),
+            cancel_option: request.cancel_option.clone(),
+            cancel_reason_code: request.cancel_reason_code.clone(),
+            credit_option_for_current_term_charges: request
+                .credit_option_for_current_term_charges
+                .clone(),
+            refundable_credits_handling: request.refundable_credits_handling.clone(),
+            unbilled_charges_option: request.unbilled_charges_option.clone(),
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            cancel_subscription_request,
+            SubscriptionCancelData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_enum.get_connector_integration();
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "cancel subscription",
+                connector_integration,
+            )
+            .await?;
+        self.handle_connector_response(response)
     }
 
     async fn call_connector<F, ResourceCommonData, Req, Resp>(
@@ -466,5 +518,22 @@ impl BillingHandler {
             request: req,
             response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         })
+    }
+
+    fn handle_connector_response<T>(
+        &self,
+        response: Result<T, hyperswitch_domain_models::router_data::ErrorResponse>,
+    ) -> SubscriptionResult<T> {
+        match response {
+            Ok(resp) => Ok(resp),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
     }
 }

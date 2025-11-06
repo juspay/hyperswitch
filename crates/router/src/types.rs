@@ -49,9 +49,9 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
-        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
-        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
-        RecurringMandatePaymentData, RouterData,
+        BillingDetails, ConnectorAuthType, ConnectorResponseData, CustomerInfo, ErrorResponse,
+        GooglePayPaymentMethodDetails, GooglePayPredecryptDataInternal, L2L3Data, OrderInfo,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData, TaxInfo,
     },
     router_data_v2::{
         AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
@@ -1387,6 +1387,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
+            is_migrated_card: data.is_migrated_card,
         }
     }
 }
@@ -1459,6 +1460,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_migrated_card: None,
         }
     }
 }

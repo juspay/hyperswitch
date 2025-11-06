@@ -91,6 +91,7 @@ pub async fn construct_mandate_revoke_router_data(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)

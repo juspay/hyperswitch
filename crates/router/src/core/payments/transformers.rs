@@ -199,6 +199,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -545,6 +546,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -892,6 +894,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1025,6 +1028,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1389,6 +1393,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1616,6 +1621,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1774,42 +1780,58 @@ where
                 .get_merchant_tax_registration_id();
 
             Box::new(types::L2L3Data {
-                order_date: payment_data.payment_intent.order_date,
-                tax_status: payment_data.payment_intent.tax_status,
-                customer_tax_registration_id: customer.as_ref().and_then(|c| {
-                    c.tax_registration_id
-                        .as_ref()
-                        .map(|e| e.clone().into_inner())
+                order_info: Some(types::OrderInfo {
+                    order_date: payment_data.payment_intent.order_date,
+                    order_details: order_details.clone(),
+                    merchant_order_reference_id: payment_data
+                        .payment_intent
+                        .merchant_order_reference_id
+                        .clone(),
+                    discount_amount: payment_data.payment_intent.discount_amount,
+                    shipping_cost: payment_data.payment_intent.shipping_cost,
+                    duty_amount: payment_data.payment_intent.duty_amount,
                 }),
-                order_details: order_details.clone(),
-                discount_amount: payment_data.payment_intent.discount_amount,
-                shipping_cost: payment_data.payment_intent.shipping_cost,
-                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-                duty_amount: payment_data.payment_intent.duty_amount,
-                order_tax_amount: payment_data
-                    .payment_attempt
-                    .net_amount
-                    .get_order_tax_amount(),
-                merchant_order_reference_id: payment_data
-                    .payment_intent
-                    .merchant_order_reference_id
-                    .clone(),
-                customer_id: payment_data.payment_intent.customer_id.clone(),
-                billing_address_city: billing_address
+                tax_info: Some(types::TaxInfo {
+                    tax_status: payment_data.payment_intent.tax_status,
+                    customer_tax_registration_id: customer.as_ref().and_then(|customer| {
+                        customer
+                            .tax_registration_id
+                            .as_ref()
+                            .map(|tax_registration_id| tax_registration_id.clone().into_inner())
+                    }),
+                    merchant_tax_registration_id,
+                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    order_tax_amount: payment_data
+                        .payment_attempt
+                        .net_amount
+                        .get_order_tax_amount(),
+                }),
+                customer_info: Some(types::CustomerInfo {
+                    customer_id: payment_data.payment_intent.customer_id.clone(),
+                    customer_email: payment_data.email,
+                    customer_name: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .name
+                            .as_ref()
+                            .map(|name| name.clone().into_inner())
+                    }),
+                    customer_phone_number: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .phone
+                            .as_ref()
+                            .map(|phone| phone.clone().into_inner())
+                    }),
+                    customer_phone_country_code: customer
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone_country_code.clone()),
+                }),
+                billing_details: billing_address
                     .as_ref()
                     .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.city.clone()),
-                merchant_tax_registration_id,
-                customer_name: customer
-                    .as_ref()
-                    .and_then(|c| c.name.as_ref().map(|e| e.clone().into_inner())),
-                customer_email: payment_data.email,
-                customer_phone_number: customer
-                    .as_ref()
-                    .and_then(|c| c.phone.as_ref().map(|e| e.clone().into_inner())),
-                customer_phone_country_code: customer
-                    .as_ref()
-                    .and_then(|c| c.phone_country_code.clone()),
+                    .and_then(|details| details.city.clone())
+                    .map(|city| types::BillingDetails {
+                        address_city: Some(city),
+                    }),
                 shipping_details: shipping_address
                     .and_then(|address| address.address.as_ref())
                     .cloned(),
@@ -1851,7 +1873,14 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.status),
+        is_migrated_card: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.is_migrated_card()),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -2049,7 +2078,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|info| info.status),
+        is_migrated_card: None,
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -3724,6 +3757,8 @@ where
             shipping_cost: payment_intent.shipping_cost,
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_last_applied_at: payment_attempt
+                .extended_authorization_last_applied_at,
             card_discovery: payment_attempt.card_discovery,
             force_3ds_challenge: payment_intent.force_3ds_challenge,
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
@@ -4036,6 +4071,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
+            extended_authorization_last_applied_at: pa.extended_authorization_last_applied_at,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
@@ -5784,6 +5820,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+                .transpose()?,
         })
     }
 }

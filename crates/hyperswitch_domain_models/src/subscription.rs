@@ -249,6 +249,10 @@ impl SubscriptionUpdate {
             item_price_id,
         }
     }
+
+    pub fn update_status(status: String) -> Self {
+        Self::new(None, None, Some(status), None, None)
+    }
 }
 
 #[async_trait::async_trait]

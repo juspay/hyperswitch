@@ -5175,6 +5175,174 @@
         ]
       }
     },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/create": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Auth Rate Based",
+        "description": "Create a success based dynamic routing algorithm",
+        "operationId": "Create success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be created",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for success based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/create": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Elimination",
+        "description": "Create a elimination based dynamic routing algorithm",
+        "operationId": "Create elimination routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be created",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for elimination based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EliminationRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle": {
       "post": {
         "tags": [
@@ -6807,6 +6975,283 @@
         ]
       }
     },
+    "/authentication/{authentication_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Eligibility",
+        "description": "Check if an authentication is eligible for a specific merchant.\n",
+        "operationId": "Check Authentication Eligibility",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication eligibility checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/authenticate": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Authenticate",
+        "description": "Authenticate an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Authenticate an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationAuthenticateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationAuthenticateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/redirect": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Redirect",
+        "description": "Redirect an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Redirect an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncPostUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication redirect"
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": []
+      }
+    },
+    "/authentication/{authentication_id}/sync": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Sync",
+        "description": "Sync an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Sync an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication sync",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/enabled_authn_methods_token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Enable Authn Methods Token",
+        "description": "Enable authn methods token for an authentication.\n",
+        "operationId": "Enable Authentication Authn Methods Token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSessionTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication enabled authn methods token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/eligibility-check": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - POST Eligibility Check",
+        "operationId": "Submit Eligibility for an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligibility Performed for the Authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - GET Eligibility Check",
+        "operationId": "Retrieve Eligibility Check data for an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationRetrieveEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved Eligibility check data for the Authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationRetrieveEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/user/create_platform": {
       "post": {
         "tags": [
@@ -7475,6 +7920,220 @@
           }
         ]
       }
+    },
+    "/subscriptions/{subscription_id}/pause": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Pause Subscription",
+        "description": "Pause the subscription",
+        "operationId": "Pause Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseSubscriptionRequest"
+              },
+              "examples": {
+                "Pause subscription": {
+                  "value": {
+                    "pause_option": "immediately"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription paused successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PauseSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid pause data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/resume": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Resume Subscription",
+        "description": "Resume the subscription",
+        "operationId": "Resume Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeSubscriptionRequest"
+              },
+              "examples": {
+                "Resume subscription": {
+                  "value": {
+                    "resume_option": "immediately",
+                    "unpaid_invoices_handling": "schedule_payment_collection"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription resumed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid resume data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/subscriptions/{subscription_id}/cancel": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Subscription - Cancel Subscription",
+        "description": "Cancel the subscription",
+        "operationId": "Cancel Subscription",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "The unique identifier for the subscription",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelSubscriptionRequest"
+              },
+              "examples": {
+                "Cancel subscription": {
+                  "value": {
+                    "cancel_option": "immediately",
+                    "credit_option_for_current_term_charges": "prorate",
+                    "refundable_credits_handling": "schedule_refund",
+                    "unbilled_charges_option": "invoice"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cancel data"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7613,6 +8272,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "AccountReceivablesHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_payment_collection",
+          "write_off"
+        ]
       },
       "AchBankDebitAdditionalData": {
         "type": "object",
@@ -8925,6 +9592,134 @@
           "expired"
         ]
       },
+      "AuthenticationAuthenticateRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for the authentication"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+          }
+        }
+      },
+      "AuthenticationAuthenticateResponse": {
+        "type": "object",
+        "required": [
+          "acs_url",
+          "three_ds_requestor_url",
+          "error_message",
+          "error_code",
+          "authentication_value",
+          "status",
+          "authentication_id",
+          "eci"
+        ],
+        "properties": {
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL to be used for challenge submission",
+            "example": "https://example.com/redirect"
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
+            "nullable": true
+          },
+          "three_ds_server_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "Contains the JWS object created by the ACS for the ARes(Authentication Response) message",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication."
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_id": {
+            "$ref": "#/components/schemas/AuthenticationId"
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI value for this authentication."
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AuthenticationConnectorDetails": {
         "type": "object",
         "required": [
@@ -9034,8 +9829,79 @@
               }
             ],
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "AuthenticationEligibilityCheckData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "click_to_pay"
+            ],
+            "properties": {
+              "click_to_pay": {
+                "$ref": "#/components/schemas/ClickToPayEligibilityCheckData"
+              }
+            }
+          }
+        ]
+      },
+      "AuthenticationEligibilityCheckRequest": {
+        "type": "object",
+        "required": [
+          "eligibility_check_data"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Optional secret value used to identify and authorize the client making the request.\nThis can help ensure that the payment session is secure and valid.",
+            "nullable": true
+          },
+          "eligibility_check_data": {
+            "$ref": "#/components/schemas/AuthenticationEligibilityCheckData"
+          }
+        }
+      },
+      "AuthenticationEligibilityCheckResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/AuthenticationSdkNextAction"
+          }
+        }
+      },
+      "AuthenticationEligibilityCheckResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "click_to_pay_enrollment_status"
+            ],
+            "properties": {
+              "click_to_pay_enrollment_status": {
+                "$ref": "#/components/schemas/ClickToPayEligibilityCheckResponseData"
+              }
+            }
+          }
+        ]
       },
       "AuthenticationEligibilityRequest": {
         "type": "object",
@@ -9192,6 +10058,23 @@
           }
         }
       },
+      "AuthenticationId": {
+        "type": "string",
+        "description": "A type for authentication_id that can be used for authentication IDs"
+      },
+      "AuthenticationPaymentMethodData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClickToPayDetails"
+          }
+        ]
+      },
+      "AuthenticationPaymentMethodType": {
+        "type": "string",
+        "enum": [
+          "ctp"
+        ]
+      },
       "AuthenticationResponse": {
         "type": "object",
         "required": [
@@ -9287,6 +10170,133 @@
             "type": "string",
             "description": "Profile Acquirer ID get from profile acquirer configuration",
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationRetrieveEligibilityCheckRequest": {
+        "type": "object"
+      },
+      "AuthenticationRetrieveEligibilityCheckResponse": {
+        "type": "object",
+        "required": [
+          "eligibility_check_data"
+        ],
+        "properties": {
+          "eligibility_check_data": {
+            "$ref": "#/components/schemas/AuthenticationEligibilityCheckResponseData"
+          }
+        }
+      },
+      "AuthenticationSdkNextAction": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "The next action is to await for a merchant callback",
+            "enum": [
+              "await_merchant_callback"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "deny"
+            ],
+            "properties": {
+              "deny": {
+                "type": "object",
+                "description": "The next action is to deny the payment with an error message",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AuthenticationSessionResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "session_token"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "session_token": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationSessionToken"
+            },
+            "description": "The list of session token object"
+          }
+        }
+      },
+      "AuthenticationSessionToken": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_name"
+            ],
+            "properties": {
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "no_session_token_received"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "wallet_name"
+        }
+      },
+      "AuthenticationSessionTokenRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret for the authentication"
           }
         }
       },
@@ -9299,6 +10309,9 @@
           "failed"
         ]
       },
+      "AuthenticationSyncPostUpdateRequest": {
+        "type": "object"
+      },
       "AuthenticationSyncRequest": {
         "type": "object",
         "required": [
@@ -9308,6 +10321,14 @@
           "client_secret": {
             "type": "string",
             "description": "The client secret for this authentication."
+          },
+          "payment_method_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostAuthenticationRequestPaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11935,6 +12956,108 @@
           }
         ]
       },
+      "CancelOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "end_of_term",
+          "specific_date"
+        ]
+      },
+      "CancelSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for cancelling a subscription.",
+        "properties": {
+          "cancel_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CancelOption"
+              }
+            ],
+            "nullable": true
+          },
+          "cancel_at": {
+            "type": "string",
+            "description": "Optional date when the subscription should be cancelled (if not provided, cancels immediately)",
+            "nullable": true
+          },
+          "unbilled_charges_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnbilledChargesOption"
+              }
+            ],
+            "nullable": true
+          },
+          "credit_option_for_current_term_charges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreditOption"
+              }
+            ],
+            "nullable": true
+          },
+          "account_receivables_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountReceivablesHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "refundable_credits_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundableCreditsHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "cancel_reason_code": {
+            "type": "string",
+            "description": "Reason code for canceling the subscription",
+            "nullable": true
+          }
+        }
+      },
+      "CancelSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully cancelling a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "cancelled_at": {
+            "type": "string",
+            "description": "Date when the subscription was cancelled",
+            "nullable": true
+          }
+        }
+      },
       "CaptureMethod": {
         "type": "string",
         "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
@@ -12776,6 +13899,80 @@
           }
         }
       },
+      "ChargesHandling": {
+        "type": "string",
+        "enum": [
+          "invoice_immediately",
+          "add_to_unbilled_charges"
+        ]
+      },
+      "ClickToPayDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "encrypted_payload": {
+            "type": "string",
+            "description": "Encrypted payload",
+            "nullable": true
+          }
+        }
+      },
+      "ClickToPayEligibilityCheckData": {
+        "type": "object",
+        "properties": {
+          "visa": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VisaEligibilityCheckData"
+              }
+            ],
+            "nullable": true
+          },
+          "mastercard": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MasterCardEligibilityCheckData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ClickToPayEligibilityCheckResponseData": {
+        "type": "object",
+        "properties": {
+          "visa": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "mastercard": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -13146,6 +14343,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -13244,6 +14442,11 @@
           "description": {
             "type": "string",
             "description": "The description of the connector"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
+            "nullable": true
           },
           "category": {
             "$ref": "#/components/schemas/HyperswitchConnectorCategory"
@@ -14490,6 +15693,14 @@
           }
         }
       },
+      "CreditOption": {
+        "type": "string",
+        "enum": [
+          "none",
+          "prorate",
+          "full"
+        ]
+      },
       "CryptoData": {
         "type": "object",
         "properties": {
@@ -15145,6 +16356,115 @@
                 "$ref": "#/components/schemas/Address"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "CustomerPaymentMethodUpdateResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_method_id",
+          "payment_method"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier for a merchant",
+            "example": "merchant_1671528864"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
+            "example": true,
+            "nullable": true
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperience"
+            },
+            "description": "Type of payment experience enabled with the connector",
+            "example": [
+              "redirect_to_url"
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z",
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "For Client based calls",
             "nullable": true
           }
         }
@@ -18921,6 +20241,25 @@
           }
         }
       },
+      "MasterCardEligibilityCheckData": {
+        "type": "object",
+        "required": [
+          "consumerPresent"
+        ],
+        "properties": {
+          "consumerPresent": {
+            "type": "boolean"
+          },
+          "idLookupSessionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastUsedCardTimestamp": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "MbWayRedirection": {
         "type": "object",
         "required": [
@@ -21893,6 +23232,71 @@
           }
         }
       },
+      "PauseOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "end_of_term",
+          "specific_date"
+        ]
+      },
+      "PauseSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for pausing a subscription.",
+        "properties": {
+          "pause_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PauseOption"
+              }
+            ],
+            "nullable": true
+          },
+          "pause_at": {
+            "type": "string",
+            "description": "Optional date when the subscription should be paused (if not provided, pauses immediately)",
+            "nullable": true
+          }
+        }
+      },
+      "PauseSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully pausing a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "paused_at": {
+            "type": "string",
+            "description": "Date when the subscription was paused",
+            "nullable": true
+          }
+        }
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -22045,6 +23449,17 @@
             ],
             "properties": {
               "breadpay_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payjustnow_redirect"
+            ],
+            "properties": {
+              "payjustnow_redirect": {
                 "type": "object"
               }
             }
@@ -23723,6 +25138,28 @@
           }
         ]
       },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -24031,6 +25468,7 @@
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
+          "payjustnow",
           "paypal",
           "paze",
           "pix",
@@ -24082,6 +25520,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardDetailUpdate"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
               }
             ],
             "nullable": true
@@ -25939,6 +27385,13 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "extended_authorization_last_applied_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time at which extended authorization was last applied on this payment",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "request_extended_authorization": {
             "type": "boolean",
             "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
@@ -27450,6 +28903,13 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "extended_authorization_last_applied_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "date and time at which extended authorization was last applied on this payment",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "request_extended_authorization": {
@@ -30184,6 +31644,21 @@
           "not_found"
         ]
       },
+      "PostAuthenticationRequestPaymentMethodData": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
+          }
+        }
+      },
       "PrimaryBusinessDetails": {
         "type": "object",
         "required": [
@@ -31674,6 +33149,13 @@
         },
         "additionalProperties": false
       },
+      "RefundableCreditsHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_refund"
+        ]
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -32048,6 +33530,86 @@
           }
         }
       },
+      "ResumeOption": {
+        "type": "string",
+        "enum": [
+          "immediately",
+          "specific_date"
+        ]
+      },
+      "ResumeSubscriptionRequest": {
+        "type": "object",
+        "description": "Request payload for resuming a subscription.",
+        "properties": {
+          "resume_option": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResumeOption"
+              }
+            ],
+            "nullable": true
+          },
+          "resume_date": {
+            "type": "string",
+            "description": "Optional date when the subscription should be resumed (if not provided, resumes immediately)",
+            "nullable": true
+          },
+          "charges_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChargesHandling"
+              }
+            ],
+            "nullable": true
+          },
+          "unpaid_invoices_handling": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnpaidInvoicesHandling"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ResumeSubscriptionResponse": {
+        "type": "object",
+        "description": "Response payload returned after successfully resuming a subscription.",
+        "required": [
+          "id",
+          "status",
+          "profile_id",
+          "merchant_id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/SubscriptionId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubscriptionStatus"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Merchant specific Unique identifier.",
+            "nullable": true
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/ProfileId"
+          },
+          "merchant_id": {
+            "$ref": "#/components/schemas/MerchantId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/CustomerId"
+          },
+          "next_billing_at": {
+            "type": "string",
+            "description": "Date when the subscription was resumed",
+            "nullable": true
+          }
+        }
+      },
       "RetrieveApiKeyResponse": {
         "type": "object",
         "description": "The response body for retrieving an API Key.",
@@ -32368,6 +33930,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -34684,6 +36247,20 @@
           "journey"
         ]
       },
+      "UnbilledChargesOption": {
+        "type": "string",
+        "enum": [
+          "invoice",
+          "delete"
+        ]
+      },
+      "UnpaidInvoicesHandling": {
+        "type": "string",
+        "enum": [
+          "no_action",
+          "schedule_payment_collection"
+        ]
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -35080,6 +36657,29 @@
             "type": "string",
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
+            "nullable": true
+          }
+        }
+      },
+      "VisaEligibilityCheckData": {
+        "type": "object",
+        "required": [
+          "consumerPresent"
+        ],
+        "properties": {
+          "consumerPresent": {
+            "type": "boolean"
+          },
+          "consumerStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "customData": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         }
