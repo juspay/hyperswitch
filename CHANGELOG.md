@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.2-hotfix3
+
+### Bug Fixes
+
+- **connectors:** [Adyen] use single source of shopper ref ([#10163](https://github.com/juspay/hyperswitch/pull/10163)) ([`1231c4c`](https://github.com/juspay/hyperswitch/commit/1231c4c1652a0689c1426cf6f1f4850786dda35c))
+
+**Full Changelog:** [`2025.10.31.2-hotfix2...2025.10.31.2-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.10.31.2-hotfix2...2025.10.31.2-hotfix3)
+
+- - -
+
 ## 2025.10.31.2-hotfix2
 
 ### Bug Fixes
