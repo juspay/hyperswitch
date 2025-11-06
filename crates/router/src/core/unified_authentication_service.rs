@@ -1617,7 +1617,7 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, token_details) =
+    let (updated_authentication, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
                 ClickToPay::post_authentication(
@@ -1647,7 +1647,13 @@ pub async fn authentication_sync_core(
                 .await?
             };
 
-            let token_details = utils::get_token_details(&post_auth_response);
+            let vault_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
+                &state,
+                &merchant_context,
+                &business_profile,
+                &post_auth_response,
+            ))
+            .await?;
 
             let auth_update_response = utils::external_authentication_update_trackers(
                 &state,
@@ -1662,44 +1668,23 @@ pub async fn authentication_sync_core(
             )
             .await?;
 
-            (auth_update_response, token_details)
+            (auth_update_response, vault_token_data)
         } else {
             (authentication, None)
         };
 
-    let (authentication_value, eci) = match auth_flow {
-        AuthFlow::Client => (None, None),
+    let eci = match auth_flow {
+        AuthFlow::Client => None,
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) =
                 updated_authentication.trans_status
             {
-                let tokenised_data = payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication status is success")?;
-                (
-                    Some(masking::Secret::new(tokenised_data.value1)),
-                    updated_authentication.eci.clone(),
-                )
+                updated_authentication.eci.clone()
             } else {
-                (None, None)
+                None
             }
         }
     };
-
-    let auth_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
-        &state,
-        &merchant_context,
-        &business_profile,
-        token_details,
-        authentication_value,
-    ))
-    .await?;
 
     let acquirer_details = Some(AcquirerDetails {
         acquirer_bin: updated_authentication.acquirer_bin.clone(),
@@ -1833,7 +1818,7 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
-        token_data: auth_token_data,
+        vault_token_data,
         billing,
         shipping,
         browser_information: browser_info,

@@ -171,7 +171,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             .as_ref()
             .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
         Ok(format!(
-            "{}/auth/realms/vgs/protocol/openid-connect/token",
+            "{}auth/realms/vgs/protocol/openid-connect/token",
             auth_base_url
         ))
     }

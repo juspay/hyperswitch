@@ -681,7 +681,7 @@ pub struct AuthenticationSyncResponse {
     pub directory_server_id: Option<String>,
 
     /// The tokens for vaulted data
-    pub token_data: Option<std::collections::HashMap<String, String>>,
+    pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
     /// Billing address.
     #[schema(value_type = Option<Address>)]
@@ -740,6 +740,46 @@ pub struct AuthenticationSyncResponse {
     /// Profile Acquirer ID
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AuthenticationVaultTokenData {
+    CardToken {
+        /// token representing card_number
+        #[schema(value_type = String)]
+        card_number: masking::Secret<String>,
+
+        /// token representing card_numcard_expiry_yearber
+        #[schema(value_type = String)]
+        card_expiry_year: masking::Secret<String>,
+
+        /// token representing card_expiry_month
+        #[schema(value_type = String)]
+        card_expiry_month: masking::Secret<String>,
+
+        /// token representing card_cvc
+        #[schema(value_type = Option<String>)]
+        card_cvc: Option<masking::Secret<String>>,
+    },
+    NetworkToken {
+        /// token representing payment_token
+        #[schema(value_type = String)]
+        payment_token: masking::Secret<String>,
+
+        /// token representing token_expiry_year
+        #[schema(value_type = String)]
+        token_expiry_year: masking::Secret<String>,
+
+        /// token representing token_expiry_month
+        #[schema(value_type = String)]
+        token_expiry_month: masking::Secret<String>,
+
+        /// token representing token_cryptogram
+        #[schema(value_type = Option<String>)]
+        token_cryptogram: Option<masking::Secret<String>>,
+    },
 }
 
 #[cfg(feature = "v1")]

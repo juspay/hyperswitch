@@ -10,6 +10,7 @@ pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -724,7 +725,23 @@ pub enum VaultResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VaultIdType {
     SingleVaultId(String),
-    MultiVauldIds(HashMap<String, String>),
+    MultiVauldIds(MultiVaultIdType),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MultiVaultIdType {
+    Card {
+        card_number: masking::Secret<String>,
+        card_expiry_year: masking::Secret<String>,
+        card_expiry_month: masking::Secret<String>,
+        card_cvc: Option<masking::Secret<String>>,
+    },
+    NetworkToken {
+        network_token: masking::Secret<String>,
+        network_token_exp_year: masking::Secret<String>,
+        network_token_exp_month: masking::Secret<String>,
+        cryptogram: Option<masking::Secret<String>>,
+    },
 }
 
 impl VaultIdType {
@@ -735,6 +752,46 @@ impl VaultIdType {
                 field_name: "SingleVaultId",
             }
             .into()),
+        }
+    }
+
+    pub fn get_auth_vault_token_data(
+        &self,
+    ) -> Result<
+        api_models::authentication::AuthenticationVaultTokenData,
+        error_stack::Report<ApiErrorResponse>,
+    > {
+        match self.clone() {
+            Self::MultiVauldIds(multi_vault_data) => match multi_vault_data {
+                MultiVaultIdType::Card {
+                    card_number,
+                    card_expiry_year,
+                    card_expiry_month,
+                    card_cvc,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                        card_number,
+                        card_expiry_month,
+                        card_expiry_year,
+                        card_cvc,
+                    },
+                ),
+                MultiVaultIdType::NetworkToken {
+                    network_token,
+                    network_token_exp_month,
+                    network_token_exp_year,
+                    cryptogram,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                        payment_token: network_token,
+                        token_expiry_month: network_token_exp_month,
+                        token_expiry_year: network_token_exp_year,
+                        token_cryptogram: cryptogram,
+                    },
+                ),
+            },
+            Self::SingleVaultId(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected Behaviour, Multi Token Data is missing"),
         }
     }
 }
