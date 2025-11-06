@@ -197,7 +197,7 @@ pub fn sanitize_card_number(card_number: &str) -> Result<bool, CardNumberValidat
 
 /// # Panics
 ///
-/// Never, as a single character will never be greater than 10, or `u8`
+/// Never, as a single decimal digit will never be greater than 10, or `u8`
 pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberValidationErr> {
     let data = number.chars().try_fold(
         Vec::with_capacity(MAX_CARD_NUMBER_LENGTH),
@@ -210,7 +210,7 @@ pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberVal
                         "invalid character found in card number",
                     ))?
                     .try_into()
-                    .expect("error while converting a single character to u8"), // safety, a single character will never be greater `u8`
+                    .expect("error while converting a single decimal digit to u8"), // safety, a single decimal digit will never be greater `u8`
             );
             Ok::<Vec<u8>, CardNumberValidationErr>(data)
         },
