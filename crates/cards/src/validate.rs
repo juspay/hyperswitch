@@ -313,8 +313,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use masking::Secret;
 
     use super::*;

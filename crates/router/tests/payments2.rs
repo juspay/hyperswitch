@@ -1,10 +1,4 @@
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::print_stdout,
-    unused_imports
-)]
+#![allow(clippy::unwrap_in_result)]
 
 mod utils;
 
@@ -42,7 +36,6 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
-    use db::domain::merchant_context;
     use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");

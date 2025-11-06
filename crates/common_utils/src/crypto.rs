@@ -769,7 +769,6 @@ impl SignMessage for RsaPssSha256 {
 
 #[cfg(test)]
 mod crypto_tests {
-    #![allow(clippy::expect_used)]
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::crypto::GenerateDigest;
 

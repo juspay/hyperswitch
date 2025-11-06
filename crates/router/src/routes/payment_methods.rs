@@ -1040,7 +1040,6 @@ pub async fn default_payment_method_set_api(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use api_models::payment_methods::PaymentMethodListRequest;
 
     use super::*;

@@ -929,7 +929,6 @@ pub struct DirProgram<O> {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::expect_used)]
     use rustc_hash::FxHashMap;
     use strum::IntoEnumIterator;
 

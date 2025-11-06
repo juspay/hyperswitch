@@ -1,4 +1,4 @@
-#![allow(dead_code, clippy::unwrap_used, clippy::panic_in_result_fn)]
+#![allow(dead_code, clippy::panic_in_result_fn)]
 
 use masking::Secret;
 #[cfg(feature = "serde")]
