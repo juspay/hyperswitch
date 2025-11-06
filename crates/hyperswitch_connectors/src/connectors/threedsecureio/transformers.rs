@@ -123,6 +123,7 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             }
         };
@@ -207,6 +208,7 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ThreedsecureioErrorResponseWrapper::ErrorString(error) => Err(ErrorResponse {
                     code: error.clone(),
@@ -219,6 +221,7 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
             },
         };

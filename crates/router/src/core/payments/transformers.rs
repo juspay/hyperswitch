@@ -1966,6 +1966,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         network_advice_code: None,
         network_error_message: None,
         connector_metadata: None,
+        mandate_reference: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -6401,6 +6402,7 @@ impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenc
             None,
             value.mandate_metadata,
             value.connector_mandate_request_reference_id,
+            None
         )
     }
 }

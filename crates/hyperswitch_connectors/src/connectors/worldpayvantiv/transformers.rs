@@ -559,6 +559,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -1478,6 +1479,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1530,6 +1532,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1591,6 +1594,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1644,6 +1648,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1689,6 +1694,7 @@ impl<F>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1725,6 +1731,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -1771,6 +1778,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1813,6 +1821,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1912,6 +1921,30 @@ impl<F>
         match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
+
+                // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
+                // We are extracting that new card token info here to be sent back in mandate_id in router_data.
+                let mandate_reference_data = match item.data.request.is_mandate_payment() {
+                    true => {
+                        if let Some(account_updater) = sale_response.account_updater.as_ref() {
+                            account_updater
+                                .new_card_token_info
+                                .clone()
+                                .map(MandateReference::from)
+                        } else {
+                            sale_response
+                                .token_response
+                                .clone()
+                                .map(MandateReference::from)
+                        }
+                    }
+                    false => sale_response
+                        .token_response
+                        .clone()
+                        .map(MandateReference::from)
+                };
+
+
                 if connector_utils::is_payment_failure(status) {
                     let network_decline_code = item
                     .response
@@ -1929,6 +1962,9 @@ impl<F>
                 let network_error_message = network_decline_code
                     .as_ref()
                     .map(|_| sale_response.message.clone());
+
+                logger::debug!("inside payment failed case");
+
                     Ok(Self {
                         status,
                         response: Err(ErrorResponse {
@@ -1942,6 +1978,7 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: mandate_reference_data,
                         }),
                         ..item.data
                     })
@@ -1952,28 +1989,6 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
                     let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
-
-                    // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
-                    // We are extracting that new card token info here to be sent back in mandate_id in router_data.
-                    let mandate_reference_data = match item.data.request.payment_method_data {
-                        PaymentMethodData::MandatePayment => {
-                            if let Some(account_updater) = sale_response.account_updater.as_ref() {
-                                account_updater
-                                    .new_card_token_info
-                                    .clone()
-                                    .map(MandateReference::from)
-                            } else {
-                                sale_response
-                                    .token_response
-                                    .clone()
-                                    .map(MandateReference::from)
-                            }
-                        }
-                        _ => sale_response
-                            .token_response
-                            .clone()
-                            .map(MandateReference::from)
-                    };
 
                     Ok(Self {
                         status,
@@ -2032,6 +2047,7 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2090,6 +2106,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })},
@@ -2150,6 +2167,7 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2206,6 +2224,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -2224,7 +2243,7 @@ impl From<TokenResponse> for MandateReference {
     }
 }
 
-impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCardInfo {
+impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
     fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
             .exp_date
@@ -2239,24 +2258,13 @@ impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::AdditionalCard
             .map(Secret::new);
 
         Self {
-            card_issuer: None,
             card_network: token_data
                 .card_type
                 .clone()
                 .map(common_enums::CardNetwork::from),
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            last4: None,
             card_isin: token_data.bin.clone(),
-            card_extended_bin: None,
             card_exp_month,
             card_exp_year,
-            card_holder_name: None,
-            payment_checks: None,
-            authentication_data: None,
-            is_regulated: None,
-            signature_network: None,
         }
     }
 }
@@ -2277,12 +2285,12 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-        let mandate_metadata = api_models::payments::AdditionalCardInfo::from(&token_data);
+        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
 
         let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
             .inspect_err(|_| {
                 logger::error!(
-                    "Failed to construct Mandate Reference from the AccoutnUpdaterCardTokenInfo"
+                    "Failed to construct Mandate Reference from the UpdatedMandateDetails"
                 )
             })
             .ok();
@@ -2335,6 +2343,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -4666,6 +4675,7 @@ impl
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         };
 
@@ -4708,6 +4718,7 @@ impl
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
             ..item.data.clone()
         })

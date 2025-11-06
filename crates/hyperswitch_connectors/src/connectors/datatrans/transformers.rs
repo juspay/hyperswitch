@@ -564,6 +564,7 @@ impl<F>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -637,6 +638,7 @@ impl<F>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -716,6 +718,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -749,6 +752,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, DatatransSyncResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
             DatatransSyncResponse::Response(response) => Ok(RefundsResponseData {
                 connector_refund_id: response.transaction_id.to_string(),
@@ -782,6 +786,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 Ok(Self {
                     response,
@@ -809,6 +814,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     let mandate_reference = sync_response

@@ -1101,6 +1101,7 @@ where
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1237,6 +1238,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1413,6 +1415,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1474,6 +1477,7 @@ impl
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

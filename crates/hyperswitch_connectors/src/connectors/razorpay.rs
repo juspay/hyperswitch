@@ -166,6 +166,7 @@ impl ConnectorCommon for Razorpay {
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayError(error_response) => Ok(ErrorResponse {
@@ -179,6 +180,7 @@ impl ConnectorCommon for Razorpay {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
                         Ok(ErrorResponse {
@@ -192,6 +194,7 @@ impl ConnectorCommon for Razorpay {
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         })
                     }
                 }

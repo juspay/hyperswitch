@@ -596,6 +596,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -657,6 +658,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -726,6 +728,7 @@ fn get_error_response<T>(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         },
     ))
 }
@@ -808,6 +811,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -872,6 +876,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -936,6 +941,7 @@ impl<F>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1006,6 +1012,7 @@ impl<F>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1245,6 +1252,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
@@ -1862,6 +1870,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -2066,6 +2075,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -2193,6 +2203,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

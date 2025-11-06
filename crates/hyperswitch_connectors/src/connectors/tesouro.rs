@@ -157,6 +157,7 @@ impl ConnectorCommon for Tesouro {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             }
             Err(error_msg) => {
@@ -308,6 +309,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }

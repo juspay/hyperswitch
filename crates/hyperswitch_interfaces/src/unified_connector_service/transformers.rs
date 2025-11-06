@@ -194,6 +194,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;

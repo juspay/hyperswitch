@@ -343,6 +343,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -502,6 +503,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -656,6 +658,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -935,6 +938,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })

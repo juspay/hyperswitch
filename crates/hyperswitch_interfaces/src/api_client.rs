@@ -192,6 +192,7 @@ where
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             } else {
                 None
@@ -427,6 +428,7 @@ where
                                     network_decline_code: None,
                                     network_error_message: None,
                                     connector_metadata: None,
+                                    mandate_reference: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);

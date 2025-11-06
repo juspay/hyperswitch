@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::AddressDetails, network_tokenization::NetworkTokenNumber,
-    payment_address::PaymentAddress, payment_method_data, payments,
+    payment_address::PaymentAddress, payment_method_data, payments, router_response_types
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         payment_attempt::{ErrorDetails, PaymentAttemptUpdate},
         payment_intent::PaymentIntentUpdate,
     },
-    router_flow_types, router_request_types, router_response_types,
+    router_flow_types, router_request_types
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -701,6 +701,7 @@ pub struct ErrorResponse {
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_metadata: Option<Secret<serde_json::Value>>,
+    pub mandate_reference: Option<router_response_types::MandateReference>
 }
 
 impl Default for ErrorResponse {
@@ -716,6 +717,7 @@ impl Default for ErrorResponse {
             network_advice_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         }
     }
 }
@@ -733,6 +735,7 @@ impl ErrorResponse {
             network_advice_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         }
     }
 }
@@ -925,6 +928,7 @@ impl
                     network_advice_code,
                     network_error_message,
                     connector_metadata,
+                    mandate_reference,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1157,6 +1161,7 @@ impl
                     network_decline_code,
                     network_error_message,
                     connector_metadata: _,
+                    mandate_reference: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1388,6 +1393,7 @@ impl
                     network_decline_code,
                     network_error_message,
                     connector_metadata: _,
+                    mandate_reference: _,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1663,6 +1669,7 @@ impl
                     network_advice_code,
                     network_error_message,
                     connector_metadata,
+                    mandate_reference: _,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1890,6 +1897,7 @@ impl
                     network_decline_code,
                     network_error_message,
                     connector_metadata: _,
+                    mandate_reference: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -2041,6 +2049,7 @@ impl
                     network_advice_code,
                     network_error_message,
                     connector_metadata: _,
+                    mandate_reference: _,
                 } = error_response.clone();
 
                 // Handle errors exactly

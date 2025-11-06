@@ -173,6 +173,7 @@ impl ConnectorCommon for Worldpayvantiv {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             }
             Err(error_msg) => {
@@ -1506,6 +1507,7 @@ fn handle_vantiv_json_error_response(
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         }
         Err(error_msg) => {
@@ -1547,6 +1549,7 @@ fn handle_vantiv_dispute_error_response(
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         }
         Err(error_msg) => {

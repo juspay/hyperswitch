@@ -158,6 +158,7 @@ impl ConnectorCommon for Mifinity {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let response: Result<
@@ -197,6 +198,7 @@ impl ConnectorCommon for Mifinity {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 }
 

@@ -9448,6 +9448,7 @@ where
                     mandate_reference_record
                         .connector_mandate_request_reference_id
                         .clone(),
+                    None
                 ),
             ))
         }
@@ -9519,6 +9520,7 @@ where
                                     None,
                                     mandate_reference_record.mandate_metadata.clone(),
                                     mandate_reference_record.connector_mandate_request_reference_id.clone(),
+                                    None
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(

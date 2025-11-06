@@ -635,6 +635,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<RedsysResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
 
                 Ok(Self {
@@ -1015,6 +1016,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
 
                 (response, enums::AttemptStatus::Failure)
@@ -1178,6 +1180,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
 
                 (response, enums::AttemptStatus::Failure)
@@ -1274,6 +1277,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1303,6 +1307,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 (response, enums::AttemptStatus::Failure)
             }
@@ -1378,6 +1383,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1407,6 +1413,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
 
                 (response, enums::AttemptStatus::VoidFailed)
@@ -1460,6 +1467,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
@@ -1479,6 +1487,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
         };
 
@@ -1515,6 +1524,7 @@ fn get_payments_response(
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1800,6 +1810,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         });
                         (status, payment_response)
                     } else {
@@ -1846,6 +1857,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 (item.data.status, response)
             }
@@ -1896,6 +1908,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             }
             (Some(response), None) => {
@@ -1914,6 +1927,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         })
                     } else {
                         Ok(RefundsResponseData {

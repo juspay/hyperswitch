@@ -2418,6 +2418,7 @@ pub fn get_error_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
+        mandate_reference: None,
     }
 }
 pub fn get_error_reason(

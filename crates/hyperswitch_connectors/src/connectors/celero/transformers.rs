@@ -544,6 +544,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                         network_advice_code: None,
                                         network_error_message: None,
                                         connector_metadata: None,
+                                        mandate_reference: None,
                                     },
                                 ),
                                 ..item.data
@@ -591,6 +592,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                             network_advice_code: None,
                             network_error_message: None,
                             connector_metadata: None,
+                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -620,6 +622,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                         network_advice_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -710,6 +713,7 @@ impl
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -781,6 +785,7 @@ impl
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -840,6 +845,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CeleroRefundResponse>>
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -874,6 +880,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CeleroRefundResponse>> for Refunds
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             }),

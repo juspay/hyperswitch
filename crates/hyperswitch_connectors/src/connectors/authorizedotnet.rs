@@ -269,6 +269,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1132,6 +1133,7 @@ fn get_error_response(
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 })
             })
             .unwrap_or_else(|| ErrorResponse {
@@ -1145,6 +1147,7 @@ fn get_error_response(
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -1165,6 +1168,7 @@ fn get_error_response(
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         }
     }

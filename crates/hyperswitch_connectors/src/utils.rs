@@ -366,6 +366,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         }
     }
@@ -445,14 +446,15 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
         | AttemptStatus::Failure
-        | AttemptStatus::Expired => true,
+        | AttemptStatus::Expired 
+        => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
         | AttemptStatus::Authorized
-        | AttemptStatus::Charged
         | AttemptStatus::Authorizing
+        | AttemptStatus::Charged
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
         | AttemptStatus::VoidedPostCharge
@@ -461,8 +463,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AutoRefunded
         | AttemptStatus::PartialCharged
         | AttemptStatus::PartialChargedAndChargeable
-        | AttemptStatus::Unresolved
         | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending

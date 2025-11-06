@@ -339,7 +339,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                         connector_id.get_payment_method_id(),           // payment_method_id
                                         None,                                     // update_history
                                         connector_id.get_mandate_metadata(),            // mandate_metadata
-                                        connector_id.get_connector_mandate_request_reference_id()  // connector_mandate_request_reference_id
+                                        connector_id.get_connector_mandate_request_reference_id(), 
+                                        None // connector_mandate_request_reference_id
                                     )
                                 ))
                             }

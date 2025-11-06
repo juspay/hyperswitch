@@ -240,6 +240,7 @@ impl ConnectorCommon for Payone {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -252,6 +253,7 @@ impl ConnectorCommon for Payone {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             }),
         }
     }

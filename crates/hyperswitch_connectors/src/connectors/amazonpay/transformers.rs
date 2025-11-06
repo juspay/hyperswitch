@@ -291,6 +291,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
                         network_advice_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -435,6 +436,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
                         network_advice_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -453,6 +455,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
                         network_advice_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -558,6 +561,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                         network_advice_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -593,6 +597,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {

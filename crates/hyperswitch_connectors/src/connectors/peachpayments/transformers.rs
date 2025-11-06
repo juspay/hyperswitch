@@ -789,6 +789,7 @@ impl<F>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -829,6 +830,7 @@ impl
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -964,6 +966,7 @@ pub fn get_peachpayments_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -1013,6 +1016,7 @@ pub fn get_webhook_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -1085,6 +1089,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsConfirmResponse, T, Paymen
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

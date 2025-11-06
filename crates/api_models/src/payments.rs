@@ -1998,6 +1998,48 @@ pub struct ConnectorMandateReferenceId {
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
+    updated_mandate_details: Option<UpdatedMandateDetails>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct UpdatedMandateDetails {
+    pub card_network : Option<common_enums::CardNetwork>,
+    pub card_exp_month : Option<Secret<String>>,
+    pub card_exp_year : Option<Secret<String>>,
+    pub card_isin : Option<String>,
+}
+
+impl From<AdditionalCardInfo> for UpdatedMandateDetails {
+    fn from(card_info: AdditionalCardInfo) -> Self {
+        Self {
+            card_network: card_info.card_network,
+            card_exp_month: card_info.card_exp_month,
+            card_exp_year: card_info.card_exp_year,
+            card_isin: card_info.card_isin,
+        }
+    }
+}
+
+impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
+    fn from(card_info: &UpdatedMandateDetails) -> Self {
+        Self {
+            card_network: card_info.card_network.clone(),
+            card_exp_month: card_info.card_exp_month.clone(),
+            card_exp_year: card_info.card_exp_year.clone(),
+            card_isin: card_info.card_isin.clone(),
+            card_issuer: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            last4: None,
+            card_extended_bin: None,
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
+        }
+    }
 }
 
 impl ConnectorMandateReferenceId {
@@ -2007,6 +2049,7 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
+        updated_mandate_details: Option<UpdatedMandateDetails>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -2014,6 +2057,7 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
+            updated_mandate_details
         }
     }
 

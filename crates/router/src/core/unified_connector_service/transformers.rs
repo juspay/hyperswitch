@@ -1041,6 +1041,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1161,6 +1162,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1247,6 +1249,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1315,6 +1318,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1440,6 +1444,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1841,6 +1846,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -1946,6 +1952,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
@@ -2326,6 +2333,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let refund_status = RefundStatus::foreign_try_from(response.status())?;
@@ -2453,6 +2461,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                 network_advice_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;

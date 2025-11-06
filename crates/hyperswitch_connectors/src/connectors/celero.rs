@@ -156,6 +156,7 @@ impl ConnectorCommon for Celero {
             network_advice_code: None,
             network_error_message: error_details.processor_response_code,
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }

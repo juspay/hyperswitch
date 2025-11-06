@@ -295,6 +295,7 @@ pub async fn refresh_connector_auth(
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 };
 
                 Ok(Err(error_response))
@@ -387,6 +388,7 @@ pub async fn execute_authentication_token<
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 };
                 Err(error_response)
             } else {

@@ -191,6 +191,7 @@ impl ConnectorCommon for Stripe {
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -394,6 +395,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -546,6 +548,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -694,6 +697,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -862,6 +866,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1036,6 +1041,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1182,6 +1188,7 @@ impl
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1388,6 +1395,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1519,6 +1527,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1685,6 +1694,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1817,6 +1827,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -1961,6 +1972,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -2062,6 +2074,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -2188,6 +2201,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }

@@ -185,6 +185,7 @@ impl ConnectorCommon for Worldpay {
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 }
@@ -500,6 +501,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         })
     }
 

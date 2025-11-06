@@ -664,6 +664,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     });
                     Ok(Self {
                         response,
@@ -737,6 +738,7 @@ impl<F, T>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             });
             Ok(Self {
                 response,
@@ -1567,6 +1569,7 @@ impl<F, T>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1671,6 +1674,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1850,6 +1854,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
+                mandate_reference: None,
             })
         });
 
@@ -2154,6 +2159,7 @@ fn get_err_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
+        mandate_reference: None,
     })
 }
 

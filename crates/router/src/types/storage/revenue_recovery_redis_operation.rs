@@ -26,6 +26,7 @@ pub struct PaymentProcessorTokenDetails {
     pub last_four_digits: Option<String>,
     pub card_network: Option<CardNetwork>,
     pub card_type: Option<String>,
+    pub card_isin: Option<String>,
 }
 
 /// Represents the status and retry history of a payment processor token
@@ -49,6 +50,34 @@ pub struct PaymentProcessorTokenStatus {
     pub is_active: Option<bool>,
     /// Update history of the token
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
+}
+
+impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCardInfo {
+    fn from(data: &PaymentProcessorTokenDetails) -> Self {
+            Self {
+            card_exp_month: data
+                .expiry_month
+                .clone(),
+            card_exp_year: data
+                .expiry_year
+                .clone(),
+            card_issuer: data.card_issuer.clone(),
+            card_network: data.card_network.clone(),
+            card_type: data.card_type.clone(),
+            last4: data
+                .last_four_digits
+                .clone(),
+            card_isin : data.card_isin.clone(),
+            card_issuing_country: None,
+            bank_code: None,
+            card_extended_bin: None,
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
+        }
+    }
 }
 
 /// Token retry availability information with detailed wait times
@@ -1155,13 +1184,13 @@ impl RedisTokenManager {
                     let mandate_metadata = mandate_data.get_connector_mandate_metadata();
                     match mandate_metadata {
                         Some(metadata) => {
-                            let additional_card_info  = serde_json::from_value::<api_models::payments::AdditionalCardInfo>(metadata.peek().clone())
+                            let updated_mandate_info  = serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(metadata.peek().clone())
                                 .map_err(|err| {
-                                    logger::error!("Failed to deserialize mandate metadata to additional_card_info: {}", err);
+                                    logger::error!("Failed to deserialize mandate metadata to updated_mandate_details: {}", err);
                                     errors::StorageError::SerializationFailed
                                 })?;
                             logger::info!("Mandate metadata found for expiry update.");
-                            AccountUpdaterAction::ExpiryUpdate(additional_card_info)
+                            AccountUpdaterAction::ExpiryUpdate(updated_mandate_info)
                         }
                         None => {
                             logger::info!("No mandate metadata found for expiry update.");
@@ -1172,13 +1201,13 @@ impl RedisTokenManager {
                     logger::info!("Old token and new token are not equal.");
                     match mandate_data.get_connector_mandate_metadata() {
                         Some(metadata) => {
-                            let additional_card_info  = serde_json::from_value::<api_models::payments::AdditionalCardInfo>(metadata.peek().clone())
+                            let updated_mandate_info  = serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(metadata.peek().clone())
                                 .map_err(|err| {
-                                    logger::error!("Failed to deserialize mandate metadata to additional_card_info: {}", err);
+                                    logger::error!("Failed to deserialize mandate metadata to updated_mandate_details: {}", err);
                                     errors::StorageError::SerializationFailed
                                 })?;
                             logger::info!("Mandate metadata found for token update.");
-                            AccountUpdaterAction::TokenUpdate(new_token, additional_card_info)
+                            AccountUpdaterAction::TokenUpdate(new_token, updated_mandate_info)
                         }
                         None => {
                             logger::warn!("No mandate metadata found for token update. No further action is taken");
@@ -1198,8 +1227,8 @@ impl RedisTokenManager {
 }
 
 pub enum AccountUpdaterAction {
-    TokenUpdate(String, api_models::payments::AdditionalCardInfo),
-    ExpiryUpdate(api_models::payments::AdditionalCardInfo),
+    TokenUpdate(String, api_models::payments::UpdatedMandateDetails),
+    ExpiryUpdate(api_models::payments::UpdatedMandateDetails),
     ExistingToken,
     NoAction,
 }
@@ -1214,7 +1243,7 @@ impl AccountUpdaterAction {
         attempt_id: &id_type::GlobalAttemptId,
     ) -> CustomResult<(), errors::StorageError> {
         match account_updater_action {
-            Self::TokenUpdate(new_token, additional_card_info) => {
+            Self::TokenUpdate(new_token, updated_mandate_details) => {
                 logger::info!("Handling TokenUpdate action with new token");
                 // Implement token update logic here using additional_card_info if needed
 
@@ -1237,12 +1266,13 @@ impl AccountUpdaterAction {
                 let new_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: PaymentProcessorTokenDetails {
                         payment_processor_token: new_token.to_owned(),
-                        expiry_month: additional_card_info.card_exp_month.clone(),
-                        expiry_year: additional_card_info.card_exp_year.clone(),
-                        card_issuer: additional_card_info.card_issuer.clone(),
-                        last_four_digits: additional_card_info.last4.clone(),
-                        card_type: additional_card_info.card_type.clone(),
-                        card_network: additional_card_info.card_network.clone(),
+                        expiry_month: updated_mandate_details.card_exp_month.clone(),
+                        expiry_year: updated_mandate_details.card_exp_year.clone(),
+                        card_issuer: None,
+                        last_four_digits: None,
+                        card_type: None,
+                        card_network: updated_mandate_details.card_network.clone(),
+                        card_isin : updated_mandate_details.card_isin.clone(),
                     },
                     inserted_by_attempt_id: attempt_id.to_owned(),
                     error_code: None,
@@ -1254,22 +1284,58 @@ impl AccountUpdaterAction {
                         OffsetDateTime::now_utc().time(),
                     )),
                     is_active: Some(true),
-                    account_update_history: None,
+                    account_update_history: Some(vec![AccountUpdateHistoryRecord {
+                        old_token: scheduled_token
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            .clone(),
+                        new_token: new_token.to_owned(),
+                        updated_at: PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        ),
+                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(&scheduled_token.payment_processor_token_details)),
+                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(updated_mandate_details)),
+                    }]),
                 };
 
                 RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
                     .await?;
                 logger::info!("Successfully updated token with new token information.")
             }
-            Self::ExpiryUpdate(additional_card_info) => {
+            Self::ExpiryUpdate(updated_mandate_details) => {
                 logger::info!("Handling ExpiryUpdate action");
                 // Implement expiry update logic here using additional_card_info
 
                 let mut updated_token = scheduled_token.clone();
                 updated_token.payment_processor_token_details.expiry_month =
-                    additional_card_info.card_exp_month.clone();
+                    updated_mandate_details.card_exp_month.clone();
                 updated_token.payment_processor_token_details.expiry_year =
-                    additional_card_info.card_exp_year.clone();
+                    updated_mandate_details.card_exp_year.clone();
+                updated_token.payment_processor_token_details.card_network =
+                    updated_mandate_details.card_network.clone();
+                updated_token.modified_at = Some(PrimitiveDateTime::new(
+                    OffsetDateTime::now_utc().date(),
+                    OffsetDateTime::now_utc().time(),
+                ));
+                updated_token.account_update_history.get_or_insert(vec![]).push(
+                    AccountUpdateHistoryRecord {
+                        old_token: scheduled_token
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            .clone(),
+                        new_token: scheduled_token
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            .clone(),
+                        updated_at: PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        ),
+                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(&scheduled_token.payment_processor_token_details)),
+                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(&updated_token.payment_processor_token_details)),
+                    },
+                );
 
                 let _ = RedisTokenManager::upsert_payment_processor_token(
                     state,

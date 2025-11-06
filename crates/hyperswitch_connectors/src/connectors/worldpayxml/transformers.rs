@@ -549,6 +549,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaymentService>> for RefundsRout
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -800,6 +801,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -823,6 +825,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -883,6 +886,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -943,6 +947,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -997,6 +1002,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaymentService>> for RefundsRouter
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
@@ -1119,6 +1125,7 @@ fn process_payment_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
+            mandate_reference: None,
         }))
     } else {
         Ok(PaymentsResponseData::TransactionResponse {

@@ -3316,6 +3316,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3949,6 +3950,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 Ok(Self {
                     response,
@@ -4294,6 +4296,7 @@ impl<F>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
+                        mandate_reference: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -4423,6 +4426,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 Ok(Self {
                     response,
@@ -4554,6 +4558,7 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
+                    mandate_reference: None,
                 });
                 Ok(Self {
                     response,
@@ -5171,6 +5176,7 @@ pub fn get_error_response(
         network_decline_code,
         network_error_message: None,
         connector_metadata: None,
+        mandate_reference: None,
     }
 }
 
