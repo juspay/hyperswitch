@@ -203,12 +203,12 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    VoidAfterConfirm: {
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "cancelled",
+          status: "processing",// this is an async process
         },
       },
     },
@@ -219,7 +219,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -230,7 +230,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -241,7 +241,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -252,7 +252,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
