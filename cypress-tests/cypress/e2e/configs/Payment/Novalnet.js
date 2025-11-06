@@ -87,7 +87,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
@@ -368,7 +367,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
