@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.05.0-hotfix1
+
+### Refactors
+
+- **connector:** [PAYJUSTNOW] Unstructured error response handling ([#10155](https://github.com/juspay/hyperswitch/pull/10155)) ([`2951ee3`](https://github.com/juspay/hyperswitch/commit/2951ee349d66e9163390b227a364c78e4f600189))
+
+**Full Changelog:** [`2025.11.05.0...2025.11.05.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.11.05.0...2025.11.05.0-hotfix1)
+
+- - -
+
 ## 2025.11.05.0
 
 ### Features
