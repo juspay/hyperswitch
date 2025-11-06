@@ -948,7 +948,3 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 [grpc_client.unified_connector_service]
 ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
-
-[hypersense]
-enabled = false
-api_url = "https://live.hypersense.io/cost-observability/api"
