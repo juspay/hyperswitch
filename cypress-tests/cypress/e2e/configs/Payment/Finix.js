@@ -482,7 +482,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "DO_NOT_HONOR",
-          error_message: "The card was declined for an unknown reason. The cardholder needs to contact their issuing bank for more information.",
+          error_message:
+            "The card was declined for an unknown reason. The cardholder needs to contact their issuing bank for more information.",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
