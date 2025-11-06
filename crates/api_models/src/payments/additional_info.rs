@@ -245,7 +245,9 @@ pub struct WalletAdditionalDataForCard {
     #[serde(rename = "type")]
     pub card_type: Option<String>,
     /// Expiry Month of card
+    #[schema(value_type = String, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
     /// Expiry Year of card
+    #[schema(value_type = String, example = "2050")]
     pub card_exp_year: Option<Secret<String>>,
 }
