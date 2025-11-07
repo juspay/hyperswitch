@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Mutex, time::Duration};
+use std::{collections::HashMap, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE;
@@ -10,7 +10,7 @@ use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
-static PROXY_CLIENT_CACHE: OnceCell<Mutex<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
+static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
 use router_env::logger;
 
@@ -213,34 +213,46 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
 
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
-        // Use proxy-specific client cache
-        let cache = PROXY_CLIENT_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut cache_lock = cache.lock().map_err(|_| {
+        let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+        
+        let read_lock = cache.read().map_err(|_| {
             error_stack::Report::new(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to acquire proxy client cache lock")
+                .attach_printable("Failed to acquire proxy client cache read lock")
         })?;
-
-        let client = if let Some(cached_client) = cache_lock.get(&cache_key) {
+        
+        let client = if let Some(cached_client) = read_lock.get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
             cached_client.clone()
         } else {
-            // Create new proxy client if not in cache
-            logger::info!("Creating new proxy client for config: {:?}", cache_key);
+            drop(read_lock);
             
-            metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
+            let mut write_lock = cache.write().map_err(|_| {
+                error_stack::Report::new(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to acquire proxy client cache write lock")
+            })?;
+            
+            if let Some(cached_client) = write_lock.get(&cache_key) {
+                logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+                metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+                cached_client.clone()
+            } else {
+                logger::info!("Creating new proxy client for config: {:?}", cache_key);
+                
+                metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
-            let new_client =
-                apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                    .build()
-                    .change_context(HttpClientError::ClientConstructionFailed)
-                    .attach_printable("Failed to construct proxy client")?;
+                let new_client =
+                    apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                        .build()
+                        .change_context(HttpClientError::ClientConstructionFailed)
+                        .attach_printable("Failed to construct proxy client")?;
 
-            metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+                metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
 
-            cache_lock.insert(cache_key.clone(), new_client.clone());
-            logger::debug!("Cached new proxy client for config: {:?}", cache_key);
-            new_client
+                write_lock.insert(cache_key.clone(), new_client.clone());
+                logger::debug!("Cached new proxy client for config: {:?}", cache_key);
+                new_client
+            }
         };
 
         Ok(client)
