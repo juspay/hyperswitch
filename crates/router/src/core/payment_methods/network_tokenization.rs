@@ -3,6 +3,7 @@ use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
+use masking::ErasedMaskSerialize;
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
@@ -70,9 +71,10 @@ pub async fn mk_tokenization_req(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload.masked_serialize().unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -111,7 +113,7 @@ pub async fn mk_tokenization_req(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -222,7 +224,7 @@ pub async fn generate_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -416,7 +418,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -484,7 +486,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -761,7 +763,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -834,7 +836,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -997,7 +999,7 @@ pub async fn delete_network_token_from_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
