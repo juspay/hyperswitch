@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.07.0
+
+### Features
+
+- **core:** Added Crypto and Mifinity Wallet PaymentMethod for Hyperswitch <> UCS Integration ([#10076](https://github.com/juspay/hyperswitch/pull/10076)) ([`7f350f0`](https://github.com/juspay/hyperswitch/commit/7f350f0b1768357f7da614e5afe22585adf312fd))
+
+### Bug Fixes
+
+- **connectors:** [Adyen] use single source of shopper ref ([#10161](https://github.com/juspay/hyperswitch/pull/10161)) ([`73d627f`](https://github.com/juspay/hyperswitch/commit/73d627f084a8fce5ca179ace2d59bf618c0d9263))
+- Update PayPal Postman collection tests ([#10129](https://github.com/juspay/hyperswitch/pull/10129)) ([`dc388aa`](https://github.com/juspay/hyperswitch/commit/dc388aa920ac31fa60f5d7d2e79bf1abfc806e48))
+- Ucs response masked serialize in connector event ([#10137](https://github.com/juspay/hyperswitch/pull/10137)) ([`672bd47`](https://github.com/juspay/hyperswitch/commit/672bd471deaebb9bde351dcdf4757f6650e9b315))
+
+### Refactors
+
+- **connector:**
+  - [PAYJUSTNOW] Unstructured error response handling ([#10138](https://github.com/juspay/hyperswitch/pull/10138)) ([`8632ad3`](https://github.com/juspay/hyperswitch/commit/8632ad35458d4e7fe8bb82de9c149eeedc13a5ae))
+  - [Loonio] add customer_info in psync response ([#10125](https://github.com/juspay/hyperswitch/pull/10125)) ([`359fcc0`](https://github.com/juspay/hyperswitch/commit/359fcc05c68489412c1961f9b6a721219b0c4870))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`7de0af7`](https://github.com/juspay/hyperswitch/commit/7de0af76fee86d717f729eb7c22a77ea1af461f6))
+
+**Full Changelog:** [`2025.11.06.0...2025.11.07.0`](https://github.com/juspay/hyperswitch/compare/2025.11.06.0...2025.11.07.0)
+
+- - -
+
 ## 2025.11.06.0
 
 ### Features

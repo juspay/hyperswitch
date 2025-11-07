@@ -292,6 +292,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
         common_types::payments::MerchantCountryCode,
+        common_types::payments::BillingDescriptor,
         api_models::enums::PaymentChannel,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,

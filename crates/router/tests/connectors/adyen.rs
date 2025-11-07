@@ -168,8 +168,6 @@ impl AdyenTest {
                 co_badged_card_data: None,
             }),
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -195,6 +193,7 @@ impl AdyenTest {
             authentication_data: None,
             customer_acceptance: None,
             locale: None,
+            billing_descriptor: None,
             ..utils::PaymentAuthorizeType::default().0
         })
     }
