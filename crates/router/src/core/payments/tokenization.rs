@@ -94,19 +94,11 @@ async fn save_in_locker(
                 .customer_id
                 .clone()
                 .get_required_value("customer_id")?;
-            let val = format!(
-                "payment_methods_{}_{}_{}",
-                merchant_context
-                    .get_merchant_account()
-                    .get_id()
-                    .to_owned()
-                    .get_string_repr(),
-                customer_id.get_string_repr(),
-                card_resp.payment_method_id.clone()
-            );
+            
+            let unique_locking_key = helpers::construct_payment_method_key_for_locking(merchant_context.get_merchant_account().get_id(), &customer_id, &card_resp.payment_method_id);
             let lock_action = api_locking::LockAction::Hold {
                 input: api_locking::LockingInput {
-                    unique_locking_key: val,
+                    unique_locking_key,
                     api_identifier: lock_utils::ApiIdentifier::PaymentMethods,
                     override_lock_retries: None,
                 },
@@ -1202,6 +1194,7 @@ pub async fn save_in_locker_internal(
     }
 }
 
+
 #[cfg(feature = "v1")]
 pub async fn save_in_locker_external(
     state: &SessionState,
@@ -1269,19 +1262,10 @@ pub async fn save_in_locker_external(
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
         };
-        let val = format!(
-            "payment_methods_{}_{}_{}",
-            merchant_context
-                .get_merchant_account()
-                .get_id()
-                .to_owned()
-                .get_string_repr(),
-            customer_id.get_string_repr(),
-            pm_resp.payment_method_id.clone()
-        );
+        let unique_locking_key = helpers::construct_payment_method_key_for_locking(merchant_context.get_merchant_account().get_id(), &customer_id, &pm_resp.payment_method_id);
         let lock_action = api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
-                unique_locking_key: val,
+                unique_locking_key,
                 api_identifier: lock_utils::ApiIdentifier::PaymentMethods,
                 override_lock_retries: None,
             },
@@ -1295,40 +1279,27 @@ pub async fn save_in_locker_external(
             )
             .await?;
 
-        let db = &*state.store;
-        let existing_pm_by_locker_id = db
-            .find_payment_method_by_locker_id_customer_id_merchant_id(
-                &(state.into()),
-                merchant_context.get_merchant_key_store(),
-                &payment_method_id,
-                &customer_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await;
+        let duplication_check_result = helpers::perform_payment_method_duplication_check(
+            state,
+            merchant_context,
+            &payment_method_id,
+            &customer_id,
+            &card_detail,
+        )
+        .await;
 
-        let duplication_check = match &existing_pm_by_locker_id {
-            Ok(pm) => {
-                //check for duplication
-                let card_decrypted = pm
-                    .payment_method_data
-                    .clone()
-                    .map(|x| x.into_inner().expose())
-                    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-                    .and_then(|pmd| match pmd {
-                        PaymentMethodsData::Card(card) => Some(CardDetailFromLocker::from(card)),
-                        _ => None,
-                    })
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to obtain decrypted token object from db")?;
-
-                // Use the duplication check function to compare card details
-                check_for_duplication_of_card_data(&card_detail, &card_decrypted)
+        match duplication_check_result {
+            Ok(duplication_check) => Ok((pm_resp, duplication_check, Some(lock_action))),
+            Err(err) => {
+                lock_action
+                    .free_lock_action(
+                        state,
+                        merchant_context.get_merchant_account().get_id().to_owned(),
+                    )
+                    .await?;
+                Err(err)
             }
-            Err(_) => None,
-        };
-
-        Ok((pm_resp, duplication_check, Some(lock_action)))
+        }
     } else {
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
@@ -1353,17 +1324,6 @@ pub async fn save_in_locker_external(
     }
 }
 
-#[cfg(feature = "v1")]
-pub fn check_for_duplication_of_card_data(
-    card_details: &CardDetailFromLocker,
-    card_decrypted: &CardDetailFromLocker,
-) -> Option<payment_methods::transformers::DataDuplicationCheck> {
-    if card_details.eq(card_decrypted) {
-        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
-    } else {
-        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
-    }
-}
 
 #[cfg(feature = "v2")]
 pub async fn save_in_locker_internal(
