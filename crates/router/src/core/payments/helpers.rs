@@ -8726,7 +8726,7 @@ pub fn construct_payment_method_key_for_locking(
     locker_id: &str,
 ) -> String {
     format!(
-        "payment_methods_{}_{}_{}",
+        "payment_methods_{}_{}",
         customer_id.get_string_repr(),
         locker_id
     )
