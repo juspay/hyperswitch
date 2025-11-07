@@ -446,27 +446,27 @@ impl Action {
                 })
                 .ok();
 
-                let _account_updater_result  = account_updater_action.async_map(|action| {
-                let customer_id  =  connector_customer_id.clone();
-                let payment_attempt_id = payment_data.payment_attempt.id.clone();
-                async move {
-                    action.handle_account_updater_action(
-                        state,
-                        customer_id.as_str(),
-                        scheduled_token,
-                        &payment_attempt_id
-                    ).await
-                }
-                })
-                .await
-                .transpose()
-                .inspect_err(|e| {
-                    logger::error!(
-                        "Failed to handle account updater action: {:?}",
-                        e
-                    );
-                })
-                .ok();
+                let _account_updater_result = account_updater_action
+                    .async_map(|action| {
+                        let customer_id = connector_customer_id.clone();
+                        let payment_attempt_id = payment_data.payment_attempt.id.clone();
+                        async move {
+                            action
+                                .handle_account_updater_action(
+                                    state,
+                                    customer_id.as_str(),
+                                    scheduled_token,
+                                    &payment_attempt_id,
+                                )
+                                .await
+                        }
+                    })
+                    .await
+                    .transpose()
+                    .inspect_err(|e| {
+                        logger::error!("Failed to handle account updater action: {:?}", e);
+                    })
+                    .ok();
 
                 match payment_data.payment_attempt.status.foreign_into() {
                     RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
