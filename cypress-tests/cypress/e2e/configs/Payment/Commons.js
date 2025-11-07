@@ -341,6 +341,25 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "reward",
+    payment_method_types: [
+      {
+        payment_method_type: "classic_reward",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "evoucher",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -1735,6 +1754,356 @@ export const connectorDetails = {
             }, 200);
           </script>
         `,
+      },
+    }),
+  },
+  reward_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentOffSession: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentWithShippingCost: getCustomExchange({
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
+        },
+      },
+    }),
+    PaymentConfirmWithShippingCost: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    ClassicRewardAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    ClassicRewardManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    EvoucherAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    EvoucherManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    ClassicRewardFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    EvoucherFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+    }),
+    PartialCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    Void: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+          capture_method: "manual",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Refunds are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    manualPaymentRefund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Refunds are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    manualPaymentPartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Refunds are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Refunds are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Refunds are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ZeroAuthMandate: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Mandates are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ZeroAuthPaymentIntent: getCustomExchange({
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+        payment_type: "setup_mandate",
+      },
+    }),
+    ZeroAuthConfirmPayment: getCustomExchange({
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Mandates are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    SaveCardUseClassicRewardAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Card saving is not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    SaveCardUseEvoucherAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Card saving is not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateClassicRewardAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic_reward",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Mandates are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    PaymentMethodIdMandateEvoucherAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: {
+          reward: {},
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Mandates are not supported for this payment method",
+            code: "IR_14",
+          },
+        },
       },
     }),
   },
