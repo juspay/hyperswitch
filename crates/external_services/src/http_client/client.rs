@@ -1,9 +1,4 @@
-use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
-    hash::{Hash, Hasher},
-    sync::Mutex,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE;
@@ -15,15 +10,14 @@ use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
-static PROXY_CLIENT_CACHE: OnceCell<Mutex<HashMap<String, reqwest::Client>>> = OnceCell::new();
+static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
 use router_env::logger;
 
 use super::metrics;
 
 trait ProxyClientCacheKey {
-    fn cache_key(&self) -> Option<String>;
-    fn has_proxy_config(&self) -> bool;
+    fn cache_key(&self) -> Option<Proxy>;
 }
 
 // We may need to use outbound proxy to connect to external world.
@@ -192,81 +186,72 @@ fn apply_mitm_certificate(
 }
 
 impl ProxyClientCacheKey for Proxy {
-    fn cache_key(&self) -> Option<String> {
-        if !self.has_proxy_config() {
-            return None;
+    fn cache_key(&self) -> Option<Proxy> {
+        if self.has_proxy_config() {
+            logger::debug!("Using proxy config as cache key: {:?}", self);
+
+            // Return a clone of the proxy config for caching
+            // Exclude timeout from cache key by creating a normalized version
+            Some(Proxy {
+                http_url: self.http_url.clone(),
+                https_url: self.https_url.clone(),
+                bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
+                mitm_ca_certificate: self.mitm_ca_certificate.clone(),
+                idle_pool_connection_timeout: None, // Exclude timeout from cache key
+                mitm_enabled: self.mitm_enabled,
+            })
+        } else {
+            None
         }
-
-        logger::debug!(
-            "Generating cache key for proxy config: {:?}",
-            (
-                &self.http_url,
-                &self.https_url,
-                &self.bypass_proxy_hosts,
-                self.mitm_ca_certificate.is_some()
-            )
-        );
-
-        let mut hasher = DefaultHasher::new();
-        (
-            &self.http_url,
-            &self.https_url,
-            &self.bypass_proxy_hosts,
-            self.mitm_ca_certificate.is_some(),
-        )
-            .hash(&mut hasher);
-
-        let cache_key = format!("proxy_{:x}", hasher.finish());
-        logger::debug!("Generated cache key: {}", cache_key);
-
-        Some(cache_key)
-    }
-
-    fn has_proxy_config(&self) -> bool {
-        self.http_url.is_some() || self.https_url.is_some() || self.mitm_ca_certificate.is_some()
     }
 }
 
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     // Check if proxy configuration is provided using trait method
     if let Some(cache_key) = proxy_config.cache_key() {
-        logger::debug!("Using proxy-specific client cache with key: {}", cache_key);
+        logger::debug!(
+            "Using proxy-specific client cache with key: {:?}",
+            cache_key
+        );
 
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
-        // Use proxy-specific client cache
-        let cache = PROXY_CLIENT_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut cache_lock = cache.lock().map_err(|_| {
-            error_stack::Report::new(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to acquire proxy client cache lock")
-        })?;
-
-        let client = if let Some(cached_client) = cache_lock.get(&cache_key) {
-            logger::debug!("Retrieved cached proxy client for key: {}", cache_key);
+        let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+        
+        let client = if let Some(cached_client) = cache.read().unwrap().get(&cache_key) {
+            logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
             cached_client.clone()
         } else {
-            // Create new proxy client if not in cache
-            logger::info!(
-                "Creating new proxy client for key: {} (http_proxy: {:?}, https_proxy: {:?})",
-                cache_key,
-                proxy_config.http_url,
-                proxy_config.https_url
-            );
+            let mut write_lock = cache.try_write().map_err(|_| {
+                error_stack::Report::new(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to acquire proxy client cache write lock")
+            })?;
 
-            metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
+            if let Some(cached_client) = write_lock.get(&cache_key) {
+                logger::debug!(
+                    "Retrieved cached proxy client after write lock for config: {:?}",
+                    cache_key
+                );
+                metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+                cached_client.clone()
+            } else {
+                logger::info!("Creating new proxy client for config: {:?}", cache_key);
 
-            let new_client =
-                apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                    .build()
-                    .change_context(HttpClientError::ClientConstructionFailed)
-                    .attach_printable("Failed to construct proxy client")?;
+                metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
-            metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+                let new_client =
+                    apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                        .build()
+                        .change_context(HttpClientError::ClientConstructionFailed)
+                        .attach_printable("Failed to construct proxy client")?;
 
-            cache_lock.insert(cache_key.clone(), new_client.clone());
-            logger::debug!("Cached new proxy client with key: {}", cache_key);
-            new_client
+                metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+
+                write_lock.insert(cache_key.clone(), new_client.clone());
+                logger::debug!("Cached new proxy client for config: {:?}", cache_key);
+                new_client
+            }
         };
 
         Ok(client)
