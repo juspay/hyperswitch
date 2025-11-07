@@ -826,10 +826,12 @@ mod tests {
 
     use api_models::webhooks as api_webhooks;
     use common_enums::IntentStatus;
-    use common_utils::types::keymanager::KeyManagerState;
     use common_utils::{
         generate_organization_id_of_default_length, type_name,
-        types::{keymanager::Identifier, MinorUnit},
+        types::{
+            keymanager::{Identifier, KeyManagerState},
+            MinorUnit,
+        },
     };
     use diesel_models::{
         business_profile::WebhookDetails,
@@ -975,9 +977,12 @@ mod tests {
     #[cfg(feature = "v2")]
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
-        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(),common_utils::types::keymanager::KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+        let mockdb = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            common_utils::types::keymanager::KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(

@@ -361,11 +361,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v2")]
         let payment_attempt = db
-            .insert_payment_attempt(
-                merchant_key_store,
-                payment_attempt_new,
-                storage_scheme,
-            )
+            .insert_payment_attempt(merchant_key_store, payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
@@ -700,10 +696,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             #[cfg(feature = "v2")]
             let mca = db
-                .find_merchant_connector_account_by_id(
-                    merchant_connector_id,
-                    key_store,
-                )
+                .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

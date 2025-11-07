@@ -1077,7 +1077,7 @@ pub async fn update_customer(
         id: &update_customer.id,
         merchant_account: merchant_context.get_merchant_account(),
         key_store: merchant_context.get_merchant_key_store(),
-        key_manager_state
+        key_manager_state,
     };
 
     let customer = verify_id_for_update_customer

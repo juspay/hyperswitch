@@ -634,11 +634,7 @@ where
 
     #[cfg(feature = "v2")]
     let payment_attempt = db
-        .insert_payment_attempt(
-            key_store,
-            new_payment_attempt,
-            storage_scheme,
-        )
+        .insert_payment_attempt(key_store, new_payment_attempt, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;

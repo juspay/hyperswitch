@@ -2261,7 +2261,7 @@ pub async fn update_payment_method_connector_mandate_details(
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
     };
 
-    db.update_payment_method( key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())

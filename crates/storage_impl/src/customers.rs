@@ -745,10 +745,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
-            .call_database(
-                key_store,
-                customers::Customer::find_by_global_id(&conn, id),
-            )
+            .call_database(key_store, customers::Customer::find_by_global_id(&conn, id))
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,

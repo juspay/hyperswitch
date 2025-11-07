@@ -594,10 +594,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             #[cfg(feature = "v2")]
             let mca = db
-                .find_merchant_connector_account_by_id(
-                    merchant_connector_id,
-                    key_store,
-                )
+                .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

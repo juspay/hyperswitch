@@ -457,13 +457,7 @@ impl CustomerInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .update_customer_by_global_id(
-                id,
-                customer,
-                customer_update,
-                key_store,
-                storage_scheme,
-            )
+            .update_customer_by_global_id(id, customer, customer_update, key_store, storage_scheme)
             .await
     }
 
@@ -533,7 +527,7 @@ impl CustomerInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_global_id( id, key_store, storage_scheme)
+            .find_customer_by_global_id(id, key_store, storage_scheme)
             .await
     }
 
@@ -1441,18 +1435,14 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        
+
         merchant_key_store: &domain::MerchantKeyStore,
         payment_attempt: storage::PaymentAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let attempt = self
             .diesel_store
-            .insert_payment_attempt(
-                merchant_key_store,
-                payment_attempt,
-                storage_scheme,
-            )
+            .insert_payment_attempt(merchant_key_store, payment_attempt, storage_scheme)
             .await?;
 
         if let Err(er) = self
@@ -1499,7 +1489,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        
+
         merchant_key_store: &domain::MerchantKeyStore,
         this: storage::PaymentAttempt,
         payment_attempt: storage::PaymentAttemptUpdate,
@@ -1563,7 +1553,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        
+
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
@@ -1612,24 +1602,20 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        
+
         merchant_key_store: &domain::MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_by_id(
-                merchant_key_store,
-                attempt_id,
-                storage_scheme,
-            )
+            .find_payment_attempt_by_id(merchant_key_store, attempt_id, storage_scheme)
             .await
     }
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        
+
         payment_id: &id_type::GlobalPaymentId,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -1678,7 +1664,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        
+
         merchant_key_store: &domain::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         storage_scheme: MerchantStorageScheme,
@@ -1885,7 +1871,7 @@ impl PaymentIntentInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         self.diesel_store
-            .find_payment_intent_by_id( payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(payment_id, key_store, storage_scheme)
             .await
     }
 
@@ -2053,7 +2039,7 @@ impl PaymentMethodInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method( key_store, payment_method_id, storage_scheme)
+            .find_payment_method(key_store, payment_method_id, storage_scheme)
             .await
     }
 
@@ -2083,7 +2069,7 @@ impl PaymentMethodInterface for KafkaStore {
         limit: Option<i64>,
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_list_by_global_customer_id( key_store, id, limit)
+            .find_payment_method_list_by_global_customer_id(key_store, id, limit)
             .await
     }
 
@@ -2231,7 +2217,7 @@ impl PaymentMethodInterface for KafkaStore {
         fingerprint_id: &str,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_fingerprint_id( key_store, fingerprint_id)
+            .find_payment_method_by_fingerprint_id(key_store, fingerprint_id)
             .await
     }
 }
@@ -4188,7 +4174,6 @@ impl TokenizationInterface for KafkaStore {
         &self,
         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
         merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
         self.diesel_store
@@ -4212,15 +4197,10 @@ impl TokenizationInterface for KafkaStore {
         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
         tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
         self.diesel_store
-            .update_tokenization_record(
-                tokenization,
-                tokenization_update,
-                merchant_key_store,
-            )
+            .update_tokenization_record(tokenization, tokenization_update, merchant_key_store)
             .await
     }
 }

@@ -302,11 +302,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
 
                 Ok((Box::new(self), Some(customer)))

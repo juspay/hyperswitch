@@ -1666,7 +1666,6 @@ pub async fn get_token_data_for_payment_method(
     request: payment_methods::GetTokenDataRequest,
     payment_method_id: id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::TokenDataResponse> {
-
     let db = &*state.store;
 
     let payment_method = db
@@ -2063,7 +2062,7 @@ pub async fn get_external_vault_token(
     };
 
     let payment_method = db
-        .find_payment_method( key_store, &payment_method_id, storage_scheme)
+        .find_payment_method(key_store, &payment_method_id, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Payment method not found")?;
@@ -2765,11 +2764,7 @@ pub async fn update_payment_method_status_internal(
     let db = &*state.store;
 
     let payment_method = db
-        .find_payment_method(
-            key_store,
-            payment_method_id,
-            storage_scheme,
-        )
+        .find_payment_method(key_store, payment_method_id, storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -2778,12 +2773,7 @@ pub async fn update_payment_method_status_internal(
     };
 
     let updated_pm = db
-        .update_payment_method(
-            key_store,
-            payment_method.clone(),
-            pm_update,
-            storage_scheme,
-        )
+        .update_payment_method(key_store, payment_method.clone(), pm_update, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
