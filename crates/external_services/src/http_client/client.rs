@@ -212,8 +212,11 @@ fn get_or_create_proxy_client(
     proxy_config: &Proxy,
     metrics_tag: &[router_env::opentelemetry::KeyValue],
 ) -> CustomResult<reqwest::Client, HttpClientError> {
-    let read_result = cache.read().ok().and_then(|read_lock| read_lock.get(&cache_key).cloned());
-    
+    let read_result = cache
+        .read()
+        .ok()
+        .and_then(|read_lock| read_lock.get(&cache_key).cloned());
+
     let client = match read_result {
         Some(cached_client) => {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
@@ -228,7 +231,10 @@ fn get_or_create_proxy_client(
 
             match write_lock.get(&cache_key) {
                 Some(cached_client) => {
-                    logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+                    logger::debug!(
+                        "Retrieved cached proxy client after write lock for config: {:?}",
+                        cache_key
+                    );
                     metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
                     cached_client.clone()
                 }
@@ -236,10 +242,11 @@ fn get_or_create_proxy_client(
                     logger::info!("Creating new proxy client for config: {:?}", cache_key);
                     metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
-                    let new_client = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                        .build()
-                        .change_context(HttpClientError::ClientConstructionFailed)
-                        .attach_printable("Failed to construct proxy client")?;
+                    let new_client =
+                        apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                            .build()
+                            .change_context(HttpClientError::ClientConstructionFailed)
+                            .attach_printable("Failed to construct proxy client")?;
 
                     metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
                     write_lock.insert(cache_key.clone(), new_client.clone());
@@ -264,7 +271,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-        
+
         let client = get_or_create_proxy_client(cache, cache_key, proxy_config, metrics_tag)?;
 
         Ok(client)
