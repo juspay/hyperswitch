@@ -15,7 +15,7 @@ use common_utils::{
 use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
-
+use smithy::SmithyModel;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
@@ -470,8 +470,9 @@ impl PaymentMethodCreate {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, SmithyModel , ToSchema)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace="com.hyperswitch.smithy.payment_method_update_v1")]
 pub struct PaymentMethodUpdate {
     /// Card Details
     #[schema(example = json!({
@@ -479,6 +480,7 @@ pub struct PaymentMethodUpdate {
     "card_exp_month": "10",
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
+    #[smithy(value_type="com.hyperswitch.smithy.card.card_detail_update_v1")]
     pub card: Option<CardDetailUpdate>,
 
     /// Wallet Details
@@ -486,25 +488,30 @@ pub struct PaymentMethodUpdate {
 
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    #[smithy(value_type="Option<String>", length="30..=30")]
     pub client_secret: Option<String>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace="com.hyperswitch.smithy.payment_method_update_v2")]
 pub struct PaymentMethodUpdate {
     /// Payment method details to be updated for the payment_method
+    #[smithy(value_type="com.hyperswitch.smithy.payment_method_update_data_v2")] 
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
     /// The connector token details to be updated for the payment_method
+    #[smithy(value_type="com.hyperswitch.smithy.connector.token_details_v2")] 
     pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, SmithyModel, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
+#[smithy(namespace="com.hyperswitch.smithy.payment_method_update_data_v2")] 
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
@@ -768,23 +775,28 @@ pub struct MigrateNetworkTokenDetail {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace="com.hyperswitch.smithy.card.card_detail_update_v1")]
 pub struct CardDetailUpdate {
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
+    #[smithy(value_type="Option<String>")]
     pub card_exp_month: Option<masking::Secret<String>>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
+    #[smithy(value_type="Option<String>")]
     pub card_exp_year: Option<masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
+    #[smithy(value_type="Option<String>")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
+    #[smithy(value_type="Option<String>")]
     pub nick_name: Option<masking::Secret<String>>,
 }
 
@@ -818,15 +830,18 @@ impl CardDetailUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize,SmithyModel, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace="com.hyperswitch.smithy.card.card_detail_update_v2")]
 pub struct CardDetailUpdate {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
+    #[smithy(value_type="Option<String>")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
+    #[smithy(value_type="Option<String>")]
     pub nick_name: Option<masking::Secret<String>>,
 }
 
@@ -990,33 +1005,42 @@ pub struct CustomerPaymentMethodUpdateResponse {
     pub client_secret: Option<String>,
 }
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone, SmithyModel)]
+#[smithy(namespace="com.hyperswitch.smithy.connector.token_details_v2")]
 pub struct ConnectorTokenDetails {
     /// The unique identifier of the connector account through which the token was generated
     #[schema(value_type = String, example = "mca_")]
+    #[smithy(value_type="String", required)]
     pub connector_id: id_type::MerchantConnectorAccountId,
 
     #[schema(value_type = TokenizationType)]
+    #[smithy(value_type="TokenizationType", required)]
     pub token_type: common_enums::TokenizationType,
 
     /// The status of connector token if it is active or inactive
     #[schema(value_type = ConnectorTokenStatus)]
+    #[smithy(value_type="ConnectorTokenStatus", required)]
     pub status: common_enums::ConnectorTokenStatus,
 
     /// The reference id of the connector token
     /// This is the reference that was passed to connector when creating the token
+    #[smithy(value_type="Option<String>")]
     pub connector_token_request_reference_id: Option<String>,
 
+    #[smithy(value_type="Option<MinorUnit>")]
     pub original_payment_authorized_amount: Option<MinorUnit>,
 
     /// The currency of the original payment authorized amount
     #[schema(value_type = Currency)]
+    #[smithy(value_type="Currency", required)]
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
 
     /// Metadata associated with the connector token
+    #[smithy(value_type="Option<String>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
+    #[smithy(value_type="Option<String>")]
     pub token: masking::Secret<String>,
 }
 
@@ -2768,17 +2792,27 @@ pub struct UpdatePaymentMethodRecord {
     pub card_expiry_year: Option<masking::Secret<String>>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, SmithyModel)]
+#[smithy(namespace="com.hyperswitch.smithy.payment_method_update_response")]
 pub struct PaymentMethodUpdateResponse {
+    #[smithy(value_type="String", required)]
     pub payment_method_id: String,
+    #[smithy(value_type="Option<PaymentMethodStatus>")]
     pub status: Option<common_enums::PaymentMethodStatus>,
+    #[smithy(value_type="Option<String>")]
     pub network_transaction_id: Option<String>,
+    #[smithy(value_type="Option<String>")]
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    #[smithy(value_type="com.hyperswitch.smithy.update_status",required)]
     pub update_status: UpdateStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type="Option<String>")]
     pub update_error: Option<String>,
+    #[smithy(value_type="Option<bool>")]
     pub updated_payment_method_data: Option<bool>,
+    #[smithy(value_type="Option<String>")]
     pub connector_customer: Option<pii::SecretSerdeValue>,
+    #[smithy(value_type="Option<i64>")]
     pub line_number: Option<i64>,
 }
 
@@ -2809,7 +2843,8 @@ pub enum MigrationStatus {
     Failed,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(SmithyModel,Debug, Default, serde::Serialize)]
+#[smithy(namespace="com.hyperswitch.smithy.update_status")]
 pub enum UpdateStatus {
     Success,
     #[default]
