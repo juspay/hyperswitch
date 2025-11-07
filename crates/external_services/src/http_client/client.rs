@@ -217,7 +217,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-        
+
         let client = if let Some(cached_client) = cache.read().unwrap().get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
