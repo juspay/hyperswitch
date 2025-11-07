@@ -22,10 +22,10 @@ mod barclaycard;
 mod billwerk;
 mod bitpay;
 mod blackhawknetwork;
-mod bluecode;
 mod bluesnap;
 mod boku;
 mod breadpay;
+mod calida;
 mod cashtocode;
 mod celero;
 mod chargebee;
@@ -86,6 +86,7 @@ mod opennode;
 mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
+mod payjustnow;
 mod payload;
 mod payme;
 mod payone;
@@ -125,6 +126,7 @@ mod vgs;
 mod volt;
 mod wellsfargo;
 mod worldpayvantiv;
+mod zift;
 // mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;

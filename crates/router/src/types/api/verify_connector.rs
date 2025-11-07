@@ -99,6 +99,7 @@ impl VerifyConnectorData {
             access_token,
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
+            payment_method_type: None,
             amount_captured: None,
             minor_amount_captured: None,
             preprocessing_id: None,
@@ -138,6 +139,7 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_migrated_card: None,
         }
     }
 }

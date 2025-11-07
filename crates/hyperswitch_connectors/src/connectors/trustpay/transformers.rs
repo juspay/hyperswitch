@@ -28,7 +28,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
         PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
@@ -1332,24 +1334,12 @@ pub struct ApplePayTotalInfo {
     pub amount: StringMajorUnit,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            TrustpayCreateIntentResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TrustpayCreateIntentResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>,
     ) -> Result<Self, Self::Error> {
         let create_intent_response = item.response.init_result_data.to_owned();
         let secrets = item.response.secrets.to_owned();
@@ -1535,7 +1525,7 @@ impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
     fn from(value: SdkSecretInfo) -> Self {
         Self {
             display: value.display,
-            payment: value.payment,
+            payment: Some(value.payment),
         }
     }
 }

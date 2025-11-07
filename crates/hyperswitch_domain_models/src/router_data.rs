@@ -4,15 +4,16 @@ use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
-    id_type,
+    id_type::{self},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
-    payments,
+    address::AddressDetails, network_tokenization::NetworkTokenNumber,
+    payment_address::PaymentAddress, payment_method_data, payments,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
     router_flow_types, router_request_types, router_response_types,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: id_type::MerchantId,
@@ -37,6 +38,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub tenant_id: id_type::TenantId,
     pub status: common_enums::enums::AttemptStatus,
     pub payment_method: common_enums::enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::enums::PaymentMethodType>,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub address: PaymentAddress,
@@ -87,6 +89,7 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub is_migrated_card: Option<bool>,
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
@@ -103,7 +106,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
-    pub l2_l3_data: Option<L2L3Data>,
+    pub l2_l3_data: Option<Box<L2L3Data>>,
 
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
@@ -117,29 +120,183 @@ pub struct RouterData<Flow, Request, Response> {
     pub is_payment_id_from_merchant: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
+    pub order_info: Option<OrderInfo>,
+    pub tax_info: Option<TaxInfo>,
+    pub customer_info: Option<CustomerInfo>,
+    pub shipping_details: Option<AddressDetails>,
+    pub billing_details: Option<BillingDetails>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderInfo {
     pub order_date: Option<time::PrimitiveDateTime>,
-    pub tax_status: Option<common_enums::TaxStatus>,
-    pub customer_tax_registration_id: Option<Secret<String>>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub merchant_order_reference_id: Option<String>,
     pub discount_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
-    pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
-    pub merchant_order_reference_id: Option<String>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub shipping_origin_zip: Option<Secret<String>>,
-    pub shipping_state: Option<Secret<String>>,
-    pub shipping_country: Option<common_enums::CountryAlpha2>,
-    pub shipping_destination_zip: Option<Secret<String>>,
-    pub billing_address_city: Option<String>,
-    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxInfo {
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub customer_tax_registration_id: Option<Secret<String>>,
+    pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerInfo {
+    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_email: Option<common_utils::pii::Email>,
+    pub customer_name: Option<Secret<String>>,
+    pub customer_phone_number: Option<Secret<String>>,
+    pub customer_phone_country_code: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BillingDetails {
+    pub address_city: Option<String>,
+}
+impl L2L3Data {
+    pub fn get_shipping_country(&self) -> Option<common_enums::enums::CountryAlpha2> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.country)
+    }
+
+    pub fn get_shipping_city(&self) -> Option<String> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.city.clone())
+    }
+
+    pub fn get_shipping_state(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.state.clone())
+    }
+
+    pub fn get_shipping_origin_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.origin_zip.clone())
+    }
+
+    pub fn get_shipping_zip(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.zip.clone())
+    }
+
+    pub fn get_shipping_address_line1(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line1.clone())
+    }
+
+    pub fn get_shipping_address_line2(&self) -> Option<Secret<String>> {
+        self.shipping_details
+            .as_ref()
+            .and_then(|address| address.line2.clone())
+    }
+
+    pub fn get_order_date(&self) -> Option<time::PrimitiveDateTime> {
+        self.order_info.as_ref().and_then(|order| order.order_date)
+    }
+
+    pub fn get_order_details(&self) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.order_details.clone())
+    }
+
+    pub fn get_merchant_order_reference_id(&self) -> Option<String> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.merchant_order_reference_id.clone())
+    }
+
+    pub fn get_discount_amount(&self) -> Option<MinorUnit> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.discount_amount)
+    }
+
+    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.shipping_cost)
+    }
+
+    pub fn get_duty_amount(&self) -> Option<MinorUnit> {
+        self.order_info.as_ref().and_then(|order| order.duty_amount)
+    }
+
+    pub fn get_tax_status(&self) -> Option<common_enums::TaxStatus> {
+        self.tax_info.as_ref().and_then(|tax| tax.tax_status)
+    }
+
+    pub fn get_customer_tax_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.customer_tax_registration_id.clone())
+    }
+
+    pub fn get_merchant_tax_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.merchant_tax_registration_id.clone())
+    }
+
+    pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.shipping_amount_tax)
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_info.as_ref().and_then(|tax| tax.order_tax_amount)
+    }
+
+    pub fn get_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_id.clone())
+    }
+
+    pub fn get_customer_email(&self) -> Option<common_utils::pii::Email> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_email.clone())
+    }
+
+    pub fn get_customer_name(&self) -> Option<Secret<String>> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_name.clone())
+    }
+
+    pub fn get_customer_phone_number(&self) -> Option<Secret<String>> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_phone_number.clone())
+    }
+
+    pub fn get_customer_phone_country_code(&self) -> Option<String> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_phone_country_code.clone())
+    }
+    pub fn get_billing_city(&self) -> Option<String> {
+        self.billing_details
+            .as_ref()
+            .and_then(|billing| billing.address_city.clone())
+    }
+}
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -262,19 +419,19 @@ impl ConnectorAuthType {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessTokenAuthenticationResponse {
     pub code: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
@@ -282,7 +439,7 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptDataInternal {
     pub application_primary_account_number: cards::CardNumber,
@@ -294,7 +451,7 @@ pub struct ApplePayPredecryptDataInternal {
     pub payment_data: ApplePayCryptogramDataInternal,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
@@ -364,7 +521,7 @@ impl ApplePayPredecryptDataInternal {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
@@ -374,7 +531,7 @@ pub struct GooglePayPredecryptDataInternal {
     pub payment_method_details: GooglePayPaymentMethodDetails,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPaymentMethodDetails {
     pub auth_method: common_enums::enums::GooglePayAuthMethod,
@@ -386,7 +543,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub card_network: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDecryptedData {
     pub client_id: Secret<String>,
@@ -399,7 +556,7 @@ pub struct PazeDecryptedData {
     pub eci: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
     pub payment_token: NetworkTokenNumber,
@@ -408,7 +565,7 @@ pub struct PazeToken {
     pub payment_account_reference: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
@@ -416,7 +573,7 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
     pub name: Option<Secret<String>>,
@@ -429,7 +586,7 @@ pub struct PazeAddress {
     pub country_code: Option<common_enums::enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeConsumer {
     // This is consumer data not customer data.
@@ -442,14 +599,14 @@ pub struct PazeConsumer {
     pub language_code: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazePhoneNumber {
     pub country_code: Secret<String>,
     pub phone_number: Secret<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
@@ -457,13 +614,13 @@ pub struct RecurringMandatePaymentData {
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodBalance {
     pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
@@ -503,7 +660,7 @@ impl ConnectorResponseData {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
     Card {
         /// Details regarding the authentication details of the connector, if this is a 3ds payment.
@@ -518,21 +675,30 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+    BankRedirect {
+        interac: Option<InteracCustomerInfo>,
+    },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub extended_authorization_last_applied_at: Option<time::PrimitiveDateTime>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteracCustomerInfo {
+    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,
@@ -1855,10 +2021,11 @@ impl
 {
     fn get_payment_intent_update(
         &self,
-        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
-        let intent_status = common_enums::IntentStatus::from(self.status);
+        let intent_status =
+            common_enums::IntentStatus::from(self.get_attempt_status_for_db_update(payment_data));
         PaymentIntentUpdate::VoidUpdate {
             status: intent_status,
             updated_by: storage_scheme.to_string(),
@@ -1870,10 +2037,55 @@ impl
         payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
-        PaymentAttemptUpdate::VoidUpdate {
-            status: self.status,
-            cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
-            updated_by: storage_scheme.to_string(),
+        match &self.response {
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status: _,
+                    connector_transaction_id,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
+                    connector_metadata: _,
+                } = error_response.clone();
+
+                // Handle errors exactly
+                let status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::AttemptStatus::Pending,
+                        _ => common_enums::AttemptStatus::VoidFailed,
+                    },
+                };
+
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status,
+                    amount_capturable: Some(MinorUnit::zero()),
+                    error: error_details,
+                    updated_by: storage_scheme.to_string(),
+                    connector_payment_id: connector_transaction_id,
+                }
+            }
+            Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {
+                status: self.status,
+                cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
+                updated_by: storage_scheme.to_string(),
+            },
         }
     }
 
@@ -1897,7 +2109,16 @@ impl
         &self,
         _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
     ) -> common_enums::AttemptStatus {
-        // For void operations, return Voided status
-        common_enums::AttemptStatus::Voided
+        // For void operations, determine status based on response
+        match &self.response {
+            Err(ref error_response) => match error_response.attempt_status {
+                Some(status) => status,
+                None => match error_response.status_code {
+                    500..=511 => common_enums::AttemptStatus::Pending,
+                    _ => common_enums::AttemptStatus::VoidFailed,
+                },
+            },
+            Ok(ref _response) => self.status,
+        }
     }
 }

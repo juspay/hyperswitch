@@ -141,9 +141,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 blackhawknetwork::transformers::BlackhawknetworkAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Bluecode => {
-                bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
-                bluecode::transformers::BluecodeMetadataObject::try_from(self.connector_meta_data)?;
+            api_enums::Connector::Calida => {
+                calida::transformers::CalidaAuthType::try_from(self.auth_type)?;
+                calida::transformers::CalidaMetadataObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Braintree => {
@@ -401,6 +401,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 payload::transformers::PayloadAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Payjustnow => {
+                payjustnow::transformers::PayjustnowAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -584,6 +588,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paytm => {
                 paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Finix => {
+                finix::transformers::FinixAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
         }

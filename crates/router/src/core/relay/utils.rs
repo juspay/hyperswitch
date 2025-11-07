@@ -82,6 +82,7 @@ pub async fn construct_relay_refund_router_data<F>(
         attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(),
         status: common_enums::AttemptStatus::Charged,
         payment_method: common_enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type,
         description: None,
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
@@ -148,6 +149,7 @@ pub async fn construct_relay_refund_router_data<F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)

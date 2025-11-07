@@ -312,6 +312,17 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_webhook_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_webhook_details(request),
+            Self::New(connector) => connector.get_payout_webhook_details(request),
+        }
+    }
+
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -521,6 +532,44 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+        }
+    }
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match self {
+            Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+            Self::New(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match self {
+            Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
+            Self::New(connector) => connector.get_alternate_flow_if_needed(current_flow),
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         match self {
             Self::Old(connector) => connector.get_supported_payment_methods(),
@@ -549,6 +598,41 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.authentication_token_for_token_creation(),
             Self::New(connector) => connector.authentication_token_for_token_creation(),
+        }
+    }
+
+    /// If connector supports session token generation
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
+            Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
+        }
+    }
+
+    /// Supported payment methods for session token generation
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<common_enums::PaymentMethodType> {
+        match self {
+            Self::Old(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
+            Self::New(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
+        }
+    }
+
+    /// Validate whether session token is generated for payment payment type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
+            Self::New(connector) => connector
+                .validate_sdk_session_token_for_payment_method(current_core_payment_method_type),
         }
     }
 
@@ -598,6 +682,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+    }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
+            Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
 }
