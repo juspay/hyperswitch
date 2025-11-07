@@ -144,6 +144,7 @@ pub async fn validate_create_request(
     };
 
     // validating the payout type and method data here.
+    #[cfg(feature = "v1")]
     validate_payout_type_and_method(req.payout_type, &req.payout_method_data)
         .await
         .attach_printable_lazy(|| {
