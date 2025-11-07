@@ -76,6 +76,7 @@ pub async fn validate_create_request(
 /// - payout_type: Type of the payout (Card, Bank, Wallet, BankRedirect)
 /// - payout_method_data: Data related to the payout method
 ///   Bypass happens if the payout_type is None or payout_method_data is `Passthrough`
+#[cfg(feature = "v1")]
 async fn validate_payout_type_and_method(
     payout_type: Option<api_enums::PayoutType>,
     payout_method_data: &Option<PayoutMethodData>,
