@@ -192,7 +192,7 @@ impl ProxyClientCacheKey for Proxy {
 
             // Return a clone of the proxy config for caching
             // Exclude timeout from cache key by creating a normalized version
-            Some(Proxy {
+            Some(Self {
                 http_url: self.http_url.clone(),
                 https_url: self.https_url.clone(),
                 bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
@@ -203,6 +203,40 @@ impl ProxyClientCacheKey for Proxy {
         } else {
             None
         }
+    }
+}
+
+fn create_new_proxy_client(
+    cache: &RwLock<HashMap<Proxy, reqwest::Client>>,
+    cache_key: Proxy,
+    proxy_config: &Proxy,
+    metrics_tag: &[router_env::opentelemetry::KeyValue],
+) -> CustomResult<reqwest::Client, HttpClientError> {
+    let mut write_lock = cache.try_write().map_err(|_| {
+        error_stack::Report::new(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to acquire proxy client cache write lock")
+    })?;
+
+    if let Some(cached_client) = write_lock.get(&cache_key) {
+        logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+        metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+        Ok(cached_client.clone())
+    } else {
+        logger::info!("Creating new proxy client for config: {:?}", cache_key);
+        
+        metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
+
+        let new_client =
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                .build()
+                .change_context(HttpClientError::ClientConstructionFailed)
+                .attach_printable("Failed to construct proxy client")?;
+
+        metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+
+        write_lock.insert(cache_key.clone(), new_client.clone());
+        logger::debug!("Cached new proxy client for config: {:?}", cache_key);
+        Ok(new_client)
     }
 }
 
@@ -218,40 +252,17 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
         
-        let client = if let Some(cached_client) = cache.read().unwrap().get(&cache_key) {
-            logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
-            metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
-            cached_client.clone()
-        } else {
-            let mut write_lock = cache.try_write().map_err(|_| {
-                error_stack::Report::new(HttpClientError::ClientConstructionFailed)
-                    .attach_printable("Failed to acquire proxy client cache write lock")
-            })?;
-
-            if let Some(cached_client) = write_lock.get(&cache_key) {
-                logger::debug!(
-                    "Retrieved cached proxy client after write lock for config: {:?}",
-                    cache_key
-                );
+        let client = if let Ok(read_lock) = cache.read() {
+            if let Some(cached_client) = read_lock.get(&cache_key) {
+                logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
                 metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
                 cached_client.clone()
             } else {
-                logger::info!("Creating new proxy client for config: {:?}", cache_key);
-
-                metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
-
-                let new_client =
-                    apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                        .build()
-                        .change_context(HttpClientError::ClientConstructionFailed)
-                        .attach_printable("Failed to construct proxy client")?;
-
-                metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
-
-                write_lock.insert(cache_key.clone(), new_client.clone());
-                logger::debug!("Cached new proxy client for config: {:?}", cache_key);
-                new_client
+                drop(read_lock);
+                create_new_proxy_client(cache, cache_key, proxy_config, metrics_tag)?
             }
+        } else {
+            create_new_proxy_client(cache, cache_key, proxy_config, metrics_tag)?
         };
 
         Ok(client)
