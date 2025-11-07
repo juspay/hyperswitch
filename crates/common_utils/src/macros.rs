@@ -694,8 +694,6 @@ macro_rules! impl_enum_str {
 // --- Tests ---
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::panic, clippy::expect_used)]
-
     use serde_json::{json, Value as JsonValue};
 
     use crate::impl_enum_str;

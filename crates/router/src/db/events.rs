@@ -46,11 +46,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -76,11 +77,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -191,18 +193,20 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_merchant_id_primary_object_id(
+        storage::Event::list_initial_attempts_by_merchant_id_primary_object_id_or_initial_attempt_id(
             &conn,
             merchant_id,
             primary_object_id,
+            initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -306,18 +310,20 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_profile_id_primary_object_id(
+        storage::Event::list_initial_attempts_by_profile_id_primary_object_id_or_initial_attempt_id(
             &conn,
             profile_id,
             primary_object_id,
+            initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -527,11 +533,12 @@ impl EventInterface for MockDb {
             )
     }
 
-    async fn list_initial_events_by_merchant_id_primary_object_id(
+    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -539,8 +546,9 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && event.primary_object_id == primary_object_id
+                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && (event.primary_object_id == primary_object_id
+                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -663,11 +671,12 @@ impl EventInterface for MockDb {
         Ok(domain_events)
     }
 
-    async fn list_initial_events_by_profile_id_primary_object_id(
+    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
@@ -676,7 +685,8 @@ impl EventInterface for MockDb {
             .filter(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
                     && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && event.primary_object_id == primary_object_id
+                    && (event.primary_object_id == primary_object_id
+                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -876,11 +886,9 @@ mod tests {
         },
     };
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
@@ -993,11 +1001,9 @@ mod tests {
         assert_eq!(updated_event.event_id, event_id);
     }
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v2")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
@@ -1310,6 +1316,7 @@ mod tests {
         let event_type = enums::EventType::PaymentSucceeded;
         let event_class = enums::EventClass::Payments;
         let primary_object_id = Arc::new("concurrent_payment_id".to_string());
+        let initial_attempt_id = Arc::new("initial_attempt_id".to_string());
         let primary_object_type = enums::EventObjectType::PaymentDetails;
         let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
             "pay_mbabizu24mvu3mela5njyhpit10",
@@ -1397,6 +1404,7 @@ mod tests {
             merchant_order_reference_id: None,
             capture_before: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
@@ -1416,6 +1424,7 @@ mod tests {
             network_details: None,
             is_stored_credential: None,
             request_extended_authorization: None,
+            billing_descriptor: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
@@ -1462,10 +1471,11 @@ mod tests {
         // Collect all initial-attempt events for this payment
         let events = state
             .store
-            .list_initial_events_by_merchant_id_primary_object_id(
+            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 key_manager_state,
                 &business_profile.merchant_id,
                 &primary_object_id.clone(),
+                &initial_attempt_id.clone(),
                 merchant_context.get_merchant_key_store(),
             )
             .await?;

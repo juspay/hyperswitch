@@ -235,7 +235,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Givex
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
-                | PaymentMethodType::Walley => match capture_method {
+                | PaymentMethodType::Walley
+                | PaymentMethodType::Payjustnow => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::SequentialAutomatic => Ok(()),
@@ -1254,12 +1255,38 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        let currency = data
+            .request
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+
+        if response.balance.currency != currency {
+            Ok(RouterData {
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
+                    message: NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(constants::MISMATCHED_CURRENCY.to_string()),
+                    status_code: res.status_code,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: Some(response.psp_reference),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        }
     }
 
     fn get_error_response(
@@ -2172,8 +2199,52 @@ impl IncomingWebhook for Adyen {
                 });
         Ok(optional_network_txn_id)
     }
-}
 
+    #[cfg(feature = "v1")]
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let expiry = notif
+            .additional_data
+            .expiry_date
+            .map(|date| transformers::CardExpiry::parse(&date.expose()))
+            .transpose()?
+            .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        let month_str = expiry.month();
+        let year_str = expiry.year();
+
+        Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str),
+                card_exp_year: Some(year_str),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .map(|last4| last4.expose().to_string()),
+                card_network: adyen::from_payment_method_variant(
+                    notif
+                        .additional_data
+                        .payment_method_variant
+                        .map(|network| network.expose()),
+                ),
+            }),
+            wallet: None,
+            client_secret: None,
+        }))
+    }
+}
 impl Dispute for Adyen {}
 impl DefendDispute for Adyen {}
 impl AcceptDispute for Adyen {}

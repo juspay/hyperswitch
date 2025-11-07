@@ -348,6 +348,12 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 
+impl AuthenticationType {
+    pub fn is_three_ds(&self) -> bool {
+        matches!(self, Self::ThreeDs)
+    }
+}
+
 /// The status of the capture
 #[derive(
     Clone,
@@ -573,6 +579,7 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
 }
 
@@ -1501,6 +1508,29 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventObjectType {
+    PaymentDetails,
+    RefundDetails,
+    DisputeDetails,
+    MandateDetails,
+    PayoutDetails,
+    SubscriptionDetails,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Hash,
     Eq,
     PartialEq,
@@ -1520,6 +1550,7 @@ pub enum EventClass {
     Mandates,
     #[cfg(feature = "payouts")]
     Payouts,
+    Subscriptions,
 }
 
 impl EventClass {
@@ -1558,6 +1589,7 @@ impl EventClass {
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
             ]),
+            Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
     }
 }
@@ -1617,6 +1649,7 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    InvoicePaid,
 }
 
 #[derive(
@@ -2060,6 +2093,7 @@ pub enum PaymentMethodType {
     PermataBankTransfer,
     OpenBankingUk,
     PayBright,
+    Payjustnow,
     Paypal,
     Paze,
     Pix,
@@ -2188,6 +2222,7 @@ impl PaymentMethodType {
             Self::PermataBankTransfer => "Permata Bank Transfer",
             Self::OpenBankingUk => "Open Banking UK",
             Self::PayBright => "PayBright",
+            Self::Payjustnow => "Payjustnow",
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
@@ -2528,7 +2563,9 @@ pub enum PaymentChannel {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CtpServiceProvider {
+    #[strum(serialize = "ctp_visa")]
     Visa,
+    #[strum(serialize = "ctp_mastercard")]
     Mastercard,
 }
 
@@ -7997,6 +8034,15 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+impl PayoutStatus {
+    pub fn is_payout_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+        )
+    }
+}
+
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,
@@ -8276,6 +8322,14 @@ impl AuthenticationConnectors {
             | Self::Gpayments => false,
             Self::Cardinal => true,
         }
+    }
+
+    pub fn is_pre_auth_required_in_post_authn_flow(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
+    }
+
+    pub fn is_click_to_pay(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
     }
 }
 
@@ -9773,4 +9827,50 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::Failed | IntentStatus::Conflicted => Self::PaymentFailed,
         }
     }
+}
+
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive.
+/// - `Pending`: Subscription is pending activation.
+/// - `Trial`: Subscription is in a trial period.
+/// - `Paused`: Subscription is paused.
+/// - `Unpaid`: Subscription is unpaid.
+/// - `Onetime`: Subscription is a one-time payment.
+/// - `Cancelled`: Subscription has been cancelled.
+/// - `Failed`: Subscription has failed.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    strum::EnumString,
+    strum::Display,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionStatus {
+    /// Subscription is active.
+    Active,
+    /// Subscription is created but not yet active.
+    Created,
+    /// Subscription is inactive.
+    InActive,
+    /// Subscription is in pending state.
+    Pending,
+    /// Subscription is in trial state.
+    Trial,
+    /// Subscription is paused.
+    Paused,
+    /// Subscription is unpaid.
+    Unpaid,
+    /// Subscription is a one-time payment.
+    Onetime,
+    /// Subscription is cancelled.
+    Cancelled,
+    /// Subscription has failed.
+    Failed,
 }

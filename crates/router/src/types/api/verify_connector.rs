@@ -47,11 +47,9 @@ impl VerifyConnectorData {
             setup_future_usage: None,
             payment_experience: None,
             payment_method_type: None,
-            statement_descriptor: None,
             setup_mandate_details: None,
             complete_authorize_url: None,
             related_transaction_id: None,
-            statement_descriptor_suffix: None,
             request_extended_authorization: None,
             request_incremental_authorization: false,
             authentication_data: None,
@@ -71,6 +69,7 @@ impl VerifyConnectorData {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            billing_descriptor: None,
         }
     }
 
@@ -139,6 +138,7 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_migrated_card: None,
         }
     }
 }

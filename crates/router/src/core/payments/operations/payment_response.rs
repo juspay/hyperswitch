@@ -18,7 +18,6 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
-use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
@@ -1891,7 +1890,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                     .map(|enable_overcapture| common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture.deref()))
                                             });
 
-                            let (capture_before, extended_authorization_applied) = router_data
+                            let (
+                                capture_before,
+                                extended_authorization_applied,
+                                extended_authorization_last_applied_at,
+                            ) = router_data
                                 .connector_response
                                 .as_ref()
                                 .and_then(|connector_response| {
@@ -1901,9 +1904,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     (
                                         extended_auth_resp.capture_before,
                                         extended_auth_resp.extended_authentication_applied,
+                                        extended_auth_resp.extended_authorization_last_applied_at,
                                     )
                                 })
-                                .unwrap_or((None, None));
+                                .unwrap_or((None, None, None));
                             let (capture_updates, payment_attempt_update) = match payment_data
                                 .multiple_capture_data
                             {
@@ -1970,6 +1974,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         payment_method_data: additional_payment_method_data,
                                         capture_before,
                                         extended_authorization_applied,
+                                        extended_authorization_last_applied_at,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail

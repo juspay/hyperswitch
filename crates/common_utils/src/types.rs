@@ -382,6 +382,7 @@ impl AmountConvertor for MinorUnitForConnector {
     Hash,
     ToSchema,
     PartialOrd,
+    Ord,
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
@@ -767,7 +768,6 @@ pub struct TimeRange {
 
 #[cfg(test)]
 mod amount_conversion_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;

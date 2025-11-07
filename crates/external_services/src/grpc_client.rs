@@ -23,7 +23,6 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
-use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 use typed_builder::TypedBuilder;
@@ -182,7 +181,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
 )>;
 
 /// struct to represent set of Lineage ids
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
     profile_id: id_type::ProfileId,

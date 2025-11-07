@@ -141,6 +141,7 @@ pub enum RoutableConnectors {
     Paytm,
     Payu,
     Peachpayments,
+    Payjustnow,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -326,6 +327,7 @@ pub enum Connector {
     Paytm,
     Payu,
     Peachpayments,
+    Payjustnow,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -426,7 +428,10 @@ impl Connector {
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
-        matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
+        matches!(
+            (self, payment_method),
+            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, PaymentMethod::Card)
+        )
     }
     pub fn supports_file_storage_module(self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
@@ -570,13 +575,10 @@ impl Connector {
             | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
+            | Self::Payjustnow
             | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
-    }
-
-    pub fn is_pre_processing_required_before_authorize(self) -> bool {
-        matches!(self, Self::Airwallex)
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
@@ -748,6 +750,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Hipay => Self::Hipay,
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
+            RoutableConnectors::Payjustnow => Self::Payjustnow,
         }
     }
 }
@@ -887,6 +890,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::Paytm => Ok(Self::Paytm),
             Connector::Phonepe => Ok(Self::Phonepe),
+            Connector::Payjustnow => Ok(Self::Payjustnow),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
