@@ -293,7 +293,8 @@ where
 
 #[cfg(test)]
 mod hash_tests {
-    use std::hash::{Hash, Hasher, DefaultHasher};
+    use std::hash::{DefaultHasher, Hash, Hasher};
+
     use super::*;
 
     #[test]
