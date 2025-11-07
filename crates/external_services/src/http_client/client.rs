@@ -219,7 +219,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             error_stack::Report::new(HttpClientError::ClientConstructionFailed)
                 .attach_printable("Failed to acquire proxy client cache lock")
         })?;
-        
+
         let client = if let Some(cached_client) = cache_lock.get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
@@ -229,19 +229,20 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             logger::info!("Creating new proxy client for config: {:?}", cache_key);
             
             metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
-            
-            let new_client = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                .build()
-                .change_context(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct proxy client")?;
-            
+
+            let new_client =
+                apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                    .build()
+                    .change_context(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to construct proxy client")?;
+
             metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
-            
+
             cache_lock.insert(cache_key.clone(), new_client.clone());
             logger::debug!("Cached new proxy client for config: {:?}", cache_key);
             new_client
         };
-        
+
         Ok(client)
     } else {
         logger::debug!("No proxy configuration detected, using DEFAULT_CLIENT");
