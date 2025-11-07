@@ -61,7 +61,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 pub async fn validate_create_request(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
-    _req: &PayoutCreateRequest,
+    _req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
     String,
     Option<PayoutMethodData>,
