@@ -745,6 +745,13 @@ impl DynamicRoutingAlgorithmRef {
         self.elimination_routing_algorithm
             .as_ref()
             .map(|elimination_routing| {
+                if elimination_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
+                    return false;
+                }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
                     || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
