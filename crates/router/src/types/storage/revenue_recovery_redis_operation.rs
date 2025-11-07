@@ -1301,35 +1301,38 @@ impl AccountUpdaterAction {
                     updated_mandate_details.card_exp_year.clone();
                 updated_token.payment_processor_token_details.card_network =
                     updated_mandate_details.card_network.clone();
+                updated_token.payment_processor_token_details.card_isin =
+                    updated_mandate_details.card_isin.clone();
                 updated_token.modified_at = Some(PrimitiveDateTime::new(
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 ));
                 updated_token
-                    .account_update_history
-                    .get_or_insert(vec![])
-                    .push(AccountUpdateHistoryRecord {
-                        old_token: scheduled_token
-                            .payment_processor_token_details
-                            .payment_processor_token
-                            .clone(),
-                        new_token: scheduled_token
-                            .payment_processor_token_details
-                            .payment_processor_token
-                            .clone(),
-                        updated_at: PrimitiveDateTime::new(
-                            OffsetDateTime::now_utc().date(),
-                            OffsetDateTime::now_utc().time(),
-                        ),
-                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
-                            &scheduled_token.payment_processor_token_details,
-                        )),
-                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
-                            &updated_token.payment_processor_token_details,
-                        )),
-                    });
+                .account_update_history
+                .get_or_insert_with(Vec::new)
+                .push(AccountUpdateHistoryRecord {
+                    old_token: scheduled_token
+                        .payment_processor_token_details
+                        .payment_processor_token
+                        .clone(),
+                    new_token: updated_token
+                        .payment_processor_token_details
+                        .payment_processor_token
+                        .clone(),
+                    updated_at: PrimitiveDateTime::new(
+                        OffsetDateTime::now_utc().date(),
+                        OffsetDateTime::now_utc().time(),
+                    ),
+                    old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                        &scheduled_token.payment_processor_token_details,
+                    )),
+                    new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                        &updated_token.payment_processor_token_details,
+                    )),
+                });
 
-                let _ = RedisTokenManager::upsert_payment_processor_token(
+
+                RedisTokenManager::upsert_payment_processor_token(
                     state,
                     customer_id,
                     updated_token,
