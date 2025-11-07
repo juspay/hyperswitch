@@ -217,31 +217,34 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
-        
+
         let read_lock = cache.read().map_err(|_| {
             error_stack::Report::new(HttpClientError::ClientConstructionFailed)
                 .attach_printable("Failed to acquire proxy client cache read lock")
         })?;
-        
+
         let client = if let Some(cached_client) = read_lock.get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
             cached_client.clone()
         } else {
             drop(read_lock);
-            
+
             let mut write_lock = cache.write().map_err(|_| {
                 error_stack::Report::new(HttpClientError::ClientConstructionFailed)
                     .attach_printable("Failed to acquire proxy client cache write lock")
             })?;
-            
+
             if let Some(cached_client) = write_lock.get(&cache_key) {
-                logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+                logger::debug!(
+                    "Retrieved cached proxy client after write lock for config: {:?}",
+                    cache_key
+                );
                 metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
                 cached_client.clone()
             } else {
                 logger::info!("Creating new proxy client for config: {:?}", cache_key);
-                
+
                 metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
                 let new_client =
