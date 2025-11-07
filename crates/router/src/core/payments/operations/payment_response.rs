@@ -2695,17 +2695,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         let mandate_reference_id = response_router_data
             .connector_response
             .as_ref()
-            .and_then(
-                |data| data.mandate_reference.as_ref()
-            )
+            .and_then(|data| data.mandate_reference.as_ref())
             .and_then(|mandate_ref| mandate_ref.connector_mandate_id.clone());
 
         let updated_metadata_details = response_router_data
             .connector_response
             .as_ref()
-            .and_then(
-                |data| data.mandate_reference.as_ref(),
-            )
+            .and_then(|data| data.mandate_reference.as_ref())
             .and_then(|mandate_ref| mandate_ref.mandate_metadata.clone());
 
         let updated_metadata_info = updated_metadata_details
