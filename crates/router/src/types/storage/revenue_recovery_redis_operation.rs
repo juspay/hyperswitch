@@ -1072,7 +1072,10 @@ impl RedisTokenManager {
                     new_token_info: api_record.new_token_info.clone(),
                 })
                 .collect();
-            existing_token.account_update_history.as_mut().map(|data| data.extend(converted_history));
+            existing_token
+                .account_update_history
+                .as_mut()
+                .map(|data| data.extend(converted_history));
         }
 
         // Update is_active if provided
