@@ -411,6 +411,7 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_method_type: None,
             }),
             payment_info,
         );
@@ -1014,6 +1015,7 @@ impl Default for PaymentAuthorizeType {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            feature_metadata: None,
         };
         Self(data)
     }
@@ -1109,6 +1111,7 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_method_type: None,
         };
         Self(data)
     }
