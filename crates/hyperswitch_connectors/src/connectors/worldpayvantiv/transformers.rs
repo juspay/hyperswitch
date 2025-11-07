@@ -1978,7 +1978,13 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
+                    let additional_payment_method_connector_response = sale_response.fraud_result.as_ref().map(get_additional_payment_method_connector_response);
+                    let connector_response = Some(ConnectorResponseData::new(
+                        additional_payment_method_connector_response,
+                        None,
+                        None,
+                        mandate_reference_data.clone(),
+                    ));
 
                     Ok(Self {
                         status,
@@ -4207,6 +4213,24 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             domestic_network: None,
         },
     )
+}
+
+fn get_additional_payment_method_connector_response(
+    payment_response: &FraudResult,
+) -> AdditionalPaymentMethodConnectorResponse {
+    let payment_checks = Some(serde_json::json!({
+        "avs_result": payment_response.avs_result,
+        "card_validation_result": payment_response.card_validation_result,
+        "authentication_result": payment_response.authentication_result,
+        "advanced_a_v_s_result": payment_response.advanced_a_v_s_result,
+    }));
+
+    AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks,
+        card_network: None,
+        domestic_network: None,
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
