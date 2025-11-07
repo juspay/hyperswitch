@@ -9489,9 +9489,7 @@
         "required": [
           "display_name",
           "network",
-          "type",
-          "card_exp_month",
-          "card_exp_year"
+          "type"
         ],
         "properties": {
           "display_name": {
@@ -9509,12 +9507,14 @@
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month",
-            "example": "12"
+            "example": "12",
+            "nullable": true
           },
           "card_exp_year": {
             "type": "string",
             "description": "The card's expiry year",
-            "example": "25"
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -36911,9 +36911,7 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network",
-          "card_exp_month",
-          "card_exp_year"
+          "card_network"
         ],
         "properties": {
           "last4": {
@@ -36932,12 +36930,14 @@
           "card_exp_month": {
             "type": "string",
             "description": "Expiry Month of card",
-            "example": "03"
+            "example": "03",
+            "nullable": true
           },
           "card_exp_year": {
             "type": "string",
             "description": "Expiry Year of card",
-            "example": "25"
+            "example": "25",
+            "nullable": true
           }
         }
       },
