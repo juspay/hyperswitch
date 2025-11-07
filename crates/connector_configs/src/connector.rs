@@ -9,7 +9,6 @@ use api_models::{
     payments,
 };
 use serde::{Deserialize, Serialize};
-use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 

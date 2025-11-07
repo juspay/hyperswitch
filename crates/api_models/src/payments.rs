@@ -9212,7 +9212,6 @@ pub mod amount {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
@@ -9530,8 +9529,6 @@ pub struct PaymentsEligibilityResponse {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_request_api_contract {
-    #![allow(clippy::unwrap_used)]
-    #![allow(clippy::panic)]
     use std::str::FromStr;
 
     use super::*;
@@ -9633,7 +9630,6 @@ mod payments_request_api_contract {
 
 #[cfg(test)]
 mod payments_response_api_contract {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[derive(Debug, serde::Serialize)]
@@ -9664,7 +9660,6 @@ mod payments_response_api_contract {
 /// These are required for backwards compatibility
 #[cfg(test)]
 mod billing_from_payment_method_data {
-    #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
     use masking::ExposeOptionInterface;
 
@@ -10159,7 +10154,6 @@ mod null_object_test {
 
     use super::*;
 
-    #[allow(clippy::unwrap_used)]
     #[test]
     fn test_null_object_serialization() {
         let null_object = NullObject;

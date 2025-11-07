@@ -150,6 +150,17 @@ where
 {
 }
 
+impl<SecretValue, MaskingStrategy> std::hash::Hash for Secret<SecretValue, MaskingStrategy>
+where
+    Self: PeekInterface<SecretValue>,
+    SecretValue: std::hash::Hash,
+    MaskingStrategy: Strategy<SecretValue>,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.peek().hash(state);
+    }
+}
+
 impl<SecretValue, MaskingStrategy> fmt::Debug for Secret<SecretValue, MaskingStrategy>
 where
     MaskingStrategy: Strategy<SecretValue>,
@@ -281,6 +292,32 @@ where
 }
 
 #[cfg(test)]
+mod hash_tests {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+
+    use super::*;
+
+    #[test]
+    fn test_secret_hash_implementation() {
+        let secret1: Secret<String> = Secret::new("test_string".to_string());
+        let secret2: Secret<String> = Secret::new("test_string".to_string());
+        let secret3: Secret<String> = Secret::new("different_string".to_string());
+
+        // Test that equal secrets hash to the same value
+        let mut hasher1 = DefaultHasher::new();
+        let mut hasher2 = DefaultHasher::new();
+        secret1.hash(&mut hasher1);
+        secret2.hash(&mut hasher2);
+        assert_eq!(hasher1.finish(), hasher2.finish());
+
+        // Test that different secrets hash to different values (usually)
+        let mut hasher3 = DefaultHasher::new();
+        secret3.hash(&mut hasher3);
+        assert_ne!(hasher1.finish(), hasher3.finish());
+    }
+}
+
+#[cfg(test)]
 #[cfg(feature = "serde")]
 mod tests {
     use serde_json::json;
@@ -288,7 +325,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::expect_used)]
     fn test_json_mask_strategy() {
         // Create a sample JSON with different types for testing
         let original = json!({ "user": { "name": "John Doe", "email": "john@example.com", "age": 35, "verified": true }, "card": { "number": "4242424242424242", "cvv": 123, "amount": 99.99 }, "tags": ["personal", "premium"], "null_value": null, "short": "hi" });

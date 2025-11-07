@@ -2720,9 +2720,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .ok()
             .flatten();
 
-        println!("mandate_metadata_json: {:?}", updated_metadata_info);
-        println!("mandate_reference_id: {:?}", mandate_reference_id);
-
         let mandate_data_updated = match updated_metadata_info {
             Some(data) => Some(api_models::payments::MandateIds {
                 mandate_id: None,

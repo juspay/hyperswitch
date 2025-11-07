@@ -1260,7 +1260,6 @@ impl<'a> PaymentMethodBalanceData<'a> {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use id_type::MerchantConnectorAccountId;
 
     use super::*;

@@ -7314,7 +7314,7 @@ pub trait SplitPaymentData {
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
@@ -7332,13 +7332,13 @@ impl SplitPaymentData for PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {

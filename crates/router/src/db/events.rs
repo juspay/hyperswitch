@@ -886,11 +886,9 @@ mod tests {
         },
     };
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
@@ -1003,11 +1001,9 @@ mod tests {
         assert_eq!(updated_event.event_id, event_id);
     }
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v2")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
