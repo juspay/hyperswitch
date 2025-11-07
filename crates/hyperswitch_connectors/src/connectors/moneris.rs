@@ -183,7 +183,6 @@ impl ConnectorCommon for Moneris {
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -295,7 +294,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }

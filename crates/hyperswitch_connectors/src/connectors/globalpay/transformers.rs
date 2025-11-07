@@ -435,7 +435,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                     .as_ref()
                     .and_then(|payment_method| payment_method.message.clone()),
                 connector_metadata: None,
-                mandate_reference: None,
             })),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),

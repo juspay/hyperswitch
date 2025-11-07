@@ -608,7 +608,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -843,7 +842,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -914,7 +912,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             Ok(RefundsResponseData {

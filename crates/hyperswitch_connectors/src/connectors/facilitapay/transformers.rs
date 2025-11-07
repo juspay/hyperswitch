@@ -273,7 +273,6 @@ pub fn parse_facilitapay_error_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     })
 }
 
@@ -449,7 +448,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -556,7 +554,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     network_advice_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {

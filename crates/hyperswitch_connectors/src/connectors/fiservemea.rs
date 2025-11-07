@@ -241,7 +241,6 @@ impl ConnectorCommon for Fiservemea {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             None => Ok(ErrorResponse {
@@ -258,7 +257,6 @@ impl ConnectorCommon for Fiservemea {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
         }
     }

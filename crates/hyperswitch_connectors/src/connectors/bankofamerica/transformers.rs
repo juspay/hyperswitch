@@ -1581,7 +1581,6 @@ fn map_error_response<F, T>(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     });
 
     match transaction_status {
@@ -2356,7 +2355,6 @@ fn get_error_response(
         network_decline_code,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     }
 }
 
@@ -2664,7 +2662,6 @@ fn convert_to_error_response_from_error_info(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     }
 }
 

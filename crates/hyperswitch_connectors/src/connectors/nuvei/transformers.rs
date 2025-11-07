@@ -3639,7 +3639,6 @@ fn get_error_response(
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
         connector_metadata: None,
-        mandate_reference: None,
     }
 }
 

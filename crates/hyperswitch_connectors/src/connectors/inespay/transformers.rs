@@ -146,7 +146,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsRes
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
             ),
         };
@@ -276,7 +275,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -373,7 +371,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, InespayRefundsResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -422,7 +419,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, InespayRSyncResponse>> for Refunds
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
         };
         Ok(Self {

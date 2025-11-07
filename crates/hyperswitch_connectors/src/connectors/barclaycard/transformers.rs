@@ -1006,7 +1006,6 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 });
                 Ok(Self {
                     response,
@@ -1654,7 +1653,6 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -1959,7 +1957,6 @@ fn map_error_response<F, T>(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     });
 
     match transaction_status {
@@ -2799,7 +2796,6 @@ fn get_error_response(
         network_decline_code,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     }
 }
 

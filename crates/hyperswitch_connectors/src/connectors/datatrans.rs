@@ -161,7 +161,6 @@ impl ConnectorCommon for Datatrans {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             let response: datatrans::DatatransErrorResponse = res
@@ -181,7 +180,6 @@ impl ConnectorCommon for Datatrans {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         }
     }

@@ -311,7 +311,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -401,7 +400,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {

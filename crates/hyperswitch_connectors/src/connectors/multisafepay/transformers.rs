@@ -1117,7 +1117,6 @@ pub fn populate_error_reason(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     }
 }
 // REFUND :
@@ -1227,7 +1226,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, MultisafepayRefundResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })

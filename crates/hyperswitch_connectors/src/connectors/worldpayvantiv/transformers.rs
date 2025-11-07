@@ -559,7 +559,6 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -1479,7 +1478,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1532,7 +1530,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1594,7 +1591,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1648,7 +1644,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1694,7 +1689,6 @@ impl<F>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1731,7 +1725,6 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -1778,7 +1771,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1821,7 +1813,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                         network_decline_code,
                         network_error_message,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1963,9 +1954,9 @@ impl<F>
                     .as_ref()
                     .map(|_| sale_response.message.clone());
 
-                logger::debug!("inside payment failed case");
 
                     Ok(Self {
+                        connector_response: Some(ConnectorResponseData::new(None, None,None, mandate_reference_data.clone())),
                         status,
                         response: Err(ErrorResponse {
                             code: sale_response.response.to_string(),
@@ -1978,7 +1969,6 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: mandate_reference_data,
                         }),
                         ..item.data
                     })
@@ -2047,7 +2037,6 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2106,7 +2095,6 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })},
@@ -2167,7 +2155,6 @@ impl<F>
                             network_decline_code,
                             network_error_message,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2224,7 +2211,6 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -2343,7 +2329,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -4675,7 +4660,6 @@ impl
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         };
 
@@ -4718,7 +4702,6 @@ impl
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             ..item.data.clone()
         })

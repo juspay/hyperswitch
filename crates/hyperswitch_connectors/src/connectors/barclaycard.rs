@@ -309,7 +309,6 @@ impl ConnectorCommon for Barclaycard {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             transformers::BarclaycardErrorResponse::AuthenticationError(response) => {
@@ -324,7 +323,6 @@ impl ConnectorCommon for Barclaycard {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
         }
@@ -611,7 +609,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -809,7 +806,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -935,7 +931,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1228,7 +1223,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }

@@ -2693,20 +2693,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         let attempt_status = updated_payment_attempt.status;
 
         let mandate_reference_id = response_router_data
-            .response
+            .connector_response
             .as_ref()
-            .map_or_else(
-                |err| err.mandate_reference.clone(),
-                |resp| resp.get_mandate_reference(),
+            .and_then(
+                |data| data.mandate_reference.as_ref()
             )
-            .and_then(|mandate_ref| mandate_ref.connector_mandate_id);
+            .and_then(|mandate_ref| mandate_ref.connector_mandate_id.clone());
 
         let updated_metadata_details = response_router_data
-            .response
+            .connector_response
             .as_ref()
-            .map_or_else(
-                |err| err.mandate_reference.clone(),
-                |resp| resp.get_mandate_reference(),
+            .and_then(
+                |data| data.mandate_reference.as_ref(),
             )
             .and_then(|mandate_ref| mandate_ref.mandate_metadata.clone());
 

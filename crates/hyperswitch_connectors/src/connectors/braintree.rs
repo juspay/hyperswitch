@@ -183,7 +183,6 @@ impl ConnectorCommon for Braintree {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             Ok(braintree::ErrorResponses::BraintreeErrorResponse(response)) => {
@@ -201,7 +200,6 @@ impl ConnectorCommon for Braintree {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             Err(error_msg) => {

@@ -684,7 +684,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -747,7 +746,6 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     }),
@@ -781,7 +779,6 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -829,7 +826,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -922,7 +918,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -958,7 +953,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -1032,7 +1026,6 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),

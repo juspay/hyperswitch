@@ -343,7 +343,6 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             let charges = match item.data.request.split_payments.as_ref() {
@@ -457,7 +456,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -588,7 +586,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

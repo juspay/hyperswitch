@@ -186,7 +186,6 @@ impl ConnectorCommon for Bluesnap {
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }
                     }
                     bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
@@ -200,7 +199,6 @@ impl ConnectorCommon for Bluesnap {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     },
                     bluesnap::BluesnapErrors::General(error_response) => {
                         let (error_res, attempt_status) = if res.status_code == 403
@@ -226,7 +224,6 @@ impl ConnectorCommon for Bluesnap {
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }
                     }
                 };

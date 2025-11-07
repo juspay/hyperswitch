@@ -803,7 +803,6 @@ impl<F, T>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -818,7 +817,6 @@ impl<F, T>
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
                 connector_metadata: None,
-                mandate_reference: None,
             }),
         };
         Ok(Self {

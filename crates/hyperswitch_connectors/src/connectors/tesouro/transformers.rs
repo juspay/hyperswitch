@@ -1112,7 +1112,6 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 network_decline_code: None,
                                 network_error_message: None,
                                 connector_metadata: None,
-                                mandate_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1169,7 +1168,6 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1211,7 +1209,6 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1295,7 +1292,6 @@ impl<F>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1333,7 +1329,6 @@ impl<F>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1421,7 +1416,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                     network_decline_code: None,
                                     network_error_message: None,
                                     connector_metadata: None,
-                                    mandate_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1466,7 +1460,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1504,7 +1497,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1563,7 +1555,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                     network_decline_code: None,
                                     network_error_message: None,
                                     connector_metadata: None,
-                                    mandate_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1608,7 +1599,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1646,7 +1636,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1739,7 +1728,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                                     network_decline_code: None,
                                     network_error_message: None,
                                     connector_metadata: None,
-                                    mandate_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1776,7 +1764,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1813,7 +1800,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -1962,7 +1948,6 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2011,7 +1996,6 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })
@@ -2084,7 +2068,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -2123,7 +2106,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     ..item.data
                 })

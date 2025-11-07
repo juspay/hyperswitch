@@ -420,7 +420,6 @@ impl<F>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -473,7 +472,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -526,7 +524,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -639,7 +636,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })
@@ -684,7 +680,6 @@ impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             })

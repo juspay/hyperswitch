@@ -602,7 +602,6 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             });
@@ -676,7 +675,6 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             });
@@ -750,7 +748,6 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             });
@@ -824,7 +821,6 @@ impl
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             });

@@ -249,7 +249,6 @@ impl ConnectorCommon for Cybersource {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -266,7 +265,6 @@ impl ConnectorCommon for Cybersource {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -295,7 +293,6 @@ impl ConnectorCommon for Cybersource {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             Err(error_msg) => {
@@ -518,7 +515,6 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -603,7 +599,6 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..data.clone()
             })
@@ -1126,7 +1121,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1367,7 +1361,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1491,7 +1484,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1610,7 +1602,6 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1737,7 +1728,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -1863,7 +1853,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }

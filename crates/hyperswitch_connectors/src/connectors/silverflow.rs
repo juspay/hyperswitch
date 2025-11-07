@@ -251,7 +251,6 @@ impl ConnectorCommon for Silverflow {
             network_advice_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }

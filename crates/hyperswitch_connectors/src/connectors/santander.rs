@@ -158,7 +158,6 @@ impl ConnectorCommon for Santander {
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 })
             }
             santander::SantanderErrorResponse::Boleto(response) => Ok(ErrorResponse {
@@ -179,7 +178,6 @@ impl ConnectorCommon for Santander {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
         }
     }

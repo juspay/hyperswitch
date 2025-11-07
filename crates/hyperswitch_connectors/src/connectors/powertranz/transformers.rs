@@ -469,7 +469,6 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -485,7 +484,6 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None

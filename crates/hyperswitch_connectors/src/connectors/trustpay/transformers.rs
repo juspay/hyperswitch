@@ -881,7 +881,6 @@ fn handle_cards_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -956,7 +955,6 @@ fn handle_bank_redirects_error_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -1013,7 +1011,6 @@ fn handle_bank_redirects_sync_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1072,7 +1069,6 @@ pub fn handle_webhook_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1186,7 +1182,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -1650,7 +1645,6 @@ fn handle_cards_refund_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1688,7 +1682,6 @@ fn handle_webhooks_refund_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1721,7 +1714,6 @@ fn handle_bank_redirects_refund_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1762,7 +1754,6 @@ fn handle_bank_redirects_refund_sync_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     } else {
         None
@@ -1790,7 +1781,6 @@ fn handle_bank_redirects_refund_sync_error_response(
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-        mandate_reference: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {

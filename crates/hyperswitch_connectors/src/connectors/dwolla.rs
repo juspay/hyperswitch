@@ -165,7 +165,6 @@ impl ConnectorCommon for Dwolla {
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -478,7 +477,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: metadata,
-                    mandate_reference: None,
                 });
             }
         }

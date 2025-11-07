@@ -295,7 +295,6 @@ impl ConnectorCommon for Nomupay {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             (None, None, Some(nomupay_inner_error), _, _) => {
                 match (
@@ -313,7 +312,6 @@ impl ConnectorCommon for Nomupay {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     (_, Some(validation_errors)) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -334,7 +332,6 @@ impl ConnectorCommon for Nomupay {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                     (None, None) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -347,7 +344,6 @@ impl ConnectorCommon for Nomupay {
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     }),
                 }
             }
@@ -365,7 +361,6 @@ impl ConnectorCommon for Nomupay {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             _ => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -378,7 +373,6 @@ impl ConnectorCommon for Nomupay {
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
         }
     }

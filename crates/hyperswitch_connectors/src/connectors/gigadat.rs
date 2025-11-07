@@ -186,7 +186,6 @@ impl ConnectorCommon for Gigadat {
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }
@@ -597,7 +596,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-            mandate_reference: None,
         })
     }
 }

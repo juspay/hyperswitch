@@ -896,7 +896,6 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -971,7 +970,6 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -1022,7 +1020,6 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 network_decline_code: None,
                                 network_error_message: None,
                                 connector_metadata: None,
-                                mandate_reference: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1160,7 +1157,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),
@@ -1189,7 +1185,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             network_decline_code: None,
                             network_error_message: None,
                             connector_metadata: None,
-                            mandate_reference: None,
                         }),
                         ..item.data
                     })
@@ -1392,7 +1387,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     None
@@ -1461,7 +1455,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     None
@@ -1633,7 +1626,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             None
@@ -1750,7 +1742,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             })
         } else {
             None
@@ -1850,7 +1841,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     network_decline_code: None,
                     network_error_message: None,
                     connector_metadata: None,
-                    mandate_reference: None,
                 }),
                 ..item.data
             }),

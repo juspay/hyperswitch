@@ -277,7 +277,6 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -292,7 +291,6 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -504,7 +502,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::AttemptStatus::Failure {
@@ -519,7 +516,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -567,7 +563,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
-                mandate_reference: None,
             }),
             ElavonResult::Success(response) => {
                 if status == enums::RefundStatus::Failure {
@@ -582,7 +577,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, ElavonPaymentsResponse>>
                         network_decline_code: None,
                         network_error_message: None,
                         connector_metadata: None,
-                        mandate_reference: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
