@@ -502,7 +502,6 @@ impl RedisTokenManager {
             .payment_processor_token_details
             .payment_processor_token
             .clone();
-
         let was_existing = token_map.contains_key(&token_id);
 
         let error_code = token_data.error_code.clone();
@@ -1073,7 +1072,7 @@ impl RedisTokenManager {
                     new_token_info: api_record.new_token_info.clone(),
                 })
                 .collect();
-            existing_token.account_update_history = Some(converted_history);
+            existing_token.account_update_history.as_mut().map(|data| data.extend(converted_history));
         }
 
         // Update is_active if provided
