@@ -694,7 +694,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     payment_intent: &PaymentIntent,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
-    let locked = RedisTokenManager::lock_connector_customer_status(
+    let locked_acquired = RedisTokenManager::lock_connector_customer_status(
         state,
         connector_customer_id,
         &payment_intent.id,
@@ -704,7 +704,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match locked {
+    match locked_acquired {
         false => {
             let token_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -894,7 +894,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             // Check if all tokens are hard declined
             let hard_decline_status = processor_tokens
                 .values()
-                .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+                .all(|token| token.token_status.is_hard_decline.unwrap_or(false))
+                && !processor_tokens.is_empty();
 
             RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
                 .await

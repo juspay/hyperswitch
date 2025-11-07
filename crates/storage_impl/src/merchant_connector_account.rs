@@ -185,7 +185,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .update_merchant_connector_account(this, merchant_connector_account, key_store)
+            .update_merchant_connector_account( this, merchant_connector_account, key_store)
             .await
     }
 

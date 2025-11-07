@@ -80,6 +80,8 @@ pub enum NovalNetPaymentTypes {
     DirectDebitSepa,
     #[serde(rename = "GUARANTEED_DIRECT_DEBIT_SEPA")]
     GuaranteedDirectDebitSepa,
+    #[serde(rename = "RETURN_DEBIT_SEPA")]
+    ReturnDebitSepa,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -1023,6 +1025,20 @@ pub struct NovalnetRefundsTransactionData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetChargebackTransactionData {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: NovalNetPaymentTypes,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: u64,
+    pub test_mode: u8,
+    pub tid: Option<Secret<i64>>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
     amount: u64,
     currency: common_enums::Currency,
@@ -1501,6 +1517,7 @@ pub struct NovalnetWebhookEvent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalnetWebhookTransactionData {
+    ChargebackTransactionData(NovalnetChargebackTransactionData),
     SyncTransactionData(NovalnetSyncResponseTransactionData),
     CaptureTransactionData(NovalnetCaptureTransactionData),
     CancelTransactionData(NovalnetPaymentsResponseTransactionData),
@@ -1520,6 +1537,7 @@ pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
 pub fn get_incoming_webhook_event(
     status: WebhookEventType,
     transaction_status: NovalnetTransactionStatus,
+    payment_type: Option<NovalNetPaymentTypes>,
 ) -> IncomingWebhookEvent {
     match status {
         WebhookEventType::Payment => match transaction_status {
@@ -1549,7 +1567,15 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
-        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
+        WebhookEventType::Chargeback => {
+            if matches!(transaction_status, NovalnetTransactionStatus::Confirmed)
+                && matches!(payment_type, Some(NovalNetPaymentTypes::ReturnDebitSepa))
+            {
+                IncomingWebhookEvent::DisputeLost
+            } else {
+                IncomingWebhookEvent::EventNotSupported
+            }
+        }
         WebhookEventType::Credit => IncomingWebhookEvent::DisputeWon,
     }
 }

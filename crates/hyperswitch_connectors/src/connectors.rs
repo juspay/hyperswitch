@@ -132,6 +132,7 @@ pub mod worldpayvantiv;
 pub mod worldpayxml;
 pub mod xendit;
 pub mod zen;
+pub mod zift;
 pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
@@ -168,5 +169,5 @@ pub use self::{
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
-    zen::Zen, zsl::Zsl,
+    zen::Zen, zift::Zift, zsl::Zsl,
 };
