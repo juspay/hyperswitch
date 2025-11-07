@@ -8780,7 +8780,7 @@ pub async fn perform_payment_method_duplication_check(
                 err
             );
             None
-        },
+        }
     };
 
     Ok(duplication_check)
