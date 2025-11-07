@@ -1,6 +1,6 @@
 // crates/smithy-generator/build.rs
 
-use std::{fs, path::Path};
+use std::{collections::HashSet, fs, path::Path};
 
 use regex::Regex;
 
@@ -13,6 +13,7 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
     let workspace_root = get_workspace_root()?;
 
     let mut smithy_models = Vec::new();
+    let mut seen_models = HashSet::new();
 
     // Scan all crates in the workspace for SmithyModel derives
     let crates_dir = workspace_root.join("crates");
@@ -39,9 +40,12 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
 
-                if let Err(e) =
-                    scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models)
-                {
+                if let Err(e) = scan_crate_for_smithy_models(
+                    &crate_path,
+                    &crate_name,
+                    &mut smithy_models,
+                    &mut seen_models,
+                ) {
                     println!("cargo:warning=Failed to scan crate {}: {}", crate_name, e);
                 }
             }
@@ -75,13 +79,14 @@ fn scan_crate_for_smithy_models(
     crate_path: &Path,
     crate_name: &str,
     models: &mut Vec<SmithyModelInfo>,
+    seen_models: &mut HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let src_path = crate_path.join("src");
     if !src_path.exists() {
         return Ok(());
     }
 
-    scan_directory(&src_path, crate_name, "", models)?;
+    scan_directory(&src_path, crate_name, "", models, seen_models)?;
     Ok(())
 }
 
@@ -90,6 +95,7 @@ fn scan_directory(
     crate_name: &str,
     module_path: &str,
     models: &mut Vec<SmithyModelInfo>,
+    seen_models: &mut HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -110,9 +116,10 @@ fn scan_directory(
                 } else {
                     format!("{}::{}", module_path, dir_name)
                 };
-                scan_directory(&path, crate_name, &new_module_path, models)?;
+                scan_directory(&path, crate_name, &new_module_path, models, seen_models)?;
             } else if path.extension().map(|ext| ext == "rs").unwrap_or(false) {
-                if let Err(e) = scan_rust_file(&path, crate_name, module_path, models) {
+                if let Err(e) = scan_rust_file(&path, crate_name, module_path, models, seen_models)
+                {
                     println!(
                         "cargo:warning=Failed to scan Rust file {}: {}",
                         path.display(),
@@ -130,6 +137,7 @@ fn scan_rust_file(
     crate_name: &str,
     module_path: &str,
     models: &mut Vec<SmithyModelInfo>,
+    seen_models: &mut HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(content) = fs::read_to_string(file_path) {
         // Enhanced regex that handles comments, doc comments, and multiple attributes
@@ -164,11 +172,24 @@ fn scan_rust_file(
                 // Validate that the item name is a valid Rust identifier
                 if is_valid_rust_identifier(item_name) {
                     let full_module_path = create_module_path(file_path, crate_name, module_path)?;
+                    let cfg_attrs = extract_cfg_attributes(
+                        &content,
+                        captures.get(0).map(|c| c.start()).unwrap_or(0),
+                    );
+                    let dedupe_key = format!(
+                        "{}::{}|{}",
+                        full_module_path,
+                        item_name,
+                        cfg_attrs.join("&")
+                    );
 
-                    models.push(SmithyModelInfo {
-                        struct_name: item_name.to_string(),
-                        module_path: full_module_path,
-                    });
+                    if seen_models.insert(dedupe_key) {
+                        models.push(SmithyModelInfo {
+                            struct_name: item_name.to_string(),
+                            module_path: full_module_path,
+                            cfg_attrs,
+                        });
+                    }
                 } else {
                     println!(
                         "cargo:warning=Skipping invalid identifier: {} in {}",
@@ -245,10 +266,44 @@ fn create_module_path(
     Ok(result)
 }
 
+fn extract_cfg_attributes(source: &str, item_start: usize) -> Vec<String> {
+    let mut attrs = Vec::new();
+    let mut idx = item_start;
+
+    while idx > 0 {
+        if let Some(prev_newline) = source[..idx].rfind('\n') {
+            let line = source[prev_newline + 1..idx].trim();
+            if line.is_empty() {
+                idx = prev_newline;
+                continue;
+            }
+
+            if line.starts_with("#[cfg(") {
+                attrs.push(line.to_string());
+                idx = prev_newline;
+                continue;
+            }
+
+            if line.starts_with("#[") {
+                idx = prev_newline;
+                continue;
+            }
+
+            break;
+        } else {
+            break;
+        }
+    }
+
+    attrs.reverse();
+    attrs
+}
+
 #[derive(Debug)]
 struct SmithyModelInfo {
     struct_name: String,
     module_path: String,
+    cfg_attrs: Vec<String>,
 }
 
 fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std::error::Error>> {
@@ -264,6 +319,10 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
 
         // Generate imports
         for model in models {
+            for attr in &model.cfg_attrs {
+                content.push_str(attr);
+                content.push('\n');
+            }
             content.push_str(&format!(
                 "use {}::{};\n",
                 model.module_path, model.struct_name
@@ -275,10 +334,24 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
 
         // Generate model collection calls
         for model in models {
-            content.push_str(&format!(
-                "    models.push({}::generate_smithy_model());\n",
-                model.struct_name
-            ));
+            if model.cfg_attrs.is_empty() {
+                content.push_str(&format!(
+                    "    models.push({}::generate_smithy_model());\n",
+                    model.struct_name
+                ));
+            } else {
+                for attr in &model.cfg_attrs {
+                    content.push_str("    ");
+                    content.push_str(attr);
+                    content.push('\n');
+                }
+                content.push_str("    {\n");
+                content.push_str(&format!(
+                    "        models.push({}::generate_smithy_model());\n",
+                    model.struct_name
+                ));
+                content.push_str("    }\n");
+            }
         }
 
         content.push_str("\n    models\n");
