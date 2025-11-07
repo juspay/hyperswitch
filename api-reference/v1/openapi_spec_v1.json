@@ -25154,9 +25154,7 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network",
-          "card_exp_month",
-          "card_exp_year"
+          "card_network"
         ],
         "properties": {
           "last4": {
@@ -25175,12 +25173,14 @@
           "card_exp_month": {
             "type": "string",
             "description": "Card Expiry Month",
-            "example": "10"
+            "example": "10",
+            "nullable": true
           },
           "card_exp_year": {
             "type": "string",
             "description": "Card Expiry Year",
-            "example": "25"
+            "example": "25",
+            "nullable": true
           }
         }
       },

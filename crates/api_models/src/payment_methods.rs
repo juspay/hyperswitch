@@ -1172,10 +1172,10 @@ pub struct PaymentMethodDataWalletInfo {
     #[serde(rename = "type")]
     pub card_type: Option<String>,
     /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
+    #[schema(value_type = Option<String>,example = "10")]
     pub card_exp_month: Option<masking::Secret<String>>,
     /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
+    #[schema(value_type = Option<String>,example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
 }
 
