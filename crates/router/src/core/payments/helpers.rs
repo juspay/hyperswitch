@@ -8719,16 +8719,14 @@ where
     }
 }
 
-/// A formatted string key in the format "payment_methods_{merchant_id}_{customer_id}_{locker_id}"
+/// A formatted string key in the format "payment_methods_{customer_id}_{locker_id}"
 #[cfg(feature = "v1")]
 pub fn construct_payment_method_key_for_locking(
-    merchant_id: &id_type::MerchantId,
     customer_id: &id_type::CustomerId,
     locker_id: &str,
 ) -> String {
     format!(
         "payment_methods_{}_{}_{}",
-        merchant_id.get_string_repr(),
         customer_id.get_string_repr(),
         locker_id
     )
@@ -8774,7 +8772,15 @@ pub async fn perform_payment_method_duplication_check(
             // Use the duplication check function to compare card details
             check_for_duplication_of_card_data(card_detail, &card_decrypted)
         }
-        Err(_) => None,
+        Err(err) => {
+            logger::error!(
+                "Error fetching existing payment method for locker_id: {}, customer_id: {}: {:?}",
+                payment_method_id,
+                customer_id.get_string_repr(),
+                err
+            );
+            None
+        },
     };
 
     Ok(duplication_check)

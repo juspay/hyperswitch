@@ -96,7 +96,6 @@ async fn save_in_locker(
                 .get_required_value("customer_id")?;
 
             let unique_locking_key = helpers::construct_payment_method_key_for_locking(
-                merchant_context.get_merchant_account().get_id(),
                 &customer_id,
                 &card_resp.payment_method_id,
             );
@@ -1266,7 +1265,6 @@ pub async fn save_in_locker_external(
             client_secret: None,
         };
         let unique_locking_key = helpers::construct_payment_method_key_for_locking(
-            merchant_context.get_merchant_account().get_id(),
             &customer_id,
             &pm_resp.payment_method_id,
         );
