@@ -722,6 +722,32 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            webhook_url: other.webhook_url.or(self.webhook_url),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            #[cfg(feature = "payouts")]
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+        }
+    }
+
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,

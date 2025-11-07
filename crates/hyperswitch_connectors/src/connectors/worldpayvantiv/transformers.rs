@@ -14,9 +14,9 @@ use hyperswitch_domain_models::{
         Dsync, Fetch, Retrieve, Upload,
     },
     router_request_types::{
-        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSyncData, ResponseId,
-        RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
+        DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
+        SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -34,6 +34,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         AcceptDisputeRouterData, DisputeSyncRouterData, FetchDisputeRouterData,
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         RefundsResponseRouterData, ResponseRouterData, RetrieveFileRouterData,
         SubmitEvidenceRouterData,
     },
@@ -1399,14 +1400,10 @@ pub struct CreditResponse {
     pub location: Option<String>,
 }
 
-impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
-where
-    F: Send,
-{
+impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsCaptureRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>,
+        item: PaymentsCaptureResponseRouterData<CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.capture_response {
             Some(capture_response) => {
@@ -1516,12 +1513,10 @@ fn get_vantiv_customer_reference(customer_id: &Option<String>) -> Option<String>
     })
 }
 
-impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.auth_reversal_response {
             Some(auth_reversal_response) => {

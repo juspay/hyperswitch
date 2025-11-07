@@ -1794,6 +1794,7 @@ impl AddressDetailsData for AddressDetails {
 
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1810,6 +1811,23 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
     }
 }
 
@@ -6996,6 +7014,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        is_migrated_card: data.is_migrated_card,
     }
 }
 

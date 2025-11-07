@@ -3638,6 +3638,7 @@ pub enum AdditionalPaymentData {
         bank_name: Option<common_enums::BankNames>,
         #[serde(flatten)]
         details: Option<BankRedirectDetails>,
+        interac: Option<InteracPaymentMethod>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -3709,9 +3710,13 @@ pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracPaymentMethod {
+    #[schema(value_type = Option<Object>)]
+    pub customer_info: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankRedirectData {
@@ -5451,6 +5456,9 @@ pub struct BankRedirectResponse {
     #[schema(value_type = Option<BankRedirectDetails>)]
     #[smithy(value_type = "Option<BankRedirectDetails>")]
     pub details: Option<BankRedirectDetails>,
+    /// customer info for interac payment method
+    #[schema(value_type = Option<InteracPaymentMethod>)]
+    pub interac: Option<InteracPaymentMethod>,
 }
 
 #[derive(
@@ -8352,9 +8360,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
-            AdditionalPaymentData::BankRedirect { bank_name, details } => {
-                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
-            }
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                details,
+                interac,
+            } => Self::BankRedirect(Box::new(BankRedirectResponse {
+                bank_name,
+                details,
+                interac,
+            })),
             AdditionalPaymentData::Crypto { details } => {
                 Self::Crypto(Box::new(CryptoResponse { details }))
             }

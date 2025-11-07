@@ -2600,7 +2600,9 @@ pub enum PaymentChannel {
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CtpServiceProvider {
+    #[strum(serialize = "ctp_visa")]
     Visa,
+    #[strum(serialize = "ctp_mastercard")]
     Mastercard,
 }
 
@@ -8077,6 +8079,15 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+impl PayoutStatus {
+    pub fn is_payout_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+        )
+    }
+}
+
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,
@@ -8358,6 +8369,14 @@ impl AuthenticationConnectors {
             | Self::Gpayments => false,
             Self::Cardinal => true,
         }
+    }
+
+    pub fn is_pre_auth_required_in_post_authn_flow(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
+    }
+
+    pub fn is_click_to_pay(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
     }
 }
 
