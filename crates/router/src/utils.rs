@@ -19,7 +19,6 @@ use api_models::{
     payments::{self},
     subscription as subscription_types, webhooks,
 };
-use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -477,7 +476,6 @@ pub async fn get_mca_from_payout_attempt(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
     };
-    let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]

@@ -1441,7 +1441,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        
         merchant_key_store: &domain::MerchantKeyStore,
         payment_attempt: storage::PaymentAttempt,
         storage_scheme: MerchantStorageScheme,
@@ -1499,7 +1498,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        
         merchant_key_store: &domain::MerchantKeyStore,
         this: storage::PaymentAttempt,
         payment_attempt: storage::PaymentAttemptUpdate,
@@ -1563,7 +1561,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
@@ -1612,7 +1609,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        
         merchant_key_store: &domain::MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
@@ -1629,7 +1625,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        
         payment_id: &id_type::GlobalPaymentId,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -1678,7 +1673,6 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        
         merchant_key_store: &domain::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         storage_scheme: MerchantStorageScheme,
@@ -3207,10 +3201,7 @@ impl StorageInterface for KafkaStore {
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
         self.diesel_store.set_key_manager_state(key_manager_state);
-    }
-    fn set_merchant_key_store(&mut self, merchant_key_store: domain::MerchantKeyStore) {
-        self.diesel_store.set_merchant_key_store(merchant_key_store);
-    }
+    }    
 }
 
 impl GlobalStorageInterface for KafkaStore {

@@ -2029,7 +2029,6 @@ trait MerchantConnectorAccountCreateBridge {
         self,
         merchant_context: &domain::MerchantContext,
         db: &dyn StorageInterface,
-        key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::Profile>;
 }
 
@@ -2381,7 +2380,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         self,
         merchant_context: &domain::MerchantContext,
         db: &dyn StorageInterface,
-        _key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::Profile> {
         match self.profile_id.or(merchant_context
             .get_merchant_account()
@@ -2465,7 +2463,7 @@ pub async fn create_connector(
 
     let business_profile = req
         .clone()
-        .validate_and_get_business_profile(&merchant_context, store, key_manager_state)
+        .validate_and_get_business_profile(&merchant_context, store)
         .await?;
 
     #[cfg(feature = "v2")]

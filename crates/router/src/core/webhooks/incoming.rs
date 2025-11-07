@@ -2729,7 +2729,6 @@ async fn update_additional_payment_method_data(
 
     let pm = db
         .find_payment_method(
-            &state.into(),
             merchant_context.get_merchant_key_store(),
             payment_method_id.as_str(),
             merchant_context.get_merchant_account().storage_scheme,
