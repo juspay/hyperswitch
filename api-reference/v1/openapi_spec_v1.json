@@ -13455,6 +13455,30 @@
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
             "nullable": true
+          },
+          "last4_digits": {
+            "type": "string",
+            "description": "Card's Last 4 Digits",
+            "example": "1111",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuing Bank of the Particular Card",
+            "example": "Bank of America",
+            "nullable": true
+          },
+          "issuer_country": {
+            "type": "string",
+            "description": "The country where that particular card was issued",
+            "example": "US",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "VISA",
+            "nullable": true
           }
         },
         "additionalProperties": false
