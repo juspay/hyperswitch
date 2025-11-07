@@ -4440,16 +4440,13 @@ pub async fn get_merchant_connector_account(
                     }
                     #[cfg(feature = "v2")]
                     {
-                        db.find_merchant_connector_account_by_id(
-                            merchant_connector_id,
-                            key_store,
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: merchant_connector_id.get_string_repr().to_string(),
-                            },
-                        )
+                        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: merchant_connector_id.get_string_repr().to_string(),
+                                },
+                            )
                     }
                 } else {
                     #[cfg(feature = "v1")]

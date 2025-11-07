@@ -343,9 +343,12 @@ mod merchant_connector_account_cache_tests {
             )
             .unwrap();
         #[allow(clippy::expect_used)]
-        let db = MockDb::new(&redis_interface::RedisSettings::default(), common_utils::types::keymanager::KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            common_utils::types::keymanager::KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();

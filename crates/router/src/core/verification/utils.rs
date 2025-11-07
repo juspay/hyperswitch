@@ -42,10 +42,7 @@ pub async fn check_existence_and_add_domain_to_db(
     #[cfg(feature = "v2")]
     let merchant_connector_account = state
         .store
-        .find_merchant_connector_account_by_id(
-            &merchant_connector_id,
-            &key_store,
-        )
+        .find_merchant_connector_account_by_id(&merchant_connector_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     utils::validate_profile_id_from_auth_layer(

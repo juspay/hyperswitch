@@ -1544,11 +1544,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &merchant_id,
-                &profile_id,
-            )
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2032,11 +2028,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &merchant_id,
-                &profile_id,
-            )
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2219,11 +2211,7 @@ where
 
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &merchant_id,
-                &profile_id,
-            )
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2415,9 +2403,7 @@ where
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let (merchant_account, key_store) = state
             .store()
-            .find_merchant_account_by_publishable_key(
-                self.publishable_key.as_str(),
-            )
+            .find_merchant_account_by_publishable_key(self.publishable_key.as_str())
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -2670,11 +2656,7 @@ where
         }
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &merchant_id,
-                &profile_id,
-            )
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         Ok((
@@ -2800,11 +2782,7 @@ where
         let merchant_id = merchant_account.get_id().clone();
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &merchant_id,
-                &profile_id,
-            )
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         Ok((

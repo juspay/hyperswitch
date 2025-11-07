@@ -775,9 +775,7 @@ pub async fn list_merchant_account(
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
     let merchant_accounts = state
         .store
-        .list_merchant_accounts_by_organization_id(
-            &organization_id.organization_id,
-        )
+        .list_merchant_accounts_by_organization_id(&organization_id.organization_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1684,12 +1682,9 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
-        db.find_merchant_connector_account_by_id(
-            merchant_connector_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
     }
 
     async fn create_domain_model_from_request(
@@ -2678,10 +2673,7 @@ pub async fn retrieve_connector(
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let mca = store
-        .find_merchant_connector_account_by_id(
-            &id,
-            merchant_context.get_merchant_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&id, merchant_context.get_merchant_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -2712,7 +2704,7 @@ pub async fn list_connectors_for_a_profile(
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let merchant_connector_accounts = store
-        .list_connector_account_by_profile_id( &profile_id, &key_store)
+        .list_connector_account_by_profile_id(&profile_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
@@ -2936,10 +2928,7 @@ pub async fn delete_connector(
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let mca = db
-        .find_merchant_connector_account_by_id(
-            &id,
-            merchant_context.get_merchant_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&id, merchant_context.get_merchant_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),

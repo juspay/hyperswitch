@@ -82,10 +82,7 @@ pub async fn create_vault_token_core(
 
     // Insert into database
     let tokenization = db
-        .insert_tokenization(
-            tokenization_new,
-            &(merchant_key_store.clone()),
-        )
+        .insert_tokenization(tokenization_new, &(merchant_key_store.clone()))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert tokenization record")?;
@@ -112,10 +109,7 @@ pub async fn delete_tokenized_data_core(
 
     // Retrieve the tokenization record
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(
-            token_id,
-            merchant_context.get_merchant_key_store(),
-        )
+        .get_entity_id_vault_id_by_token_id(token_id, merchant_context.get_merchant_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound {
             id: token_id.get_string_repr().to_string(),
@@ -181,10 +175,7 @@ pub async fn get_token_vault_core(
     let db = state.store.as_ref();
 
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(
-            &query,
-            &(merchant_key_store.clone()),
-        )
+        .get_entity_id_vault_id_by_token_id(&query, &(merchant_key_store.clone()))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get tokenization record")?;
