@@ -1280,6 +1280,18 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
+            )
     }
 }
 
@@ -3089,12 +3101,23 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("/{authentication_id}/eligibility-check")
+                    .route(web::post().to(authentication::authentication_eligibility_check))
+                    .route(
+                        web::get().to(authentication::authentication_retrieve_eligibility_check),
+                    ),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")
                     .route(web::post().to(authentication::authentication_sync_post_update)),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
                     .route(web::post().to(authentication::authentication_sync)),
+            )
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
             )
     }
 }

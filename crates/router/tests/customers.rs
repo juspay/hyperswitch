@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::print_stdout)]
-
 mod utils;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid

@@ -14,7 +14,8 @@ use hyperswitch_domain_models::{
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
             GetSubscriptionPlanPricesData, GetSubscriptionPlansData, GiftCardBalanceCheckFlowData,
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
-            SubscriptionCreateData, SubscriptionCustomerData, UasFlowData, VaultConnectorFlowData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
             WebhookSourceVerifyData,
         },
         RouterDataV2,
@@ -79,6 +80,7 @@ fn get_default_router_data<F, Req, Resp>(
         refund_id: None,
         connector_response: None,
         payment_method_status: None,
+        is_migrated_card: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -897,6 +899,9 @@ default_router_data_conversion!(GetSubscriptionPlanPricesData);
 default_router_data_conversion!(SubscriptionCreateData);
 default_router_data_conversion!(SubscriptionCustomerData);
 default_router_data_conversion!(GetSubscriptionEstimateData);
+default_router_data_conversion!(SubscriptionResumeData);
+default_router_data_conversion!(SubscriptionPauseData);
+default_router_data_conversion!(SubscriptionCancelData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(
