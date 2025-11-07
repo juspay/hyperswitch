@@ -1168,6 +1168,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         minor_amount: Some(attempt.amount_details.get_net_amount()),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
+        split_payments: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -1538,6 +1539,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         is_stored_credential: None,
+        split_payments: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5002,6 +5004,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata.expose_option(),
             webhook_url,
             capture_method: Some(capture_method),
+            split_payments: None,
         })
     }
 }
