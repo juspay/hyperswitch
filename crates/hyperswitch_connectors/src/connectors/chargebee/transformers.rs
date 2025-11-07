@@ -119,10 +119,7 @@ where
     }
 }
 
-fn serialize_item_price_id<S>(
-    item_price_ids: &Vec<String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_item_price_id<S>(item_price_ids: &[String], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
