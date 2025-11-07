@@ -7339,7 +7339,7 @@ impl SplitPaymentData for PaymentsCancelData {
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-         self.split_payments.clone()
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {
