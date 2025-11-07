@@ -563,6 +563,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             Self::common_get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
+
         header.append(&mut api_key);
         Ok(header)
     }
@@ -1281,6 +1293,18 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
             PaymentsVoidType::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
+
         header.append(&mut api_key);
         Ok(header)
     }
@@ -1404,6 +1428,17 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             Verify::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            transformers::transform_headers_for_connect_platform(
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
+                &mut header,
+            );
+        }
         header.append(&mut api_key);
         Ok(header)
     }
