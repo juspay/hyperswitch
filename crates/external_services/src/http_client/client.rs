@@ -227,14 +227,17 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
                 error_stack::Report::new(HttpClientError::ClientConstructionFailed)
                     .attach_printable("Failed to acquire proxy client cache write lock")
             })?;
-            
+
             if let Some(cached_client) = write_lock.get(&cache_key) {
-                logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+                logger::debug!(
+                    "Retrieved cached proxy client after write lock for config: {:?}",
+                    cache_key
+                );
                 metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
                 cached_client.clone()
             } else {
                 logger::info!("Creating new proxy client for config: {:?}", cache_key);
-                
+
                 metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
                 let new_client =
