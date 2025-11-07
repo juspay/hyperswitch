@@ -62,13 +62,9 @@ describe("Bank Redirect tests", () => {
   context("EPS Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
-    before("seed global state", function () {
+    before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
-        // Skip EPS for Nuvei - not implemented in connector
-        if (globalState.get("connectorId") === "nuvei") {
-          this.skip();
-        }
       });
     });
 
@@ -128,13 +124,9 @@ describe("Bank Redirect tests", () => {
   context("iDEAL Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
-    before("seed global state", function () {
+    before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
-        // Skip iDEAL for Nuvei - not implemented in connector
-        if (globalState.get("connectorId") === "nuvei") {
-          this.skip();
-        }
       });
     });
 
