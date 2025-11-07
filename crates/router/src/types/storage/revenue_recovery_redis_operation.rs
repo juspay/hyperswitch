@@ -523,6 +523,10 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
+                existing_token.account_update_history = token_data.account_update_history.clone();
+                existing_token.payment_processor_token_details = token_data
+                    .payment_processor_token_details
+                    .clone();
 
                 existing_token
                     .modified_at
@@ -544,7 +548,7 @@ impl RedisTokenManager {
                         existing_token.is_hard_decline = token_data.is_hard_decline;
                         token_data
                             .is_active
-                            .map(|is_active| existing_token.is_active = Some(is_active));
+                            .map(|is_active| existing_token.is_active = Some(is_active));                        
                     });
             })
             .or_else(|| {
