@@ -189,7 +189,7 @@ impl ProxyClientCacheKey for Proxy {
     fn cache_key(&self) -> Option<Proxy> {
         if self.has_proxy_config() {
             logger::debug!("Using proxy config as cache key: {:?}", self);
-            
+
             // Return a clone of the proxy config for caching
             // Exclude timeout from cache key by creating a normalized version
             Some(Proxy {
@@ -209,7 +209,10 @@ impl ProxyClientCacheKey for Proxy {
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     // Check if proxy configuration is provided using trait method
     if let Some(cache_key) = proxy_config.cache_key() {
-        logger::debug!("Using proxy-specific client cache with key: {:?}", cache_key);
+        logger::debug!(
+            "Using proxy-specific client cache with key: {:?}",
+            cache_key
+        );
 
         let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
 
@@ -227,7 +230,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         } else {
             // Create new proxy client if not in cache
             logger::info!("Creating new proxy client for config: {:?}", cache_key);
-            
+
             metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
             let new_client =
