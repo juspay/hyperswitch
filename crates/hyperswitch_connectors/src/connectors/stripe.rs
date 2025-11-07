@@ -1294,7 +1294,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
 
-         if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
             stripe_split_payment,
         )) = &req.request.split_payments
         {

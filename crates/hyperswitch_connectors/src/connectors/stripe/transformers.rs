@@ -3396,8 +3396,8 @@ where
 
 impl<F, T> TryFrom<ResponseRouterData<F, SetupIntentResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
-      where
-        T: SplitPaymentData,
+where
+    T: SplitPaymentData,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
