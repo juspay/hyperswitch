@@ -1117,7 +1117,7 @@ impl RedisTokenManager {
         scheduled_token: &PaymentProcessorTokenStatus,
         mandate_data: Option<api_models::payments::MandateIds>,
         payment_attempt_id: &id_type::GlobalAttemptId,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<AccountUpdaterAction, errors::StorageError> {
         match mandate_data {
             Some(data) => {
                 logger::info!(
@@ -1136,29 +1136,14 @@ impl RedisTokenManager {
                         data,
                     )?;
 
-                account_updater_action
-                    .handle_account_updater_action(
-                        state,
-                        customer_id,
-                        &account_updater_action,
-                        scheduled_token,
-                        payment_attempt_id,
-                    )
-                    .await?;
-
-                logger::info!(
-                    customer_id = customer_id,
-                    "Successfully updated token with mandate data."
-                );
-
-                Ok(true)
+                Ok(account_updater_action)
             }
             None => {
                 logger::info!(
                     customer_id = customer_id,
                     "Skipping token update. Since we didn't get any updated mandate data"
                 );
-                Ok(false)
+                Ok(AccountUpdaterAction::NoAction)
             }
         }
     }
@@ -1222,15 +1207,14 @@ pub enum AccountUpdaterAction {
 }
 
 impl AccountUpdaterAction {
-    async fn handle_account_updater_action(
+    pub async fn handle_account_updater_action(
         &self,
         state: &SessionState,
         customer_id: &str,
-        account_updater_action: &Self,
         scheduled_token: &PaymentProcessorTokenStatus,
         attempt_id: &id_type::GlobalAttemptId,
     ) -> CustomResult<(), errors::StorageError> {
-        match account_updater_action {
+        match self {
             Self::TokenUpdate(new_token, updated_mandate_details) => {
                 logger::info!("Handling TokenUpdate action with new token");
                 // Implement token update logic here using additional_card_info if needed

@@ -9,7 +9,7 @@ use api_models::{
 };
 use common_utils::{
     self,
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{AsyncExt, OptionExt, ValueExt},
     id_type,
 };
 use diesel_models::{
@@ -431,7 +431,7 @@ impl Action {
         // handle proxy api's response
         match response {
             Ok(payment_data) => {
-                let _account_updater_result = storage::revenue_recovery_redis_operation::RedisTokenManager::handle_account_updater_token_update(
+                let account_updater_action = storage::revenue_recovery_redis_operation::RedisTokenManager::handle_account_updater_token_update(
                     state,
                     &connector_customer_id,
                     scheduled_token,
@@ -440,10 +440,33 @@ impl Action {
                 ).await
                 .inspect_err(|e| {
                     logger::error!(
-                        "Failed to handle account updater token update: {:?}",
+                        "Failed to handle get valid action: {:?}",
                         e
                     );
-                });
+                })
+                .ok();
+
+                let _account_updater_result  = account_updater_action.async_map(|action| {
+                let customer_id  =  connector_customer_id.clone();
+                let payment_attempt_id = payment_data.payment_attempt.id.clone();
+                async move {
+                    action.handle_account_updater_action(
+                        state,
+                        customer_id.as_str(),
+                        scheduled_token,
+                        &payment_attempt_id
+                    ).await
+                }
+                })
+                .await
+                .transpose()
+                .inspect_err(|e| {
+                    logger::error!(
+                        "Failed to handle account updater action: {:?}",
+                        e
+                    );
+                })
+                .ok();
 
                 match payment_data.payment_attempt.status.foreign_into() {
                     RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
