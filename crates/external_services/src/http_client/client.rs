@@ -229,7 +229,10 @@ fn get_or_create_proxy_client(
 
     // Double-check pattern: another thread might have created it
     if let Some(cached_client) = write_lock.get(&cache_key) {
-        logger::debug!("Retrieved cached proxy client after write lock for config: {:?}", cache_key);
+        logger::debug!(
+            "Retrieved cached proxy client after write lock for config: {:?}",
+            cache_key
+        );
         metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
         return Ok(cached_client.clone());
     }
