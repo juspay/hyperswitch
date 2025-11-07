@@ -312,6 +312,17 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_webhook_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_webhook_details(request),
+            Self::New(connector) => connector.get_payout_webhook_details(request),
+        }
+    }
+
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -508,6 +519,44 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
+                current_flow,
+                pre_processing_flow_name,
+                preprocessing_flow_response,
+            ),
+        }
+    }
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match self {
+            Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+            Self::New(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match self {
+            Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
+            Self::New(connector) => connector.get_alternate_flow_if_needed(current_flow),
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         match self {
             Self::Old(connector) => connector.get_supported_payment_methods(),
@@ -620,6 +669,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+    }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
+            Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
 }

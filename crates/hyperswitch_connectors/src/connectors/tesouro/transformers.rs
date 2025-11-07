@@ -1,3 +1,5 @@
+pub mod tesouro_queries;
+use api_models::payments::AdditionalPaymentData;
 use common_enums::enums;
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::types::FloatMajorUnit;
@@ -8,38 +10,31 @@ use hyperswitch_domain_models::{
     },
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId,
-    },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_request_types::{PaymentsSyncData, ResponseId, SetupMandateRequestData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
-        self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
-        RefundsRequestData, RouterData as _,
+        self as connector_utils, AdditionalCardInfo, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
 };
-
-pub mod tesouro_queries {
-    pub const AUTHORIZE_TRANSACTION: &str = "mutation AuthorizeCustomerInitiatedTransaction($authorizeCustomerInitiatedTransactionInput: AuthorizeCustomerInitiatedTransactionInput!) { authorizeCustomerInitiatedTransaction(authorizeCustomerInitiatedTransactionInput: $authorizeCustomerInitiatedTransactionInput) { authorizationResponse { paymentId transactionId __typename ... on AuthorizationApproval { __typename paymentId transactionId } ... on AuthorizationDecline { __typename transactionId paymentId } } errors { ... on InternalServiceError { message transactionId processorResponseCode } ... on AcceptorNotFoundError { message transactionId processorResponseCode } ... on RuleInViolationError { message transactionId processorResponseCode } ... on SyntaxOnNetworkResponseError {  message transactionId processorResponseCode } ... on TimeoutOnNetworkResponseError { message transactionId processorResponseCode } ... on ValidationFailureError {  message processorResponseCode transactionId } ... on UnknownCardError {  message processorResponseCode transactionId } ... on TokenNotFoundError {  message processorResponseCode transactionId } ... on InvalidTokenError {  message processorResponseCode transactionId } ... on RouteNotFoundError {  message processorResponseCode transactionId } } } }";
-    pub const CAPTURE_TRANSACTION: &str = "mutation CaptureAuthorization($captureAuthorizationInput: CaptureAuthorizationInput!) { captureAuthorization(captureAuthorizationInput: $captureAuthorizationInput) { captureAuthorizationResponse { __typename ... on CaptureAuthorizationApproval { __typename paymentId transactionId } ... on CaptureAuthorizationDecline { __typename paymentId transactionId } } errors { ... on InternalServiceError { message processorResponseCode transactionId } ... on RuleInViolationError {  message processorResponseCode transactionId } ... on SyntaxOnNetworkResponseError {  message processorResponseCode transactionId } ... on TimeoutOnNetworkResponseError {  message processorResponseCode transactionId } ... on ValidationFailureError {  message processorResponseCode transactionId} ... on PriorPaymentNotFoundError { message processorResponseCode transactionId } } } }";
-    pub const VOID_TRANSACTION: &str = "mutation ReverseTransaction($reverseTransactionInput: ReverseTransactionInput!) { reverseTransaction(reverseTransactionInput: $reverseTransactionInput) { errors {  ... on InternalServiceError {  message processorResponseCode transactionId } ... on RuleInViolationError {  message processorResponseCode transactionId } ... on SyntaxOnNetworkResponseError {  message processorResponseCode transactionId } ... on TimeoutOnNetworkResponseError {  message processorResponseCode transactionId } ... on ValidationFailureError {  message processorResponseCode transactionId } ... on PriorTransactionNotFoundError {  message processorResponseCode transactionId } } reverseTransactionResponse {  paymentId transactionId ... on ReverseTransactionApproval {  paymentId transactionId } ... on ReverseTransactionDecline {  message paymentId transactionId declineType } } } }";
-    pub const REFUND_TRANSACTION: &str = "mutation RefundPreviousPayment($refundPreviousPaymentInput: RefundPreviousPaymentInput!) { refundPreviousPayment(refundPreviousPaymentInput: $refundPreviousPaymentInput) { errors {  ... on InternalServiceError {  message processorResponseCode transactionId } ... on RuleInViolationError { processorResponseCode message transactionId } ... on SyntaxOnNetworkResponseError { message processorResponseCode transactionId } ... on TimeoutOnNetworkResponseError {  processorResponseCode message transactionId } ... on ValidationFailureError {  message processorResponseCode transactionId } ... on PriorPaymentNotFoundError {  message processorResponseCode transactionId } } refundPreviousPaymentResponse { __typename ... on RefundPreviousPaymentApproval { __typename paymentId transactionId } ... on RefundPreviousPaymentDecline { __typename declineType message transactionId paymentId } } } }";
-    pub const SYNC_TRANSACTION: &str = "query PaymentTransaction($paymentTransactionId: UUID!) { paymentTransaction(id: $paymentTransactionId) { __typename responseType reference id paymentId ... on AcceptedSale { __typename id processorResponseCode processorResponseMessage } ... on ApprovedAuthorization { __typename id processorResponseCode processorResponseMessage } ... on ApprovedCapture { __typename id processorResponseCode processorResponseMessage } ... on ApprovedReversal { __typename id processorResponseCode processorResponseMessage } ... on DeclinedAuthorization { __typename id processorResponseCode processorResponseMessage } ... on DeclinedCapture { __typename id processorResponseCode processorResponseMessage } ... on DeclinedReversal { __typename id processorResponseCode processorResponseMessage } ... on GenericPaymentTransaction { __typename id processorResponseCode processorResponseMessage } ... on Authorization { __typename id processorResponseCode processorResponseMessage } ... on Capture { __typename id processorResponseCode processorResponseMessage } ... on Reversal { __typename id processorResponseCode processorResponseMessage } ... on Sale { __typename id processorResponseCode processorResponseMessage } } }";
-}
 
 pub mod tesouro_constants {
     pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 28;
@@ -51,13 +46,15 @@ pub struct GenericTesouroRequest<T> {
     variables: T,
 }
 
-pub type TesouroAuthorizeRequest = GenericTesouroRequest<TesouroAuthorizeInput>;
+pub type TesouroAuthorizeRequest = GenericTesouroRequest<TesouroPaymentRequest>;
+pub type TesouroSetupMandateRequest = GenericTesouroRequest<TesouroVerifyAccountRequest>;
 pub type TesouroCaptureRequest = GenericTesouroRequest<TesouroCaptureInput>;
 pub type TesouroVoidRequest = GenericTesouroRequest<TesouroVoidInput>;
 pub type TesouroRefundRequest = GenericTesouroRequest<TesouroRefundInput>;
 pub type TesouroSyncRequest = GenericTesouroRequest<TesouroSyncInput>;
 
 pub type TesouroAuthorizeResponse = TesouroApiResponse<TesouroAuthorizeResponseData>;
+pub type TesouroSetupMandateResponse = TesouroApiResponse<TesouroVerifyAccountResponseData>;
 pub type TesouroCaptureResponse = TesouroApiResponse<TesouroCaptureResponseData>;
 pub type TesouroVoidResponse = TesouroApiResponse<TesouroVoidResponseData>;
 pub type TesouroRefundResponse = TesouroApiResponse<RefundTransactionResponseData>;
@@ -98,12 +95,24 @@ pub struct TransactionResponseData<T> {
     pub transaction_id: String,
     pub decline_type: Option<String>,
     pub message: Option<String>,
+    pub token_details: Option<TesouroTokenDetails>,
+    pub activity_date: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroAuthorizeResponseData {
+    #[serde(
+        alias = "authorizeRecurring",
+        alias = "authorizeCustomerInitiatedTransaction"
+    )]
     authorize_customer_initiated_transaction: AuthorizeCustomerInitiatedTransactionResponseData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroVerifyAccountResponseData {
+    verify_account: TeseroVerifyAccountResponse,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -120,6 +129,21 @@ pub struct AuthorizeCustomerInitiatedTransactionResponseData {
     errors: Option<Vec<TesouroTransactionErrorResponseData>>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeseroVerifyAccountResponse {
+    verify_account_response: Option<VerifyAccountResponseType>,
+    errors: Option<Vec<TesouroTransactionErrorResponseData>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyAccountResponseType {
+    pub payment_id: String,
+    pub transaction_id: String,
+    pub token_details: TesouroTokenDetails,
+    pub activity_date: String,
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroCaptureResponseData {
@@ -273,11 +297,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, TesouroAccessTokenResponse, T, AccessTo
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TesouroAuthorizeInput {
-    pub authorize_customer_initiated_transaction_input: AuthorizeCustomerInitiatedTransactionInput,
+#[serde(untagged, rename_all = "camelCase")]
+pub enum TesouroPaymentRequest {
+    #[serde(rename_all = "camelCase")]
+    Authorize {
+        authorize_customer_initiated_transaction_input: AuthorizeCustomerInitiatedTransactionInput,
+    },
+    #[serde(rename_all = "camelCase")]
+    Recurring {
+        authorize_recurring_input: AuthorizeRecurringTransactionInput,
+    },
 }
-
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroVerifyAccountRequest {
+    verify_account_input: TesouroVerifyAccountInput,
+}
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroCaptureInput {
@@ -333,11 +368,56 @@ pub enum TesouroWalletType {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TesouroAuthorizeRecurringAcquirerTokenDetails {
+    pub expiration_month: Option<Secret<String>>,
+    pub expiration_year: Option<Secret<String>>,
+    pub token: Secret<String>,
+    pub security_code: TesouroSecurityCode,
+    pub wallet_type: Option<TesouroWalletType>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum TesouroPaymentMethodDetails {
     CardWithPanDetails(TesouroCardWithPanDetails),
     NetworkTokenPassThroughDetails(TesouroNetworkTokenPassThroughDetails),
+    AcquirerTokenDetails(TesouroAuthorizeRecurringAcquirerTokenDetails),
 }
 
+impl TesouroPaymentMethodDetails {
+    fn get_recurring_acqquirer_token_details(
+        connector_mandate_id: String,
+        additional_payment_data: AdditionalPaymentData,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        let (expiration_month, expiration_year) = match additional_payment_data {
+            AdditionalPaymentData::Card(additional_card_info) => Ok((
+                additional_card_info.card_exp_month.clone(),
+                Some(additional_card_info.get_card_expiry_year_4_digit()?),
+            )),
+            AdditionalPaymentData::Wallet {
+                apple_pay: _,
+                google_pay: _,
+                samsung_pay: _,
+            } => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "expiration date and expiration year",
+            }),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "expiration date and expiration year",
+            }),
+        }?;
+        Ok(Self::AcquirerTokenDetails(
+            TesouroAuthorizeRecurringAcquirerTokenDetails {
+                expiration_month,
+                expiration_year,
+                token: Secret::new(connector_mandate_id),
+                security_code: TesouroSecurityCode::OmissionReason {
+                    omission_reason: TesouroOmissionReason::VerificationNotRequested,
+                },
+                wallet_type: None,
+            },
+        ))
+    }
+}
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroCardWithPanDetails {
@@ -346,12 +426,14 @@ pub struct TesouroCardWithPanDetails {
     pub account_number: cards::CardNumber,
     pub payment_entry_mode: TesouroPaymentEntryMode,
     pub security_code: TesouroSecurityCode,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_intent: Option<TesouroStorageIntent>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroNetworkTokenPassThroughDetails {
-    pub cryptogram: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub token_value: cards::CardNumber,
@@ -363,11 +445,25 @@ pub struct TesouroNetworkTokenPassThroughDetails {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TesouroPaymentEntryMode {
     PaymentMethodNotOnFile,
+    PaymentMethodOnFile,
 }
-
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TesouroOmissionReason {
+    ILLEGIBLE,
+    NotImprinted,
+    VerificationNotRequested,
+}
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TesouroSecurityCode {
-    pub value: Secret<String>,
+#[serde(untagged)]
+pub enum TesouroSecurityCode {
+    Value {
+        value: Secret<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    OmissionReason {
+        omission_reason: TesouroOmissionReason,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -393,6 +489,12 @@ pub struct BillToAddress {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CitReference {
+    pub cit_payment_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthorizeCustomerInitiatedTransactionInput {
     pub acceptor_id: Secret<String>,
     pub transaction_reference: String,
@@ -401,6 +503,33 @@ pub struct AuthorizeCustomerInitiatedTransactionInput {
     pub automatic_capture: TesouroAutomaticCapture,
     pub authorization_intent: TesouroAuthorizationIntent,
     pub bill_to_address: BillToAddress,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TesouroStorageIntent {
+    StoreOnFile,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizeRecurringTransactionInput {
+    pub acceptor_id: Secret<String>,
+    pub transaction_reference: String,
+    pub payment_method_details: TesouroPaymentMethodDetails,
+    pub transaction_amount_details: TransactionAmountDetails,
+    pub automatic_capture: TesouroAutomaticCapture,
+    pub bill_to_address: BillToAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cit_reference: Option<CitReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_purchase_date: Option<String>,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroVerifyAccountInput {
+    pub acceptor_id: Secret<String>,
+    pub transaction_reference: String,
+    pub bill_to_address: BillToAddress,
+    pub payment_method_details: TesouroPaymentMethodDetails,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -429,21 +558,30 @@ pub struct RefundPreviousPaymentInput {
     pub transaction_amount_details: TransactionAmountDetails,
 }
 
-impl TryFrom<&Card> for TesouroPaymentMethodDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &Card) -> Result<Self, Self::Error> {
-        let card_data = TesouroCardWithPanDetails {
-            expiration_month: value.get_card_expiry_month_2_digit()?,
-            expiration_year: value.get_expiry_year_4_digit(),
-            account_number: value.card_number.clone(),
-            payment_entry_mode: TesouroPaymentEntryMode::PaymentMethodNotOnFile,
-            security_code: TesouroSecurityCode {
-                value: value.card_cvc.clone(),
-            },
-        };
+fn get_card_payment_method(
+    card: &Card,
+    is_mandate_payment: bool,
+) -> Result<TesouroPaymentMethodDetails, error_stack::Report<errors::ConnectorError>> {
+    let card_data = TesouroCardWithPanDetails {
+        expiration_month: card.get_card_expiry_month_2_digit()?,
+        expiration_year: card.get_expiry_year_4_digit(),
+        account_number: card.card_number.clone(),
+        payment_entry_mode: if is_mandate_payment {
+            TesouroPaymentEntryMode::PaymentMethodOnFile
+        } else {
+            TesouroPaymentEntryMode::PaymentMethodNotOnFile
+        },
+        security_code: TesouroSecurityCode::Value {
+            value: card.card_cvc.clone(),
+        },
+        storage_intent: if is_mandate_payment {
+            Some(TesouroStorageIntent::StoreOnFile)
+        } else {
+            None
+        },
+    };
 
-        Ok(Self::CardWithPanDetails(card_data))
-    }
+    Ok(TesouroPaymentMethodDetails::CardWithPanDetails(card_data))
 }
 
 fn get_apple_pay_data(
@@ -466,7 +604,7 @@ fn get_apple_pay_data(
     }
 }
 
-fn get_goole_pay_data(
+fn get_google_pay_data(
     google_pay_wallet_data: &GooglePayWalletData,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<GPayPredecryptData, error_stack::Report<errors::ConnectorError>> {
@@ -495,7 +633,7 @@ impl TryFrom<(&ApplePayWalletData, Option<&PaymentMethodToken>)> for TesouroPaym
 
         let network_token_details = TesouroNetworkTokenPassThroughDetails {
             expiration_year: apple_pay_data.get_four_digit_expiry_year(),
-            cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
+            cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
             token_value: apple_pay_data.application_primary_account_number,
             expiration_month: apple_pay_data.application_expiration_month,
             ecommerce_indicator: apple_pay_data.payment_data.eci_indicator,
@@ -511,7 +649,7 @@ impl TryFrom<(&GooglePayWalletData, Option<&PaymentMethodToken>)> for TesouroPay
     fn try_from(
         (wallet_data, payment_method_token): (&GooglePayWalletData, Option<&PaymentMethodToken>),
     ) -> Result<Self, Self::Error> {
-        let google_pay_data = get_goole_pay_data(wallet_data, payment_method_token)?;
+        let google_pay_data = get_google_pay_data(wallet_data, payment_method_token)?;
 
         let network_token_details = TesouroNetworkTokenPassThroughDetails {
             expiration_year: google_pay_data
@@ -519,11 +657,7 @@ impl TryFrom<(&GooglePayWalletData, Option<&PaymentMethodToken>)> for TesouroPay
                 .change_context(errors::ConnectorError::InvalidWalletToken {
                     wallet_name: "Google Pay".to_string(),
                 })?,
-            cryptogram: google_pay_data.cryptogram.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "google pay data cryptogram",
-                },
-            )?,
+            cryptogram: google_pay_data.cryptogram,
             token_value: google_pay_data.application_primary_account_number,
             expiration_month: google_pay_data.card_exp_month,
             ecommerce_indicator: google_pay_data.eci_indicator,
@@ -555,8 +689,8 @@ impl From<bool> for TesouroCaptureData {
     }
 }
 
-impl From<&PaymentsAuthorizeRouterData> for BillToAddress {
-    fn from(router_data: &PaymentsAuthorizeRouterData) -> Self {
+impl<Flow, Request, Response> From<&RouterData<Flow, Request, Response>> for BillToAddress {
+    fn from(router_data: &RouterData<Flow, Request, Response>) -> Self {
         Self {
             address1: router_data.get_optional_billing_line1(),
             address2: router_data.get_optional_billing_line2(),
@@ -573,6 +707,36 @@ impl From<&PaymentsAuthorizeRouterData> for BillToAddress {
             state: router_data.get_optional_billing_state(),
         }
     }
+}
+
+pub fn get_tesouro_setupmandate_request(
+    router_data: &SetupMandateRouterData,
+) -> Result<TesouroSetupMandateRequest, error_stack::Report<errors::ConnectorError>> {
+    let auth = TesouroAuthType::try_from(&router_data.connector_auth_type)?;
+    let acceptor_id = auth.get_acceptor_id();
+    let transaction_reference =
+        get_valid_transaction_id(router_data.connector_request_reference_id.clone())?;
+    let bill_to_address = BillToAddress::from(router_data);
+    let payment_method_details = match &router_data.request.payment_method_data {
+        PaymentMethodData::Card(card) => get_card_payment_method(card, true),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            connector_utils::get_unimplemented_payment_method_error_message("tesouro"),
+        )
+        .into()),
+    }?;
+    let verify_account_input = TesouroVerifyAccountInput {
+        acceptor_id,
+        transaction_reference,
+        bill_to_address,
+        payment_method_details,
+    };
+
+    Ok(TesouroSetupMandateRequest {
+        query: tesouro_queries::SETUP_MANDATE.to_string(),
+        variables: TesouroVerifyAccountRequest {
+            verify_account_input,
+        },
+    })
 }
 
 impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthorizeRequest {
@@ -592,9 +756,61 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
         let transaction_reference =
             get_valid_transaction_id(item.router_data.connector_request_reference_id.clone())?;
         let capture_data = TesouroCaptureData::from(item.router_data.request.is_auto_capture()?);
-
+        let mut cit_reference = None;
+        let mut original_purchase_date = None;
         let payment_method_details = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => TesouroPaymentMethodDetails::try_from(card),
+            PaymentMethodData::Card(card) => {
+                get_card_payment_method(card, item.router_data.request.is_mandate_payment())
+            }
+            PaymentMethodData::MandatePayment => {
+                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+                cit_reference = {
+                    let mandate_reference_id = item
+                        .router_data
+                        .request
+                        .get_connector_mandate_request_reference_id()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                        })?;
+
+                    Some(CitReference {
+                        cit_payment_id: mandate_reference_id.clone().into(),
+                    })
+                };
+                let additional_payment_data = item
+                    .router_data
+                    .request
+                    .additional_payment_method_data
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "additional_payment_method_data",
+                    })?;
+                original_purchase_date = {
+                    if let Some(metadata) = item
+                        .router_data
+                        .get_recurring_mandate_payment_data()?
+                        .mandate_metadata
+                    {
+                        let tesouro_metadata: TesouroMandateMetadata =
+                            serde_json::from_value(metadata.expose()).map_err(|_| {
+                                errors::ConnectorError::MissingConnectorMandateMetadata
+                            })?;
+                        Some(tesouro_metadata.activity_date)
+                    } else {
+                        let now = chrono::Utc::now();
+                        Some(now.format("%Y-%m-%d").to_string())
+                    }
+                };
+
+                TesouroPaymentMethodDetails::get_recurring_acqquirer_token_details(
+                    connector_mandate_id,
+                    additional_payment_data,
+                )
+            }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::ApplePay(apple_pay_wallet_data) => {
                     let payment_method_token = item.router_data.payment_method_token.as_ref();
@@ -610,6 +826,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                         payment_method_token,
                     ))
                 }
+
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -652,7 +869,6 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
@@ -669,24 +885,46 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
 
         let bill_to_address = BillToAddress::from(item.router_data);
 
-        Ok(Self {
-            query: tesouro_queries::AUTHORIZE_TRANSACTION.to_string(),
-            variables: TesouroAuthorizeInput {
-                authorize_customer_initiated_transaction_input:
-                    AuthorizeCustomerInitiatedTransactionInput {
-                        acceptor_id,
-                        transaction_reference,
-                        payment_method_details,
-                        transaction_amount_details: TransactionAmountDetails {
-                            total_amount: item.amount,
-                            currency: item.router_data.request.currency,
-                        },
-                        automatic_capture: capture_data.automatic_capture,
-                        authorization_intent: capture_data.authorization_intent,
-                        bill_to_address,
-                    },
-            },
-        })
+        if item.router_data.request.payment_method_data == PaymentMethodData::MandatePayment {
+            let request_input = AuthorizeRecurringTransactionInput {
+                acceptor_id,
+                transaction_reference,
+                payment_method_details,
+                transaction_amount_details: TransactionAmountDetails {
+                    total_amount: item.amount,
+                    currency: item.router_data.request.currency,
+                },
+                automatic_capture: capture_data.automatic_capture,
+                bill_to_address,
+                cit_reference,
+                original_purchase_date,
+            };
+            Ok(Self {
+                query: tesouro_queries::AUTHORIZE_RECURRING.to_string(),
+                variables: TesouroPaymentRequest::Recurring {
+                    authorize_recurring_input: request_input,
+                },
+            })
+        } else {
+            let request_input = AuthorizeCustomerInitiatedTransactionInput {
+                acceptor_id,
+                transaction_reference,
+                payment_method_details,
+                transaction_amount_details: TransactionAmountDetails {
+                    total_amount: item.amount,
+                    currency: item.router_data.request.currency,
+                },
+                automatic_capture: capture_data.automatic_capture,
+                authorization_intent: capture_data.authorization_intent,
+                bill_to_address,
+            };
+            Ok(Self {
+                query: tesouro_queries::AUTHORIZE_TRANSACTION.to_string(),
+                variables: TesouroPaymentRequest::Authorize {
+                    authorize_customer_initiated_transaction_input: request_input,
+                },
+            })
+        }
     }
 }
 
@@ -748,11 +986,40 @@ impl TryFrom<&PaymentsCancelRouterData> for TesouroVoidRequest {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroTokenDetails {
+    token: Option<Secret<String>>,
+}
+
+pub fn get_mandate_reference(
+    token_details: Option<TesouroTokenDetails>,
+    payment_id: Option<String>,
+    activity_date: Option<String>,
+) -> Result<Option<MandateReference>, error_stack::Report<errors::ConnectorError>> {
+    if let Some(token_details) = token_details.clone() {
+        let mandate_metadata: Option<Secret<serde_json::Value>> =
+            activity_date.clone().map(|activity_date| {
+                serde_json::json!(TesouroMandateMetadata { activity_date }).into()
+            });
+        Ok(Some(MandateReference {
+            connector_mandate_id: token_details
+                .token
+                .map(|token| token.clone().expose())
+                .clone(),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: payment_id.clone(),
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TesouroApprovalResponse {
-    pub payment_id: String,
-    pub transaction_id: String,
+pub struct TesouroMandateMetadata {
+    pub activity_date: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -778,24 +1045,10 @@ pub struct TesouroTransactionMetadata {
     pub payment_id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            TesouroAuthorizeResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TesouroAuthorizeResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<TesouroAuthorizeResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {
@@ -804,7 +1057,7 @@ impl<F>
                     .authorize_customer_initiated_transaction
                     .authorization_response
                 {
-                    let transaction_id = authorization_response.transaction_id;
+                    let transaction_id = authorization_response.transaction_id.clone();
                     let connector_metadata = serde_json::json!(TesouroTransactionMetadata {
                         payment_id: authorization_response
                             .payment_id
@@ -819,9 +1072,15 @@ impl<F>
                                 enums::AttemptStatus::Authorized
                             },
                             response: Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    transaction_id.clone(),
+                                ),
                                 redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
+                                mandate_reference: Box::new(get_mandate_reference(
+                                    authorization_response.token_details.clone(),
+                                    authorization_response.payment_id,
+                                    authorization_response.activity_date,
+                                )?),
                                 connector_metadata: Some(connector_metadata),
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
@@ -859,7 +1118,9 @@ impl<F>
                         None => Ok(Self {
                             status: enums::AttemptStatus::Pending,
                             response: Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    transaction_id.clone(),
+                                ),
                                 redirection_data: Box::new(None),
                                 mandate_reference: Box::new(None),
                                 connector_metadata: Some(connector_metadata),
@@ -956,6 +1217,125 @@ impl<F>
     }
 }
 
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            TesouroSetupMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            TesouroSetupMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            TesouroApiResponse::TesouroApiSuccessResponse(response) => {
+                if let Some(account_setup_response) =
+                    response.data.verify_account.verify_account_response
+                {
+                    let connector_metadata = serde_json::json!(TesouroTransactionMetadata {
+                        payment_id: account_setup_response.payment_id.clone()
+                    });
+                    Ok(Self {
+                        status: enums::AttemptStatus::Charged,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                account_setup_response.transaction_id.clone(),
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(get_mandate_reference(
+                                Some(account_setup_response.token_details),
+                                Some(account_setup_response.payment_id),
+                                Some(account_setup_response.activity_date),
+                            )?),
+                            connector_metadata: Some(connector_metadata),
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                } else if let Some(errors) = response.data.verify_account.errors {
+                    let error_response = errors.first();
+                    let error_code = error_response
+                        .as_ref()
+                        .and_then(|error_data| error_data.processor_response_code.clone())
+                        .unwrap_or(NO_ERROR_CODE.to_string());
+                    let error_message = error_response
+                        .as_ref()
+                        .map(|error_data| error_data.message.clone());
+                    let connector_transaction_id = error_response
+                        .as_ref()
+                        .and_then(|error_data| error_data.transaction_id.clone());
+
+                    Ok(Self {
+                        status: enums::AttemptStatus::Failure,
+                        response: Err(ErrorResponse {
+                            code: error_code.clone(),
+                            message: error_message
+                                .clone()
+                                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                            reason: error_message.clone(),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        }),
+                        ..item.data
+                    })
+                } else {
+                    Err(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from(
+                            "Expected either error or account verify response".to_string(),
+                        ),
+                    ))?
+                }
+            }
+            TesouroApiResponse::TesouroErrorResponse(tesouro_api_error_response) => {
+                let message = tesouro_api_error_response
+                    .errors
+                    .iter()
+                    .map(|error| error.message.to_string())
+                    .collect::<Vec<String>>();
+
+                let error_message = match !message.is_empty() {
+                    true => Some(message.join(" ")),
+                    false => None,
+                };
+                Ok(Self {
+                    status: enums::AttemptStatus::Failure,
+                    response: Err(ErrorResponse {
+                        code: NO_ERROR_CODE.to_string(),
+                        message: error_message
+                            .clone()
+                            .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                        reason: error_message.clone(),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
+    }
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TesouroAccessTokenErrorResponse {
     pub error: String,
@@ -980,19 +1360,12 @@ pub struct TesouroGraphQlErrorExtensions {
     pub reason: Option<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, TesouroCaptureResponse, PaymentsCaptureData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TesouroCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<TesouroCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {
@@ -1001,7 +1374,7 @@ impl<F>
                     .capture_authorization
                     .capture_authorization_response
                 {
-                    let transaction_id = capture_authorization_response.transaction_id;
+                    let transaction_id = capture_authorization_response.transaction_id.clone();
                     match capture_authorization_response.type_name {
                         Some(CaptureTransactionResponseType::CaptureAuthorizationApproval) => {
                             Ok(Self {
@@ -1009,7 +1382,11 @@ impl<F>
                                 response: Ok(PaymentsResponseData::TransactionResponse {
                                     resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                                     redirection_data: Box::new(None),
-                                    mandate_reference: Box::new(None),
+                                    mandate_reference: Box::new(get_mandate_reference(
+                                        capture_authorization_response.token_details.clone(),
+                                        capture_authorization_response.payment_id.clone(),
+                                        capture_authorization_response.activity_date.clone(),
+                                    )?),
                                     connector_metadata: None,
                                     network_txn_id: None,
                                     connector_response_reference_id: None,
@@ -1128,13 +1505,10 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, TesouroVoidResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, TesouroVoidResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<TesouroVoidResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             TesouroApiResponse::TesouroApiSuccessResponse(response) => {
@@ -1510,7 +1884,7 @@ fn get_payment_attempt_status(
         | TesouroSyncStatus::Refund
         | TesouroSyncStatus::RefundAuthorization => {
             Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Invalid Status Recieved".to_string()),
+                bytes::Bytes::from("Invalid Status Received".to_string()),
             ))
         }
     }
@@ -1663,7 +2037,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                     }
                     _ => {
                         return Err(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Invalid Status Recieved".to_string()),
+                            bytes::Bytes::from("Invalid Status Received".to_string()),
                         )
                         .into())
                     }

@@ -144,6 +144,7 @@ diesel::table! {
         message_extension -> Nullable<Jsonb>,
         #[max_length = 255]
         challenge_request_key -> Nullable<Varchar>,
+        customer_details -> Nullable<Bytea>,
     }
 }
 
@@ -1088,6 +1089,7 @@ diesel::table! {
         network_details -> Nullable<Jsonb>,
         is_stored_credential -> Nullable<Bool>,
         authorized_amount -> Nullable<Int8>,
+        extended_authorization_last_applied_at -> Nullable<Timestamp>,
     }
 }
 
@@ -1380,6 +1382,8 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 32]
         priority -> Nullable<Varchar>,
+        #[max_length = 32]
+        organization_id -> Nullable<Varchar>,
     }
 }
 

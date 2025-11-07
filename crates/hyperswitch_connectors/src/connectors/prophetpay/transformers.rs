@@ -11,9 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{CardRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::Execute,
-    router_request_types::{
-        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, PaymentsAuthorizeData, ResponseId,
-    },
+    router_request_types::{CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
@@ -23,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self, to_connector_meta},
 };
 
@@ -174,19 +172,12 @@ pub struct ProphetpayTokenResponse {
     hosted_tokenize_id: Secret<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, ProphetpayTokenResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<ProphetpayTokenResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            ProphetpayTokenResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<ProphetpayTokenResponse>,
     ) -> Result<Self, Self::Error> {
         let url_data = format!(
             "{}{}",

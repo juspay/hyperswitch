@@ -788,8 +788,18 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/payment-methods")
-                        .route(web::get().to(payments::list_payment_methods)),
+                    web::scope("/payment-methods")
+                        .service(
+                            web::resource("").route(web::get().to(payments::list_payment_methods)),
+                        )
+                        .service(
+                            web::resource("/check-balance")
+                                .route(web::post().to(payments::payment_check_gift_card_balance)),
+                        ),
+                )
+                .service(
+                    web::resource("/apply-payment-method-data")
+                        .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -797,10 +807,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                )
-                .service(
-                    web::resource("/check-gift-card-balance")
-                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 )
                 .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
@@ -1273,6 +1279,18 @@ impl Subscription {
             .service(
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
             )
     }
 }
@@ -3089,6 +3107,10 @@ impl Authentication {
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
                     .route(web::post().to(authentication::authentication_sync)),
+            )
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
             )
     }
 }

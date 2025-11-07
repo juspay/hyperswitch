@@ -98,6 +98,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
+    pub payjustnow: ConnectorParams,
     pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
@@ -146,6 +147,7 @@ pub struct Connectors {
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
     pub worldpayxml: ConnectorParams,
     pub xendit: ConnectorParams,
+    pub zift: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
 }

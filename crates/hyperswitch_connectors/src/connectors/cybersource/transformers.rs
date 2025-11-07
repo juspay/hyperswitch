@@ -35,9 +35,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSyncData, ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
+        ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -46,8 +45,8 @@ use hyperswitch_domain_models::{
         PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -62,7 +61,11 @@ use crate::types::PayoutsResponseRouterData;
 use crate::utils::PayoutsData;
 use crate::{
     constants,
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     unimplemented_payment_method,
     utils::{
         self, AddressDetailsData, CardData, CardIssuer, NetworkTokenData as _,
@@ -2698,16 +2701,9 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&PaymentsPreAuthenticateRouterData>,
     ) -> Result<Self, Self::Error> {
-        let payment_method_data = item
-            .router_data
-            .request
-            .payment_method_data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
-            })?;
+        let payment_method_data = item.router_data.request.payment_method_data.clone();
 
-        match payment_method_data.clone() {
+        match payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
@@ -3247,24 +3243,12 @@ impl
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CybersourceAuthSetupResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourceAuthSetupResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<CybersourceAuthSetupResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourceAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
@@ -3857,24 +3841,12 @@ impl From<CybersourceAuthEnrollmentStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CybersourcePreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourcePreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourcePreProcessingResponse::ClientAuthCheckInfo(info_response) => {
@@ -4047,24 +4019,12 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CybersourcePaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<CybersourcePaymentsResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourcePaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<CybersourcePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let status = map_cybersource_attempt_status(
             item.response
@@ -4083,24 +4043,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CybersourcePaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<CybersourcePaymentsResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourcePaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<CybersourcePaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let status = map_cybersource_attempt_status(
             item.response
@@ -4617,24 +4565,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            CybersourceTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
+    for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            CybersourceTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<CybersourceTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(status) => {
@@ -5036,7 +4972,8 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
             }
             PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
-            | PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethod is not supported".to_string(),
                 connector: "Cybersource",
             })?,

@@ -182,7 +182,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
 )>;
 
 /// struct to represent set of Lineage ids
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
     profile_id: id_type::ProfileId,

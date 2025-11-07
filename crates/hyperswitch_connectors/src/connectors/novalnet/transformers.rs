@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
+    router_request_types::{PaymentsSyncData, ResponseId},
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -32,7 +32,10 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self, AddressData, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
@@ -77,6 +80,8 @@ pub enum NovalNetPaymentTypes {
     DirectDebitSepa,
     #[serde(rename = "GUARANTEED_DIRECT_DEBIT_SEPA")]
     GuaranteedDirectDebitSepa,
+    #[serde(rename = "RETURN_DEBIT_SEPA")]
+    ReturnDebitSepa,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -620,6 +625,7 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
+    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -640,7 +646,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure => Self::Failure,
+            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
         }
     }
 }
@@ -989,6 +995,7 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -1015,6 +1022,20 @@ pub struct NovalnetRefundsTransactionData {
     pub status_code: u64,
     pub test_mode: u8,
     pub tid: Option<Secret<i64>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetChargebackTransactionData {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: NovalNetPaymentTypes,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: u64,
+    pub test_mode: u8,
+    pub tid: Option<Secret<i64>>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1082,7 +1103,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
     status: NovalnetTransactionStatus,
-    tid: Secret<String>,
+    tid: Option<Secret<String>>,
 }
 
 impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
@@ -1101,12 +1122,19 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
                 .clone()
                 .get_required_value("encoded_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
             let novalnet_redirection_response =
                 serde_urlencoded::from_str::<NovolnetRedirectionResponse>(encoded_data.as_str())
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            NovalnetSyncTransaction {
-                tid: novalnet_redirection_response.tid.expose(),
-            }
+
+            let tid = novalnet_redirection_response
+                .tid
+                .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "tid",
+                })?
+                .expose();
+
+            NovalnetSyncTransaction { tid }
         } else {
             NovalnetSyncTransaction {
                 tid: item
@@ -1242,19 +1270,12 @@ pub struct NovalnetCaptureResponse {
     pub transaction: Option<NovalnetCaptureTransactionData>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, NovalnetCaptureResponse, PaymentsCaptureData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            NovalnetCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
@@ -1411,18 +1432,12 @@ pub struct NovalnetCancelResponse {
     transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, NovalnetCancelResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            NovalnetCancelResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<NovalnetCancelResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
@@ -1502,6 +1517,7 @@ pub struct NovalnetWebhookEvent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalnetWebhookTransactionData {
+    ChargebackTransactionData(NovalnetChargebackTransactionData),
     SyncTransactionData(NovalnetSyncResponseTransactionData),
     CaptureTransactionData(NovalnetCaptureTransactionData),
     CancelTransactionData(NovalnetPaymentsResponseTransactionData),
@@ -1521,6 +1537,7 @@ pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
 pub fn get_incoming_webhook_event(
     status: WebhookEventType,
     transaction_status: NovalnetTransactionStatus,
+    payment_type: Option<NovalNetPaymentTypes>,
 ) -> IncomingWebhookEvent {
     match status {
         WebhookEventType::Payment => match transaction_status {
@@ -1550,7 +1567,15 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
-        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
+        WebhookEventType::Chargeback => {
+            if matches!(transaction_status, NovalnetTransactionStatus::Confirmed)
+                && matches!(payment_type, Some(NovalNetPaymentTypes::ReturnDebitSepa))
+            {
+                IncomingWebhookEvent::DisputeLost
+            } else {
+                IncomingWebhookEvent::EventNotSupported
+            }
+        }
         WebhookEventType::Credit => IncomingWebhookEvent::DisputeWon,
     }
 }

@@ -551,6 +551,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
@@ -841,6 +842,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action.clone(),
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -974,6 +976,7 @@ where
                         &mut payment_data,
                         &customer,
                         call_connector_action.clone(),
+                        shadow_ucs_call_connector_action,
                         &validate_result,
                         schedule_time,
                         header_payload.clone(),
@@ -2118,6 +2121,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
@@ -2153,6 +2157,7 @@ where
             operation.clone(),
             req,
             call_connector_action,
+            shadow_ucs_call_connector_action,
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
@@ -3141,6 +3146,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             services::api::AuthFlow::Merchant,
             connector_action,
             None,
+            None,
             HeaderPayload::default(),
         ))
         .await?;
@@ -3301,6 +3307,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 payment_sync_req,
                 services::api::AuthFlow::Merchant,
                 connector_action,
+                None,
                 None,
                 HeaderPayload::default(),
             ),
@@ -3646,6 +3653,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 services::api::AuthFlow::Merchant,
                 connector_action,
                 None,
+                None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
             ))
             .await?
@@ -3677,6 +3685,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     payment_sync_req,
                     services::api::AuthFlow::Merchant,
                     connector_action,
+                    None,
                     None,
                     HeaderPayload::default(),
                 ),
@@ -4253,6 +4262,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -4261,7 +4271,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4280,45 +4290,63 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
+        shadow_ucs_call_connector_action.clone(),
     )
     .await?;
 
-    let is_handle_response_action = matches!(
-        call_connector_action,
-        CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::HandleResponse(_)
-    );
+    if matches!(
+        execution_path,
+        ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
+    ) {
+        let cached_access_token = access_token::get_cached_access_token_for_ucs(
+            state,
+            &connector,
+            merchant_context,
+            router_data.payment_method,
+            payment_data.get_creds_identifier(),
+        )
+        .await?;
+
+        // Set cached access token in router_data if available
+        if let Some(access_token) = cached_access_token {
+            router_data.access_token = Some(access_token);
+        }
+    }
 
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
-            // Process through UCS when system is UCS and not handling response
-            (ExecutionPath::UnifiedConnectorService, false) => {
+        match execution_path {
+            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+            ExecutionPath::UnifiedConnectorService => {
                 process_through_ucs(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     operation,
                     payment_data,
                     customer,
+                    call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
                     frm_suggestion,
                     business_profile,
                     merchant_connector_account,
+                    &connector,
                     router_data,
                 )
                 .await
             }
 
             // Process through Direct with Shadow UCS
-            (ExecutionPath::ShadowUnifiedConnectorService, false) => {
+            ExecutionPath::ShadowUnifiedConnectorService => {
                 process_through_direct_with_shadow_unified_connector_service(
-                    state,
+                    &updated_state,
                     req_state,
                     merchant_context,
                     connector,
@@ -4326,6 +4354,7 @@ where
                     payment_data,
                     customer,
                     call_connector_action,
+                    shadow_ucs_call_connector_action,
                     validate_result,
                     schedule_time,
                     header_payload,
@@ -4341,9 +4370,7 @@ where
             }
 
             // Process through Direct gateway
-            (ExecutionPath::Direct, _)
-            | (ExecutionPath::UnifiedConnectorService, true)
-            | (ExecutionPath::ShadowUnifiedConnectorService, true) => {
+            ExecutionPath::Direct => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4417,8 +4444,9 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
+        + Send
+        + Sync,
 {
     let add_access_token_result = router_data
         .add_access_token(
@@ -4815,11 +4843,13 @@ where
         .await?;
 
     // do order creation
-    let execution_path = should_call_unified_connector_service(
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
         Some(payment_data),
+        call_connector_action.clone(),
+        None,
     )
     .await?;
 
@@ -4890,6 +4920,12 @@ where
             );
             let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
 
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -4897,7 +4933,11 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, // UCS is called in primary mode
+                    merchant_order_reference_id,
+                    call_connector_action,
+                    creds_identifier,
                 )
                 .await?;
 
@@ -4949,14 +4989,16 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution_path = should_call_unified_connector_service(
+        let (execution, updated_state) = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
+            call_connector_action.clone(),
+            None,
         )
         .await?;
-        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
+        if matches!(execution, ExecutionPath::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -4994,6 +5036,28 @@ where
                 business_profile.merchant_id.clone(),
                 business_profile.get_id().clone(),
             );
+
+            // Extract merchant_order_reference_id from payment data for UCS audit trail
+            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
+
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
+
             router_data
                 .call_unified_connector_service(
                     state,
@@ -5001,13 +5065,17 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    &connector,
                     ExecutionMode::Primary, //UCS is called in primary mode
+                    merchant_order_reference_id,
+                    call_connector_action,
+                    creds_identifier
                 )
                 .await?;
 
             Ok(router_data)
         } else {
-            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
+            if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
@@ -5021,8 +5089,15 @@ where
                 );
             }
 
+
+            let session_state = if matches!(execution, ExecutionPath::ShadowUnifiedConnectorService) {
+                &updated_state
+            } else {
+                state
+            };
+
             call_connector_service(
-                state,
+                session_state,
                 req_state,
                 merchant_context,
                 connector,
@@ -5103,6 +5178,14 @@ where
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
         );
+
+        // Extract merchant_order_reference_id from payment data for UCS audit trail
+        let merchant_order_reference_id = payment_data
+            .get_payment_intent()
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
@@ -5112,6 +5195,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
                 ExecutionMode::Primary, //UCS is called in primary mode
+                merchant_order_reference_id,
             )
             .await?;
 
@@ -6397,7 +6481,9 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     Ok(card_brands)
 }
 
-fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+pub fn validate_customer_details_for_click_to_pay(
+    customer_details: &CustomerData,
+) -> RouterResult<()> {
     match (
         customer_details.phone.as_ref(),
         customer_details.phone_country_code.as_ref(),
@@ -6631,14 +6717,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    if !is_operation_complete_authorize(&operation)
-        && connector
-            .connector_name
-            .is_pre_processing_required_before_authorize()
-    {
-        router_data = router_data.preprocessing_steps(state, connector).await?;
-        return Ok((router_data, should_continue_payment));
-    }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::BankTransfer(_)) => (router_data, should_continue_payment),
@@ -10563,6 +10641,7 @@ pub async fn payments_manual_update(
         error_message,
         error_reason,
         connector_transaction_id,
+        amount_capturable,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -10594,6 +10673,17 @@ pub async fn payments_manual_update(
         .attach_printable(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
+
+    if let Some(amount_capturable) = amount_capturable {
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
 
     let payment_intent = state
         .store
@@ -10635,6 +10725,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
+        amount_capturable,
     };
     let updated_payment_attempt = state
         .store
@@ -10676,6 +10767,7 @@ pub async fn payments_manual_update(
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+            amount_capturable: Some(updated_payment_attempt.amount_capturable),
         },
     ))
 }
