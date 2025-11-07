@@ -199,7 +199,7 @@ async fn get_payment_method_and_amount_split(
     }
 }
 
-pub(crate) async fn payments_execute_split_core(
+pub(crate) async fn split_payments_execute_core(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
@@ -256,7 +256,12 @@ pub(crate) async fn payments_execute_split_core(
     let pm_amount_split =
         get_payment_method_and_amount_split(&state, &payment_id, &request, &payment_intent).await?;
 
-    let primary_pm_response = {
+    let (
+        primary_pm_response,
+        connector_http_status_code,
+        external_latency,
+        connector_response_data,
+    ) = {
         let (payment_method_data, amount) = pm_amount_split
             .non_balance_pm_split
             .clone()
@@ -329,7 +334,12 @@ pub(crate) async fn payments_execute_split_core(
                 .attach_printable("Unable to update payment intent")?;
         }
 
-        payment_data
+        (
+            payment_data,
+            connector_http_status_code,
+            external_latency,
+            connector_response_data,
+        )
     };
 
     let mut split_pm_response_data = SplitPaymentResponseData {
@@ -390,7 +400,7 @@ pub(crate) async fn payments_execute_split_core(
         // payments_operation_core marks the intent as succeeded when the attempt is succesful
         // However, for split case, we can't mark the intent as succesful until all the attempts
         // have succeeded, so reverting the state of Payment Intent
-        if payment_data.payment_intent.is_succeded() {
+        if payment_data.payment_intent.is_succeeded() {
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
@@ -400,7 +410,7 @@ pub(crate) async fn payments_execute_split_core(
                     .to_string(),
             };
 
-            let updated_payment_intent = db
+            let _updated_payment_intent = db
                 .update_payment_intent(
                     key_manager_state,
                     payment_data.payment_intent.clone(),
@@ -411,6 +421,13 @@ pub(crate) async fn payments_execute_split_core(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to update payment intent")?;
+        } else {
+            split_pm_response_data
+                .secondary_payment_response_data
+                .push(payment_data);
+
+            // Exit the loop if a payment failed
+            break;
         }
 
         split_pm_response_data
@@ -427,7 +444,7 @@ pub(crate) async fn payments_execute_split_core(
                 .to_string(),
         };
 
-    let updated_payment_intent = db
+    let _updated_payment_intent = db
         .update_payment_intent(
             key_manager_state,
             payment_intent,
@@ -441,11 +458,11 @@ pub(crate) async fn payments_execute_split_core(
 
     split_pm_response_data.generate_response(
         &state,
-        None,
-        None,
+        connector_http_status_code,
+        external_latency,
         header_payload.x_hs_latency,
         &merchant_context,
         &profile,
-        None,
+        Some(connector_response_data),
     )
 }

@@ -2835,7 +2835,7 @@ pub(crate) async fn payments_execute_wrapper(
         ))
         .await
     } else {
-        Box::pin(super::split_payments::payments_execute_split_core(
+        Box::pin(super::split_payments::split_payments_execute_core(
             state,
             req_state,
             merchant_context,
