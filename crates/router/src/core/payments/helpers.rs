@@ -8719,7 +8719,6 @@ where
     }
 }
 
-
 /// A formatted string key in the format "payment_methods_{merchant_id}_{customer_id}_{locker_id}"
 #[cfg(feature = "v1")]
 pub fn construct_payment_method_key_for_locking(
@@ -8764,7 +8763,9 @@ pub async fn perform_payment_method_duplication_check(
                 .map(|x| x.into_inner().expose())
                 .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
                 .and_then(|pmd| match pmd {
-                    api::PaymentMethodsData::Card(card) => Some(api::CardDetailFromLocker::from(card)),
+                    api::PaymentMethodsData::Card(card) => {
+                        Some(api::CardDetailFromLocker::from(card))
+                    }
                     _ => None,
                 })
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
