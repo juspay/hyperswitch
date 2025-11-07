@@ -2937,7 +2937,7 @@ fn extract_payment_method_connector_response_from_latest_charge(
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_data,
-            None
+            None,
         ))
     } else {
         None

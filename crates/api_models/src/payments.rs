@@ -1976,9 +1976,13 @@ impl MandateIds {
         }
     }
 
-    pub fn get_updated_mandate_details_of_connector_mandate_id(&self) -> Option<UpdatedMandateDetails>{
+    pub fn get_updated_mandate_details_of_connector_mandate_id(
+        &self,
+    ) -> Option<UpdatedMandateDetails> {
         match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => data.updated_mandate_details.clone(),
+            Some(MandateReferenceId::ConnectorMandateId(data)) => {
+                data.updated_mandate_details.clone()
+            }
             _ => None,
         }
     }
