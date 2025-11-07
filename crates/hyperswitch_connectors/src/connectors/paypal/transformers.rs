@@ -1696,6 +1696,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
             None,
             None,
             Some(extend_authorization_response),
+            None
         ));
 
         let status = common_enums::AttemptStatus::from(item.response.status.clone());

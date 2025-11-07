@@ -625,6 +625,7 @@ pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
     is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
+    pub mandate_reference: Option<router_response_types::MandateReference>,
 }
 
 impl ConnectorResponseData {
@@ -635,17 +636,20 @@ impl ConnectorResponseData {
             additional_payment_method_data: Some(additional_payment_method_data),
             extended_authorization_response_data: None,
             is_overcapture_enabled: None,
+            mandate_reference: None,
         }
     }
     pub fn new(
         additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
         is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
         extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
+        mandate_reference: Option<router_response_types::MandateReference>,
     ) -> Self {
         Self {
             additional_payment_method_data,
             extended_authorization_response_data,
             is_overcapture_enabled,
+            mandate_reference,
         }
     }
 

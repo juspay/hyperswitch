@@ -1151,7 +1151,7 @@ impl RedisTokenManager {
             None => {
                 logger::info!(
                     customer_id = customer_id,
-                    "No mandate data provided, skipping token update. Since we didnt get any mandate data"
+                    "Skipping token update. Since we didn't get any updated mandate data"
                 );
                 Ok(false)
             }
@@ -1175,16 +1175,10 @@ impl RedisTokenManager {
 
                 if is_token_equal {
                     logger::info!("Old token and new token are equal. Checking for expiry update");
-                    let mandate_metadata = mandate_data.get_connector_mandate_metadata();
-                    match mandate_metadata {
+                    match mandate_data.get_updated_mandate_details_of_connector_mandate_id() {
                         Some(metadata) => {
-                            let updated_mandate_info  = serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(metadata.peek().clone())
-                                .map_err(|err| {
-                                    logger::error!("Failed to deserialize mandate metadata to updated_mandate_details: {}", err);
-                                    errors::StorageError::SerializationFailed
-                                })?;
                             logger::info!("Mandate metadata found for expiry update.");
-                            AccountUpdaterAction::ExpiryUpdate(updated_mandate_info)
+                            AccountUpdaterAction::ExpiryUpdate(metadata)
                         }
                         None => {
                             logger::info!("No mandate metadata found for expiry update.");
@@ -1193,15 +1187,10 @@ impl RedisTokenManager {
                     }
                 } else {
                     logger::info!("Old token and new token are not equal.");
-                    match mandate_data.get_connector_mandate_metadata() {
+                    match mandate_data.get_updated_mandate_details_of_connector_mandate_id() {
                         Some(metadata) => {
-                            let updated_mandate_info  = serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(metadata.peek().clone())
-                                .map_err(|err| {
-                                    logger::error!("Failed to deserialize mandate metadata to updated_mandate_details: {}", err);
-                                    errors::StorageError::SerializationFailed
-                                })?;
                             logger::info!("Mandate metadata found for token update.");
-                            AccountUpdaterAction::TokenUpdate(new_token, updated_mandate_info)
+                            AccountUpdaterAction::TokenUpdate(new_token, metadata)
                         }
                         None => {
                             logger::warn!("No mandate metadata found for token update. No further action is taken");

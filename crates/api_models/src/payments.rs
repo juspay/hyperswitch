@@ -1975,6 +1975,13 @@ impl MandateIds {
             _ => None,
         }
     }
+
+    pub fn get_updated_mandate_details_of_connector_mandate_id(&self) -> Option<UpdatedMandateDetails>{
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.updated_mandate_details.clone(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
