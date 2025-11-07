@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.31.2-hotfix4
+
+### Miscellaneous Tasks
+
+- **router:** Adding cache for client creation based on proxy ([#10164](https://github.com/juspay/hyperswitch/pull/10164)) ([`7488464`](https://github.com/juspay/hyperswitch/commit/7488464466adbb8ee70fb81b533e16dd06a21979))
+
+**Full Changelog:** [`2025.10.31.2-hotfix3...2025.10.31.2-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.10.31.2-hotfix3...2025.10.31.2-hotfix4)
+
+- - -
+
 ## 2025.10.31.2-hotfix3
 
 ### Bug Fixes
