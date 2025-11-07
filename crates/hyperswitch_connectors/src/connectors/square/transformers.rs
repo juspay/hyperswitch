@@ -94,7 +94,8 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::AlmaRedirect { .. }
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
-            | PayLaterData::BreadpayRedirect { .. } => {
+            | PayLaterData::BreadpayRedirect { .. }
+            | PayLaterData::PayjustnowRedirect { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Square"),
                 ))?

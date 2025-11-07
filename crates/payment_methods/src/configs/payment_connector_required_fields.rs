@@ -3822,8 +3822,6 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
 
 #[test]
 fn test_required_fields_to_json() {
-    #![allow(clippy::unwrap_used)]
-
     // Test billing fields
     let billing_fields = get_billing_required_fields();
     // let billing_json = serde_json::to_string_pretty(&billing_fields)?;

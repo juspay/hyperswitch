@@ -1358,7 +1358,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
 #[cfg(feature = "payouts")]
 impl CardData for api_models::payouts::ApplePayDecrypt {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let binding = self.expiry_month.clone();
+        let binding = self.expiry_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
@@ -1794,6 +1794,7 @@ impl AddressDetailsData for AddressDetails {
 
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1810,6 +1811,23 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
     }
 }
 
@@ -6153,6 +6171,7 @@ pub enum PaymentMethodDataType {
     AtomeRedirect,
     Breadpay,
     FlexitiRedirect,
+    PayjustnowRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -6295,6 +6314,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 payment_method_data::PayLaterData::BreadpayRedirect {} => Self::Breadpay,
+                payment_method_data::PayLaterData::PayjustnowRedirect {} => {
+                    Self::PayjustnowRedirect
+                }
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -6884,7 +6906,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         currency: data.request.currency,
         payment_method_data: data.request.payment_method_data.clone(),
         confirm: data.request.confirm,
-        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
         mandate_id: data.request.mandate_id.clone(),
         setup_future_usage: data.request.setup_future_usage,
         off_session: data.request.off_session,
@@ -6895,7 +6916,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         amount: 0,
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
-        statement_descriptor: None,
         capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
@@ -6929,6 +6949,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
+        billing_descriptor: data.request.billing_descriptor.clone(),
     }
 }
 
@@ -6992,6 +7013,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        is_migrated_card: data.is_migrated_card,
     }
 }
 
@@ -7292,7 +7314,7 @@ pub trait SplitPaymentData {
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
@@ -7310,13 +7332,13 @@ impl SplitPaymentData for PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {

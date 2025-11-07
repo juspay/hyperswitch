@@ -1584,6 +1584,20 @@ merchant_secret="Source verification key"
 [celero.connector_auth.HeaderKey]
 api_key="Celero API Key"
 
+[chargebee]
+[chargebee.connector_auth.HeaderKey]
+api_key = "Chargebee API Key"
+
+[chargebee.connector_webhook_details]
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
+
+[chargebee.metadata.site]
+name = "site"
+label = "Site"
+placeholder = "Enter chargebee site"
+required = true
+type = "Text"
 
 [checkbook]
 [[checkbook.bank_transfer]]
@@ -7646,6 +7660,14 @@ required=true
 type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
-[payjustnow]
-[payjustnow.connector_auth.HeaderKey]
+[zift]
+[zift.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[payjustnow]
+[payjustnow.connector_auth.BodyKey]
+api_key = "Signing Key"
+key1 = "Merchant Account Id"
+
+[[payjustnow.pay_later]]
+  payment_method_type = "payjustnow"
