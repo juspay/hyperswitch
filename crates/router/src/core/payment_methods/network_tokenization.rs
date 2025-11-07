@@ -3,7 +3,6 @@ use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
-use masking::ErasedMaskSerialize;
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
@@ -24,7 +23,7 @@ use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
 use josekit::jwe;
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
 use crate::{
@@ -73,7 +72,9 @@ pub async fn mk_tokenization_req(
         order_data,
         should_send_token: true,
     };
-    let masked_request_body = api_payload.masked_serialize().unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
