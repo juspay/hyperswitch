@@ -218,19 +218,12 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
         
-        let read_lock = cache.read().map_err(|_| {
-            error_stack::Report::new(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to acquire proxy client cache read lock")
-        })?;
-        
-        let client = if let Some(cached_client) = read_lock.get(&cache_key) {
+        let client = if let Some(cached_client) = cache.read().unwrap().get(&cache_key) {
             logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
             cached_client.clone()
         } else {
-            drop(read_lock);
-            
-            let mut write_lock = cache.write().map_err(|_| {
+            let mut write_lock = cache.try_write().map_err(|_| {
                 error_stack::Report::new(HttpClientError::ClientConstructionFailed)
                     .attach_printable("Failed to acquire proxy client cache write lock")
             })?;
