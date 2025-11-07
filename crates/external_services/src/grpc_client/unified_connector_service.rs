@@ -634,13 +634,5 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
-    // Add request_id as x-session-id for request correlation and tracing
-    if let Some(request_id) = grpc_headers.request_id {
-        metadata.append(
-            consts::UCS_HEADER_SESSION_ID,
-            parse(consts::UCS_HEADER_SESSION_ID, request_id.as_str())?,
-        );
-    }
-
     Ok(metadata)
 }

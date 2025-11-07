@@ -84,7 +84,7 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SubscriptionState 
     fn get_request_id_str(&self) -> Option<String> {
         self.api_client
             .get_request_id()
-            .map(|req_id| req_id.as_hyphenated().to_string())
+            .map(|req_id| req_id.to_string())
     }
 
     fn get_tenant(&self) -> configs::Tenant {

@@ -1,4 +1,4 @@
-#![deny(unused, missing_docs)]
+#![warn(unused, missing_docs)]
 //! Request ID middleware for Actix Web applications.
 //!
 //! This module provides middleware to associate every HTTP request with a unique identifier.
@@ -46,11 +46,11 @@ use actix_web::{
 use uuid::Uuid;
 
 /// Custom result type for request ID operations.
-pub type RequestIdResult<T> = Result<T, Error>;
+pub type RequestIdResult<T> = Result<T, RequestIdError>;
 
 /// Errors that can occur when working with request IDs.
 #[derive(Debug, Clone)]
-pub enum Error {
+pub enum RequestIdError {
     /// No request ID is associated with the current request.
     NoAssociatedId,
     /// Failed to convert header value to request ID.
@@ -60,11 +60,11 @@ pub enum Error {
     },
 }
 
-impl error_stack::Context for Error {}
+impl error_stack::Context for RequestIdError {}
 
-impl ResponseError for Error {}
+impl ResponseError for RequestIdError {}
 
-impl Display for Error {
+impl Display for RequestIdError {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::NoAssociatedId => write!(fmt, "No request ID associated with this request"),
@@ -118,11 +118,11 @@ impl Display for RequestId {
 }
 
 impl FromStr for RequestId {
-    type Err = Error;
+    type Err = RequestIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
-            Err(Error::InvalidHeaderValue {
+            Err(RequestIdError::InvalidHeaderValue {
                 value: s.to_string(),
             })
         } else {
@@ -132,19 +132,20 @@ impl FromStr for RequestId {
 }
 
 impl TryFrom<HeaderValue> for RequestId {
-    type Error = Error;
+    type Error = RequestIdError;
 
     fn try_from(value: HeaderValue) -> Result<Self, Self::Error> {
-        let s = value.to_str().map_err(|_| Error::InvalidHeaderValue {
-            value: format!("{:?}", value),
+        let s = value.to_str().map_err(|e| {
+            tracing::warn!(
+                error = %e,
+                header_value = ?value,
+                "Failed to convert header value to string"
+            );
+            RequestIdError::InvalidHeaderValue {
+                value: format!("{:?}", value),
+            }
         })?;
         Self::from_str(s)
-    }
-}
-
-impl From<RequestId> for HeaderValue {
-    fn from(request_id: RequestId) -> Self {
-        Self::from_str(&request_id.0).unwrap_or_else(|_| Self::from_static("invalid-request-id"))
     }
 }
 
@@ -154,22 +155,45 @@ impl From<RequestId> for String {
     }
 }
 
-impl From<String> for RequestId {
-    fn from(s: String) -> Self {
-        Self(s.into())
+impl TryFrom<String> for RequestId {
+    type Error = RequestIdError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            Err(RequestIdError::InvalidHeaderValue { value: s })
+        } else {
+            Ok(Self(s.into()))
+        }
     }
 }
 
-impl From<&str> for RequestId {
-    fn from(s: &str) -> Self {
-        Self(s.into())
+impl TryFrom<&str> for RequestId {
+    type Error = RequestIdError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            Err(RequestIdError::InvalidHeaderValue {
+                value: s.to_string(),
+            })
+        } else {
+            Ok(Self(s.into()))
+        }
     }
 }
 
 impl RequestId {
     /// Create a new RequestId from a string.
-    pub fn new_from_string(value: impl Into<Arc<str>>) -> Self {
-        Self(value.into())
+    ///
+    /// Returns an error if the string is empty.
+    pub fn try_from_string(value: impl Into<Arc<str>>) -> RequestIdResult<Self> {
+        let arc_str: Arc<str> = value.into();
+        if arc_str.is_empty() {
+            Err(RequestIdError::InvalidHeaderValue {
+                value: arc_str.to_string(),
+            })
+        } else {
+            Ok(Self(arc_str))
+        }
     }
 
     /// Extract request ID from ServiceRequest header or generate UUID v7.
@@ -185,11 +209,13 @@ impl RequestId {
             IdReuse::UseIncoming => {
                 // Try to extract from incoming header
                 if let Some(existing_header) = request.headers().get(header_name) {
-                    existing_header
-                        .to_str()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|_| {
-                            tracing::warn!("Invalid request ID header, generating new UUID v7");
+                    Self::try_from(existing_header.clone())
+                        .map(|id| id.0.to_string())
+                        .unwrap_or_else(|e| {
+                            tracing::warn!(
+                                error = %e,
+                                "Invalid request ID header, generating new UUID v7"
+                            );
                             generate_uuid_v7()
                         })
                 } else {
@@ -208,22 +234,13 @@ impl RequestId {
 
     /// Convert this request ID to a `HeaderValue`.
     pub fn to_header_value(&self) -> RequestIdResult<HeaderValue> {
-        HeaderValue::from_str(&self.0).map_err(|_| Error::InvalidHeaderValue {
+        HeaderValue::from_str(&self.0).map_err(|_| RequestIdError::InvalidHeaderValue {
             value: self.0.to_string(),
         })
     }
 
     /// Get a string representation of this request ID.
     pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Get a hyphenated string representation of this request ID.
-    ///
-    /// This method provides exact parity with `tracing_actix_web::RequestId.as_hyphenated()`.
-    /// Since UUID v7's default string representation is already hyphenated, this returns
-    /// the same value as `to_string()` and `as_str()`.
-    pub fn as_hyphenated(&self) -> &str {
         &self.0
     }
 }
@@ -316,13 +333,17 @@ where
         // Capture incoming request ID for logging
         let incoming_request_id = request.headers().get(&header_name).cloned();
 
-        // Extract from header or generate UUID v7 - simple and direct
+        // Extract request ID from header or generate new UUID v7
         let request_id =
             RequestId::extract_or_generate(&request, &header_name, self.use_incoming_id);
 
         // Create header value for response
         let header_value = request_id.to_header_value().unwrap_or_else(|e| {
-            tracing::error!("Failed to convert request ID to header value: {}", e);
+            tracing::error!(
+                error = %e,
+                request_id = %request_id,
+                "Failed to convert request ID to header value"
+            );
             HeaderValue::from_static("invalid-request-id")
         });
 
@@ -336,6 +357,7 @@ where
             if let Some(upstream_request_id) = incoming_request_id {
                 tracing::debug!(
                     ?upstream_request_id,
+                    generated_request_id = %request_id,
                     "Received upstream request ID for correlation"
                 );
             }
@@ -351,7 +373,7 @@ where
 }
 
 impl FromRequest for RequestId {
-    type Error = Error;
+    type Error = RequestIdError;
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
@@ -359,7 +381,7 @@ impl FromRequest for RequestId {
             req.extensions()
                 .get::<Self>()
                 .cloned()
-                .ok_or(Error::NoAssociatedId),
+                .ok_or(RequestIdError::NoAssociatedId),
         )
     }
 }
