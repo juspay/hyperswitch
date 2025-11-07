@@ -545,7 +545,7 @@ pub struct CardDetail {
     #[schema(value_type = String,example = "25")]
     pub card_exp_year: masking::Secret<String>,
 
-     /// Card CVC for Volatile Storage
+    /// Card CVC for Volatile Storage
     #[schema(value_type = Option<String>,example = "123")]
     pub card_cvc: Option<masking::Secret<String>>,
 

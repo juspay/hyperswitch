@@ -403,14 +403,15 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
 
                 let vault_data = get_vault_details(authentication_details)?;
 
-                let external_vault_response =
-                    Box::pin(crate::core::payment_methods::vault_payment_method_external_v1(
+                let external_vault_response = Box::pin(
+                    crate::core::payment_methods::vault_payment_method_external_v1(
                         state,
                         &vault_data,
                         merchant_context.get_merchant_account(),
                         merchant_connector_account_details,
-                    ))
-                    .await?;
+                    ),
+                )
+                .await?;
 
                 Ok(Some(
                     external_vault_response
@@ -436,24 +437,22 @@ fn get_vault_details(
     // if network_token details are present, then it is returned if raw card details are not present
     // throw error if both are not present
     match (auth_details.raw_card_details, auth_details.token_details) {
-        (Some(card_details), _) => {
-            Ok(
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
-                    api_models::payment_methods::CardDetail {
-                        card_number: card_details.pan.clone(),
-                        card_exp_month: card_details.expiration_month,
-                        card_exp_year: card_details.expiration_year,
-                        card_cvc: card_details.card_security_code,
-                        card_issuer: None,
-                        card_network: None,
-                        card_type: None,
-                        card_issuing_country: None,
-                        card_holder_name: None,
-                        nick_name: None,
-                    },
-                ),
-            )
-        }
+        (Some(card_details), _) => Ok(
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
+                api_models::payment_methods::CardDetail {
+                    card_number: card_details.pan.clone(),
+                    card_exp_month: card_details.expiration_month,
+                    card_exp_year: card_details.expiration_year,
+                    card_cvc: card_details.card_security_code,
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    card_holder_name: None,
+                    nick_name: None,
+                },
+            ),
+        ),
         (None, Some(token_data)) => {
             let cryptogram = auth_details
                 .dynamic_data_details
