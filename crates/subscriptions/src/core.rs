@@ -52,6 +52,17 @@ pub async fn create_subscription(
     )
     .await?;
 
+    let estimate_request = subscription_types::EstimateSubscriptionQuery {
+        plan_id: request.plan_id.clone(),
+        item_price_id: request.item_price_id.clone(),
+        coupon_codes: request.coupon_codes.clone(),
+        addons: request.addons.clone(),
+    };
+
+    let estimate = billing_handler
+        .get_subscription_estimate(&state, estimate_request)
+        .await?;
+
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
     let mut subscription = subscription_handler
         .create_subscription_entry(
@@ -64,19 +75,10 @@ pub async fn create_subscription(
             request.plan_id.clone(),
             Some(request.item_price_id.clone()),
             request.coupon_codes.clone(),
+            request.addons.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
-
-    let estimate_request = subscription_types::EstimateSubscriptionQuery {
-        plan_id: request.plan_id.clone(),
-        item_price_id: request.item_price_id.clone(),
-        coupon_codes: request.coupon_codes.clone(),
-    };
-
-    let estimate = billing_handler
-        .get_subscription_estimate(&state, estimate_request)
-        .await?;
 
     let invoice_handler = subscription.get_invoice_handler(profile.clone());
     let payment = invoice_handler
@@ -111,6 +113,8 @@ pub async fn create_subscription(
             None,
             request.plan_id,
             Some(request.item_price_id),
+            request.coupon_codes.clone(),
+            request.addons.clone(),
         ))
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
@@ -213,6 +217,7 @@ pub async fn create_and_confirm_subscription(
             request.plan_id.clone(),
             Some(request.item_price_id.clone()),
             request.coupon_codes.clone(),
+            request.addons.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -247,6 +252,7 @@ pub async fn create_and_confirm_subscription(
             subs_handler.subscription.clone(),
             Some(request.item_price_id.clone()),
             request.coupon_codes.clone(),
+            request.addons.clone(),
             request.get_billing_address(),
         )
         .await?;
@@ -297,6 +303,8 @@ pub async fn create_and_confirm_subscription(
             Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
             request.plan_id,
             Some(request.item_price_id),
+            request.coupon_codes.clone(),
+            request.addons.clone(),
         ))
         .await?;
 
@@ -399,6 +407,7 @@ pub async fn confirm_subscription(
             subscription.clone(),
             subscription.item_price_id.clone(),
             subscription.coupon_codes.clone(),
+            subscription.addons.clone(),
             payment_response.get_billing_address(),
         )
         .await?;
@@ -438,6 +447,8 @@ pub async fn confirm_subscription(
             Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
             subscription.plan_id.clone(),
             subscription.item_price_id.clone(),
+            subscription.coupon_codes.clone(),
+            subscription.addons.clone(),
         ))
         .await?;
 
@@ -676,16 +687,6 @@ pub async fn update_subscription(
 
     let subscription = subscription_entry.subscription.clone();
 
-    subscription_entry
-        .update_subscription(SubscriptionUpdate::new(
-            None,
-            None,
-            None,
-            Some(request.plan_id.clone()),
-            Some(request.item_price_id.clone()),
-        ))
-        .await?;
-
     let billing_handler = BillingHandler::create(
         &state,
         merchant_context.get_merchant_account(),
@@ -697,11 +698,24 @@ pub async fn update_subscription(
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
         plan_id: Some(request.plan_id.clone()),
         item_price_id: request.item_price_id.clone(),
-        coupon_codes: None,
+        coupon_codes: request.coupon_codes.clone(),
+        addons: request.addons.clone(),
     };
 
     let estimate = billing_handler
         .get_subscription_estimate(&state, estimate_request)
+        .await?;
+
+    subscription_entry
+        .update_subscription(SubscriptionUpdate::new(
+            None,
+            None,
+            None,
+            Some(request.plan_id.clone()),
+            Some(request.item_price_id.clone()),
+            request.coupon_codes.clone(),
+            request.addons.clone(),
+        ))
         .await?;
 
     let update_request = InvoiceUpdateRequest::update_amount_and_currency(

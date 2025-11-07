@@ -80,5 +80,6 @@ pub struct SubscriptionCancelRequest {
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimateRequest {
-    pub price_id: String,
+    pub subscription_items: Vec<SubscriptionItem>,
+    pub coupon_codes: Option<Vec<String>>,
 }

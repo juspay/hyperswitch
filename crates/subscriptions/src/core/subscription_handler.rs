@@ -49,6 +49,7 @@ impl<'a> SubscriptionHandler<'a> {
         plan_id: Option<String>,
         item_price_id: Option<String>,
         coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<subscription_types::AddonsDetails>>,
     ) -> errors::SubscriptionResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -75,6 +76,7 @@ impl<'a> SubscriptionHandler<'a> {
             plan_id,
             item_price_id,
             coupon_codes,
+            addons,
         };
 
         subscription.generate_and_set_client_secret();
@@ -306,6 +308,7 @@ impl SubscriptionWithHandler<'_> {
             coupon_codes: self.subscription.coupon_codes.clone(),
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
+            addons: self.subscription.addons.clone(),
         })
     }
 
@@ -334,6 +337,7 @@ impl SubscriptionWithHandler<'_> {
                 )
                 .transpose()?,
             self.subscription.coupon_codes.clone(),
+            self.subscription.addons.clone(),
         ))
     }
 

@@ -174,6 +174,7 @@ impl BillingHandler {
         subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
         coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<api_models::subscription::AddonsDetails>>,
         billing_address: Option<api_models::payments::Address>,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
@@ -182,10 +183,22 @@ impl BillingHandler {
             })?,
             quantity: Some(1),
         };
+        let subscription_item = if let Some(addon_list) = addons {
+            let mut items = vec![subscription_item];
+            for addon in addon_list {
+                items.push(subscription_request_types::SubscriptionItem {
+                    item_price_id: addon.item_price_id,
+                    quantity: addon.quantity,
+                });
+            }
+            items
+        } else {
+            vec![subscription_item]
+        };
         let subscription_req = subscription_request_types::SubscriptionCreateRequest {
             subscription_id: subscription.id.to_owned(),
             customer_id: subscription.customer_id.to_owned(),
-            subscription_items: vec![subscription_item],
+            subscription_items: subscription_item,
             billing_address: billing_address.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "billing",
@@ -268,8 +281,25 @@ impl BillingHandler {
         state: &SessionState,
         estimate_request: subscription_types::EstimateSubscriptionQuery,
     ) -> SubscriptionResult<subscription_response_types::GetSubscriptionEstimateResponse> {
+        let subscription_item = subscription_request_types::SubscriptionItem {
+            item_price_id: estimate_request.item_price_id,
+            quantity: Some(1),
+        };
+        let subscription_items = if let Some(addon_list) = estimate_request.addons {
+            let mut items = vec![subscription_item];
+            for addon in addon_list {
+                items.push(subscription_request_types::SubscriptionItem {
+                    item_price_id: addon.item_price_id,
+                    quantity: addon.quantity,
+                });
+            }
+            items
+        } else {
+            vec![subscription_item]
+        };
         let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
-            price_id: estimate_request.item_price_id.clone(),
+            subscription_items,
+            coupon_codes: estimate_request.coupon_codes.clone(),
         };
 
         let router_data = self.build_router_data(
