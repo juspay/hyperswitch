@@ -413,6 +413,7 @@ impl PaymentMethodCreate {
                     card_network: payment_method_migrate_card.card_network.clone(),
                     card_issuer: payment_method_migrate_card.card_issuer.clone(),
                     card_type: payment_method_migrate_card.card_type.clone(),
+                    card_cvc: None,
                 });
 
         Self {
@@ -543,6 +544,10 @@ pub struct CardDetail {
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
     pub card_exp_year: masking::Secret<String>,
+
+     /// Card CVC for Volatile Storage
+    #[schema(value_type = Option<String>,example = "123")]
+    pub card_cvc: Option<masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
@@ -809,6 +814,7 @@ impl CardDetailUpdate {
                 .nick_name
                 .clone()
                 .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_cvc: None,
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -1262,6 +1268,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
             nick_name: card.nick_name.map(masking::Secret::new),
+            card_cvc: None,
             card_issuing_country: None,
             card_network,
             card_issuer: None,

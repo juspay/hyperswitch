@@ -2608,6 +2608,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_number: card_data.card_number.clone(),
             card_exp_month: card_data.card_exp_month.clone(),
             card_exp_year: card_data.card_exp_year.clone(),
+            card_cvc: None,
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2625,6 +2626,7 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_number: network_token_data.token_number.clone(),
             card_exp_month: network_token_data.token_exp_month.clone(),
             card_exp_year: network_token_data.token_exp_year.clone(),
+            card_cvc: None,
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2661,6 +2663,7 @@ impl
                 card_issuer,
                 card_issuing_country,
                 card_type,
+                ..
             },
             card_token_data,
             co_badged_card_data,
