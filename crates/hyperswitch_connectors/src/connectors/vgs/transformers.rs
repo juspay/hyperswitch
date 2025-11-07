@@ -1,7 +1,4 @@
-use common_utils::{
-    ext_traits::{Encode, StringExt},
-    types::StringMinorUnit,
-};
+use common_utils::{ext_traits::StringExt, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -32,7 +29,6 @@ impl<T> From<(StringMinorUnit, T)> for VgsRouterData<T> {
 }
 
 const VGS_FORMAT: &str = "UUID";
-const VGS_CLASSIFIER: &str = "data";
 
 #[derive(Debug, Serialize)]
 pub struct VgsTokenRequestItem {
@@ -59,18 +55,37 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
             Some(PaymentMethodVaultingData::Card(req_card)) => {
-                let stringified_card = req_card
-                    .encode_to_string_of_json()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                Ok(Self {
-                    data: vec![VgsTokenRequestItem {
-                        value: Secret::new(stringified_card),
-                        classifiers: vec![VGS_CLASSIFIER.to_string()],
+                let mut data = vec![
+                    VgsTokenRequestItem {
+                        value: Secret::new(req_card.card_number.get_card_no()),
+                        classifiers: vec!["card_number".to_string()],
                         format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Persistent,
-                    }],
-                })
+                        storage: VgsStorageType::Volatile,
+                    },
+                    VgsTokenRequestItem {
+                        value: req_card.card_exp_month,
+                        classifiers: vec!["card_expiry_month".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
+                    },
+                    VgsTokenRequestItem {
+                        value: req_card.card_exp_year,
+                        classifiers: vec!["card_expiry_year".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
+                    },
+                ];
+
+                if let Some(card_cvc) = req_card.card_cvc {
+                    data.push(VgsTokenRequestItem {
+                        value: card_cvc,
+                        classifiers: vec!["card_cvc".to_string()],
+                        format: VGS_FORMAT.to_string(),
+                        storage: VgsStorageType::Volatile,
+                    });
+                }
+
+                Ok(Self { data })
             }
             Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
                 let mut data = vec![
@@ -240,6 +255,50 @@ impl
                         )
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "network_token",
+                        })?
+                        .expose(),
+                    }),
+                    ..item.data
+                })
+            }
+            Some(PaymentMethodVaultingData::Card(card_data)) => {
+                let multi_tokens = MultiVaultIdType::Card {
+                    card_number: get_token_from_response(
+                        &item.response.data,
+                        &card_data.card_number.get_card_no(),
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_number",
+                    })?,
+                    card_expiry_month: get_token_from_response(
+                        &item.response.data,
+                        card_data.card_exp_month.peek(),
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_expiry_month",
+                    })?,
+                    card_expiry_year: get_token_from_response(
+                        &item.response.data,
+                        card_data.card_exp_year.peek(),
+                    )
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_expiry_year",
+                    })?,
+                    card_cvc: card_data.card_cvc.clone().and_then(|card_cvc| {
+                        get_token_from_response(&item.response.data, card_cvc.peek())
+                    }),
+                };
+
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                        connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
+                        fingerprint_id: get_token_from_response(
+                            &item.response.data,
+                            &card_data.card_number.get_card_no(),
+                        )
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_number",
                         })?
                         .expose(),
                     }),
