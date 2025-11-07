@@ -1072,12 +1072,12 @@ pub struct PaymentsRequest {
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
-    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Hyperswitch Router", deprecated)]
     pub statement_descriptor_name: Option<String>,
 
-    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
-    #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Payment for shoes purchase", deprecated)]
     pub statement_descriptor_suffix: Option<String>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
@@ -1294,6 +1294,10 @@ pub struct PaymentsRequest {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// Billing descriptor information for the payment
+    #[schema(value_type = Option<BillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5902,6 +5906,10 @@ pub struct PaymentsResponse {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// Billing descriptor information for the payment
+    #[schema(value_type = Option<BillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[cfg(feature = "v2")]
