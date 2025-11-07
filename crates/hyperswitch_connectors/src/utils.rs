@@ -7401,6 +7401,25 @@ where
     }
 }
 
+/// Custom deserializer for `Option<T>` that treats empty strings or zero-minor amounts as `None`.
+pub fn deserialize_option_empty_string_to_none<'de, D, T>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    let string_data: Option<String> = Option::deserialize(deserializer)?;
+    match string_data {
+        Some(value) if !value.trim().is_empty() => value
+            .parse::<T>()
+            .map(Some)
+            .map_err(|e| serde::de::Error::custom(format!("Invalid value received from connector: {value} ({e})"))),
+        _ => Ok(None),
+    }
+}
+
 #[macro_export]
 macro_rules! convert_connector_response_to_domain_response {
     ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {

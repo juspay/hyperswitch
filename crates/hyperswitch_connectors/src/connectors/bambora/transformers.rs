@@ -26,7 +26,7 @@ use crate::{
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData as _,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, RouterData as _, deserialize_option_empty_string_to_none,
     },
 };
 
@@ -376,6 +376,7 @@ pub struct AddressData {
     address_line2: Option<Secret<String>>,
     city: Option<String>,
     province: Option<Secret<String>>,
+    #[serde(deserialize_with = "deserialize_option_empty_string_to_none")]
     country: Option<enums::CountryAlpha2>,
     postal_code: Option<Secret<String>>,
     phone_number: Option<Secret<String>>,
