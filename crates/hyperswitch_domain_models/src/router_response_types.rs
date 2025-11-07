@@ -755,6 +755,7 @@ impl VaultIdType {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_auth_vault_token_data(
         &self,
     ) -> Result<

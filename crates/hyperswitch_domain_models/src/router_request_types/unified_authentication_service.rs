@@ -198,6 +198,7 @@ pub struct ThreeDsMetaData {
     pub merchant_configuration_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 impl From<PostAuthenticationDetails>
     for Option<api_models::authentication::AuthenticationVaultTokenData>
 {

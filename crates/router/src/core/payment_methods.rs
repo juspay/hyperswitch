@@ -2443,7 +2443,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 fingerprint_id,
             } => {
                 #[cfg(feature = "v2")]
-                let vault_id = domain::VaultId::generate(connector_vault_id);
+                let vault_id = domain::VaultId::generate(connector_vault_id.get_single_vault_id()?);
                 #[cfg(not(feature = "v2"))]
                 let vault_id = connector_vault_id;
 
