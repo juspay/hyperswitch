@@ -524,9 +524,8 @@ impl RedisTokenManager {
                         .or_insert(value);
                 }
                 existing_token.account_update_history = token_data.account_update_history.clone();
-                existing_token.payment_processor_token_details = token_data
-                    .payment_processor_token_details
-                    .clone();
+                existing_token.payment_processor_token_details =
+                    token_data.payment_processor_token_details.clone();
 
                 existing_token
                     .modified_at
@@ -548,7 +547,7 @@ impl RedisTokenManager {
                         existing_token.is_hard_decline = token_data.is_hard_decline;
                         token_data
                             .is_active
-                            .map(|is_active| existing_token.is_active = Some(is_active));                        
+                            .map(|is_active| existing_token.is_active = Some(is_active));
                     });
             })
             .or_else(|| {
@@ -1312,29 +1311,28 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().time(),
                 ));
                 updated_token
-                .account_update_history
-                .get_or_insert_with(Vec::new)
-                .push(AccountUpdateHistoryRecord {
-                    old_token: scheduled_token
-                        .payment_processor_token_details
-                        .payment_processor_token
-                        .clone(),
-                    new_token: updated_token
-                        .payment_processor_token_details
-                        .payment_processor_token
-                        .clone(),
-                    updated_at: PrimitiveDateTime::new(
-                        OffsetDateTime::now_utc().date(),
-                        OffsetDateTime::now_utc().time(),
-                    ),
-                    old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
-                        &scheduled_token.payment_processor_token_details,
-                    )),
-                    new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
-                        &updated_token.payment_processor_token_details,
-                    )),
-                });
-
+                    .account_update_history
+                    .get_or_insert_with(Vec::new)
+                    .push(AccountUpdateHistoryRecord {
+                        old_token: scheduled_token
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            .clone(),
+                        new_token: updated_token
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            .clone(),
+                        updated_at: PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        ),
+                        old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            &scheduled_token.payment_processor_token_details,
+                        )),
+                        new_token_info: Some(api_models::payments::AdditionalCardInfo::from(
+                            &updated_token.payment_processor_token_details,
+                        )),
+                    });
 
                 RedisTokenManager::upsert_payment_processor_token(
                     state,
