@@ -771,7 +771,45 @@ export const connectorDetails = {
         },
       },
     },
-    // Ideal and Eps configs omitted - will use Commons.js defaults
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          error_code: null,
+          error_message: null,
+        },
+      },
+    },
     Giropay: {
       Request: {
         payment_method: "bank_redirect",
@@ -846,6 +884,46 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        amount: 11500,
+        currency: "EUR",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              country: "AT",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Vienna",
+            state: "Vienna",
+            zip: "1010",
+            country: "AT",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+43",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
           error_code: null,
           error_message: null,
         },
