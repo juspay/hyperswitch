@@ -24,9 +24,9 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData as _,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _, deserialize_option_empty_string_to_none,
+        self, deserialize_option_empty_string_to_none, AddressDetailsData, BrowserInformationData,
+        CardData as _, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 

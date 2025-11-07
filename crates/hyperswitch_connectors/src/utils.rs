@@ -7412,10 +7412,11 @@ where
 {
     let string_data: Option<String> = Option::deserialize(deserializer)?;
     match string_data {
-        Some(value) if !value.trim().is_empty() => value
-            .parse::<T>()
-            .map(Some)
-            .map_err(|e| serde::de::Error::custom(format!("Invalid value received from connector: {value} ({e})"))),
+        Some(value) if !value.trim().is_empty() => value.parse::<T>().map(Some).map_err(|e| {
+            serde::de::Error::custom(format!(
+                "Invalid value received from connector: {value} ({e})"
+            ))
+        }),
         _ => Ok(None),
     }
 }
