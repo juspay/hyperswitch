@@ -481,3 +481,17 @@ fn get_vault_details(
         .into()),
     }
 }
+
+#[cfg(feature = "v1")]
+pub fn get_raw_authentication_token_data<F, Req>(
+    router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
+) -> Option<api_models::authentication::AuthenticationVaultTokenData> {
+    if let Ok(UasAuthenticationResponseData::PostAuthentication {
+        authentication_details,
+    }) = router_data.response.clone()
+    {
+        authentication_details.into()
+    } else {
+        None
+    }
+}

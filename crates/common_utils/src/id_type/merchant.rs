@@ -203,6 +203,11 @@ impl MerchantId {
         format!("should_call_gsm_{}", self.get_string_repr())
     }
 
+    /// get should call auth tokenization for modular authentication
+    pub fn get_should_call_auth_tokenization(&self) -> String {
+        format!("should_call_auth_tokenization_{}", self.get_string_repr())
+    }
+
     /// get_max_auto_single_connector_payout_retries_enabled_
     pub fn get_max_auto_single_connector_payout_retries_enabled(
         &self,

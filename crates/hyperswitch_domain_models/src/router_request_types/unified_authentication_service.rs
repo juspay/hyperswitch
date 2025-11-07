@@ -197,3 +197,34 @@ pub struct ThreeDsMetaData {
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
 }
+
+impl From<PostAuthenticationDetails>
+    for Option<api_models::authentication::AuthenticationVaultTokenData>
+{
+    fn from(item: PostAuthenticationDetails) -> Self {
+        match (item.raw_card_details, item.token_details) {
+            (Some(card_data), _) => Some(
+                api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                    card_number: Secret::new(card_data.pan.get_card_no()),
+                    card_expiry_year: card_data.expiration_year,
+                    card_expiry_month: card_data.expiration_month,
+                    card_cvc: card_data.card_security_code,
+                },
+            ),
+            (None, Some(network_token_data)) => {
+                let token_cryptogram = item
+                    .dynamic_data_details
+                    .and_then(|data| data.dynamic_data_value);
+                Some(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                        payment_token: Secret::new(network_token_data.payment_token.get_card_no()),
+                        token_expiry_year: network_token_data.token_expiration_year,
+                        token_expiry_month: network_token_data.token_expiration_month,
+                        token_cryptogram,
+                    },
+                )
+            }
+            (None, None) => None,
+        }
+    }
+}

@@ -1647,13 +1647,31 @@ pub async fn authentication_sync_core(
                 .await?
             };
 
-            let vault_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
-                &state,
-                &merchant_context,
-                &business_profile,
-                &post_auth_response,
-            ))
-            .await?;
+            let config = db
+                .find_config_by_key_unwrap_or(
+                    &merchant_id.get_should_call_auth_tokenization(),
+                    Some("false".to_string()),
+                )
+                .await;
+            let should_tokenize_auth_token = match config {
+                Ok(conf) => conf.config == "true",
+                Err(error) => {
+                    router_env::logger::error!(?error);
+                    false
+                }
+            };
+
+            let vault_token_data = if should_tokenize_auth_token {
+                Box::pin(utils::get_auth_multi_token_from_external_vault(
+                    &state,
+                    &merchant_context,
+                    &business_profile,
+                    &post_auth_response,
+                ))
+                .await?
+            } else {
+                utils::get_raw_authentication_token_data(&post_auth_response)
+            };
 
             let auth_update_response = utils::external_authentication_update_trackers(
                 &state,
