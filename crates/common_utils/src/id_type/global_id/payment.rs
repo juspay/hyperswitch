@@ -101,7 +101,7 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
 
 crate::global_id_type!(
     GlobalAttemptGroupId,
-    "A global id that can be used to identify a payment attempt"
+    "A global id that can be used to identify a payment attempt group"
 );
 
 // Database related implementations so that this field can be used directly in the database tables
@@ -124,11 +124,11 @@ impl GlobalAttemptGroupId {
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptGroupId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
-        let global_attempt_id = super::GlobalId::from_string(value).change_context(
+        let global_attempt_group_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "global_attempt_group_id",
             },
         )?;
-        Ok(Self(global_attempt_id))
+        Ok(Self(global_attempt_group_id))
     }
 }

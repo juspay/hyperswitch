@@ -8,7 +8,9 @@ use api_models::{
 use common_enums::{CallConnectorAction, SplitTxnsEnabled};
 use common_utils::{ext_traits::OptionExt, id_type, types::MinorUnit};
 use error_stack::{report, Report, ResultExt};
-use hyperswitch_domain_models::payments::{HeaderPayload, PaymentConfirmData, PaymentIntent};
+use hyperswitch_domain_models::payments::{
+    split_payments, HeaderPayload, PaymentConfirmData, PaymentIntent,
+};
 use masking::ExposeInterface;
 
 use super::errors::StorageErrorExt;
@@ -32,10 +34,33 @@ pub(crate) struct SplitPaymentResponseData {
     pub secondary_payment_response_data: Vec<PaymentConfirmData<api::Authorize>>,
 }
 
-/// There can be multiple gift-cards, but at most one non-gift card PM
-struct PaymentMethodAmountSplit {
-    pub balance_pm_split: Vec<(PaymentMethodData, MinorUnit)>,
-    pub non_balance_pm_split: Option<(PaymentMethodData, MinorUnit)>,
+impl SplitPaymentResponseData {
+    fn get_intent_status(&self) -> common_enums::IntentStatus {
+        let primary_status = common_enums::IntentStatus::from(
+            self.primary_payment_response_data.payment_attempt.status,
+        );
+
+        let secondary_status_vec: Vec<common_enums::IntentStatus> = self
+            .secondary_payment_response_data
+            .iter()
+            .map(|elem| common_enums::IntentStatus::from(elem.payment_attempt.status))
+            .collect();
+
+        // If all statuses are the same, return that status
+        let all_same = secondary_status_vec
+            .iter()
+            .all(|status| *status == primary_status);
+
+        if all_same {
+            primary_status
+        } else {
+            // Return the last secondary status if array is not empty, otherwise primary status
+            secondary_status_vec
+                .last()
+                .copied()
+                .unwrap_or(primary_status)
+        }
+    }
 }
 
 /// This function has been written to support multiple gift cards + at most one non-gift card
@@ -45,14 +70,14 @@ async fn get_payment_method_and_amount_split(
     payment_id: &id_type::GlobalPaymentId,
     request: &payments_api::PaymentsConfirmIntentRequest,
     payment_intent: &PaymentIntent,
-) -> RouterResult<PaymentMethodAmountSplit> {
+) -> RouterResult<split_payments::PaymentMethodAmountSplit> {
     let split_payment_methods_data = request.split_payment_method_data.clone().ok_or(
         errors::ApiErrorResponse::MissingRequiredField {
             field_name: "split_payment_method_data",
         },
     )?;
 
-    let outer_payment_method_data = SplitPaymentMethodDataRequest {
+    let payment_method_data = SplitPaymentMethodDataRequest {
         payment_method_data: request
             .payment_method_data
             .payment_method_data
@@ -66,7 +91,7 @@ async fn get_payment_method_and_amount_split(
 
     let combined_pm_data: Vec<_> = split_payment_methods_data
         .into_iter()
-        .chain(std::iter::once(outer_payment_method_data))
+        .chain(std::iter::once(payment_method_data))
         .collect();
 
     let (non_gift_card_pm_data, gift_card_pm_data): (Vec<_>, Vec<_>) = combined_pm_data
@@ -117,28 +142,39 @@ async fn get_payment_method_and_amount_split(
 
     let remaining_amount = (total_amount - total_balances).max(MinorUnit::zero());
 
+    let mut remaining_to_allocate = total_amount;
     let pm_split_amt_tuple: Vec<(PaymentMethodData, MinorUnit)> = gift_card_data_vec
         .iter()
-        .map(|elem| {
+        .filter_map(|gift_card_card| {
+            if remaining_to_allocate == MinorUnit::zero() {
+                return None; // Payment already fully covered
+            }
+
             let pm_balance_key = domain::PaymentMethodBalanceKey {
                 payment_method_type: common_enums::PaymentMethod::GiftCard,
-                payment_method_subtype: elem.get_payment_method_type(),
-                payment_method_key: domain::GiftCardData::from(elem.clone())
+                payment_method_subtype: gift_card_card.get_payment_method_type(),
+                payment_method_key: domain::GiftCardData::from(gift_card_card.clone())
                     .get_payment_method_key()
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Unable to get unique key for payment method".to_string(),
-                    })?
+                    })
+                    .ok()?
                     .expose(),
             };
 
             let pm_balance = balances
                 .get(&pm_balance_key)
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .ok()?;
 
-            Ok((
-                PaymentMethodData::GiftCard(Box::new(elem.to_owned())),
-                pm_balance.balance,
-            ))
+            // Use minimum of available balance and remaining amount
+            let amount_to_use = pm_balance.balance.min(remaining_to_allocate);
+            remaining_to_allocate = remaining_to_allocate - amount_to_use;
+
+            Some(Ok((
+                PaymentMethodData::GiftCard(Box::new(gift_card_card.to_owned())),
+                amount_to_use,
+            )))
         })
         .collect::<RouterResult<Vec<_>>>()?;
 
@@ -151,12 +187,12 @@ async fn get_payment_method_and_amount_split(
             })?
             .payment_method_data;
 
-        Ok(PaymentMethodAmountSplit {
+        Ok(split_payments::PaymentMethodAmountSplit {
             balance_pm_split: pm_split_amt_tuple,
             non_balance_pm_split: Some((non_gift_card_pm_data, remaining_amount)),
         })
     } else {
-        Ok(PaymentMethodAmountSplit {
+        Ok(split_payments::PaymentMethodAmountSplit {
             balance_pm_split: pm_split_amt_tuple,
             non_balance_pm_split: None,
         })
@@ -185,7 +221,7 @@ pub(crate) async fn payments_execute_split_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    if payment_intent.split_txns_enabled == SplitTxnsEnabled::Skip {
+    if !payment_intent.supports_split_payments() {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Split Payments not enabled in Payment Intent".to_string(),
         })?
@@ -201,7 +237,7 @@ pub(crate) async fn payments_execute_split_core(
                 .get_merchant_account()
                 .storage_scheme
                 .to_string(),
-            active_attempt_id_type: enums::ActiveAttemptIDType::AttemptsGroupID,
+            active_attempt_id_type: enums::ActiveAttemptIDType::GroupID,
             active_attempts_group_id: attempts_group_id.clone(),
         };
 
@@ -270,7 +306,7 @@ pub(crate) async fn payments_execute_split_core(
         // payments_operation_core marks the intent as succeeded when the attempt is succesful
         // However, for split case, we can't mark the intent as succesful until all the attempts
         // have succeeded, so reverting the state of Payment Intent
-        if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
+        if payment_data.payment_intent.is_succeeded() {
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
@@ -354,7 +390,7 @@ pub(crate) async fn payments_execute_split_core(
         // payments_operation_core marks the intent as succeeded when the attempt is succesful
         // However, for split case, we can't mark the intent as succesful until all the attempts
         // have succeeded, so reverting the state of Payment Intent
-        if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
+        if payment_data.payment_intent.is_succeded() {
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
@@ -384,7 +420,7 @@ pub(crate) async fn payments_execute_split_core(
 
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
-            status: common_enums::IntentStatus::Succeeded,
+            status: split_pm_response_data.get_intent_status(),
             updated_by: merchant_context
                 .get_merchant_account()
                 .storage_scheme

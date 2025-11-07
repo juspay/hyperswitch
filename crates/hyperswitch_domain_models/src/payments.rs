@@ -31,6 +31,8 @@ use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+#[cfg(feature = "v2")]
+pub mod split_payments;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
@@ -852,9 +854,33 @@ impl PaymentIntent {
         self.amount_details.currency
     }
 
+    pub fn supports_split_payments(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+    }
+
     pub fn is_split_payment(&self) -> bool {
         self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
-            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::GroupID
+    }
+
+    pub fn is_succeeded(&self) -> bool {
+        match self.status {
+            common_enums::IntentStatus::Succeeded => true,
+            common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Conflicted => false,
+        }
     }
 }
 

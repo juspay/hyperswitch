@@ -2757,12 +2757,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
                 acc + data.payment_attempt.amount_details.get_net_amount()
             });
 
-        let net_amount = self
-            .primary_payment_response_data
-            .payment_attempt
-            .amount_details
-            .get_net_amount()
-            + secondary_net_amount;
+        let net_amount = intent_amount_details.calculate_net_amount();
 
         let amount = api_models::payments::PaymentAmountDetailsResponse {
             order_amount: intent_amount_details.order_amount,

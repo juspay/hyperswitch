@@ -3161,7 +3161,7 @@ pub enum SplitTxnsEnabled {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ActiveAttemptIDType {
-    AttemptsGroupID,
+    GroupID,
     #[default]
     AttemptID,
 }

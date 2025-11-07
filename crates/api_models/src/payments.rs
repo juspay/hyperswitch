@@ -3578,16 +3578,6 @@ pub enum BalanceCheckPaymentMethodData {
     GiftCard(GiftCardData),
 }
 
-// impl From<BalanceCheckPaymentMethodData> for PaymentMethodData {
-//     fn from(value: BalanceCheckPaymentMethodData) -> Self {
-//         match value {
-//             BalanceCheckPaymentMethodData::GiftCard(gift_card_data) => {
-//                 PaymentMethodData::GiftCard(Box::new(gift_card_data))
-//             }
-//         }
-//     }
-// }
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataRequest {
     pub payment_methods: Vec<BalanceCheckPaymentMethodData>,
