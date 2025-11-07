@@ -40,8 +40,6 @@ pub struct PaymentsAuthorizeData {
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
-    pub statement_descriptor_suffix: Option<String>,
-    pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -90,6 +88,7 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1428,7 +1427,6 @@ pub struct SetupMandateRequestData {
     pub payment_method_data: PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
-    pub statement_descriptor_suffix: Option<String>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -1457,6 +1455,7 @@ pub struct SetupMandateRequestData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
     pub is_stored_credential: Option<bool>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
