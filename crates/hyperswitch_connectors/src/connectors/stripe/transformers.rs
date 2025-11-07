@@ -224,6 +224,8 @@ pub struct PaymentIntentRequest {
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -269,6 +271,8 @@ pub struct SetupIntentRequest {
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1891,7 +1895,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_method,
             billing_address,
             payment_method_types,
-            setup_future_usage,
+            mut setup_future_usage,
         ) = if payment_method_token.is_some() {
             (None, None, StripeBillingAddress::default(), None, None)
         } else {
@@ -2174,11 +2178,36 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None) => None,
         };
 
+        let is_moto = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::Card { .. }
+        ) && item.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
+        setup_future_usage = match (setup_future_usage, is_moto) {
+            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
+            _ => setup_future_usage,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
-            statement_descriptor: item.request.statement_descriptor.clone(),
+            statement_descriptor_suffix: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            statement_descriptor: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
             meta_data,
             return_url: item
                 .request
@@ -2200,8 +2229,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.split_payments.as_ref(),
                 item.request.setup_future_usage,
                 item.request.customer_acceptance.as_ref(),
+                is_moto,
             ) {
-                (Some(_), Some(usage), Some(_)) => Some(usage),
+                (_, Some(enums::FutureUsage::OnSession), _, Some(true)) => None,
+                (Some(_), Some(usage), Some(_), _) => Some(usage),
                 _ => setup_future_usage,
             },
 
@@ -2209,6 +2240,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
         })
     }
 }
@@ -2282,18 +2314,36 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::Card { .. }
+        ) && item.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
+        let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
+            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
+            _ => item.request.setup_future_usage,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
-            usage: item.request.setup_future_usage,
+            usage: setup_future_usage,
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
             meta_data,
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
         })
     }
 }
