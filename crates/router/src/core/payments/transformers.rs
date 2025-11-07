@@ -5058,6 +5058,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+            split_payments: payment_data.payment_intent.split_payments.clone(),
         })
     }
 }
@@ -5676,6 +5677,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             related_transaction_id: None,
             enrolled_for_3ds: true,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            split_payments: payment_data.payment_intent.split_payments.clone(),
         })
     }
 }
