@@ -2080,20 +2080,6 @@ fn get_social_security_number(voucher_data: &VoucherData) -> Option<Secret<Strin
     }
 }
 
-fn build_shopper_reference(item: &PaymentsAuthorizeRouterData) -> Option<String> {
-    match item.get_connector_customer_id() {
-        Ok(connector_customer_id) => Some(connector_customer_id),
-        Err(_) => match item.get_customer_id() {
-            Ok(customer_id) => Some(format!(
-                "{}_{}",
-                item.merchant_id.get_string_repr(),
-                customer_id.get_string_repr()
-            )),
-            Err(_) => None,
-        },
-    }
-}
-
 impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod<'_> {
     type Error = Error;
     fn try_from(
@@ -3083,8 +3069,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(item.router_data);
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =
@@ -3806,8 +3791,7 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(item.router_data);
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
@@ -5213,6 +5197,11 @@ pub struct AdyenAdditionalDataWH {
     pub shopper_email: Option<String>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
+    pub expiry_date: Option<Secret<String>>,
+    pub card_summary: Option<Secret<String>>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_bank: Option<String>,
+    pub payment_method_variant: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -6427,8 +6416,7 @@ impl
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(item.router_data);
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =
@@ -6530,5 +6518,141 @@ impl AdditionalData {
             parts.next()?;
             Some(first_part.to_string())
         })
+    }
+}
+
+pub fn from_payment_method_variant(value: Option<String>) -> Option<common_enums::CardNetwork> {
+    let val = value?.to_lowercase();
+    let cleaned = val.trim().split('_').next().unwrap_or("");
+
+    match cleaned {
+        "visa"
+        | "visacredit"
+        | "visadebit"
+        | "visaelectron"
+        | "vpay"
+        | "visacorporate"
+        | "visacommercialcredit"
+        | "visacommercialdebit"
+        | "visapurchasing"
+        | "visastandardcredit"
+        | "visastandarddebit"
+        | "visapremiumcredit"
+        | "visapremiumdebit"
+        | "visasignature"
+        | "visagold"
+        | "visaplatinum"
+        | "visaproprietary"
+        | "visacheckout"
+        | "visafleetcredit"
+        | "visafleetdebit"
+        | "visaalphabankbonus"
+        | "visacorporatedebit"
+        | "visacorporatecredit"
+        | "visacommercialsuperpremiumcredit"
+        | "visacommercialsuperpremiumdebit" => Some(common_enums::CardNetwork::Visa),
+
+        "mc"
+        | "mccredit"
+        | "mcdebit"
+        | "mcpremiumcredit"
+        | "mcpremiumdebit"
+        | "mcstandardcredit"
+        | "mcstandarddebit"
+        | "mcsuperpremiumcredit"
+        | "mcsuperpremiumdebit"
+        | "mccommercialcredit"
+        | "mccommercialdebit"
+        | "mccommercialpremiumcredit"
+        | "mccommercialpremiumdebit"
+        | "mcpurchasingcredit"
+        | "mcpurchasingdebit"
+        | "mcfleetcredit"
+        | "mcfleetdebit"
+        | "mcalphabankbonus"
+        | "mccorporate"
+        | "mccorporatecredit"
+        | "mccorporatedebit" => Some(common_enums::CardNetwork::Mastercard),
+
+        "amex"
+        | "amexcommercial"
+        | "amexconsumer"
+        | "amexcorporate"
+        | "amexdebit"
+        | "amexprepaid"
+        | "amexprepaidreloadable"
+        | "amexsmallbusiness" => Some(common_enums::CardNetwork::AmericanExpress),
+
+        "jcb" | "jcbcredit" | "jcbdebit" | "jcbprepaid" | "jcbprepaidanonymous" => {
+            Some(common_enums::CardNetwork::JCB)
+        }
+
+        "diners" | "dinersclub" => Some(common_enums::CardNetwork::DinersClub),
+
+        "discover" => Some(common_enums::CardNetwork::Discover),
+
+        "cartesbancaires" | "cartebancaire" => Some(common_enums::CardNetwork::CartesBancaires),
+
+        "cup" | "cupdebit" | "cupcredit" | "cupprepaid" => {
+            Some(common_enums::CardNetwork::UnionPay)
+        }
+
+        "interac" | "interac_card" => Some(common_enums::CardNetwork::Interac),
+
+        "rupay" => Some(common_enums::CardNetwork::RuPay),
+
+        "maestro" | "maestrouk" | "maestro_usa" => Some(common_enums::CardNetwork::Maestro),
+
+        "star" => Some(common_enums::CardNetwork::Star),
+
+        "pulse" => Some(common_enums::CardNetwork::Pulse),
+
+        "accel" => Some(common_enums::CardNetwork::Accel),
+
+        "nyce" => Some(common_enums::CardNetwork::Nyce),
+
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CardExpiry {
+    month: u32,
+    year: u32,
+}
+
+impl CardExpiry {
+    pub fn new(month: u32, year: u32) -> Result<Self, errors::ConnectorError> {
+        if !(1..=12).contains(&month) {
+            return Err(errors::ConnectorError::ParsingFailed);
+        }
+        Ok(Self { month, year })
+    }
+
+    pub fn parse(raw: &str) -> Result<Self, errors::ConnectorError> {
+        let cleaned = raw.replace('\\', "");
+        let parts: Vec<&str> = cleaned.split('/').collect();
+
+        let (month_str, year_str) = match (parts.first(), parts.get(1)) {
+            (Some(m), Some(y)) => (*m, *y),
+            _ => return Err(errors::ConnectorError::ParsingFailed),
+        };
+
+        let month: u32 = month_str
+            .parse()
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+        let year: u32 = year_str
+            .parse()
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+        Self::new(month, year)
+    }
+
+    pub fn month(&self) -> Secret<String> {
+        Secret::new(format!("{:02}", self.month))
+    }
+
+    pub fn year(&self) -> Secret<String> {
+        Secret::new(format!("{:02}", self.year % 100))
     }
 }
