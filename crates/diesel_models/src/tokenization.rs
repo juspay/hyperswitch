@@ -1,6 +1,4 @@
 #[cfg(feature = "v2")]
-use common_enums;
-#[cfg(feature = "v2")]
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};

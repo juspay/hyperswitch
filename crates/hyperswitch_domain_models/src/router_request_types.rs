@@ -307,7 +307,7 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             phone: None,
             name: None,
             preprocessing_id: None,
-            split_payments: None,
+            split_payments: data.split_payments,
             setup_future_usage: data.setup_future_usage,
             customer_acceptance: data.customer_acceptance,
             customer_id: None,
@@ -865,6 +865,7 @@ pub struct PaymentsCancelData {
     pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1455,6 +1456,7 @@ pub struct SetupMandateRequestData {
     pub payment_channel: Option<storage_enums::PaymentChannel>,
     pub is_stored_credential: Option<bool>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Clone)]

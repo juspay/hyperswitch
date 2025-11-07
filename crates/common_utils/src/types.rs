@@ -768,7 +768,6 @@ pub struct TimeRange {
 
 #[cfg(test)]
 mod amount_conversion_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
