@@ -4904,7 +4904,6 @@ where
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
-    #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
     use masking::Secret;

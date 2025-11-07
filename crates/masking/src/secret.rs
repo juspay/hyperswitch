@@ -288,7 +288,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::expect_used)]
     fn test_json_mask_strategy() {
         // Create a sample JSON with different types for testing
         let original = json!({ "user": { "name": "John Doe", "email": "john@example.com", "age": 35, "verified": true }, "card": { "number": "4242424242424242", "cvv": 123, "amount": 99.99 }, "tags": ["personal", "premium"], "null_value": null, "short": "hi" });

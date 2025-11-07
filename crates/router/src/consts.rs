@@ -356,8 +356,6 @@ pub mod superposition {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     #[test]
     fn test_profile_id_unavailable_initialization() {
         // Just access the lazy static to ensure it doesn't panic during initialization
