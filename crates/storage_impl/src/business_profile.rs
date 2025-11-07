@@ -12,7 +12,7 @@ use router_env::{instrument, tracing};
 use crate::{
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
 #[async_trait::async_trait]
@@ -21,12 +21,11 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
         self.router_store
-            .insert_business_profile(key_manager_state, merchant_key_store, business_profile)
+            .insert_business_profile(merchant_key_store, business_profile)
             .await
     }
 
@@ -75,18 +74,12 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn update_profile_by_profile_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         self.router_store
-            .update_profile_by_profile_id(
-                key_manager_state,
-                merchant_key_store,
-                current_state,
-                profile_update,
-            )
+            .update_profile_by_profile_id(merchant_key_store, current_state, profile_update)
             .await
     }
 
@@ -119,7 +112,6 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
@@ -132,7 +124,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
-                key_manager_state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -194,7 +186,6 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn update_profile_by_profile_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
@@ -207,7 +198,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
-                key_manager_state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -247,7 +238,6 @@ impl ProfileInterface for MockDb {
     type Error = StorageError;
     async fn insert_business_profile(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
@@ -262,7 +252,7 @@ impl ProfileInterface for MockDb {
 
         stored_business_profile
             .convert(
-                key_manager_state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -284,7 +274,7 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_key_manager_state()?,
+                        self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -319,7 +309,7 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_key_manager_state()?,
+                        self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -338,7 +328,6 @@ impl ProfileInterface for MockDb {
 
     async fn update_profile_by_profile_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
@@ -359,7 +348,7 @@ impl ProfileInterface for MockDb {
 
                 profile_updated
                     .convert(
-                        self.get_key_manager_state()?,
+                        self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -414,7 +403,7 @@ impl ProfileInterface for MockDb {
         for business_profile in business_profiles {
             let domain_profile = business_profile
                 .convert(
-                    self.get_key_manager_state()?,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -444,7 +433,7 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_key_manager_state()?,
+                        self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )

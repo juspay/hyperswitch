@@ -764,11 +764,9 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let merchant_connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &merchant_connector_id,
             merchant_context.get_merchant_key_store(),

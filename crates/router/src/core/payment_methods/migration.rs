@@ -130,7 +130,6 @@ pub async fn update_payment_method_record(
         for merchant_connector_id in parsed_mca_ids {
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    &state.into(),
                     merchant_context.get_merchant_account().get_id(),
                     &merchant_connector_id,
                     merchant_context.get_merchant_key_store(),

@@ -48,7 +48,6 @@ pub async fn refund_create_core(
 
     payment_intent = db
         .find_payment_intent_by_id(
-            &(&state).into(),
             &req.payment_id,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -88,7 +87,6 @@ pub async fn refund_create_core(
 
     payment_attempt = db
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            &(&state).into(),
             merchant_context.get_merchant_key_store(),
             &req.payment_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -131,7 +129,6 @@ pub async fn trigger_refund_to_gateway(
 
     let mca = db
         .find_merchant_connector_account_by_id(
-            &state.into(),
             &mca_id,
             merchant_context.get_merchant_key_store(),
         )
@@ -663,12 +660,10 @@ pub async fn refund_retrieve_core(
 ) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
 
-    let key_manager_state = &(&state).into();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = &refund.payment_id;
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             payment_id,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -684,7 +679,6 @@ pub async fn refund_retrieve_core(
 
     let payment_attempt = db
         .find_payment_attempt_by_id(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &active_attempt_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -789,7 +783,6 @@ pub async fn sync_refund_with_gateway(
 
     let mca = db
         .find_merchant_connector_account_by_id(
-            &state.into(),
             &mca_id,
             merchant_context.get_merchant_key_store(),
         )

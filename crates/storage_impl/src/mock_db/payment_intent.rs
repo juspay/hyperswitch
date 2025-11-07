@@ -33,7 +33,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _merchant_key_store: &MerchantKeyStore,
@@ -147,7 +146,7 @@ impl PaymentIntentInterface for MockDb {
             .change_context(StorageError::EncryptionError)?;
 
         *payment_intent = PaymentIntent::convert_back(
-            self.get_key_manager_state()?,
+            self.get_key_manager_state(),
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
@@ -163,7 +162,6 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
-        _state: &KeyManagerState,
         _this: PaymentIntent,
         _update: PaymentIntentUpdate,
         _key_store: &MerchantKeyStore,
@@ -196,7 +194,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
-        _state: &KeyManagerState,
         id: &common_utils::id_type::GlobalPaymentId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -214,7 +211,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
-        _state: &KeyManagerState,
         merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
         profile_id: &common_utils::id_type::ProfileId,
         _merchant_key_store: &MerchantKeyStore,

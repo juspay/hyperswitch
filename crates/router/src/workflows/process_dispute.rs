@@ -42,21 +42,15 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &tracking_data.merchant_id,
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await?;
 
         let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(

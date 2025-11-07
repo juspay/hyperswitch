@@ -371,20 +371,19 @@ impl SubscriptionWithHandler<'_> {
     ) -> CustomResult<merchant_connector_account::MerchantConnectorAccount, errors::ApiErrorResponse>
     {
         let db = self.handler.state.store.as_ref();
-        let key_manager_state = &(self.handler.state).into();
+        let key_store = self.handler.merchant_context.get_merchant_key_store();
 
         match &self.subscription.merchant_connector_id {
             Some(merchant_connector_id) => {
                 #[cfg(feature = "v1")]
                 {
                     db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        key_manager_state,
                         self.handler
                             .merchant_context
                             .get_merchant_account()
                             .get_id(),
                         merchant_connector_id,
-                        self.handler.merchant_context.get_merchant_key_store(),
+                        key_store,
                     )
                     .await
                     .to_not_found_response(
@@ -399,10 +398,9 @@ impl SubscriptionWithHandler<'_> {
                 #[cfg(feature = "v1")]
                 {
                     db.find_merchant_connector_account_by_profile_id_connector_name(
-                        key_manager_state,
                         &self.subscription.profile_id,
                         connector_name,
-                        self.handler.merchant_context.get_merchant_key_store(),
+                        key_store,
                     )
                     .await
                     .to_not_found_response(

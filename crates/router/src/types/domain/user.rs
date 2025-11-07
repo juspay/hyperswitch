@@ -449,7 +449,6 @@ impl NewUserMerchant {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &(&state).into(),
                 &self.get_merchant_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -542,11 +541,9 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -557,7 +554,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
             )
@@ -593,11 +589,9 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -608,7 +602,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &merchant_key_store,
             )

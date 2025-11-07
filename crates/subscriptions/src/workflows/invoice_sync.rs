@@ -44,11 +44,9 @@ impl<'a> InvoiceSyncHandler<'a> {
         state: &'a SessionState,
         tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
     ) -> Result<Self, errors::ProcessTrackerError> {
-        let key_manager_state = &state.into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &tracking_data.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -57,11 +55,7 @@ impl<'a> InvoiceSyncHandler<'a> {
 
         let merchant_account = state
             .store
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &tracking_data.merchant_id,
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await
             .attach_printable("Subscriptions: Failed to fetch Merchant Account from DB")?;
 

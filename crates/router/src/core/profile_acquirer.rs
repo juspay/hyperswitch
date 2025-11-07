@@ -1,5 +1,4 @@
 use api_models::profile_acquirer;
-use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 
 use crate::{
@@ -17,7 +16,6 @@ pub async fn create_profile_acquirer(
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
-    let key_manager_state: KeyManagerState = (&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
     let mut business_profile = db
@@ -74,12 +72,7 @@ pub async fn create_profile_acquirer(
         acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
     let updated_business_profile = db
-        .update_profile_by_profile_id(
-            &key_manager_state,
-            merchant_key_store,
-            business_profile,
-            profile_update,
-        )
+        .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with new acquirer config")?;
@@ -109,7 +102,6 @@ pub async fn update_profile_acquirer_config(
     merchant_context: domain::MerchantContext,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = (&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
     let mut business_profile = db
@@ -187,12 +179,7 @@ pub async fn update_profile_acquirer_config(
     };
 
     let updated_business_profile = db
-        .update_profile_by_profile_id(
-            &key_manager_state,
-            merchant_key_store,
-            business_profile,
-            profile_update,
-        )
+        .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with updated acquirer config")?;

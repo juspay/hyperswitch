@@ -67,18 +67,18 @@ pub struct MockDb {
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
-    pub key_manager_state: Option<KeyManagerState>,
+    pub key_manager_state: KeyManagerState,
     pub domain_merchant_key_store: Option<MerchantKeyStore>,
 }
 
 impl MockDb {
-    pub fn get_key_manager_state(&self) -> CustomResult<&KeyManagerState, StorageError> {
-        Ok(self
-            .key_manager_state
-            .as_ref()
-            .ok_or_else(|| StorageError::DecryptionError)?)
+    pub fn get_key_manager_state(&self) -> &KeyManagerState {
+        &self.key_manager_state
     }
-    pub async fn new(redis: &RedisSettings) -> error_stack::Result<Self, StorageError> {
+    pub async fn new(
+        redis: &RedisSettings,
+        key_manager_state: KeyManagerState,
+    ) -> error_stack::Result<Self, StorageError> {
         Ok(Self {
             addresses: Default::default(),
             configs: Default::default(),
@@ -124,7 +124,7 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
-            key_manager_state: None,
+            key_manager_state,
             domain_merchant_key_store: None,
         })
     }
@@ -144,11 +144,7 @@ impl MockDb {
         match resource {
             Some(res) => Ok(Some(
                 res.convert(
-                    &self
-                        .key_manager_state
-                        .as_ref()
-                        .ok_or_else(|| StorageError::DecryptionError)?
-                        .clone(),
+                    &self.key_manager_state,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -196,7 +192,7 @@ impl MockDb {
                 .into_iter()
                 .map(|pm| async {
                     pm.convert(
-                        self.get_key_manager_state()?,
+                        self.get_key_manager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -227,7 +223,7 @@ impl MockDb {
             *pm = resource_updated.clone();
             let result = resource_updated
                 .convert(
-                    self.get_key_manager_state()?,
+                    self.get_key_manager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

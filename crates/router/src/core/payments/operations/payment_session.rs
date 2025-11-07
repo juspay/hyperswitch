@@ -375,7 +375,6 @@ where
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
                 merchant_context.get_merchant_account().get_id(),
                 false,
                 merchant_context.get_merchant_key_store(),

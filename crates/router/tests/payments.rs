@@ -302,11 +302,9 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -315,7 +313,7 @@ async fn payments_create_core() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
@@ -594,11 +592,9 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -607,7 +603,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 

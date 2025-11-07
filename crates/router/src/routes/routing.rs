@@ -1766,11 +1766,9 @@ async fn get_merchant_account(
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
 {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1779,7 +1777,7 @@ async fn get_merchant_account(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))

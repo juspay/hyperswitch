@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii::Email,
-    types::keymanager::KeyManagerState,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::{
@@ -573,7 +572,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .unwrap_or(false);
         if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
-            let key_manager_state: &KeyManagerState = &state.into();
 
             let merchant_connector_id = business_profile
                 .tax_connector_id
@@ -583,7 +581,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             #[cfg(feature = "v1")]
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     &business_profile.merchant_id,
                     merchant_connector_id,
                     merchant_context.get_merchant_key_store(),
@@ -598,7 +595,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             #[cfg(feature = "v2")]
             let mca = db
                 .find_merchant_connector_account_by_id(
-                    key_manager_state,
                     merchant_connector_id,
                     key_store,
                 )

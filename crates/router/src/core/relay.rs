@@ -225,7 +225,6 @@ pub async fn relay<T: RelayInterface>(
     req: RelayRequestInner<T>,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let connector_id = &req.connector_id;
 
@@ -245,7 +244,6 @@ pub async fn relay<T: RelayInterface>(
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             connector_id,
             merchant_context.get_merchant_key_store(),
@@ -258,7 +256,6 @@ pub async fn relay<T: RelayInterface>(
     #[cfg(feature = "v2")]
     let connector_account = db
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             connector_id,
             merchant_context.get_merchant_key_store(),
         )
@@ -272,11 +269,7 @@ pub async fn relay<T: RelayInterface>(
     let relay_domain = T::get_domain_models(req, merchant_id, profile.get_id());
 
     let relay_record = db
-        .insert_relay(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            relay_domain,
-        )
+        .insert_relay(merchant_context.get_merchant_key_store(), relay_domain)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert a relay record in db")?;
@@ -292,7 +285,6 @@ pub async fn relay<T: RelayInterface>(
 
     let relay_update_record = db
         .update_relay(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             relay_record,
             relay_response,
@@ -315,7 +307,6 @@ pub async fn relay_retrieve(
     req: relay_api_models::RelayRetrieveRequest,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let relay_id = &req.id;
 
@@ -332,11 +323,7 @@ pub async fn relay_retrieve(
     })?;
 
     let relay_record_result = db
-        .find_relay_by_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            relay_id,
-        )
+        .find_relay_by_id(merchant_context.get_merchant_key_store(), relay_id)
         .await;
 
     let relay_record = match relay_record_result {
@@ -357,7 +344,6 @@ pub async fn relay_retrieve(
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &relay_record.connector_id,
             merchant_context.get_merchant_key_store(),
@@ -370,7 +356,6 @@ pub async fn relay_retrieve(
     #[cfg(feature = "v2")]
     let connector_account = db
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             &relay_record.connector_id,
             merchant_context.get_merchant_key_store(),
         )
@@ -391,7 +376,6 @@ pub async fn relay_retrieve(
                 .await?;
 
                 db.update_relay(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     relay_record,
                     relay_response,

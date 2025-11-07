@@ -32,11 +32,9 @@ pub async fn list_payment_methods(
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponseForPayments> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -48,7 +46,6 @@ pub async fn list_payment_methods(
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile.get_id(),
             merchant_context.get_merchant_key_store(),
             common_enums::ConnectorType::PaymentProcessor,

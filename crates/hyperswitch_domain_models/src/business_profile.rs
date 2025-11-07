@@ -2546,7 +2546,6 @@ where
     type Error;
     async fn insert_business_profile(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: Profile,
     ) -> CustomResult<Profile, Self::Error>;
@@ -2573,7 +2572,6 @@ where
 
     async fn update_profile_by_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: Profile,
         profile_update: ProfileUpdate,

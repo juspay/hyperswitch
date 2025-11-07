@@ -90,11 +90,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
-        let key_manager_state = &state.into();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 &request.id,
                 merchant_context.get_merchant_key_store(),
                 storage_scheme,

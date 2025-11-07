@@ -2633,10 +2633,8 @@ pub async fn payments_get_intent_using_merchant_reference(
 ) -> RouterResponse<api::PaymentsIntentResponse> {
     let db = state.store.as_ref();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
-    let key_manager_state = &(&state).into();
     let payment_intent = db
         .find_payment_intent_by_merchant_reference_id_profile_id(
-            key_manager_state,
             merchant_reference_id,
             profile.get_id(),
             merchant_context.get_merchant_key_store(),
@@ -6341,11 +6339,9 @@ pub async fn get_session_token_for_click_to_pay(
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "authentication_product_ids",
         })?;
-    let key_manager_state = &(state).into();
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &click_to_pay_mca_id,
             merchant_context.get_merchant_key_store(),
@@ -6422,11 +6418,9 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     profile_id: &id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<HashSet<enums::CardNetwork>> {
-    let key_manager_state = &(state).into();
     let merchant_configured_payment_connectors = state
         .store
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile_id,
             key_store,
             common_enums::ConnectorType::PaymentProcessor,
@@ -6913,14 +6907,12 @@ where
             .attach_printable(
                 "Failed to get authentication connector id from authentication table",
             )?;
-        let key_manager_state = &(state).into();
         let key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
 
         let connector_mca = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
                 merchant_id,
                 &authentication_connector_id,
                 key_store,
@@ -8040,7 +8032,6 @@ pub async fn list_payments(
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
-                    &(&state).into(),
                     merchant_context.get_merchant_account().get_id(),
                     &fetch_constraints,
                     merchant_context.get_merchant_key_store(),
@@ -10526,13 +10517,11 @@ pub async fn payment_start_redirection(
     req: api_models::payments::PaymentStartRedirectionRequest,
 ) -> RouterResponse<serde_json::Value> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &req.id,
             merchant_context.get_merchant_key_store(),
             storage_scheme,
@@ -10555,7 +10544,6 @@ pub async fn payment_start_redirection(
 
     let payment_attempt = db
         .find_payment_attempt_by_id(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             payment_intent
                 .active_attempt_id
@@ -10622,11 +10610,9 @@ pub async fn payments_manual_update(
         connector_transaction_id,
         amount_capturable,
     } = req;
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -10635,7 +10621,7 @@ pub async fn payments_manual_update(
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;

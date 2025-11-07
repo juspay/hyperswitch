@@ -339,7 +339,6 @@ pub async fn find_mca_from_authentication_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state.into(),
             merchant_context.get_merchant_account().get_id(),
             &mca_id,
             merchant_context.get_merchant_key_store(),
@@ -368,7 +367,6 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
@@ -397,7 +395,6 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     merchant_context.get_merchant_account().get_id(),
                     &merchant_connector_id,
                     merchant_context.get_merchant_key_store(),
@@ -431,7 +428,6 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &profile_id,
                     connector_name,
                     merchant_context.get_merchant_key_store(),
@@ -487,7 +483,6 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     merchant_context.get_merchant_account().get_id(),
                     &merchant_connector_id,
                     merchant_context.get_merchant_key_store(),
@@ -513,7 +508,6 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &payout.profile_id,
                     connector_name,
                     merchant_context.get_merchant_key_store(),
@@ -560,7 +554,6 @@ pub async fn get_mca_from_object_reference_id(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &state.into(),
                     profile_id,
                     connector_name,
                     merchant_context.get_merchant_key_store(),

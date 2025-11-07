@@ -156,7 +156,6 @@ pub async fn initiate_payout_link(
                 .as_ref()
                 .async_map(|address_id| async {
                     db.find_address_by_address_id(
-                        &(&state).into(),
                         address_id,
                         merchant_context.get_merchant_key_store(),
                     )
@@ -334,11 +333,9 @@ pub async fn filter_payout_methods(
     use masking::ExposeInterface;
 
     let db = &*state.store;
-    let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
             merchant_context.get_merchant_account().get_id(),
             false,
             merchant_context.get_merchant_key_store(),

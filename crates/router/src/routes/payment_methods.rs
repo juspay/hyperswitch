@@ -305,11 +305,9 @@ async fn get_merchant_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -318,7 +316,7 @@ async fn get_merchant_account(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
@@ -371,7 +369,6 @@ pub async fn migrate_payment_methods(
                                 let mca = state
                         .store
                         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            &(&state).into(),
                             &merchant_id,
                             &connector_customer.merchant_connector_id,
                             merchant_context.get_merchant_key_store(),

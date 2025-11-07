@@ -529,7 +529,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource(
-                state,
                 key_store,
                 customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
@@ -612,7 +611,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database(
-                state,
                 key_store,
                 customers::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
@@ -748,7 +746,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database(
-                state,
                 key_store,
                 customers::Customer::find_by_global_id(&conn, id),
             )
@@ -796,7 +793,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-
         _customer_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -823,7 +819,7 @@ impl domain::CustomerInterface for MockDb {
                     customer
                         .to_owned()
                         .convert(
-                            self.get_key_manager_state()?,
+                            self.get_key_manager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -854,7 +850,7 @@ impl domain::CustomerInterface for MockDb {
                     customer
                         .to_owned()
                         .convert(
-                            self.get_key_manager_state()?,
+                            self.get_key_manager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -874,7 +870,6 @@ impl domain::CustomerInterface for MockDb {
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-
         _customer_id: id_type::CustomerId,
         _merchant_id: id_type::MerchantId,
         _customer: domain::Customer,
@@ -889,7 +884,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-
         _customer_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -902,7 +896,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
-
         _merchant_reference_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -929,7 +922,7 @@ impl domain::CustomerInterface for MockDb {
 
         customer
             .convert(
-                self.get_key_manager_state()?,
+                self.get_key_manager_state(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -951,7 +944,6 @@ impl domain::CustomerInterface for MockDb {
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
-
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
         _customer_update: domain::CustomerUpdate,
@@ -965,7 +957,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
-        _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

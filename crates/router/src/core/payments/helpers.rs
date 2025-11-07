@@ -24,7 +24,7 @@ use common_utils::{
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        keymanager::{Identifier, ToEncryptable},
         MinorUnit,
     },
 };
@@ -142,7 +142,6 @@ pub async fn create_or_update_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &session_state.store;
-    let key_manager_state = &session_state.into();
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
@@ -222,7 +221,6 @@ pub async fn create_or_update_address_for_payment_by_request(
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
-                        key_manager_state,
                         merchant_id,
                         payment_id,
                         id,
@@ -234,7 +232,6 @@ pub async fn create_or_update_address_for_payment_by_request(
                     .attach_printable("Error while fetching address")?;
                 Some(
                     db.update_address_for_payments(
-                        key_manager_state,
                         address,
                         address_update,
                         payment_id.to_owned(),
@@ -248,7 +245,6 @@ pub async fn create_or_update_address_for_payment_by_request(
             }
             None => Some(
                 db.find_address_by_merchant_id_payment_id_address_id(
-                    key_manager_state,
                     merchant_id,
                     payment_id,
                     id,
@@ -277,7 +273,6 @@ pub async fn create_or_update_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -309,11 +304,9 @@ pub async fn create_or_find_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &state.store;
-    let key_manager_state = &state.into();
     Ok(match address_id {
         Some(id) => Some(
             db.find_address_by_merchant_id_payment_id_address_id(
-                key_manager_state,
                 merchant_id,
                 payment_id,
                 id,
@@ -341,7 +334,6 @@ pub async fn create_or_find_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -445,7 +437,6 @@ pub async fn get_address_by_id(
             let db = &*state.store;
             Ok(db
                 .find_address_by_merchant_id_payment_id_address_id(
-                    &state.into(),
                     merchant_id,
                     payment_id,
                     &address_id,
@@ -497,12 +488,10 @@ pub async fn get_token_pm_type_mandate_details(
                         RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
                             if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
                                 let db = &*state.store;
-                                let key_manager_state = &state.into();
 
                                 #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                                    key_manager_state,
                                     merchant_context.get_merchant_account().get_id(),
                                     mca_id,
                                     merchant_context.get_merchant_key_store(),
@@ -514,7 +503,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                                 #[cfg(feature = "v2")]
                             let connector_name = db
-                                .find_merchant_connector_account_by_id(key_manager_state, mca_id, merchant_key_store)
+                                .find_merchant_connector_account_by_id( mca_id, merchant_key_store)
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: mca_id.clone().get_string_repr().to_string(),
@@ -2614,12 +2603,9 @@ pub async fn fetch_card_details_from_external_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     external_vault_mca_id: &id_type::MerchantConnectorAccountId,
 ) -> RouterResult<domain::Card> {
-    let key_manager_state = &state.into();
-
     let merchant_connector_account_details = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             external_vault_mca_id,
             merchant_key_store,
@@ -3580,12 +3566,10 @@ pub async fn make_client_secret(
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
-    let key_manager_state = &((&state).into());
 
     match &resource_id {
         api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
             db.find_customer_by_global_id(
-                key_manager_state,
                 global_customer_id,
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
@@ -4365,7 +4349,6 @@ pub async fn get_merchant_connector_account(
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
     match creds_identifier {
         Some(creds_identifier) => {
             let key = merchant_id.get_creds_identifier_key(creds_identifier);
@@ -4444,7 +4427,6 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            key_manager_state,
                             merchant_id,
                             merchant_connector_id,
                             key_store,
@@ -4459,7 +4441,6 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v2")]
                     {
                         db.find_merchant_connector_account_by_id(
-                            &state.into(),
                             merchant_connector_id,
                             key_store,
                         )
@@ -4474,7 +4455,6 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         db.find_merchant_connector_account_by_profile_id_connector_name(
-                            key_manager_state,
                             profile_id,
                             connector_name,
                             key_store,
@@ -4884,7 +4864,6 @@ impl AttemptType {
                 #[cfg(feature = "v2")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(
-                        key_manager_state,
                         key_store,
                         new_payment_attempt_to_insert,
                         storage_scheme,
@@ -5761,7 +5740,6 @@ where
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
                 merchant_context.get_merchant_account().get_id(),
                 false,
                 merchant_context.get_merchant_key_store(),
@@ -7495,7 +7473,6 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     let db = &*state.store;
     let merchant_connector_account_list = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             merchant_id,
             true,
             key_store,
@@ -7787,7 +7764,6 @@ pub async fn validate_allowed_payment_method_types_request(
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
                 merchant_context.get_merchant_account().get_id(),
                 false,
                 merchant_context.get_merchant_key_store(),
@@ -7911,7 +7887,7 @@ pub async fn get_merchant_connector_account_v2(
     let db = &*state.store;
     match merchant_connector_id {
         Some(merchant_connector_id) => db
-            .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
+            .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),

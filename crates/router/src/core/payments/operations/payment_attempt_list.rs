@@ -92,11 +92,9 @@ impl<F: Send + Clone + Sync>
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentAttemptListData<F>>> {
         let db = &*state.store;
-        let key_manager_state = &state.into();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_attempt_list = db
             .find_payment_attempts_by_payment_intent_id(
-                key_manager_state,
                 &request.payment_intent_id,
                 merchant_context.get_merchant_key_store(),
                 storage_scheme,

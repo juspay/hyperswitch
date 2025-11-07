@@ -1011,7 +1011,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         connector_label: &str,
         key_store: &MerchantKeyStore,
@@ -1020,7 +1019,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1029,7 +1027,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1037,7 +1034,6 @@ where
 
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
@@ -1045,7 +1041,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
@@ -1054,14 +1049,12 @@ where
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
@@ -1070,14 +1063,12 @@ where
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, Self::Error>;
 
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
@@ -1085,7 +1076,6 @@ where
 
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: MerchantConnectorAccount,
         merchant_connector_account: MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,

@@ -1576,7 +1576,6 @@ async fn relay_refunds_incoming_webhook_flow(
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let relay_record = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
@@ -1587,18 +1586,13 @@ async fn relay_refunds_incoming_webhook_flow(
                     })
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                db.find_relay_by_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
-                    &relay_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable("Failed to fetch the relay record")?
+                db.find_relay_by_id(merchant_context.get_merchant_key_store(), &relay_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the relay record")?
             }
             webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => db
                 .find_relay_by_profile_id_connector_reference_id(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     business_profile.get_id(),
                     &connector_refund_id,
@@ -1620,7 +1614,6 @@ async fn relay_refunds_incoming_webhook_flow(
                 .attach_printable("failed relay refund status mapping from event type")?,
         };
         db.update_relay(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             relay_record,
             relay_update,
@@ -2626,7 +2619,6 @@ async fn fetch_optional_mca_and_connector(
         #[cfg(feature = "v1")]
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &state.into(),
                 merchant_context.get_merchant_account().get_id(),
                 &common_utils::id_type::MerchantConnectorAccountId::wrap(
                     connector_name_or_mca_id.to_owned(),

@@ -2573,7 +2573,6 @@ impl<F: Clone>
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -2585,7 +2584,6 @@ impl<F: Clone>
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -2597,7 +2595,6 @@ impl<F: Clone>
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,
@@ -2639,7 +2636,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -2650,7 +2646,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -2662,7 +2657,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,
@@ -2765,7 +2759,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -2778,7 +2771,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -2790,7 +2782,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_attempt,
                 payment_attempt_update,
@@ -2916,7 +2907,6 @@ impl
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -2927,7 +2917,6 @@ impl
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -2939,7 +2928,6 @@ impl
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,
@@ -2983,7 +2971,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -2994,7 +2981,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -3006,7 +2992,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,
@@ -3297,7 +3282,6 @@ impl<F: Clone + Send + Sync>
             >,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
@@ -3306,7 +3290,6 @@ impl<F: Clone + Send + Sync>
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
@@ -3321,7 +3304,6 @@ impl<F: Clone + Send + Sync>
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,

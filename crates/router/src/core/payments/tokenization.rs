@@ -1160,12 +1160,9 @@ pub async fn save_in_locker_external(
 
         let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
 
-        let key_manager_state = &state.into();
-
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
                 merchant_context.get_merchant_account().get_id(),
                 &external_vault_mca_id,
                 merchant_context.get_merchant_key_store(),

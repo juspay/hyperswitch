@@ -180,7 +180,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 merchant_context.get_merchant_key_store(),
                 storage_scheme,
@@ -218,7 +217,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
         let payment_attempt = match payment_intent.active_attempt_id.clone() {
             Some(ref active_attempt_id) => db
                 .find_payment_attempt_by_id(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     active_attempt_id,
                     storage_scheme,
@@ -239,7 +237,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                 )
                 .await?;
                 db.insert_payment_attempt(
-                    key_manager_state,
                     merchant_context.get_merchant_key_store(),
                     payment_attempt_domain_model,
                     storage_scheme,
@@ -324,7 +321,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 let customer = state
                     .store
                     .find_customer_by_global_id(
-                        &state.into(),
                         &id,
                         merchant_key_store,
                         storage_scheme,
@@ -503,7 +499,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         F: 'b + Send,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -560,7 +555,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
@@ -574,7 +568,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
@@ -615,7 +608,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -626,7 +618,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -638,7 +629,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,

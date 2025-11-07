@@ -8,7 +8,10 @@ use api_models::routing::RuleMigrationQuery;
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::{id_type, types::TenantConfig};
+use common_utils::{
+    id_type,
+    types::{keymanager::KeyManagerState, TenantConfig},
+};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -525,14 +528,35 @@ impl AppState {
         cache_store: Arc<RedisStore>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
+        let km_conf = conf.key_manager.get_inner();
+        let key_manager_state = KeyManagerState {
+            global_tenant_id: conf.multitenancy.global_tenant.tenant_id.clone(),
+            tenant_id: tenant.get_tenant_id().clone(),
+            enabled: km_conf.enabled,
+            url: km_conf.url.clone(),
+            client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
+            #[cfg(feature = "km_forward_x_request_id")]
+            request_id: None,
+            #[cfg(feature = "keymanager_mtls")]
+            cert: km_conf.cert.clone(),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: km_conf.ca.clone(),
+            infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+        };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
                     KafkaStore::new(
                         #[allow(clippy::expect_used)]
-                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
-                            .await
-                            .expect("Failed to create store"),
+                        get_store(
+                            &conf.clone(),
+                            tenant,
+                            Arc::clone(&cache_store),
+                            testable,
+                            key_manager_state,
+                        )
+                        .await
+                        .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
@@ -541,14 +565,20 @@ impl AppState {
                 ),
                 EventsHandler::Logs(_) => Box::new(
                     #[allow(clippy::expect_used)]
-                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
-                        .await
-                        .expect("Failed to create store"),
+                    get_store(
+                        conf,
+                        tenant,
+                        Arc::clone(&cache_store),
+                        testable,
+                        key_manager_state,
+                    )
+                    .await
+                    .expect("Failed to create store"),
                 ),
             },
             #[allow(clippy::expect_used)]
             StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
+                MockDb::new(&conf.redis, key_manager_state)
                     .await
                     .expect("Failed to create mock store"),
             ),

@@ -220,7 +220,9 @@ impl StorageInterface for Store {
     }
 
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
-        self.key_manager_state = Some(key_manager_state);
+        self.key_manager_state = key_manager_state.clone();
+        #[cfg(feature = "kv_store")]
+        self.router_store.set_key_manager_state(key_manager_state);
     }
     fn set_merchant_key_store(&mut self, merchant_key_store: MerchantKeyStore) {
         self.merchant_key_store = Some(merchant_key_store);
@@ -254,7 +256,7 @@ impl StorageInterface for MockDb {
         Box::new(self.clone())
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
-        self.key_manager_state = Some(key_manager_state);
+        self.key_manager_state = key_manager_state;
     }
     fn set_merchant_key_store(&mut self, merchant_key_store: MerchantKeyStore) {
         self.domain_merchant_key_store = Some(merchant_key_store);

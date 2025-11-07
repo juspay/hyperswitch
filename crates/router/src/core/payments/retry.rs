@@ -635,7 +635,6 @@ where
     #[cfg(feature = "v2")]
     let payment_attempt = db
         .insert_payment_attempt(
-            key_manager_state,
             key_store,
             new_payment_attempt,
             storage_scheme,

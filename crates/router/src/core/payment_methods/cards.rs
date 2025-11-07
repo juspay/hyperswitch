@@ -2252,7 +2252,7 @@ pub async fn update_payment_method_connector_mandate_details(
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
     };
 
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method( key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
@@ -2634,7 +2634,6 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let key_manager_state = &(&state).into();
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &merchant_context).await?;
@@ -2742,7 +2741,6 @@ pub async fn list_payment_methods(
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
             merchant_context.get_merchant_account().get_id(),
             false,
             merchant_context.get_merchant_key_store(),
@@ -4574,7 +4572,6 @@ pub async fn get_mca_status(
         let mcas = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
                 merchant_id,
                 true,
                 key_store,

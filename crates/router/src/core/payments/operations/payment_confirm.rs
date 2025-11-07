@@ -1257,12 +1257,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "authentication_product_ids",
                     })?;
-                    let key_manager_state = &(state).into();
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
                         .store
                         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            key_manager_state,
                             merchant_id,
                             &click_to_pay_mca_id,
                             key_store,

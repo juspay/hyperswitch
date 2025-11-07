@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -25,14 +25,12 @@ where
 {
     async fn insert_event(
         &self,
-        state: &KeyManagerState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
     async fn find_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -40,7 +38,6 @@ where
 
     async fn find_event_by_merchant_id_idempotent_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -48,7 +45,6 @@ where
 
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -58,7 +54,6 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -71,7 +66,6 @@ where
 
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -79,7 +73,6 @@ where
 
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -89,7 +82,6 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn list_initial_events_by_profile_id_constraints(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -102,7 +94,6 @@ where
 
     async fn update_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         event: domain::EventUpdate,
@@ -125,7 +116,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn insert_event(
         &self,
-        state: &KeyManagerState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
@@ -138,7 +128,7 @@ impl EventInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -149,7 +139,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn find_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -159,7 +148,7 @@ impl EventInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -170,7 +159,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn find_event_by_merchant_id_idempotent_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -184,7 +172,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?
         .convert(
-            state,
+            self.get_key_manager_state(),
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
         )
@@ -195,7 +183,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -215,8 +202,7 @@ impl EventInterface for Store {
             for event in events.into_iter() {
                 domain_events.push(
                     event
-                        .convert(
-                            state,
+                        .convert(self.get_key_manager_state(),
                             merchant_key_store.key.get_inner(),
                             merchant_key_store.merchant_id.clone().into(),
                         )
@@ -232,7 +218,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -261,7 +246,7 @@ impl EventInterface for Store {
                 domain_events.push(
                     event
                         .convert(
-                            state,
+                            self.get_key_manager_state(),
                             merchant_key_store.key.get_inner(),
                             merchant_key_store.merchant_id.clone().into(),
                         )
@@ -277,7 +262,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -296,7 +280,7 @@ impl EventInterface for Store {
                 domain_events.push(
                     event
                         .convert(
-                            state,
+                            self.get_key_manager_state(),
                             merchant_key_store.key.get_inner(),
                             merchant_key_store.merchant_id.clone().into(),
                         )
@@ -312,7 +296,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -333,7 +316,7 @@ impl EventInterface for Store {
                 domain_events.push(
                     event
                         .convert(
-                            state,
+                            self.get_key_manager_state(),
                             merchant_key_store.key.get_inner(),
                             merchant_key_store.merchant_id.clone().into(),
                         )
@@ -349,7 +332,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn list_initial_events_by_profile_id_constraints(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -378,7 +360,7 @@ impl EventInterface for Store {
                 domain_events.push(
                     event
                         .convert(
-                            state,
+                            self.get_key_manager_state(),
                             merchant_key_store.key.get_inner(),
                             common_utils::types::keymanager::Identifier::Merchant(
                                 merchant_key_store.merchant_id.clone(),
@@ -396,7 +378,6 @@ impl EventInterface for Store {
     #[instrument(skip_all)]
     async fn update_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         event: domain::EventUpdate,
@@ -407,7 +388,7 @@ impl EventInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -443,7 +424,6 @@ impl EventInterface for Store {
 impl EventInterface for MockDb {
     async fn insert_event(
         &self,
-        state: &KeyManagerState,
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
@@ -457,7 +437,7 @@ impl EventInterface for MockDb {
 
         stored_event
             .convert(
-                state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -467,7 +447,6 @@ impl EventInterface for MockDb {
 
     async fn find_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -481,8 +460,7 @@ impl EventInterface for MockDb {
             .cloned()
             .async_map(|event| async {
                 event
-                    .convert(
-                        state,
+                    .convert(self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -501,7 +479,6 @@ impl EventInterface for MockDb {
 
     async fn find_event_by_merchant_id_idempotent_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -515,8 +492,7 @@ impl EventInterface for MockDb {
             .cloned()
             .async_map(|event| async {
                 event
-                    .convert(
-                        state,
+                    .convert(self.get_key_manager_state(),
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -535,7 +511,6 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -558,7 +533,7 @@ impl EventInterface for MockDb {
         for event in events {
             let domain_event = event
                 .convert(
-                    state,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -572,7 +547,6 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_merchant_id_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -626,7 +600,7 @@ impl EventInterface for MockDb {
         for event in events {
             let domain_event = event
                 .convert(
-                    state,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -640,7 +614,6 @@ impl EventInterface for MockDb {
 
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -659,7 +632,7 @@ impl EventInterface for MockDb {
         for event in events {
             let domain_event = event
                 .convert(
-                    state,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -673,7 +646,6 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         initial_attempt_id: &str,
@@ -696,7 +668,7 @@ impl EventInterface for MockDb {
         for event in events {
             let domain_event = event
                 .convert(
-                    state,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -710,7 +682,6 @@ impl EventInterface for MockDb {
 
     async fn list_initial_events_by_profile_id_constraints(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -764,7 +735,7 @@ impl EventInterface for MockDb {
         for event in events {
             let domain_event = event
                 .convert(
-                    state,
+                    self.get_key_manager_state(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -778,7 +749,6 @@ impl EventInterface for MockDb {
 
     async fn update_event_by_merchant_id_event_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         event: domain::EventUpdate,
@@ -811,7 +781,7 @@ impl EventInterface for MockDb {
         event_to_update
             .clone()
             .convert(
-                state,
+                self.get_key_manager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -856,6 +826,7 @@ mod tests {
 
     use api_models::webhooks as api_webhooks;
     use common_enums::IntentStatus;
+    use common_utils::types::keymanager::KeyManagerState;
     use common_utils::{
         generate_organization_id_of_default_length, type_name,
         types::{keymanager::Identifier, MinorUnit},
@@ -891,9 +862,12 @@ mod tests {
     #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
-        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create Mock store");
+        let mockdb = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
@@ -920,7 +894,6 @@ mod tests {
         let master_key = mockdb.get_master_key();
         mockdb
             .insert_merchant_key_store(
-                key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
                     key: domain::types::crypto_operation(
@@ -942,17 +915,12 @@ mod tests {
             .await
             .unwrap();
         let merchant_key_store = mockdb
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &master_key.to_vec().into(),
-            )
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
         let event1 = mockdb
             .insert_event(
-                key_manager_state,
                 domain::Event {
                     event_id: event_id.into(),
                     event_type: enums::EventType::PaymentSucceeded,
@@ -986,7 +954,6 @@ mod tests {
 
         let updated_event = mockdb
             .update_event_by_merchant_id_event_id(
-                key_manager_state,
                 &merchant_id,
                 event_id,
                 domain::EventUpdate::UpdateResponse {
@@ -1008,7 +975,7 @@ mod tests {
     #[cfg(feature = "v2")]
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
-        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(),common_utils::types::keymanager::KeyManagerState::new())
             .await
             .expect("Failed to create Mock store");
         let event_id = "test_event_id";
@@ -1037,7 +1004,6 @@ mod tests {
         let master_key = mockdb.get_master_key();
         mockdb
             .insert_merchant_key_store(
-                key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
                     key: domain::types::crypto_operation(
@@ -1059,17 +1025,12 @@ mod tests {
             .await
             .unwrap();
         let merchant_key_store = mockdb
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &master_key.to_vec().into(),
-            )
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
         let event1 = mockdb
             .insert_event(
-                key_manager_state,
                 domain::Event {
                     event_id: event_id.into(),
                     event_type: enums::EventType::PaymentSucceeded,
@@ -1103,7 +1064,6 @@ mod tests {
 
         let updated_event = mockdb
             .update_event_by_merchant_id_event_id(
-                key_manager_state,
                 &merchant_id,
                 event_id,
                 domain::EventUpdate::UpdateResponse {
@@ -1155,7 +1115,6 @@ mod tests {
         let merchant_key_store = state
             .store
             .insert_merchant_key_store(
-                key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
                     key: domain::types::crypto_operation(
@@ -1222,11 +1181,7 @@ mod tests {
         });
         let merchant_account = state
             .store
-            .insert_merchant(
-                key_manager_state,
-                merchant_account_to_insert,
-                &merchant_key_store,
-            )
+            .insert_merchant(merchant_account_to_insert, &merchant_key_store)
             .await?;
 
         let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
@@ -1309,11 +1264,7 @@ mod tests {
 
         let business_profile = state
             .store
-            .insert_business_profile(
-                key_manager_state,
-                &merchant_key_store.clone(),
-                business_profile_to_insert,
-            )
+            .insert_business_profile(&merchant_key_store.clone(), business_profile_to_insert)
             .await?;
 
         // Same inputs for all threads
@@ -1475,7 +1426,6 @@ mod tests {
         let events = state
             .store
             .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
-                key_manager_state,
                 &business_profile.merchant_id,
                 &primary_object_id.clone(),
                 &initial_attempt_id.clone(),

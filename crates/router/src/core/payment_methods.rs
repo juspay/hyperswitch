@@ -910,7 +910,6 @@ pub async fn create_payment_method_core(
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id(
-        key_manager_state,
         &customer_id,
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
@@ -1056,7 +1055,6 @@ pub async fn create_payment_method_card_core(
 
             let payment_method = db
                 .update_payment_method(
-                    &(state.into()),
                     merchant_context.get_merchant_key_store(),
                     payment_method,
                     pm_update,
@@ -1076,7 +1074,6 @@ pub async fn create_payment_method_card_core(
             };
 
             db.update_payment_method(
-                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 payment_method,
                 pm_update,
@@ -1526,7 +1523,6 @@ pub async fn payment_method_intent_create(
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id(
-        key_manager_state,
         &customer_id,
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
@@ -1619,7 +1615,6 @@ pub async fn list_payment_methods_for_session(
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile.get_id(),
             merchant_context.get_merchant_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
@@ -1671,13 +1666,11 @@ pub async fn get_token_data_for_payment_method(
     request: payment_methods::GetTokenDataRequest,
     payment_method_id: id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::TokenDataResponse> {
-    let key_manager_state = &(&state).into();
 
     let db = &*state.store;
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
             &key_store,
             &payment_method_id,
             merchant_account.storage_scheme,
@@ -1932,7 +1925,6 @@ pub async fn create_payment_method_for_intent(
 
     let response = db
         .insert_payment_method(
-            &state.into(),
             key_store,
             domain::PaymentMethod {
                 customer_id: customer_id.to_owned(),
@@ -1993,12 +1985,10 @@ pub async fn create_payment_method_for_confirm(
     vault_type: Option<common_enums::VaultType>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let key_manager_state = &state.into();
     let current_time = common_utils::date_time::now();
 
     let response = db
         .insert_payment_method(
-            key_manager_state,
             key_store,
             domain::PaymentMethod {
                 customer_id: customer_id.to_owned(),
@@ -2073,7 +2063,7 @@ pub async fn get_external_vault_token(
     };
 
     let payment_method = db
-        .find_payment_method(&state.into(), key_store, &payment_method_id, storage_scheme)
+        .find_payment_method( key_store, &payment_method_id, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Payment method not found")?;
@@ -2261,7 +2251,6 @@ pub async fn vault_payment_method_internal(
     // throw back error if payment method is duplicated
     when(
         db.find_payment_method_by_fingerprint_id(
-            &(state.into()),
             merchant_context.get_merchant_key_store(),
             &fingerprint_id_from_vault,
         )
@@ -2618,11 +2607,9 @@ pub async fn list_payment_methods_core(
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             customer_id,
             merchant_context.get_merchant_account().get_id(),
@@ -2653,11 +2640,9 @@ pub async fn list_customer_payment_methods_core(
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             customer_id,
             merchant_context.get_merchant_account().get_id(),
@@ -2749,7 +2734,6 @@ pub async fn retrieve_payment_method(
 
     let payment_method = db
         .find_payment_method(
-            &((&state).into()),
             merchant_context.get_merchant_key_store(),
             &pm_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -2779,11 +2763,9 @@ pub async fn update_payment_method_status_internal(
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
     let payment_method = db
         .find_payment_method(
-            &((state).into()),
             key_store,
             payment_method_id,
             storage_scheme,
@@ -2797,7 +2779,6 @@ pub async fn update_payment_method_status_internal(
 
     let updated_pm = db
         .update_payment_method(
-            key_manager_state,
             key_store,
             payment_method.clone(),
             pm_update,
@@ -2839,7 +2820,6 @@ pub async fn update_payment_method_core(
 
     let payment_method = db
         .find_payment_method(
-            &((state).into()),
             merchant_context.get_merchant_key_store(),
             payment_method_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -2921,7 +2901,6 @@ pub async fn update_payment_method_core(
 
     let payment_method = db
         .update_payment_method(
-            &((state).into()),
             merchant_context.get_merchant_key_store(),
             payment_method,
             pm_update,
@@ -2963,11 +2942,9 @@ pub async fn delete_payment_method_core(
     profile: &domain::Profile,
 ) -> RouterResult<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(state).into();
 
     let payment_method = db
         .find_payment_method(
-            &(state.into()),
             merchant_context.get_merchant_key_store(),
             &pm_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -2982,7 +2959,6 @@ pub async fn delete_payment_method_core(
 
     let _customer = db
         .find_customer_by_global_id(
-            key_manager_state,
             &payment_method.customer_id,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -2997,7 +2973,6 @@ pub async fn delete_payment_method_core(
     };
 
     db.update_payment_method(
-        &(state.into()),
         merchant_context.get_merchant_key_store(),
         payment_method.clone(),
         pm_update,
@@ -3138,7 +3113,6 @@ pub async fn payment_methods_session_create(
     let key_manager_state = &(&state).into();
 
     db.find_customer_by_global_id(
-        key_manager_state,
         &request.customer_id,
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
@@ -3731,7 +3705,6 @@ async fn create_single_use_tokenization_flow(
 
     let merchant_connector_account_details = db
         .find_merchant_connector_account_by_id(
-            &(&state).into(),
             &connector_id,
             merchant_context.get_merchant_key_store(),
         )
@@ -3921,12 +3894,10 @@ async fn fetch_payment_method(
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &state.store;
-    let key_manager_state = &state.into();
     let merchant_account = merchant_context.get_merchant_account();
     let key_store = merchant_context.get_merchant_key_store();
 
     db.find_payment_method(
-        key_manager_state,
         key_store,
         payment_method_id,
         merchant_account.storage_scheme,
