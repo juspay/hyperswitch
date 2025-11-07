@@ -8,7 +8,6 @@ use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use masking::ExposeInterface;
 use once_cell::sync::OnceCell;
 
-
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 static PROXY_CLIENT_CACHE: OnceCell<Mutex<HashMap<String, reqwest::Client>>> = OnceCell::new();
@@ -17,19 +16,18 @@ use router_env::{logger, metric_attributes};
 
 use super::metrics;
 
-
 trait ProxyClientCacheKey {
     fn cache_key(&self) -> Option<String>;
     fn has_proxy_config(&self) -> bool;
 }
 
 fn extract_proxy_host(url_opt: &Option<String>) -> String {
-    url_opt.as_ref()
+    url_opt
+        .as_ref()
         .and_then(|url| url::Url::parse(url).ok())
         .and_then(|parsed_url| parsed_url.host_str().map(|s| s.to_string()))
         .unwrap_or_else(|| "none".to_string())
 }
-
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
@@ -107,7 +105,11 @@ pub fn get_client_builder(
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
 
-    logger::debug!("Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}", proxy_config.http_url.clone(), proxy_config.https_url.clone());
+    logger::debug!(
+        "Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}",
+        proxy_config.http_url.clone(),
+        proxy_config.https_url.clone()
+    );
 
     // Proxy all HTTPS traffic through the configured HTTPS proxy
     if let Some(url) = proxy_config.https_url.as_ref() {
@@ -200,22 +202,19 @@ impl ProxyClientCacheKey for Proxy {
         Some(format!(
             "http:{}_https:{}_bypass:{}_timeout:{}_mitm:{}",
             self.http_url.as_deref().unwrap_or(""),
-            self.https_url.as_deref().unwrap_or(""), 
+            self.https_url.as_deref().unwrap_or(""),
             self.bypass_proxy_hosts.as_deref().unwrap_or(""),
             self.idle_pool_connection_timeout.unwrap_or_default(),
             self.mitm_ca_certificate.is_some()
         ))
     }
-    
+
     fn has_proxy_config(&self) -> bool {
-        self.http_url.is_some() 
-            || self.https_url.is_some() 
-            || self.mitm_ca_certificate.is_some()
+        self.http_url.is_some() || self.https_url.is_some() || self.mitm_ca_certificate.is_some()
     }
 }
 
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-
     // Check if proxy configuration is provided using trait method
     if let Some(cache_key) = proxy_config.cache_key() {
         logger::debug!("Using proxy-specific client cache with key: {}", cache_key);
@@ -224,7 +223,11 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
         let http_proxy_host = extract_proxy_host(&proxy_config.http_url);
         let https_proxy_host = extract_proxy_host(&proxy_config.https_url);
 
-        let proxy_metrics_tag = metric_attributes!(("client_type", "proxy"), ("http_proxy_host", http_proxy_host), ("https_proxy_host", https_proxy_host));
+        let proxy_metrics_tag = metric_attributes!(
+            ("client_type", "proxy"),
+            ("http_proxy_host", http_proxy_host),
+            ("https_proxy_host", https_proxy_host)
+        );
         // Use proxy-specific client cache
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
         let mut cache_lock = cache.lock().map_err(|_| {
@@ -238,7 +241,12 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
             return Ok(client.clone());
         }
         // Create new proxy client if not in cache
-        logger::info!("Creating new proxy client for key: {} (http_proxy: {:?}, https_proxy: {:?})", cache_key, proxy_config.http_url, proxy_config.https_url);
+        logger::info!(
+            "Creating new proxy client for key: {} (http_proxy: {:?}, https_proxy: {:?})",
+            cache_key,
+            proxy_config.http_url,
+            proxy_config.https_url
+        );
         metrics::HTTP_CLIENT_CACHE_MISS.add(1, &proxy_metrics_tag.clone());
 
         let client = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
