@@ -3187,7 +3187,7 @@ impl StorageInterface for KafkaStore {
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
         self.diesel_store.set_key_manager_state(key_manager_state);
-    }    
+    }
 }
 
 impl GlobalStorageInterface for KafkaStore {
