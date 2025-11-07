@@ -21,7 +21,7 @@ hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_const
 masking = { version = "0.1.0", path = "../masking/" }
 
 # Third party crates
-serde = "1.0.219"
+serde = "1.0.228"
 serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
