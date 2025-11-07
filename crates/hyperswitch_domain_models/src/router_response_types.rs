@@ -18,7 +18,7 @@ use crate::{
     vault::PaymentMethodVaultingData,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
@@ -584,6 +584,7 @@ pub struct PayoutsResponseData {
     pub should_add_next_step_to_process_tracker: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -642,12 +643,6 @@ pub enum AuthenticationResponseData {
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorizeRedirectResponse {
-    pub params: Option<masking::Secret<String>>,
-    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.

@@ -8,7 +8,7 @@ use api_models::routing::RuleMigrationQuery;
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::id_type;
+use common_utils::{id_type, types::TenantConfig};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -27,7 +27,7 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
+use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
@@ -203,7 +203,7 @@ impl SessionStateInfo for SessionState {
         self.event_handler.clone()
     }
     fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
+        self.api_client.get_request_id_str()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
@@ -248,6 +248,31 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+}
+
+impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
+    fn get_api_client(&self) -> &dyn crate::services::ApiClient {
+        self.api_client.as_ref()
+    }
+    fn get_proxy(&self) -> hyperswitch_interfaces::types::Proxy {
+        self.conf.proxy.clone()
+    }
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.request_id
+    }
+    fn get_request_id_str(&self) -> Option<String> {
+        self.request_id
+            .map(|req_id| req_id.as_hyphenated().to_string())
+    }
+    fn get_tenant(&self) -> Tenant {
+        self.tenant.clone()
+    }
+    fn get_connectors(&self) -> hyperswitch_domain_models::connector_endpoints::Connectors {
+        self.conf.connectors.clone()
+    }
+    fn event_handler(&self) -> &dyn hyperswitch_interfaces::events::EventHandlerInterface {
+        &self.event_handler
     }
 }
 #[derive(Clone)]
@@ -317,7 +342,7 @@ impl AppStateInfo for AppState {
         self.api_client.add_flow_name(flow_name);
     }
     fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
+        self.api_client.get_request_id_str()
     }
 }
 
@@ -763,8 +788,18 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/payment-methods")
-                        .route(web::get().to(payments::list_payment_methods)),
+                    web::scope("/payment-methods")
+                        .service(
+                            web::resource("").route(web::get().to(payments::list_payment_methods)),
+                        )
+                        .service(
+                            web::resource("/check-balance")
+                                .route(web::post().to(payments::payment_check_gift_card_balance)),
+                        ),
+                )
+                .service(
+                    web::resource("/apply-payment-method-data")
+                        .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -772,10 +807,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                )
-                .service(
-                    web::resource("/check-gift-card-balance")
-                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 )
                 .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
@@ -891,6 +922,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
+                    web::resource("/{payment_id}/eligibility")
+                        .route(web::post().to(payments::payments_submit_eligibility)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )
@@ -921,6 +956,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                )
+                .service(
+                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
@@ -1242,6 +1280,18 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
+            )
     }
 }
 
@@ -1255,6 +1305,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
                 .service(
                     web::resource("/total-payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
@@ -1292,6 +1346,10 @@ impl Customers {
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
         }
 
         #[cfg(feature = "oltp")]
@@ -3049,6 +3107,10 @@ impl Authentication {
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
                     .route(web::post().to(authentication::authentication_sync)),
+            )
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
             )
     }
 }

@@ -630,6 +630,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1413,6 +1414,7 @@ impl PaymentCreate {
                 connector_mandate_detail: None,
                 request_extended_authorization: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: merchant_id.to_owned(),

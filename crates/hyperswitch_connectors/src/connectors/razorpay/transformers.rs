@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, UpiData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 
 use crate::{
-    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        CreateOrderResponseRouterData, PaymentsResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{
         get_unimplemented_payment_method_error_message, missing_field_err,
         PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
@@ -229,24 +232,12 @@ pub struct RazorpayPaymentsResponse {
     pub razorpay_payment_id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            RazorpayPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RazorpayPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<RazorpayPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_metadata = get_wait_screen_metadata()?;
         let order_id = item.data.request.get_order_id()?;

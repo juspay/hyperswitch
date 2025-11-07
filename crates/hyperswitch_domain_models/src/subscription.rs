@@ -43,14 +43,12 @@ impl std::fmt::Display for ClientSecret {
 
 impl ApiEventMetric for ClientSecret {}
 
-#[cfg(feature = "v1")]
 impl From<api_models::subscription::ClientSecret> for ClientSecret {
     fn from(api_secret: api_models::subscription::ClientSecret) -> Self {
         Self::new(api_secret.as_str().to_string())
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<ClientSecret> for api_models::subscription::ClientSecret {
     fn from(domain_secret: ClientSecret) -> Self {
         Self::new(domain_secret.to_string())
@@ -246,6 +244,10 @@ impl SubscriptionUpdate {
             plan_id,
             item_price_id,
         }
+    }
+
+    pub fn update_status(status: String) -> Self {
+        Self::new(None, None, Some(status), None, None)
     }
 }
 

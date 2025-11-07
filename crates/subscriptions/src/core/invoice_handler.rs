@@ -1,16 +1,18 @@
 use api_models::{
     enums as api_enums,
+    mandates::RecurringDetails,
     subscription::{self as subscription_types},
 };
 use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
+use masking::PeekInterface;
 
 use super::errors;
 use crate::{
-    core::subscription::payments_api_client, routes::SessionState, types::storage as storage_types,
-    workflows::invoice_sync as invoice_sync_workflow,
+    core::payments_api_client, state::SubscriptionState as SessionState,
+    types::storage as storage_types, workflows::invoice_sync as invoice_sync_workflow,
 };
 
 pub struct InvoiceHandler {
@@ -47,7 +49,7 @@ impl InvoiceHandler {
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
-    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+    ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let invoice_new = hyperswitch_domain_models::invoice::Invoice::to_invoice(
             self.subscription.id.to_owned(),
             self.subscription.merchant_id.to_owned(),
@@ -82,7 +84,7 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
         update_request: hyperswitch_domain_models::invoice::InvoiceUpdateRequest,
-    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+    ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let update_invoice: hyperswitch_domain_models::invoice::InvoiceUpdate =
             update_request.into();
         let key_manager_state = &(state).into();
@@ -118,11 +120,13 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         request: &subscription_types::CreateSubscriptionRequest,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        amount: MinorUnit,
+        currency: api_enums::Currency,
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let payment_request = subscription_types::CreatePaymentsRequestData {
-            amount: request.amount,
-            currency: request.currency,
+            amount,
+            currency,
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
@@ -145,7 +149,7 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         payment_id: common_utils::id_type::PaymentId,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         payments_api_client::PaymentsApiClient::sync_payment(
             state,
             payment_id.get_string_repr().to_string(),
@@ -161,7 +165,7 @@ impl InvoiceHandler {
         request: &subscription_types::CreateAndConfirmSubscriptionRequest,
         amount: MinorUnit,
         currency: common_enums::Currency,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let payment_request = subscription_types::CreateAndConfirmPaymentsRequestData {
             amount,
@@ -171,7 +175,11 @@ impl InvoiceHandler {
             billing: request.get_billing_address(),
             shipping: request.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
-            setup_future_usage: payment_details.setup_future_usage,
+            setup_future_usage: payment_details
+                .payment_method_id
+                .is_none()
+                .then_some(payment_details.setup_future_usage)
+                .flatten(),
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
             authentication_type: payment_details.authentication_type,
@@ -180,6 +188,11 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            recurring_details: payment_details
+                .payment_method_id
+                .as_ref()
+                .map(|id| RecurringDetails::PaymentMethodId(id.peek().clone())),
+            off_session: Some(payment_details.payment_method_id.is_some()),
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
@@ -195,7 +208,7 @@ impl InvoiceHandler {
         state: &SessionState,
         payment_id: common_utils::id_type::PaymentId,
         request: &subscription_types::ConfirmSubscriptionRequest,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
             billing: request.get_billing_address(),
@@ -206,6 +219,7 @@ impl InvoiceHandler {
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
             payment_type: payment_details.payment_type,
+            payment_token: payment_details.payment_token.clone(),
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
@@ -220,7 +234,7 @@ impl InvoiceHandler {
     pub async fn get_latest_invoice(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+    ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
         state
             .store
@@ -240,7 +254,7 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
-    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+    ) -> errors::SubscriptionResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
         state
             .store
@@ -261,7 +275,7 @@ impl InvoiceHandler {
         state: &SessionState,
         subscription_id: common_utils::id_type::SubscriptionId,
         connector_invoice_id: common_utils::id_type::InvoiceId,
-    ) -> errors::RouterResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
+    ) -> errors::SubscriptionResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
         let key_manager_state = &(state).into();
         state
             .store
@@ -284,7 +298,7 @@ impl InvoiceHandler {
         invoice: &hyperswitch_domain_models::invoice::Invoice,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         connector_name: connector_enums::Connector,
-    ) -> errors::RouterResult<()> {
+    ) -> errors::SubscriptionResult<()> {
         let request = storage_types::invoice_sync::InvoiceSyncRequest::new(
             self.subscription.id.to_owned(),
             invoice.id.to_owned(),
@@ -307,13 +321,13 @@ impl InvoiceHandler {
         amount: MinorUnit,
         currency: common_enums::Currency,
         payment_method_id: &str,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let mit_payment_request = subscription_types::CreateMitPaymentRequestData {
             amount,
             currency,
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
-            recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
+            recurring_details: Some(RecurringDetails::PaymentMethodId(
                 payment_method_id.to_owned(),
             )),
             off_session: Some(true),
@@ -335,7 +349,7 @@ impl InvoiceHandler {
         amount: MinorUnit,
         currency: common_enums::Currency,
         payment_id: common_utils::id_type::PaymentId,
-    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+    ) -> errors::SubscriptionResult<subscription_types::PaymentResponseData> {
         let payment_update_request = subscription_types::CreatePaymentsRequestData {
             amount,
             currency,

@@ -130,6 +130,8 @@ pub enum Flow {
     GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
+    ///List Customers for a merchant with constraints.
+    CustomersListWithConstraints,
     /// Retrieve countries and currencies for connector and payment method
     ListCountriesCurrencies,
     /// Payment method create collect link flow.
@@ -279,6 +281,12 @@ pub enum Flow {
     UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
+    /// Pause Subscription flow
+    PauseSubscription,
+    /// Resume Subscription flow
+    ResumeSubscription,
+    /// Cancel Subscription flow
+    CancelSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -473,6 +481,8 @@ pub enum Flow {
     DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Extend Authorization flow
+    PaymentsExtendAuthorization,
     /// Get action URL for connector onboarding
     GetActionUrl,
     /// Sync connector onboarding status
@@ -654,6 +664,12 @@ pub enum Flow {
     AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
+    /// Authentication Session Token flow
+    AuthenticationSessionToken,
+    /// Authentication Eligibility Check flow
+    AuthenticationEligibilityCheck,
+    /// Authentication Retrieve Eligibility Check flow
+    AuthenticationRetrieveEligibilityCheck,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
@@ -676,8 +692,12 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
-    /// Gift card balance check flow
-    GiftCardBalanceCheck,
+    /// Payment Method balance check flow
+    PaymentMethodBalanceCheck,
+    /// Payments Submit Eligibility flow
+    PaymentsSubmitEligibility,
+    /// Apply payment method data flow
+    ApplyPaymentMethodData,
 }
 
 /// Trait for providing generic behaviour to flow metric

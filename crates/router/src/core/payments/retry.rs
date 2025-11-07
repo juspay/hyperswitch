@@ -48,8 +48,8 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static + 'a,
-    FData: Send + Sync + types::Capturable + Clone + 'static + 'a + serde::Serialize,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -356,8 +356,8 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static + 'a,
-    FData: Send + Sync + types::Capturable + Clone + 'static + 'a + serde::Serialize,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -405,6 +405,7 @@ where
         payment_data,
         customer,
         payments::CallConnectorAction::Trigger,
+        None,
         validate_result,
         schedule_time,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
@@ -537,6 +538,7 @@ where
                 unified_message: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
@@ -740,6 +742,7 @@ pub fn make_new_payment_attempt(
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
         extended_authorization_applied: Default::default(),
+        extended_authorization_last_applied_at: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
         processor_merchant_id: old_payment_attempt.processor_merchant_id,

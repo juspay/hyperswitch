@@ -100,6 +100,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Walley
                 | api_enums::PaymentMethodType::Breadpay
                 | api_enums::PaymentMethodType::Flexiti
+                | api_enums::PaymentMethodType::Payjustnow
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
@@ -178,6 +179,7 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
                 | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::SepaGuarenteedDebit
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Becs
         ),

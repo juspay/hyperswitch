@@ -1,5 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
+use common_utils::types::TenantConfig;
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -9,9 +10,11 @@ use hyperswitch_domain_models::{
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod business_profile;
 pub mod callback_mapper;
 pub mod cards_info;
 pub mod config;
+pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
@@ -20,6 +23,9 @@ pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;
 pub mod mandate;
+pub mod merchant_account;
+pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
@@ -66,7 +72,7 @@ where
     );
     async fn new(
         config: Self::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         test_transaction: bool,
     ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
@@ -112,7 +118,7 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
         db_conf: T::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
@@ -256,7 +262,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
-        tenant_config: &dyn config::TenantConfig,
+        tenant_config: &dyn TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
     ) -> error_stack::Result<Self, StorageError> {

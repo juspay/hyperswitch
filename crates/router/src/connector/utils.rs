@@ -2574,6 +2574,7 @@ pub enum PaymentMethodDataType {
     AtomeRedirect,
     BreadpayRedirect,
     FlexitiRedirect,
+    PayjustnowRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2595,6 +2596,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingThailand,
     AchBankDebit,
     SepaBankDebit,
+    SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
     AchBankTransfer,
@@ -2714,6 +2716,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
+                domain::payments::PayLaterData::PayjustnowRedirect {} => Self::PayjustnowRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
@@ -2758,6 +2761,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 match bank_debit_data {
                     domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
                     domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
                 }

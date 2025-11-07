@@ -479,6 +479,7 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
                 webhook_url: None,
                 browser_info: None,
+                payout_connector_metadata: None,
             },
             payment_info,
         )
@@ -564,6 +565,7 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            is_migrated_card: None,
         }
     }
 
