@@ -143,13 +143,7 @@ pub async fn set_access_token_for_ucs(
 
     if let Err(access_token_set_error) = state
         .store
-        .set_access_token(
-            key,
-            // merchant_id,
-            // &merchant_connector_id_or_connector_name,
-            modified_access_token,
-            // None,
-        )
+        .set_access_token(key, modified_access_token)
         .await
     {
         // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
