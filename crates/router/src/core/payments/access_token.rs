@@ -38,8 +38,14 @@ pub async fn get_cached_access_token_for_ucs(
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = format!(
+            "access_token_{}_{}",
+            merchant_id.get_string_repr(),
+            merchant_connector_id_or_connector_name
+        );
+
         let cached_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name, None)
+            .get_access_token(key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -137,17 +143,16 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
-        let key_suffix = connector
+        let key = connector
             .connector
-            .get_access_token_suffix_from_connector(router_data)
+            .get_access_token_suffix_from_connector(
+                router_data,
+                merchant_connector_id_or_connector_name,
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let old_access_token = store
-            .get_access_token(
-                merchant_id,
-                &merchant_connector_id_or_connector_name,
-                key_suffix.clone(),
-            )
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -230,10 +235,8 @@ pub async fn add_access_token<
 
                         if let Err(access_token_set_error) = store
                             .set_access_token(
-                                merchant_id,
-                                &merchant_connector_id_or_connector_name,
+                                key.clone(),
                                 modified_access_token_with_expiry.clone(),
-                                key_suffix.clone(),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)

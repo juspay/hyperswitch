@@ -68,9 +68,14 @@ pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 impl api::ConnectorAccessTokenSuffix for BoxedConnectorV2 {
     fn get_access_token_suffix_from_connector<F, Req, Res>(
         &self,
-        _router_data: &hyperswitch_domain_models::router_data::RouterData<F, Req, Res>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
+        router_data: &hyperswitch_domain_models::router_data::RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "access_token_{}_{}",
+            router_data.merchant_id.get_string_repr(),
+            merchant_connector_id_or_connector_name
+        ))
     }
 }
 

@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorCommon};
 
 use crate::{
     consts,
@@ -54,16 +55,22 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
     router_data: &types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    use crate::types::api::ConnectorCommon;
-
     if connector
         .connector_name
         .supports_access_token_for_payout(payout_type)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
         let store = &*state.store;
+
+        let key = connector
+            .connector
+            .get_access_token_suffix_from_connector(
+                router_data,
+                connector.connector.id().to_string(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
         let old_access_token = store
-            .get_access_token(merchant_id, connector.connector.id(), None)
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -106,12 +113,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                     // This error should not be propagated, we don't want payments to fail once we have
                     // the access token, the next request will create new access token
                     let _ = store
-                        .set_access_token(
-                            merchant_id,
-                            connector.connector.id(),
-                            access_token.clone(),
-                            None,
-                        )
+                        .set_access_token(key, access_token.clone())
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("DB error when setting the access token");
