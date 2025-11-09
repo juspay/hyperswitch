@@ -63,7 +63,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 
         let key = connector
             .connector
-            .get_access_token_suffix_from_connector(
+            .get_access_token_key_from_connector(
                 router_data,
                 connector.connector.id().to_string(),
             )

@@ -145,7 +145,7 @@ pub async fn add_access_token<
 
         let key = connector
             .connector
-            .get_access_token_suffix_from_connector(
+            .get_access_token_key_from_connector(
                 router_data,
                 merchant_connector_id_or_connector_name,
             )

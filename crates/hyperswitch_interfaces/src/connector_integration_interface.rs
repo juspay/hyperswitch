@@ -713,17 +713,17 @@ impl ConnectorCommon for ConnectorEnum {
 }
 
 impl ConnectorAccessTokenSuffix for ConnectorEnum {
-    fn get_access_token_suffix_from_connector<F, Req, Res>(
+    fn get_access_token_key_from_connector<F, Req, Res>(
         &self,
         router_data: &RouterData<F, Req, Res>,
         merchant_connector_id_or_connector_name: String,
     ) -> CustomResult<String, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_access_token_suffix_from_connector(
+            Self::Old(connector) => connector.get_access_token_key_from_connector(
                 router_data,
                 merchant_connector_id_or_connector_name,
             ),
-            Self::New(connector) => connector.get_access_token_suffix_from_connector(
+            Self::New(connector) => connector.get_access_token_key_from_connector(
                 router_data,
                 merchant_connector_id_or_connector_name,
             ),
