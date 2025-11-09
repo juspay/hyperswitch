@@ -1100,7 +1100,7 @@ impl ConnectorSpecifications for Santander {
 }
 
 impl ConnectorAccessTokenSuffix for Santander {
-    fn get_access_token_suffix_from_connector<F, Req, Res>(
+    fn get_access_token_key_from_connector<F, Req, Res>(
         &self,
         router_data: &RouterData<F, Req, Res>,
         merchant_connector_id_or_connector_name: String,
