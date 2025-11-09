@@ -6060,7 +6060,7 @@ pub enum NextActionData {
     },
     /// Contains third party sdk session token response
     ThirdPartySdkSessionToken {
-        #[smithy(value_type = "Option<SessionToken>")]
+        #[smithy(value_type = "Option<Object>")]
         session_token: Option<SessionToken>,
     },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
@@ -9068,7 +9068,6 @@ pub struct SessionTokenInfo {
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
-    #[smithy(value_type = "Option<PaymentProcessingDetailsAt>")]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
 }
 
