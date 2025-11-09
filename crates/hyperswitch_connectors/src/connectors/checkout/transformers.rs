@@ -363,6 +363,14 @@ pub struct CheckoutLineItem {
 }
 
 #[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutBillingDescriptor {
+    pub name: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub reference: Option<String>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
@@ -380,6 +388,7 @@ pub struct PaymentsRequest {
     pub merchant_initiated: Option<bool>,
     pub previous_payment_id: Option<String>,
     pub store_for_future_use: Option<bool>,
+    pub billing_descriptor: Option<CheckoutBillingDescriptor>,
     // Level 2/3 data fields
     pub customer: Option<CheckoutCustomer>,
     pub processing: Option<CheckoutProcessing>,
@@ -748,22 +757,22 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             &item.router_data.l2_l3_data
         {
             (
-                Some(CheckoutCustomer {
-                    name: l2l3_data.customer_name.clone(),
-                    email: l2l3_data.customer_email.clone(),
+                l2l3_data.customer_info.as_ref().map(|_| CheckoutCustomer {
+                    name: l2l3_data.get_customer_name(),
+                    email: l2l3_data.get_customer_email(),
                     phone: Some(CheckoutPhoneDetails {
-                        country_code: l2l3_data.customer_phone_country_code.clone(),
-                        number: l2l3_data.customer_phone_number.clone(),
+                        country_code: l2l3_data.get_customer_phone_country_code(),
+                        number: l2l3_data.get_customer_phone_number(),
                     }),
-                    tax_number: l2l3_data.customer_tax_registration_id.clone(),
+                    tax_number: l2l3_data.get_customer_tax_registration_id(),
                 }),
-                Some(CheckoutProcessing {
-                    order_id: l2l3_data.merchant_order_reference_id.clone(),
-                    tax_amount: l2l3_data.order_tax_amount,
-                    discount_amount: l2l3_data.discount_amount,
-                    duty_amount: l2l3_data.duty_amount,
-                    shipping_amount: l2l3_data.shipping_cost,
-                    shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
+                    order_id: l2l3_data.get_merchant_order_reference_id(),
+                    tax_amount: l2l3_data.get_order_tax_amount(),
+                    discount_amount: l2l3_data.get_discount_amount(),
+                    duty_amount: l2l3_data.get_duty_amount(),
+                    shipping_amount: l2l3_data.get_shipping_cost(),
+                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
                 }),
                 Some(CheckoutShipping {
                     address: Some(CheckoutAddress {
@@ -776,7 +785,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     }),
                     from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
                 }),
-                l2l3_data.order_details.as_ref().map(|details| {
+                l2l3_data.get_order_details().map(|details| {
                     details
                         .iter()
                         .map(|item| CheckoutLineItem {
@@ -806,6 +815,17 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
+        let billing_descriptor =
+            item.router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| CheckoutBillingDescriptor {
+                    name: descriptor.name.clone(),
+                    city: descriptor.city.clone(),
+                    reference: descriptor.statement_descriptor.clone(),
+                });
+
         let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -826,6 +846,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             items,
             partial_authorization,
             payment_ip,
+            billing_descriptor,
         };
 
         Ok(request)

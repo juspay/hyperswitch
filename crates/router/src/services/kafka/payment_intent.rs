@@ -4,8 +4,6 @@ use ::common_types::{
     primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
 };
 #[cfg(feature = "v2")]
-use common_enums;
-#[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,

@@ -255,6 +255,8 @@ async fn process_payment_method_record(
                 card_issuer: None,
                 card_issuing_country: None,
                 daily_retry_history: None,
+                is_active: None,
+                account_update_history: None,
             }
         }
     };
@@ -401,6 +403,8 @@ fn build_comprehensive_card_data(
         card_issuer,
         card_issuing_country,
         daily_retry_history,
+        is_active: record.is_active,
+        account_update_history: record.account_update_history.clone(),
     })
 }
 

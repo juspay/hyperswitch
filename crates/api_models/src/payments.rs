@@ -1072,12 +1072,12 @@ pub struct PaymentsRequest {
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
-    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Hyperswitch Router", deprecated)]
     pub statement_descriptor_name: Option<String>,
 
-    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
-    #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Payment for shoes purchase", deprecated)]
     pub statement_descriptor_suffix: Option<String>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
@@ -1294,6 +1294,10 @@ pub struct PaymentsRequest {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// Billing descriptor information for the payment
+    #[schema(value_type = Option<BillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2379,6 +2383,7 @@ pub enum PayLaterData {
     AlmaRedirect {},
     AtomeRedirect {},
     BreadpayRedirect {},
+    PayjustnowRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for PayLaterData {
@@ -2421,7 +2426,8 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::KlarnaSdk { .. }
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {}
-            | Self::BreadpayRedirect {} => None,
+            | Self::BreadpayRedirect {}
+            | Self::PayjustnowRedirect {} => None,
         }
     }
 }
@@ -3014,6 +3020,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
+            Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
         }
     }
 }
@@ -3281,6 +3288,7 @@ pub enum AdditionalPaymentData {
         bank_name: Option<common_enums::BankNames>,
         #[serde(flatten)]
         details: Option<additional_info::BankRedirectDetails>,
+        interac: Option<InteracPaymentMethod>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -3350,6 +3358,12 @@ impl AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracPaymentMethod {
+    #[schema(value_type = Option<Object>)]
+    pub customer_info: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4638,6 +4652,9 @@ pub struct BankRedirectResponse {
     #[serde(flatten)]
     #[schema(value_type = Option<BankRedirectDetails>)]
     pub details: Option<additional_info::BankRedirectDetails>,
+    /// customer info for interac payment method
+    #[schema(value_type = Option<InteracPaymentMethod>)]
+    pub interac: Option<InteracPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5744,6 +5761,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<bool>)]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
+    /// date and time at which extended authorization was last applied on this payment
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
+
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple
@@ -5815,6 +5837,10 @@ pub struct PaymentsResponse {
     /// The category of the MIT transaction
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// Billing descriptor information for the payment
+    #[schema(value_type = Option<BillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[cfg(feature = "v2")]
@@ -7151,9 +7177,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
-            AdditionalPaymentData::BankRedirect { bank_name, details } => {
-                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
-            }
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                details,
+                interac,
+            } => Self::BankRedirect(Box::new(BankRedirectResponse {
+                bank_name,
+                details,
+                interac,
+            })),
             AdditionalPaymentData::Crypto { details } => {
                 Self::Crypto(Box::new(CryptoResponse { details }))
             }
@@ -8113,6 +8145,8 @@ pub enum NextActionCall {
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
     Deny { message: String },
+    /// The next action is to perform eligibility check
+    EligibilityCheck,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -8554,6 +8588,8 @@ pub struct PaymentsManualUpdateRequest {
     pub error_reason: Option<String>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,
+    /// The amount that can be captured on the payment.
+    pub amount_capturable: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -8575,6 +8611,8 @@ pub struct PaymentsManualUpdateResponse {
     pub error_reason: Option<String>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,
+    /// The amount that can be captured on the payment.
+    pub amount_capturable: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -9105,7 +9143,6 @@ pub mod amount {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
@@ -9423,8 +9460,6 @@ pub struct PaymentsEligibilityResponse {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_request_api_contract {
-    #![allow(clippy::unwrap_used)]
-    #![allow(clippy::panic)]
     use std::str::FromStr;
 
     use super::*;
@@ -9526,7 +9561,6 @@ mod payments_request_api_contract {
 
 #[cfg(test)]
 mod payments_response_api_contract {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[derive(Debug, serde::Serialize)]
@@ -9557,7 +9591,6 @@ mod payments_response_api_contract {
 /// These are required for backwards compatibility
 #[cfg(test)]
 mod billing_from_payment_method_data {
-    #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
     use masking::ExposeOptionInterface;
 
@@ -10052,7 +10085,6 @@ mod null_object_test {
 
     use super::*;
 
-    #[allow(clippy::unwrap_used)]
     #[test]
     fn test_null_object_serialization() {
         let null_object = NullObject;

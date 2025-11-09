@@ -133,8 +133,6 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-
     use super::*;
 
     #[allow(dead_code)]
