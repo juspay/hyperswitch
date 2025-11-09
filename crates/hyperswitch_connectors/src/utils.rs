@@ -6906,7 +6906,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         currency: data.request.currency,
         payment_method_data: data.request.payment_method_data.clone(),
         confirm: data.request.confirm,
-        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
         mandate_id: data.request.mandate_id.clone(),
         setup_future_usage: data.request.setup_future_usage,
         off_session: data.request.off_session,
@@ -6917,7 +6916,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         amount: 0,
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
-        statement_descriptor: None,
         capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
@@ -6951,6 +6949,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
+        billing_descriptor: data.request.billing_descriptor.clone(),
     }
 }
 
@@ -7315,7 +7314,7 @@ pub trait SplitPaymentData {
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
@@ -7333,13 +7332,13 @@ impl SplitPaymentData for PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {

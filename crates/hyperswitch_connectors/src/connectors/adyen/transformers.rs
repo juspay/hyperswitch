@@ -1872,6 +1872,13 @@ impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
 }
 type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<String>);
 
+fn get_shopper_statement(item: &PaymentsAuthorizeRouterData) -> Option<String> {
+    item.request
+        .billing_descriptor
+        .clone()
+        .and_then(|descriptor| descriptor.statement_descriptor)
+}
+
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
@@ -3049,7 +3056,7 @@ impl
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3140,7 +3147,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3236,7 +3243,7 @@ impl
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3320,7 +3327,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             shopper_reference: None,
             store_payment_method: None,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3446,7 +3453,7 @@ impl
             shopper_reference: None,
             store_payment_method: None,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3531,7 +3538,7 @@ impl
             store_payment_method: None,
             channel: None,
             social_security_number: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3620,7 +3627,7 @@ impl
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3759,7 +3766,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             shopper_reference,
             store_payment_method,
             channel,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3856,7 +3863,7 @@ impl
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -3946,7 +3953,7 @@ impl
             store_payment_method: None,
             channel: None,
             social_security_number: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             store,
@@ -6494,7 +6501,7 @@ impl
             shopper_reference,
             store_payment_method,
             channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
+            shopper_statement: get_shopper_statement(item.router_data),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             mpi_data: Some(mpi_data),

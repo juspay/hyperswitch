@@ -356,7 +356,6 @@ pub async fn recovery_retry_sync_task(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
     #[test]
