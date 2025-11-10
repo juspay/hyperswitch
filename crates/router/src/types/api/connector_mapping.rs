@@ -183,9 +183,7 @@ impl ConnectorData {
                 enums::Connector::Coingate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Coingate::new())))
                 }
-                enums::Connector::Zift => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Zift::new())))
-                }
+                enums::Connector::Zift => Ok(ConnectorEnum::Old(Box::new(connector::Zift::new()))),
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }

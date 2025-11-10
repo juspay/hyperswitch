@@ -1,20 +1,17 @@
-use crate::utils::AdditionalCardInfo;
-use crate::utils::PaymentsAuthorizeRequestData;
-use crate::utils::RouterData as _;
 use api_models::payments::AdditionalPaymentData;
 use common_enums::{enums, CountryAlpha2};
 use common_utils::{pii, types::StringMinorUnit};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_flow_types::PSync;
-use hyperswitch_domain_models::router_request_types::PaymentsSyncData;
-use hyperswitch_domain_models::types::PaymentsSyncRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::refunds::Execute,
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_flow_types::{refunds::Execute, PSync},
+    router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -25,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::CardData,
+    utils::{AdditionalCardInfo, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 #[derive(Debug, Deserialize, Serialize)]
