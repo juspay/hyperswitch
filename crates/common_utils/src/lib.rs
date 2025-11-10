@@ -309,7 +309,7 @@ pub trait DbConnectionParams {
     fn get_dbname(&self) -> &str;
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -331,7 +331,6 @@ mod base64_serializer {
 
 #[cfg(test)]
 mod nanoid_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::{
         consts::{

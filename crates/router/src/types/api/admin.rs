@@ -240,6 +240,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_external_vault_enabled,
             external_vault_connector_details: external_vault_connector_details
                 .map(ForeignFrom::foreign_from),
+            billing_processor_id: item.billing_processor_id,
+            is_l2_l3_enabled: Some(item.is_l2_l3_enabled),
         })
     }
 }
@@ -321,6 +323,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_business_country: item.merchant_business_country,
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             is_external_vault_enabled: item.is_external_vault_enabled,
+            is_l2_l3_enabled: None,
             external_vault_connector_details: item
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
@@ -328,6 +331,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_country_code: item.merchant_country_code,
             split_txns_enabled: item.split_txns_enabled,
             revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
+            billing_processor_id: item.billing_processor_id,
         })
     }
 }
@@ -508,5 +512,7 @@ pub async fn create_profile_from_merchant_account(
         ))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error while generating external_vault_details")?,
+        billing_processor_id: request.billing_processor_id,
+        is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
     }))
 }

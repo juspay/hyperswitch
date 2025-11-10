@@ -509,8 +509,6 @@ impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-
     use std::ops::Deref;
 
     use euclid_macros::knowledge;

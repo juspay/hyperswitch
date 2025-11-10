@@ -49,14 +49,6 @@ pub struct PayloadCardsResponseData {
     pub response_type: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadCardResponse {
-    pub card_brand: String,
-    pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
-    pub card_type: String,
-    pub expiry: Secret<String>,
-}
-
 // Type definition for Refund Response
 // Added based on assumptions since this is not provided in the documentation
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]

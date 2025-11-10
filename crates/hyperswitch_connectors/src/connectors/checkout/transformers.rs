@@ -5,13 +5,13 @@ use common_enums::{
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
-    id_type::CustomerId,
-    request::Method,
+    request::{Method, RequestContent},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
+    payment_methods::storage_enums::MitCategory,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, PaymentMethodToken, RouterData,
@@ -199,6 +199,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutTokenResponse, T, PaymentsRespo
     }
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutAddress {
+    pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub city: Option<String>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country: Option<CountryAlpha2>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutAccountHolderDetails {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CardSource {
     #[serde(rename = "type")]
@@ -206,7 +224,9 @@ pub struct CardSource {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
-    pub cvv: Secret<String>,
+    pub cvv: Option<Secret<String>>,
+    pub billing_address: Option<CheckoutAddress>,
+    pub account_holder: Option<CheckoutAccountHolderDetails>,
 }
 
 #[derive(Debug, Serialize)]
@@ -214,6 +234,7 @@ pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
     pub token: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -222,6 +243,7 @@ pub struct MandateSource {
     pub source_type: CheckoutSourceTypes,
     #[serde(rename = "id")]
     pub source_id: Option<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +253,20 @@ pub enum PaymentSource {
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
+    GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayPredecrypt {
+    #[serde(rename = "type")]
+    _type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: String,
+    cryptogram: Option<Secret<String>>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -243,6 +279,7 @@ pub struct ApplePayPredecrypt {
     expiry_year: Secret<String>,
     eci: Option<String>,
     cryptogram: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -256,10 +293,12 @@ pub enum CheckoutSourceTypes {
 
 #[derive(Debug, Serialize)]
 pub enum CheckoutPaymentType {
-    Recurring,
     Regular,
+    Unscheduled,
     #[serde(rename = "MOTO")]
     Moto,
+    Installment,
+    Recurring,
 }
 
 pub struct CheckoutAuthType {
@@ -277,8 +316,17 @@ pub struct ReturnUrl {
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutCustomer {
-    pub name: Option<CustomerId>,
+    pub name: Option<Secret<String>>,
+    pub email: Option<common_utils::pii::Email>,
+    pub phone: Option<CheckoutPhoneDetails>,
     pub tax_number: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutPhoneDetails {
+    pub country_code: Option<String>,
+    pub number: Option<Secret<String>>,
 }
 
 #[skip_serializing_none]
@@ -294,15 +342,8 @@ pub struct CheckoutProcessing {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
-pub struct CheckoutShippingAddress {
-    pub country: Option<CountryAlpha2>,
-    pub zip: Option<Secret<String>>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Serialize)]
 pub struct CheckoutShipping {
-    pub address: Option<CheckoutShippingAddress>,
+    pub address: Option<CheckoutAddress>,
     pub from_address_zip: Option<String>,
 }
 
@@ -322,6 +363,14 @@ pub struct CheckoutLineItem {
 }
 
 #[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutBillingDescriptor {
+    pub name: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub reference: Option<String>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
@@ -338,12 +387,21 @@ pub struct PaymentsRequest {
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
     pub previous_payment_id: Option<String>,
-
+    pub store_for_future_use: Option<bool>,
+    pub billing_descriptor: Option<CheckoutBillingDescriptor>,
     // Level 2/3 data fields
     pub customer: Option<CheckoutCustomer>,
     pub processing: Option<CheckoutProcessing>,
     pub shipping: Option<CheckoutShipping>,
     pub items: Option<Vec<CheckoutLineItem>>,
+    pub partial_authorization: Option<CheckoutPartialAuthorization>,
+    pub payment_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutPartialAuthorization {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -397,6 +455,24 @@ impl TryFrom<&ConnectorAuthType> for CheckoutAuthType {
     }
 }
 
+fn split_account_holder_name(
+    card_holder_name: Option<Secret<String>>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    let account_holder_name = card_holder_name
+        .as_ref()
+        .map(|name| name.clone().expose().trim().to_string());
+    match account_holder_name {
+        Some(name) if !name.is_empty() => match name.rsplit_once(' ') {
+            Some((first, last)) => (
+                Some(Secret::new(first.to_string())),
+                Some(Secret::new(last.to_string())),
+            ),
+            None => (Some(Secret::new(name)), None),
+        },
+        _ => (None, None),
+    }
+}
+
 impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -407,122 +483,228 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             Some(enums::CaptureMethod::Automatic)
         );
 
-        let (payment_type, challenge_indicator) = if item.router_data.request.payment_channel
-            == Some(PaymentChannel::MailOrder)
-            || item.router_data.request.payment_channel == Some(PaymentChannel::TelephoneOrder)
-        {
-            (
-                CheckoutPaymentType::Moto,
-                CheckoutChallengeIndicator::ChallengeRequested,
-            )
+        let payment_type = if matches!(
+            item.router_data.request.payment_channel,
+            Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
+        ) {
+            CheckoutPaymentType::Moto
         } else if item.router_data.request.is_mandate_payment() {
-            (
-                CheckoutPaymentType::Recurring,
-                CheckoutChallengeIndicator::ChallengeRequestedMandate,
-            )
+            CheckoutPaymentType::Unscheduled
         } else {
-            (
-                CheckoutPaymentType::Regular,
-                CheckoutChallengeIndicator::ChallengeRequested,
-            )
+            CheckoutPaymentType::Regular
         };
 
-        let (source_var, previous_payment_id, merchant_initiated, payment_type) =
-            match item.router_data.request.payment_method_data.clone() {
-                PaymentMethodData::Card(ccard) => {
-                    let a = PaymentSource::Card(CardSource {
-                        source_type: CheckoutSourceTypes::Card,
-                        number: ccard.card_number.clone(),
-                        expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.card_exp_year.clone(),
-                        cvv: ccard.card_cvc,
-                    });
-                    Ok((a, None, Some(false), payment_type))
-                }
-                PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                    WalletData::GooglePay(_) => {
-                        let p_source = PaymentSource::Wallets(WalletSource {
+        let (challenge_indicator, store_for_future_use) =
+            if item.router_data.request.is_mandate_payment() {
+                (
+                    CheckoutChallengeIndicator::ChallengeRequestedMandate,
+                    Some(true),
+                )
+            } else {
+                (CheckoutChallengeIndicator::ChallengeRequested, None)
+            };
+
+        let billing_details = Some(CheckoutAddress {
+            city: item.router_data.get_optional_billing_city(),
+            address_line1: item.router_data.get_optional_billing_line1(),
+            address_line2: item.router_data.get_optional_billing_line2(),
+            state: item.router_data.get_optional_billing_state(),
+            zip: item.router_data.get_optional_billing_zip(),
+            country: item.router_data.get_optional_billing_country(),
+        });
+
+        let (
+            source_var,
+            previous_payment_id,
+            merchant_initiated,
+            payment_type,
+            store_for_future_use,
+        ) = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => {
+                let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
+
+                let payment_source = PaymentSource::Card(CardSource {
+                    source_type: CheckoutSourceTypes::Card,
+                    number: ccard.card_number.clone(),
+                    expiry_month: ccard.card_exp_month.clone(),
+                    expiry_year: ccard.card_exp_year.clone(),
+                    cvv: Some(ccard.card_cvc),
+                    billing_address: billing_details,
+                    account_holder: Some(CheckoutAccountHolderDetails {
+                        first_name,
+                        last_name,
+                    }),
+                });
+                Ok((
+                    payment_source,
+                    None,
+                    Some(false),
+                    payment_type,
+                    store_for_future_use,
+                ))
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(_) => {
+                    let p_source = match item.router_data.get_payment_method_token()? {
+                        PaymentMethodToken::Token(token) => PaymentSource::Wallets(WalletSource {
                             source_type: CheckoutSourceTypes::Token,
-                            token: match item.router_data.get_payment_method_token()? {
-                                PaymentMethodToken::Token(token) => token,
-                                PaymentMethodToken::ApplePayDecrypt(_) => {
-                                    Err(unimplemented_payment_method!(
-                                        "Apple Pay",
-                                        "Simplified",
-                                        "Checkout"
-                                    ))?
-                                }
-                                PaymentMethodToken::PazeDecrypt(_) => {
-                                    Err(unimplemented_payment_method!("Paze", "Checkout"))?
-                                }
-                                PaymentMethodToken::GooglePayDecrypt(_) => {
-                                    Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
-                                }
-                            },
-                        });
-                        Ok((p_source, None, Some(false), payment_type))
-                    }
-                    WalletData::ApplePay(_) => {
-                        let payment_method_token = item.router_data.get_payment_method_token()?;
-                        match payment_method_token {
-                            PaymentMethodToken::Token(apple_pay_payment_token) => {
-                                let p_source = PaymentSource::Wallets(WalletSource {
-                                    source_type: CheckoutSourceTypes::Token,
-                                    token: apple_pay_payment_token,
-                                });
-                                Ok((p_source, None, Some(false), payment_type))
-                            }
-                            PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                                let exp_month = decrypt_data.get_expiry_month().change_context(
-                                    errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "expiration_month",
-                                    },
-                                )?;
-                                let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
-                                let p_source = PaymentSource::ApplePayPredecrypt(Box::new(
-                                    ApplePayPredecrypt {
-                                        token: decrypt_data.application_primary_account_number,
-                                        decrypt_type: "network_token".to_string(),
-                                        token_type: "applepay".to_string(),
-                                        expiry_month: exp_month,
-                                        expiry_year: expiry_year_4_digit,
-                                        eci: decrypt_data.payment_data.eci_indicator,
-                                        cryptogram: decrypt_data
-                                            .payment_data
-                                            .online_payment_cryptogram,
-                                    },
-                                ));
-                                Ok((p_source, None, Some(false), payment_type))
-                            }
-                            PaymentMethodToken::PazeDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Paze", "Checkout"))?
-                            }
-                            PaymentMethodToken::GooglePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
-                            }
+                            token,
+                            billing_address: billing_details,
+                        }),
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(google_pay_decrypted_data) => {
+                            let token = google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone();
+
+                            let expiry_month = google_pay_decrypted_data
+                                .get_expiry_month()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_month",
+                                })?;
+
+                            let expiry_year = google_pay_decrypted_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_year",
+                                })?;
+
+                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
+
+                            PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
+                                _type: "network_token".to_string(),
+                                token,
+                                token_type: "googlepay".to_string(),
+                                expiry_month,
+                                expiry_year,
+                                eci: "06".to_string(),
+                                cryptogram,
+                                billing_address: billing_details,
+                            }))
+                        }
+                    };
+                    Ok((
+                        p_source,
+                        None,
+                        Some(false),
+                        payment_type,
+                        store_for_future_use,
+                    ))
+                }
+                WalletData::ApplePay(_) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        PaymentMethodToken::Token(apple_pay_payment_token) => {
+                            let p_source = PaymentSource::Wallets(WalletSource {
+                                source_type: CheckoutSourceTypes::Token,
+                                token: apple_pay_payment_token,
+                                billing_address: billing_details,
+                            });
+                            Ok((
+                                p_source,
+                                None,
+                                Some(false),
+                                payment_type,
+                                store_for_future_use,
+                            ))
+                        }
+                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            let exp_month = decrypt_data.get_expiry_month().change_context(
+                                errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "expiration_month",
+                                },
+                            )?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
+                            let p_source =
+                                PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
+                                    token: decrypt_data.application_primary_account_number,
+                                    decrypt_type: "network_token".to_string(),
+                                    token_type: "applepay".to_string(),
+                                    expiry_month: exp_month,
+                                    expiry_year: expiry_year_4_digit,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                    billing_address: billing_details,
+                                }));
+                            Ok((
+                                p_source,
+                                None,
+                                Some(false),
+                                payment_type,
+                                store_for_future_use,
+                            ))
+                        }
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
                         }
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    )),
-                },
-                PaymentMethodData::MandatePayment => {
-                    let mandate_source = PaymentSource::MandatePayment(MandateSource {
-                        source_type: CheckoutSourceTypes::SourceId,
-                        source_id: item.router_data.request.connector_mandate_id(),
-                    });
-                    let previous_id = Some(
-                        item.router_data
-                            .request
-                            .get_connector_mandate_request_reference_id()?,
-                    );
-                    let p_type = CheckoutPaymentType::Recurring;
-                    Ok((mandate_source, previous_id, Some(true), p_type))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
-            }?;
+            },
+            PaymentMethodData::MandatePayment => {
+                let mandate_source = PaymentSource::MandatePayment(MandateSource {
+                    source_type: CheckoutSourceTypes::SourceId,
+                    source_id: item.router_data.request.connector_mandate_id(),
+                    billing_address: billing_details,
+                });
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_connector_mandate_request_reference_id()?,
+                );
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+                Ok((mandate_source, previous_id, Some(true), p_type, None))
+            }
+            PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
+                let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
+                let payment_source = PaymentSource::Card(CardSource {
+                    source_type: CheckoutSourceTypes::Card,
+                    number: ccard.card_number.clone(),
+                    expiry_month: ccard.card_exp_month.clone(),
+                    expiry_year: ccard.card_exp_year.clone(),
+                    cvv: None,
+                    billing_address: billing_details,
+                    account_holder: Some(CheckoutAccountHolderDetails {
+                        first_name,
+                        last_name,
+                    }),
+                });
+
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+                Ok((payment_source, previous_id, Some(true), p_type, None))
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+            )),
+        }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
@@ -571,49 +753,78 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
-        let (customer, processing, shipping, items) =
-            if let Some(l2l3_data) = &item.router_data.l2_l3_data {
-                (
-                    Some(CheckoutCustomer {
-                        name: l2l3_data.customer_id.clone(),
-                        tax_number: l2l3_data.customer_tax_registration_id.clone(),
+        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+            &item.router_data.l2_l3_data
+        {
+            (
+                l2l3_data.customer_info.as_ref().map(|_| CheckoutCustomer {
+                    name: l2l3_data.get_customer_name(),
+                    email: l2l3_data.get_customer_email(),
+                    phone: Some(CheckoutPhoneDetails {
+                        country_code: l2l3_data.get_customer_phone_country_code(),
+                        number: l2l3_data.get_customer_phone_number(),
                     }),
-                    Some(CheckoutProcessing {
-                        order_id: l2l3_data.merchant_order_reference_id.clone(),
-                        tax_amount: l2l3_data.order_tax_amount,
-                        discount_amount: l2l3_data.discount_amount,
-                        duty_amount: l2l3_data.duty_amount,
-                        shipping_amount: l2l3_data.shipping_cost,
-                        shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                    tax_number: l2l3_data.get_customer_tax_registration_id(),
+                }),
+                l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
+                    order_id: l2l3_data.get_merchant_order_reference_id(),
+                    tax_amount: l2l3_data.get_order_tax_amount(),
+                    discount_amount: l2l3_data.get_discount_amount(),
+                    duty_amount: l2l3_data.get_duty_amount(),
+                    shipping_amount: l2l3_data.get_shipping_cost(),
+                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                }),
+                Some(CheckoutShipping {
+                    address: Some(CheckoutAddress {
+                        country: l2l3_data.get_shipping_country(),
+                        address_line1: l2l3_data.get_shipping_address_line1(),
+                        address_line2: l2l3_data.get_shipping_address_line2(),
+                        city: l2l3_data.get_shipping_city(),
+                        state: l2l3_data.get_shipping_state(),
+                        zip: l2l3_data.get_shipping_zip(),
                     }),
-                    Some(CheckoutShipping {
-                        address: Some(CheckoutShippingAddress {
-                            country: l2l3_data.shipping_country,
-                            zip: l2l3_data.shipping_destination_zip.clone(),
-                        }),
-                        from_address_zip: l2l3_data.shipping_origin_zip.clone().map(|z| z.expose()),
-                    }),
-                    l2l3_data.order_details.as_ref().map(|details| {
-                        details
-                            .iter()
-                            .map(|item| CheckoutLineItem {
-                                commodity_code: item.commodity_code.clone(),
-                                discount_amount: item.unit_discount_amount,
-                                name: Some(item.product_name.clone()),
-                                quantity: Some(item.quantity),
-                                reference: item.product_id.clone(),
-                                tax_exempt: None,
-                                tax_amount: item.total_tax_amount,
-                                total_amount: item.total_amount,
-                                unit_of_measure: item.unit_of_measure.clone(),
-                                unit_price: Some(item.amount),
-                            })
-                            .collect()
-                    }),
-                )
-            } else {
-                (None, None, None, None)
-            };
+                    from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
+                }),
+                l2l3_data.get_order_details().map(|details| {
+                    details
+                        .iter()
+                        .map(|item| CheckoutLineItem {
+                            commodity_code: item.commodity_code.clone(),
+                            discount_amount: item.unit_discount_amount,
+                            name: Some(item.product_name.clone()),
+                            quantity: Some(item.quantity),
+                            reference: item.product_id.clone(),
+                            tax_exempt: None,
+                            tax_amount: item.total_tax_amount,
+                            total_amount: item.total_amount,
+                            unit_of_measure: item.unit_of_measure.clone(),
+                            unit_price: Some(item.amount),
+                        })
+                        .collect()
+                }),
+            )
+        } else {
+            (None, None, None, None)
+        };
+
+        let partial_authorization = item.router_data.request.enable_partial_authorization.map(
+            |enable_partial_authorization| CheckoutPartialAuthorization {
+                enabled: *enable_partial_authorization,
+            },
+        );
+
+        let payment_ip = item.router_data.request.get_ip_address_as_optional();
+
+        let billing_descriptor =
+            item.router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| CheckoutBillingDescriptor {
+                    name: descriptor.name.clone(),
+                    city: descriptor.city.clone(),
+                    reference: descriptor.statement_descriptor.clone(),
+                });
 
         let request = Self {
             source: source_var,
@@ -628,10 +839,14 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             payment_type,
             merchant_initiated,
             previous_payment_id,
+            store_for_future_use,
             customer,
             processing,
             shipping,
             items,
+            partial_authorization,
+            payment_ip,
+            billing_descriptor,
         };
 
         Ok(request)
@@ -928,10 +1143,28 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             incremental_authorization_allowed: None,
             charges: None,
         };
+
+        let (amount_captured, minor_amount_capturable) = match item.data.request.capture_method {
+            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
+                (None, item.response.amount)
+            }
+            _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+        };
+
+        let authorized_amount = item
+            .data
+            .request
+            .enable_partial_authorization
+            .filter(|flag| flag.is_true())
+            .and(item.response.amount);
+
         Ok(Self {
             status,
             response: Ok(payments_response_data),
             connector_response: additional_information,
+            authorized_amount,
+            amount_captured,
+            minor_amount_capturable,
             ..item.data
         })
     }
@@ -1684,10 +1917,27 @@ pub struct CheckoutWebhookObjectResource {
     pub data: serde_json::Value,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CheckoutFileRequest {
+    pub purpose: &'static str,
+    #[serde(skip)]
+    pub file: Vec<u8>,
+    #[serde(skip)]
+    pub file_key: String,
+    #[serde(skip)]
+    pub file_type: String,
+}
+
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
+) -> CustomResult<RequestContent, errors::ConnectorError> {
     let request = file_upload_router_data.request;
+    let checkout_file_request = CheckoutFileRequest {
+        purpose: "dispute_evidence",
+        file: request.file.clone(),
+        file_key: request.file_key.clone(),
+        file_type: request.file_type.to_string(),
+    };
     let mut multipart = reqwest::multipart::Form::new();
     multipart = multipart.text("purpose", "dispute_evidence");
     let file_data = reqwest::multipart::Part::bytes(request.file)
@@ -1705,7 +1955,10 @@ pub fn construct_file_upload_request(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);
-    Ok(multipart)
+    Ok(RequestContent::FormData((
+        multipart,
+        Box::new(checkout_file_request),
+    )))
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -86,6 +86,7 @@ pub enum ApiEventsType {
     },
     Routing,
     Subscription,
+    Invoice,
     ResourceListAPI,
     #[cfg(feature = "v1")]
     PaymentRedirectionResponse {

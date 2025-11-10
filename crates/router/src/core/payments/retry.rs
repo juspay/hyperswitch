@@ -32,7 +32,7 @@ use crate::{
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
-pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
+pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
@@ -48,8 +48,8 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -338,14 +338,14 @@ fn get_flow_name<F>() -> RouterResult<String> {
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData, D>(
-    state: &routes::SessionState,
+pub async fn do_retry<'a, F, ApiRequest, FData, D>(
+    state: &'a routes::SessionState,
     req_state: ReqState,
-    connector: &api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
-    customer: &Option<domain::Customer>,
+    connector: &'a api::ConnectorData,
+    operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
+    customer: &'a Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
-    payment_data: &mut D,
+    payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -356,8 +356,8 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync,
-    FData: Send + Sync + types::Capturable,
+    F: Clone + Send + Sync + 'static,
+    FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -405,6 +405,7 @@ where
         payment_data,
         customer,
         payments::CallConnectorAction::Trigger,
+        None,
         validate_result,
         schedule_time,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
@@ -537,6 +538,7 @@ where
                 unified_message: None,
                 capture_before: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
@@ -547,6 +549,7 @@ where
                     .network_transaction_id
                     .clone(),
                 is_overcapture_enabled: None,
+                authorized_amount: router_data.authorized_amount,
             };
 
             #[cfg(feature = "v1")]
@@ -739,6 +742,7 @@ pub fn make_new_payment_attempt(
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
         extended_authorization_applied: Default::default(),
+        extended_authorization_last_applied_at: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
@@ -748,6 +752,8 @@ pub fn make_new_payment_attempt(
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
         network_details: Default::default(),
+        is_stored_credential: old_payment_attempt.is_stored_credential,
+        authorized_amount: old_payment_attempt.authorized_amount,
     }
 }
 

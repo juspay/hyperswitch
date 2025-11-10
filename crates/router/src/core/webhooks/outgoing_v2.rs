@@ -6,7 +6,6 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
-use masking;
 use router_env::{
     instrument,
     tracing::{self, Instrument},
@@ -657,6 +656,16 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
             } => Self::Mandate {
                 payment_method_id,
                 mandate_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
+            } => Self::Subscription {
+                subscription_id,
+                invoice_id,
+                payment_id,
                 content: serde_json::Value::Null,
             },
         }

@@ -669,6 +669,13 @@ impl ApplePayPredecryptData {
         let month = self.get_expiry_month()?.expose();
         Ok(Secret::new(format!("{month}{year}")))
     }
+
+    /// Get the expiry date in YYMM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let year = self.get_two_digit_expiry_year()?.expose();
+        let month = self.get_expiry_month()?.expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
 }
 
 /// type of action that needs to taken after consuming recovery payload
@@ -688,3 +695,26 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+
+/// Billing Descriptor information to be sent to the payment gateway
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct BillingDescriptor {
+    /// name to be put in billing description
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
+    /// city to be put in billing description
+    #[schema(value_type = Option<String>, example = "San Francisco")]
+    pub city: Option<Secret<String>>,
+    /// phone to be put in billing description
+    #[schema(value_type = Option<String>, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+    /// a short description for the payment
+    pub statement_descriptor: Option<String>,
+    /// Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.
+    pub statement_descriptor_suffix: Option<String>,
+}
+
+impl_to_sql_from_sql_json!(BillingDescriptor);

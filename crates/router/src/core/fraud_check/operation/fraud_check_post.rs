@@ -54,7 +54,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(*self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -74,7 +74,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -271,6 +271,7 @@ where
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             ))
             .await?;
@@ -325,6 +326,7 @@ where
                 capture_request,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             ))

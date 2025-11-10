@@ -1,7 +1,6 @@
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use masking::Secret;
-use serde;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]

@@ -721,6 +721,32 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            webhook_url: other.webhook_url.or(self.webhook_url),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            #[cfg(feature = "payouts")]
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+        }
+    }
+
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
@@ -2210,6 +2236,14 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2367,6 +2401,14 @@ pub struct ProfileCreate {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2567,6 +2609,14 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2737,6 +2787,14 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2927,6 +2985,14 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -3079,6 +3145,10 @@ pub struct ProfileUpdate {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

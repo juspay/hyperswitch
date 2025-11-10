@@ -12,35 +12,35 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::types as recovery_router_data_types;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        revenue_recovery as recovery_router_flows, subscriptions as subscription_flow_types,
     },
     router_request_types::{
+        revenue_recovery as recovery_request_types, subscriptions as subscription_request_types,
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        revenue_recovery as recovery_response_types, subscriptions as subscription_response_types,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request_types,
-    router_response_types::revenue_recovery as recovery_response_types,
-    types as recovery_router_data_types,
-};
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, subscriptions as subscriptions_api, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -88,6 +88,73 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     for Stripebilling
 {
     // Not Implemented (R)
+}
+
+impl subscriptions_api::Subscriptions for Stripebilling {}
+impl subscriptions_api::GetSubscriptionPlansFlow for Stripebilling {}
+impl subscriptions_api::SubscriptionRecordBackFlow for Stripebilling {}
+impl subscriptions_api::SubscriptionCreate for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::GetSubscriptionPlans,
+        subscription_request_types::GetSubscriptionPlansRequest,
+        subscription_response_types::GetSubscriptionPlansResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::GetSubscriptionPlanPricesFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::GetSubscriptionPlanPrices,
+        subscription_request_types::GetSubscriptionPlanPricesRequest,
+        subscription_response_types::GetSubscriptionPlanPricesResponse,
+    > for Stripebilling
+{
+}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionCreate,
+        subscription_request_types::SubscriptionCreateRequest,
+        subscription_response_types::SubscriptionCreateResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::GetSubscriptionEstimateFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::GetSubscriptionEstimate,
+        subscription_request_types::GetSubscriptionEstimateRequest,
+        subscription_response_types::GetSubscriptionEstimateResponse,
+    > for Stripebilling
+{
+}
+
+impl subscriptions_api::SubscriptionCancelFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionCancel,
+        subscription_request_types::SubscriptionCancelRequest,
+        subscription_response_types::SubscriptionCancelResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::SubscriptionPauseFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionPause,
+        subscription_request_types::SubscriptionPauseRequest,
+        subscription_response_types::SubscriptionPauseResponse,
+    > for Stripebilling
+{
+}
+impl subscriptions_api::SubscriptionResumeFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::SubscriptionResume,
+        subscription_request_types::SubscriptionResumeRequest,
+        subscription_response_types::SubscriptionResumeResponse,
+    > for Stripebilling
+{
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripebilling
@@ -658,6 +725,16 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+#[cfg(feature = "v1")]
+impl
+    ConnectorIntegration<
+        recovery_router_flows::InvoiceRecordBack,
+        recovery_request_types::InvoiceRecordBackRequest,
+        recovery_response_types::InvoiceRecordBackResponse,
+    > for Stripebilling
+{
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
