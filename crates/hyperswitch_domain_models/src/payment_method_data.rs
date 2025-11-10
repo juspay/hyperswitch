@@ -28,6 +28,7 @@ use crate::router_data::PaymentMethodToken;
 pub enum PaymentMethodData {
     Card(Card),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -62,7 +63,10 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) | Self::NetworkToken(_) | Self::CardDetailsForNetworkTransactionId(_) => {
+            Self::Card(_)
+            | Self::NetworkToken(_)
+            | Self::CardDetailsForNetworkTransactionId(_)
+            | Self::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Some(common_enums::PaymentMethod::Card)
             }
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
@@ -180,6 +184,14 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct NetworkTokenDetailsForNetworkTransactionId {
+    pub network_token: cards::CardNumber,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub network: Option<common_enums::CardNetwork>,
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CardDetail {
     pub card_number: cards::CardNumber,
@@ -224,6 +236,36 @@ impl CardDetailsForNetworkTransactionId {
     }
 }
 
+impl NetworkTokenDetailsForNetworkTransactionId {
+    pub fn get_nti_and_network_token_details_for_mit_flow(
+        recurring_details: mandates::RecurringDetails,
+    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
+        let network_transaction_id_and_network_token_details = match recurring_details {
+            mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
+                network_transaction_id_and_card_details,
+            ) => Some(network_transaction_id_and_card_details),
+            mandates::RecurringDetails::MandateId(_)
+            | mandates::RecurringDetails::PaymentMethodId(_)
+            | mandates::RecurringDetails::ProcessorPaymentToken(_)
+            | mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => None,
+        }?;
+
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_network_token_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        Some((
+            mandate_reference_id,
+            network_transaction_id_and_network_token_details
+                .clone()
+                .into(),
+        ))
+    }
+}
+
 impl From<&Card> for CardDetail {
     fn from(item: &Card) -> Self {
         Self {
@@ -257,6 +299,39 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetwor
             bank_code: card_details_for_nti.bank_code,
             nick_name: card_details_for_nti.nick_name,
             card_holder_name: card_details_for_nti.card_holder_name,
+        }
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
+    for NetworkTokenDetailsForNetworkTransactionId
+{
+    fn from(
+        network_token_details_for_nti: mandates::NetworkTransactionIdAndNetworkTokenDetails,
+    ) -> Self {
+        Self {
+            network_token: network_token_details_for_nti.network_token,
+            token_exp_month: network_token_details_for_nti.token_exp_month,
+            token_exp_year: network_token_details_for_nti.token_exp_year,
+            network: network_token_details_for_nti.network,
+        }
+    }
+}
+
+impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
+    fn from(network_token_details_for_nti: NetworkTokenDetailsForNetworkTransactionId) -> Self {
+        Self {
+            token_number: network_token_details_for_nti.network_token,
+            token_exp_month: network_token_details_for_nti.token_exp_month,
+            token_exp_year: network_token_details_for_nti.token_exp_year,
+            token_cryptogram: None,
+            card_issuer: None,
+            card_network: network_token_details_for_nti.network,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: None,
         }
     }
 }

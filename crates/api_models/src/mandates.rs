@@ -267,6 +267,10 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     #[schema(value_type = String, example = "24")]
     pub token_exp_year: Secret<String>,
 
+    /// The token's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub network: Option<api_enums::CardNetwork>,
+
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// where `off_session` is true.
     #[schema(value_type = String)]

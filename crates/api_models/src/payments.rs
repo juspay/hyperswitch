@@ -3417,39 +3417,6 @@ pub struct NetworkTokenResponse {
     pub token_cryptogram: Option<Secret<String>>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct NetworkTokenData {
-    /// The network token
-    #[schema(value_type = String, example = "4242424242424242")]
-    pub network_token: CardNumber,
-
-    /// The token's expiry month
-    #[schema(value_type = String, example = "05")]
-    pub token_exp_month: Secret<String>,
-
-    /// The token's expiry year
-    #[schema(value_type = String, example = "24")]
-    pub token_exp_year: Secret<String>,
-
-    /// The token cryptogram
-    #[schema(value_type = Option<String>)]
-    pub token_cryptogram: Option<Secret<String>>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct NetworkTokenResponse {
-    pub token_last_four: Option<String>,
-
-    #[schema(value_type = Option<String>)]
-    pub token_exp_month: Option<Secret<String>>,
-
-    #[schema(value_type = Option<String>)]
-    pub token_exp_year: Option<Secret<String>>,
-
-    #[schema(value_type = Option<String>)]
-    pub token_cryptogram: Option<Secret<String>>,
-}
-
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
 )]

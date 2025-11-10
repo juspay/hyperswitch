@@ -39,7 +39,7 @@ pub use hyperswitch_domain_models::customer;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::{GetPaymentMethodType, PazeWalletData},
+    payment_method_data::{GetPaymentMethodType, NetworkTokenData, PazeWalletData},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
@@ -1309,7 +1309,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
     match recurring_details {
         RecurringDetails::ProcessorPaymentToken(_)
-        | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
@@ -2711,7 +2712,7 @@ pub async fn fetch_network_token_details_from_locker(
     merchant_id: &id_type::MerchantId,
     network_token_locker_id: &str,
     network_transaction_data: api_models::payments::NetworkTokenWithNTIRef,
-) -> RouterResult<domain::NetworkTokenData> {
+) -> RouterResult<NetworkTokenData> {
     let mut token_data =
         cards::get_card_from_locker(state, customer_id, merchant_id, network_token_locker_id)
             .await
@@ -2737,7 +2738,7 @@ pub async fn fetch_network_token_details_from_locker(
         .ok()
         .flatten();
 
-    let network_token_data = domain::NetworkTokenData {
+    let network_token_data = NetworkTokenData {
         token_number: token_data.card_number,
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
@@ -5581,6 +5582,13 @@ pub async fn get_additional_payment_data(
                 details: Some(network_token.to_owned().into()),
             },
         )),
+        domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+            network_token_data,
+        ) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken {
+                details: Some(NetworkTokenData::from(network_token_data.to_owned()).into()),
+            },
+        )),
     }
 }
 
@@ -6803,7 +6811,8 @@ pub fn get_key_params_for_surcharge_details(
         )),
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
-        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
+        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
 
@@ -7592,6 +7601,7 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
+    println!("Checking to override setup_future_usage...");
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(

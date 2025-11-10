@@ -348,6 +348,11 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "transaction_initiator")]
     TransactionInitiator,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
     #[serde(rename = "network_token")]
     NetworkTokenType,
 }
