@@ -318,6 +318,61 @@ impl<T> From<(StringMinorUnit, T)> for TrustpaymentsRouterData<T> {
             router_data: item,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TrustpaymentsRequestType {
+    #[serde(rename = "AUTH")]
+    Auth,
+    #[serde(rename = "TRANSACTIONUPDATE")]
+    TransactionUpdate,
+    #[serde(rename = "TRANSACTIONQUERY")]
+    TransactionQuery,
+    #[serde(rename = "REFUND")]
+    Refund,
+    #[serde(rename = "ACCOUNTCHECK")]
+    AccountCheck,
+}
+
+impl TrustpaymentsRequestType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Auth => "AUTH",
+            Self::TransactionUpdate => "TRANSACTIONUPDATE", 
+            Self::TransactionQuery => "TRANSACTIONQUERY",
+            Self::Refund => "REFUND",
+            Self::AccountCheck => "ACCOUNTCHECK",
+        }
+    }
+}
+
+impl std::fmt::Display for TrustpaymentsRequestType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TrustpaymentsAccountType {
+    #[default]
+    #[serde(rename = "ECOM")]
+    Ecom,
+}
+
+impl TrustpaymentsAccountType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Ecom => "ECOM",
+        }
+    }
+}
+
+impl std::fmt::Display for TrustpaymentsAccountType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone)]
 pub enum TrustpaymentsPaymentTypes {
@@ -345,8 +400,8 @@ pub struct TrustpaymentsPaymentsRequest {
 #[derive(Default, Debug, Serialize)]
 pub struct TrustpaymentsPaymentRequestData {
     pub sitereference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub accounttypedescription: String,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
+    pub accounttypedescription: TrustpaymentsAccountType,
     pub currencyiso3a: String,
     pub baseamount: StringMinorUnit,
     pub orderreference: String,
@@ -561,45 +616,46 @@ impl
         
 
         match req_data {
-            BankRedirectData::Eps { .. } => {
-
-                Ok(Self {
-                    alias: auth.username.clone().expose(),
-                    version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                    request: vec![TrustpaymentsPaymentRequestData {
-                        paymenttypedescription: Some(TrustpaymentsPaymentTypes::EPS),
-                        sitereference: auth.site_reference.clone().expose(),
-                        requesttypedescriptions: vec!["AUTH".to_string()],
-                        accounttypedescription: "ECOM".to_string(),
-                        currencyiso3a: item.router_data.request.currency.to_string(),
-                        baseamount: item.amount.clone(),
-                        orderreference: item.router_data.connector_request_reference_id.clone(),
-                        errorurlredirect: return_url.clone(),
-                        successfulurlredirect: return_url.clone(),
-                        billingdata: Some(billing_details.clone()),
-                        ..Default::default()
-                    }],
-                })
-            }
-            BankRedirectData::Trustly { .. } => {
-
-                Ok(Self {
-                    alias: auth.username.clone().expose(),
-                    version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                    request: vec![TrustpaymentsPaymentRequestData {
-                        paymenttypedescription: Some(TrustpaymentsPaymentTypes::TRUSTLY),
-                        sitereference: auth.site_reference.clone().expose(),
-                        requesttypedescriptions: vec!["AUTH".to_string()],
-                        accounttypedescription: "ECOM".to_string(),
-                        currencyiso3a: item.router_data.request.currency.to_string(),
-                        baseamount: item.amount.clone(),
-                        orderreference: item.router_data.connector_request_reference_id.clone(),
-                        returnurl: return_url.clone(),
-                        billingdata: Some(billing_details.clone()),
-                        ..Default::default()
-                    }],
-                })
-            }
+            BankRedirectData::Eps { .. } => Ok(Self {
+                alias: auth.username.clone().expose(),
+                version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                request: vec![TrustpaymentsPaymentRequestData {
+                    paymenttypedescription: Some(TrustpaymentsPaymentTypes::EPS),
+                    sitereference: auth.site_reference.clone().expose(),
+                    requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+                    accounttypedescription: TrustpaymentsAccountType::Ecom,
+                    currencyiso3a: item.router_data.request.currency.to_string(),
+                    baseamount: item.amount.clone(),
+                    orderreference: item.router_data.connector_request_reference_id.clone(),
+                    errorurlredirect: return_url.clone(),
+                    successfulurlredirect: return_url.clone(),
+                    billingdata: Some(billing_details.clone()),
+                    settlestatus: None,
+                    returnurl: None,
+                    carddata: None,
+                    alipaydata: None
+                }],
+            }),
+            BankRedirectData::Trustly { .. } => Ok(Self {
+                alias: auth.username.clone().expose(),
+                version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                request: vec![TrustpaymentsPaymentRequestData {
+                    paymenttypedescription: Some(TrustpaymentsPaymentTypes::TRUSTLY),
+                    sitereference: auth.site_reference.clone().expose(),
+                    requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+                    accounttypedescription: TrustpaymentsAccountType::Ecom,
+                    currencyiso3a: item.router_data.request.currency.to_string(),
+                    baseamount: item.amount.clone(),
+                    orderreference: item.router_data.connector_request_reference_id.clone(),
+                    returnurl: return_url.clone(),
+                    billingdata: Some(billing_details.clone()),
+                    settlestatus: None,
+                    errorurlredirect: None,
+                    successfulurlredirect: None,
+                    carddata: None,
+                    alipaydata: None,
+                }],
+            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Bank redirect method not supported".to_string(),
             )
@@ -625,13 +681,14 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let request_types = match item.router_data.request.capture_method {
-            Some(common_enums::CaptureMethod::Automatic) | None => vec!["AUTH".to_string()],
-            Some(common_enums::CaptureMethod::Manual) => vec!["AUTH".to_string()],
+            Some(common_enums::CaptureMethod::Automatic) 
+            | Some(common_enums::CaptureMethod:: Manual)
+            | None => vec![TrustpaymentsRequestType::Auth],
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled)
             | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
                 return Err(errors::ConnectorError::NotSupported {
-                    message: "Capture method not supported by TrustPayments".to_string(),
+                    message: "Capture method not supported".to_string(),
                     connector: "TrustPayments",
                 }
                 .into());
@@ -660,31 +717,37 @@ impl
             request: vec![TrustpaymentsPaymentRequestData {
                 sitereference: auth.site_reference.clone().expose(),
                 requesttypedescriptions: request_types,
-                accounttypedescription: "ECOM".to_string(),
+                accounttypedescription: TrustpaymentsAccountType::Ecom,
                 currencyiso3a: item.router_data.request.currency.to_string(),
                 baseamount: item.amount.clone(),
                 orderreference: item.router_data.connector_request_reference_id.clone(),
                 settlestatus: match item.router_data.request.capture_method {
-                Some(common_enums::CaptureMethod::Manual) => {
-                    Some(TrustpaymentsSettleStatus::ManualCapture
-                        .as_str()
-                        .to_string())
+                    Some(common_enums::CaptureMethod::Manual) => Some(
+                        TrustpaymentsSettleStatus::ManualCapture
+                            .as_str()
+                            .to_string(),
+                    ),
+                    Some(common_enums::CaptureMethod::Automatic) | None => Some(
+                        TrustpaymentsSettleStatus::PendingSettlement
+                            .as_str()
+                            .to_string(),
+                    ),
+                    _ => {return Err(errors::ConnectorError::NotSupported {
+                    message: "Capture method not supported".to_string(),
+                    connector: "TrustPayments",
                 }
-                Some(common_enums::CaptureMethod::Automatic) | None => {
-                    Some(TrustpaymentsSettleStatus::PendingSettlement
-                        .as_str()
-                        .to_string())
-                }
-                _ => Some(TrustpaymentsSettleStatus::PendingSettlement
-                    .as_str()
-                    .to_string()),
-            },
+                .into());}
+                },
 
                 carddata: Some(card_fields),
 
                 billingdata: Some(billing_details.clone()),
-
-                ..Default::default()
+                paymenttypedescription: None,
+                alipaydata: None,
+                errorurlredirect: None,
+                successfulurlredirect: None,
+                returnurl: None,
+                
             }],
         })
     }
@@ -708,8 +771,6 @@ impl
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.request.router_return_url.clone();
         let site_reference = auth.site_reference.clone().expose();
-        let account_type = "ECOM".to_string();
-        let request_type = vec!["AUTH".to_string()];
 
         let billing_details = TrustpaymentsRequestBilling{
             billingfirstname : item.router_data.get_optional_billing_first_name(),
@@ -728,42 +789,44 @@ impl
                     request: vec![TrustpaymentsPaymentRequestData {
                         paymenttypedescription: Some(TrustpaymentsPaymentTypes::ALIPAY),
                         sitereference: site_reference,
-                        requesttypedescriptions: request_type,
-                        accounttypedescription: account_type.clone(),
+                        requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+                        accounttypedescription: TrustpaymentsAccountType::Ecom,
                         currencyiso3a: item.router_data.request.currency.to_string(),
                         baseamount: item.amount.clone(),
                         orderreference: item.router_data.connector_request_reference_id.clone(),
                         returnurl: return_url.clone(),
 
                         alipaydata: Some(alipay_fields),
-                        ..Default::default()
+                        settlestatus: None,
+                        successfulurlredirect: None,
+                        errorurlredirect: None,
+                        carddata: None,
+                        billingdata: None,
                     }],
                 })
             }
-            WalletData::Paysera { .. } => {
-            
+            WalletData::Paysera { .. } => Ok(Self {
+                alias: auth.username.clone().expose(),
+                version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                request: vec![TrustpaymentsPaymentRequestData {
+                    paymenttypedescription: Some(TrustpaymentsPaymentTypes::PAYSERA),
+                    sitereference: site_reference,
+                    requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+                    accounttypedescription: TrustpaymentsAccountType::Ecom,
+                    currencyiso3a: item.router_data.request.currency.to_string(),
+                    baseamount: item.amount.clone(),
+                    orderreference: item.router_data.connector_request_reference_id.clone(),
+                    successfulurlredirect: return_url.clone(),
+                    errorurlredirect: return_url.clone(),
 
-                Ok(Self {
-                    alias: auth.username.clone().expose(),
-                    version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                    request: vec![TrustpaymentsPaymentRequestData {
-                        paymenttypedescription: Some(TrustpaymentsPaymentTypes::PAYSERA),
-                        sitereference: site_reference,
-                        requesttypedescriptions: request_type,
-                        accounttypedescription: account_type.clone(),
-                        currencyiso3a: item.router_data.request.currency.to_string(),
-                        baseamount: item.amount.clone(),
-                        orderreference: item.router_data.connector_request_reference_id.clone(),
-                        successfulurlredirect: return_url.clone(),
-                        errorurlredirect: return_url.clone(),
+                    billingdata: Some(billing_details.clone()),
+                    settlestatus: None,
+                    returnurl: None,
+                    carddata: None,
+                    alipaydata: None,
 
-                        billingdata: Some(billing_details.clone()),
-
-
-                        ..Default::default()
-                    }],
-                })
-            }
+                }],
+            }),
             WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPay(_)
@@ -1056,18 +1119,7 @@ impl TrustpaymentsPaymentResponseData {
     pub fn get_payment_status_for_sync(&self) -> common_enums::AttemptStatus {
         let status = match self.errorcode {
             TrustpaymentsErrorCode::Success => {
-                router_env::logger::info!(
-                    "TrustPayments PSync Status Logic - Success errorcode, evaluating conditions"
-                );
-
-                router_env::logger::info!(
-                    "dfsdfsd auth code{} records{} transactionreference{}",
-                    self.authcode.is_some(),
-                    self.records.is_some(),
-                    self.transactionreference.is_some()
-                );
-
-                if self.requesttypedescription == "TRANSACTIONQUERY"
+                if self.requesttypedescription == TrustpaymentsRequestType::TransactionQuery.as_str()
                     && self.authcode.is_none()
                     && self.records.is_none()
                     && self.transactionreference.is_none()
@@ -1079,8 +1131,7 @@ impl TrustpaymentsPaymentResponseData {
                         .as_ref()
                         .map(|status| status.to_attempt_status_for_sync())
                         .unwrap_or(common_enums::AttemptStatus::Authorized)
-
-                } else if self.requesttypedescription == "TRANSACTIONQUERY"
+                } else if self.requesttypedescription == TrustpaymentsRequestType::TransactionQuery.as_str()
                     && self.authcode.is_none()
                     && self.records.is_some()
                 {
@@ -1184,7 +1235,9 @@ impl
                         Method::Get,
                     )),
                 ),
-                Err(_) => None,
+                Err(_) => {
+                    return Err(errors::ConnectorError::ResponseDeserializationFailed)?;
+                },
             }
         } else {
             None
@@ -1464,7 +1517,7 @@ pub struct TrustpaymentsCaptureRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsCaptureRequestData {
-    pub requesttypedescriptions: Vec<String>,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub filter: TrustpaymentsFilter,
     pub updates: TrustpaymentsCaptureUpdates,
 }
@@ -1487,7 +1540,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsCaptureRouterData>> for Trustpaym
             alias: auth.username.expose(),
             version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsCaptureRequestData {
-                requesttypedescriptions: vec!["TRANSACTIONUPDATE".to_string()],
+                requesttypedescriptions: vec![TrustpaymentsRequestType::TransactionUpdate],
                 filter: TrustpaymentsFilter {
                     sitereference: vec![TrustpaymentsFilterValue {
                         value: auth.site_reference.expose(),
@@ -1513,7 +1566,7 @@ pub struct TrustpaymentsVoidRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsVoidRequestData {
-    pub requesttypedescriptions: Vec<String>,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub filter: TrustpaymentsFilter,
     pub updates: TrustpaymentsVoidUpdates,
 }
@@ -1534,7 +1587,7 @@ impl TryFrom<&PaymentsCancelRouterData> for TrustpaymentsVoidRequest {
             alias: auth.username.expose(),
             version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsVoidRequestData {
-                requesttypedescriptions: vec!["TRANSACTIONUPDATE".to_string()],
+                requesttypedescriptions: vec![TrustpaymentsRequestType::TransactionUpdate],
                 filter: TrustpaymentsFilter {
                     sitereference: vec![TrustpaymentsFilterValue {
                         value: auth.site_reference.expose(),
@@ -1560,7 +1613,7 @@ pub struct TrustpaymentsRefundRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsRefundRequestData {
-    pub requesttypedescriptions: Vec<String>,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub sitereference: String,
     pub parenttransactionreference: String,
     pub baseamount: StringMinorUnit,
@@ -1581,7 +1634,7 @@ impl<F> TryFrom<&TrustpaymentsRouterData<&RefundsRouterData<F>>> for Trustpaymen
             alias: auth.username.expose(),
             version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsRefundRequestData {
-                requesttypedescriptions: vec!["REFUND".to_string()],
+                requesttypedescriptions: vec![TrustpaymentsRequestType::Refund],
                 sitereference: auth.site_reference.expose(),
                 parenttransactionreference: parent_transaction_reference,
                 baseamount: item.amount.clone(),
@@ -1600,7 +1653,7 @@ pub struct TrustpaymentsSyncRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsSyncRequestData {
-    pub requesttypedescriptions: Vec<String>,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub filter: TrustpaymentsFilter,
 }
 
@@ -1630,7 +1683,7 @@ impl TryFrom<&PaymentsSyncRouterData> for TrustpaymentsSyncRequest {
             alias: auth.username.expose(),
             version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsSyncRequestData {
-                requesttypedescriptions: vec!["TRANSACTIONQUERY".to_string()],
+                requesttypedescriptions: vec![TrustpaymentsRequestType::TransactionUpdate],
                 filter: TrustpaymentsFilter {
                     sitereference: vec![TrustpaymentsFilterValue {
                         value: auth.site_reference.expose(),
@@ -1660,7 +1713,7 @@ impl TryFrom<&RefundSyncRouterData> for TrustpaymentsRefundSyncRequest {
             alias: auth.username.expose(),
             version: TRUSTPAYMENTS_API_VERSION.to_string(),
             request: vec![TrustpaymentsSyncRequestData {
-                requesttypedescriptions: vec!["TRANSACTIONQUERY".to_string()],
+                requesttypedescriptions: vec![TrustpaymentsRequestType::TransactionQuery],
                 filter: TrustpaymentsFilter {
                     sitereference: vec![TrustpaymentsFilterValue {
                         value: auth.site_reference.expose(),
@@ -1741,8 +1794,8 @@ pub struct TrustpaymentsTokenizationRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsTokenizationRequestData {
-    pub accounttypedescription: String,
-    pub requesttypedescriptions: Vec<String>,
+    pub accounttypedescription: TrustpaymentsAccountType,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub sitereference: String,
     pub pan: cards::CardNumber,
     pub expirydate: Secret<String>,
@@ -1774,8 +1827,8 @@ impl
                 alias: auth.username.expose(),
                 version: TRUSTPAYMENTS_API_VERSION.to_string(),
                 request: vec![TrustpaymentsTokenizationRequestData {
-                    accounttypedescription: "ECOM".to_string(),
-                    requesttypedescriptions: vec!["ACCOUNTCHECK".to_string()],
+                    accounttypedescription: TrustpaymentsAccountType::Ecom,
+                    requesttypedescriptions: vec![TrustpaymentsRequestType::AccountCheck],
                     sitereference: auth.site_reference.expose(),
                     pan: card_data.card_number.clone(),
                     expirydate: card_data

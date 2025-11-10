@@ -1135,7 +1135,7 @@ wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 bank_redirect.ideal.connector_list = "adyen"
 bank_redirect.bancontact_card.connector_list = "adyen"
-bank_redirect.trustly.connector_list = "adyen,trustpayments"
+bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 
 
