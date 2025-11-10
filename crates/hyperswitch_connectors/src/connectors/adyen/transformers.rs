@@ -884,20 +884,11 @@ pub enum OnlineBankingCzechRepublicBanks {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AdyenPlatformChargeBackBehaviour {
-    #[serde(
-        alias = "deduct_from_liable_account",
-        alias = "deductFromLiableAccount"
-    )]
+    #[serde(alias = "deduct_from_liable_account")]
     DeductFromLiableAccount,
-    #[serde(
-        alias = "deduct_from_one_balance_account",
-        alias = "deductFromOneBalanceAccount"
-    )]
+    #[serde(alias = "deduct_from_one_balance_account")]
     DeductFromOneBalanceAccount,
-    #[serde(
-        alias = "deduct_according_to_split_ratio",
-        alias = "deductAccordingToSplitRatio"
-    )]
+    #[serde(alias = "deduct_according_to_split_ratio")]
     DeductAccordingToSplitRatio,
 }
 
@@ -905,19 +896,19 @@ pub enum AdyenPlatformChargeBackBehaviour {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPlatformChargeBackLogicMetadata {
     pub behavior: Option<AdyenPlatformChargeBackBehaviour>,
-    #[serde(alias = "target_account", alias = "targetAccount")]
+    #[serde(alias = "target_account")]
     pub target_account: Option<Secret<String>>,
-    #[serde(alias = "cost_allocation_account", alias = "costAllocationAccount")]
+    #[serde(alias = "cost_allocation_account")]
     pub cost_allocation_account: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct AdyenMetadata {
-    #[serde(alias = "deviceFingerprint", alias = "device_fingerprint")]
+    #[serde(alias = "device_fingerprint")]
     pub device_fingerprint: Option<Secret<String>>,
     pub store: Option<String>,
-    #[serde(alias = "platform_chargeback_logic", alias = "platformChargebackLogic")]
+    #[serde(alias = "platform_chargeback_logic")]
     pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
 }
 
