@@ -1190,7 +1190,7 @@ pub struct PaymentMethodDataWalletInfo {
     /// Card Expiry Month
     #[schema(value_type = Option<String>,example = "10")]
     pub card_exp_month: Option<masking::Secret<String>>,
-    /// Card Expiry Year
+    /// The card's expiry year
     #[schema(value_type = Option<String>,example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
 }
