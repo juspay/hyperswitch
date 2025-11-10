@@ -106,7 +106,6 @@ where
 }
 #[cfg(all(test, feature = "ast_parser"))]
 mod test {
-    #![allow(clippy::expect_used)]
     use common_utils::types::MinorUnit;
     use rustc_hash::FxHashMap;
 

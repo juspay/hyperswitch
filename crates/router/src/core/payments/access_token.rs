@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::ConnectorSpecifications;

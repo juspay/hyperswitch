@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -178,10 +177,15 @@ impl ConnectorCommon for Payjustnow {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let message = match response {
+            payjustnow::PayjustnowErrorResponse::Structured(error) => error.message,
+            payjustnow::PayjustnowErrorResponse::Message(message) => message,
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
-            message: response.message,
+            message,
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
