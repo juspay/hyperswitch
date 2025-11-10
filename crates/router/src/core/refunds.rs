@@ -1324,10 +1324,7 @@ pub async fn validate_and_create_refund(
         ..refund
     };
 
-    let mut refund_response: api::RefundResponse = refund.foreign_into();
-    refund_response.whole_connector_response = raw_connector_response;
-
-    Ok(refund_response)
+    Ok((refund, raw_connector_response).foreign_into())
 }
 
 // ********************************************** Refund list **********************************************
