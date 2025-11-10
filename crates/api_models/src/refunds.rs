@@ -59,6 +59,9 @@ pub struct RefundRequest {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
+
+    /// If true, returns stringified connector raw response body
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -106,18 +109,23 @@ pub struct RefundsCreateRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -128,6 +136,9 @@ pub struct RefundsRetrievePayload {
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -147,6 +158,9 @@ pub struct RefundsRetrieveRequest {
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// If true, returns stringified connector raw response body
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -167,6 +181,9 @@ pub struct RefundsRetrieveRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -286,6 +303,9 @@ pub struct RefundResponse {
     pub issuer_error_code: Option<String>,
     /// Error message received from the issuer in case of failed refunds
     pub issuer_error_message: Option<String>,
+    /// Contains whole connector response
+    #[schema(value_type = Option<String>)]
+    pub whole_connector_response: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -344,6 +364,9 @@ pub struct RefundResponse {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// The reference id of the connector for the refund
     pub connector_refund_reference_id: Option<String>,
+    /// Contains raw connector response
+    #[schema(value_type = Option<String>)]
+    pub raw_connector_response: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
