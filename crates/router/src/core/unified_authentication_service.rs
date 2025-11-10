@@ -1837,6 +1837,8 @@ pub async fn authentication_sync_core(
             currency: authentication.currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
 
         let authentication_info = Some(AuthenticationInfo {
