@@ -8621,6 +8621,30 @@
         ],
         "description": "Masked payout method details for storing in db"
       },
+      "AddonsDetails": {
+        "type": "object",
+        "required": [
+          "item_price_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated addon plan_id.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the addon subscription."
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Quantity of the addon subscription.",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "Address": {
         "type": "object",
         "properties": {

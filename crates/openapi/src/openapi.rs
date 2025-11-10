@@ -940,6 +940,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::subscription::EstimateSubscriptionResponse,
         api_models::subscription::GetPlansQuery,
         api_models::subscription::EstimateSubscriptionQuery,
+        api_models::subscription::AddonsDetails,
         api_models::subscription::ConfirmSubscriptionResponse,
         api_models::subscription::ConfirmSubscriptionPaymentDetails,
         api_models::subscription::PaymentDetails,
