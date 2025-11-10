@@ -1,4 +1,3 @@
-import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
 let globalState;
@@ -15,6 +14,6 @@ describe("Customer List With Count - Limit Validation flow test", () => {
 	});
 
 	it("customer-list-limit-validation-call-test", () => {
-		cy.customerListLimitValidationCallTest(fixtures.customerCreateBody, globalState);
+		cy.customerListLimitValidationCallTest(globalState);
 	});
 });
