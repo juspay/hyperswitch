@@ -303,6 +303,7 @@ pub struct AdyenPaymentRequest<'a> {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
     metadata: Option<serde_json::Value>,
+    platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -878,6 +879,46 @@ pub struct OnlineBankingCzechRepublicData {
 pub enum OnlineBankingCzechRepublicBanks {
     KB,
     CS,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AdyenPlatformChargeBackBehaviour {
+    #[serde(
+        alias = "deduct_from_liable_account",
+        alias = "deductFromLiableAccount"
+    )]
+    DeductFromLiableAccount,
+    #[serde(
+        alias = "deduct_from_one_balance_account",
+        alias = "deductFromOneBalanceAccount"
+    )]
+    DeductFromOneBalanceAccount,
+    #[serde(
+        alias = "deduct_according_to_split_ratio",
+        alias = "deductAccordingToSplitRatio"
+    )]
+    DeductAccordingToSplitRatio,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenPlatformChargeBackLogicMetadata {
+    pub behavior: Option<AdyenPlatformChargeBackBehaviour>,
+    #[serde(alias = "target_account", alias = "targetAccount")]
+    pub target_account: Option<Secret<String>>,
+    #[serde(alias = "cost_allocation_account", alias = "costAllocationAccount")]
+    pub cost_allocation_account: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct AdyenMetadata {
+    #[serde(alias = "deviceFingerprint", alias = "device_fingerprint")]
+    pub device_fingerprint: Option<Secret<String>>,
+    pub store: Option<String>,
+    #[serde(alias = "platform_chargeback_logic", alias = "platformChargebackLogic")]
+    pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
 }
 
 impl TryFrom<&PaymentsAuthorizeRouterData> for JCSVoucherData {
@@ -2847,18 +2888,17 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
     })
 }
 
-fn get_device_fingerprint(metadata: serde_json::Value) -> Option<Secret<String>> {
-    metadata
-        .get("device_fingerprint")
-        .and_then(|value| value.as_str())
-        .map(|fingerprint| Secret::new(fingerprint.to_string()))
-}
-
 fn get_store_id(metadata: serde_json::Value) -> Option<String> {
     metadata
         .get("store")
         .and_then(|store| store.as_str())
         .map(|store| store.to_string())
+}
+
+fn get_adyen_metadata(metadata: Option<serde_json::Value>) -> AdyenMetadata {
+    metadata
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default()
 }
 impl
     TryFrom<(
@@ -3013,26 +3053,16 @@ impl
             } //
         }?;
 
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3071,6 +3101,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -3107,26 +3138,15 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
 
         let shopper_email = item.router_data.get_optional_billing_email();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3163,6 +3183,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -3195,26 +3216,16 @@ impl
         ));
 
         let country_code = get_country_code(item.router_data.get_optional_billing());
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let mut billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3259,6 +3270,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         };
         Ok(request)
     }
@@ -3287,26 +3299,16 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3343,6 +3345,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+
+            platform_chargeback_logic,
         };
         Ok(request)
     }
@@ -3371,26 +3375,16 @@ impl
         ));
 
         let return_url = item.router_data.request.get_router_return_url()?;
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
@@ -3469,6 +3463,8 @@ impl
             device_fingerprint,
             session_validity,
             metadata: item.router_data.request.metadata.clone(),
+
+            platform_chargeback_logic,
         };
         Ok(request)
     }
@@ -3496,26 +3492,16 @@ impl
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from(gift_card_data)?,
         ));
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3554,6 +3540,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         };
         Ok(request)
     }
@@ -3588,25 +3575,16 @@ impl
         let line_items = Some(get_line_items(item));
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3643,6 +3621,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -3726,26 +3705,17 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
         } else {
             None
         };
+
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -3782,6 +3752,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -3829,25 +3800,15 @@ impl
                 &billing_address,
                 &delivery_address,
             ))?));
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3880,6 +3841,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -3916,25 +3878,16 @@ impl
             })?
             .number
             .to_owned();
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
@@ -3970,6 +3923,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
@@ -6460,25 +6414,16 @@ impl
             ),
             eci: Some("02".to_string()),
         };
+        let adyen_metadata = get_adyen_metadata(item.router_data.request.metadata.clone());
+
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
                 adyen_split_payment,
             )) => get_adyen_split_request(adyen_split_payment, item.router_data.request.currency),
-            _ => (
-                item.router_data
-                    .request
-                    .metadata
-                    .clone()
-                    .and_then(get_store_id),
-                None,
-            ),
+            _ => (adyen_metadata.store.clone(), None),
         };
-        let device_fingerprint = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .and_then(get_device_fingerprint);
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
@@ -6515,6 +6460,7 @@ impl
             device_fingerprint,
             session_validity: None,
             metadata: item.router_data.request.metadata.clone(),
+            platform_chargeback_logic,
         })
     }
 }
