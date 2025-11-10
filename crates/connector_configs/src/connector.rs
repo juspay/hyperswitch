@@ -9,7 +9,6 @@ use api_models::{
     payments,
 };
 use serde::{Deserialize, Serialize};
-use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 
@@ -185,9 +184,7 @@ pub struct ConfigMetadata {
     pub account_id: Option<AccountIDSupportedMethods>,
     pub name: Option<InputData>,
     pub client_merchant_reference_id: Option<InputData>,
-    pub route: Option<InputData>,
-    pub mid: Option<InputData>,
-    pub tid: Option<InputData>,
+    pub merchant_payment_method_route_id: Option<InputData>,
     pub site: Option<InputData>,
 }
 

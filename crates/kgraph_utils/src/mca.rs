@@ -1062,8 +1062,6 @@ pub fn make_mca_graph(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     use std::collections::{HashMap, HashSet};
 
     use api_models::enums as api_enums;

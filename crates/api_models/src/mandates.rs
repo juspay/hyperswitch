@@ -1,6 +1,7 @@
 use common_types::payments as common_payments_types;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -116,68 +117,94 @@ pub struct MandateListConstraints {
 }
 
 /// Details required for recurring payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RecurringDetails {
+    #[smithy(value_type = "String")]
     MandateId(String),
+    #[smithy(value_type = "String")]
     PaymentMethodId(String),
+    #[smithy(value_type = "ProcessorPaymentToken")]
     ProcessorPaymentToken(ProcessorPaymentToken),
 
     /// Network transaction ID and Card Details for MIT payments when payment_method_data
     /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
     NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ProcessorPaymentToken {
+    #[smithy(value_type = "String")]
     pub processor_payment_token: String,
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndCardDetails {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
     pub card_number: cards::CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub card_exp_month: Secret<String>,
 
     /// The card's expiry year
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub card_exp_year: Secret<String>,
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// The name of the issuer of card
     #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
 
     /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
     #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
     #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
 
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<Secret<String>>,
 
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
     /// where `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
 }
 

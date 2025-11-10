@@ -80,7 +80,6 @@ use scheduler::utils as pt_utils;
 pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
-use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
@@ -6481,7 +6480,9 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     Ok(card_brands)
 }
 
-fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+pub fn validate_customer_details_for_click_to_pay(
+    customer_details: &CustomerData,
+) -> RouterResult<()> {
     match (
         customer_details.phone.as_ref(),
         customer_details.phone_country_code.as_ref(),

@@ -13,7 +13,10 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
-use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
+use crate::payments::{
+    ClickToPaySessionResponse, CustomerDetails, DeviceChannel, SdkInformation,
+    ThreeDsCompletionIndicator,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -60,6 +63,10 @@ pub struct AuthenticationCreateRequest {
     /// Acquirer details information
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -138,6 +145,10 @@ pub struct AuthenticationResponse {
     /// Profile Acquirer ID get from profile acquirer configuration
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 impl ApiEventMetric for AuthenticationCreateRequest {
@@ -348,6 +359,8 @@ pub enum AuthenticationSdkNextAction {
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
     Deny { message: String },
+    /// The next action is to proceed with the payment
+    Proceed,
 }
 
 #[cfg(feature = "v1")]
@@ -527,6 +540,7 @@ pub struct AuthenticationAuthenticateResponse {
     #[schema(value_type = Option<TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
+    #[schema(value_type = String, example = "https://example.com/redirect")]
     pub acs_url: Option<url::Url>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
@@ -745,9 +759,53 @@ pub struct AuthenticationSyncRequest {
     /// The client secret for this authentication.
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
+    /// Payment method data for Post Authentication sync
+    pub payment_method_details: Option<PostAuthenticationRequestPaymentMethodData>,
     /// Authentication ID for the authentication
     #[serde(skip_deserializing)]
     pub authentication_id: id_type::AuthenticationId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PostAuthenticationRequestPaymentMethodData {
+    pub payment_method_type: AuthenticationPaymentMethodType,
+    pub payment_method_data: AuthenticationPaymentMethodData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum AuthenticationPaymentMethodType {
+    #[serde(rename = "ctp")]
+    ClickToPay,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum AuthenticationPaymentMethodData {
+    ClickToPayDetails(ClickToPayDetails),
+}
+
+impl AuthenticationPaymentMethodData {
+    pub fn get_click_to_pay_details(&self) -> Option<&ClickToPayDetails> {
+        match self {
+            Self::ClickToPayDetails(details) => Some(details),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayDetails {
+    /// merchant transaction id
+    pub merchant_transaction_id: Option<String>,
+    /// network transaction correlation id
+    pub correlation_id: Option<String>,
+    /// session transaction flow id
+    pub x_src_flow_id: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<super::enums::CtpServiceProvider>,
+    /// Encrypted payload
+    #[schema(value_type = Option<String>)]
+    pub encrypted_payload: Option<masking::Secret<String>>,
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
@@ -766,6 +824,50 @@ pub struct AuthenticationSyncPostUpdateRequest {
 }
 
 impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionTokenRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client Secret for the authentication
+    #[schema(value_type = String)]
+    pub client_secret: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// The list of session token object
+    pub session_token: Vec<AuthenticationSessionToken>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "wallet_name")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationSessionToken {
+    /// The sessions response structure for ClickToPay
+    ClickToPay(Box<ClickToPaySessionResponse>),
+    NoSessionTokenReceived,
+}
+
+impl ApiEventMetric for AuthenticationSessionTokenRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for AuthenticationSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

@@ -18,7 +18,6 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
-use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
