@@ -6293,8 +6293,45 @@ type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
 [zift]
-[zift.connector_auth.HeaderKey]
-api_key = "API Key"
+[[zift.credit]]
+  payment_method_type = "Mastercard"
+[[zift.credit]]
+  payment_method_type = "Visa"
+[[zift.credit]]
+  payment_method_type = "Interac"
+[[zift.credit]]
+  payment_method_type = "AmericanExpress"
+[[zift.credit]]
+  payment_method_type = "JCB"
+[[zift.credit]]
+  payment_method_type = "DinersClub"
+[[zift.credit]]
+  payment_method_type = "Discover"
+[[zift.credit]]
+  payment_method_type = "CartesBancaires"
+[[zift.credit]]
+  payment_method_type = "UnionPay"
+[[zift.debit]]
+  payment_method_type = "Mastercard"
+[[zift.debit]]
+  payment_method_type = "Visa"
+[[zift.debit]]
+  payment_method_type = "Interac"
+[[zift.debit]]
+  payment_method_type = "AmericanExpress"
+[[zift.debit]]
+  payment_method_type = "JCB"
+[[zift.debit]]
+  payment_method_type = "DinersClub"
+[[zift.debit]]
+  payment_method_type = "Discover"
+[[zift.debit]]
+  payment_method_type = "CartesBancaires"
+[[zift.debit]]
+[zift.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Account ID"
 
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
