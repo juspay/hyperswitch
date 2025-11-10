@@ -9943,3 +9943,39 @@ pub enum SubscriptionStatus {
     /// Subscription has failed.
     Failed,
 }
+
+/// Fields that can be tokenized with vault
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultTokenField {
+    /// Card number
+    CardNumber,
+    /// Card cvc
+    CardCvc,
+    /// Card expiry year
+    CardExpiryYear,
+    /// Card expiry month
+    CardExpiryMonth,
+    /// Network token
+    NetworkToken,
+    /// Token expiry year
+    TokenExpiryYear,
+    /// Token expiry month
+    TokenExpiryMonth,
+    /// Token cryptogram
+    TokenCryptogram,
+}

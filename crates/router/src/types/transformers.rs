@@ -1964,6 +1964,7 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector,
         }
     }
 }
@@ -1975,6 +1976,7 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector,
         }
     }
 }

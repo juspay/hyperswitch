@@ -296,6 +296,10 @@ pub struct ExternalVaultConnectorDetails {
     /// External vault to be used for storing payment method information
     #[schema(value_type = Option<VaultSdk>)]
     pub vault_sdk: Option<common_enums::VaultSdk>,
+
+    /// Fields to tokenization in vault
+    #[schema(value_type = Option<Vec<VaultSdk>>)]
+    pub vault_token_selector: Option<Vec<common_enums::VaultTokenField>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

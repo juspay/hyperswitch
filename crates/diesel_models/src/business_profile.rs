@@ -768,6 +768,7 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub vault_sdk: Option<VaultSdk>,
+    pub vault_token_selector: Option<Vec<common_enums::VaultTokenField>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
