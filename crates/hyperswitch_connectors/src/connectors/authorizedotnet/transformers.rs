@@ -558,7 +558,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))
@@ -847,7 +848,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -909,7 +911,8 @@ impl
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
