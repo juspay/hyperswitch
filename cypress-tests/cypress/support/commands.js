@@ -1037,7 +1037,7 @@ Cypress.Commands.add("customerListLimitValidationCallTest", (globalState) => {
 
       cy.wrap(response).then(() => {
         expect(response.status).to.be.oneOf([400, 422]);
-        expect(response.body.message.toLowerCase()).to.include("limit");
+        expect(response.body.error.message.toLowerCase()).to.include("limit");
       });
     });
   });
@@ -3299,7 +3299,7 @@ Cypress.Commands.add(
 
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId === "adyen" && paymentMethodType === "sofort")) {
+    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
       handleRedirection(
         "bank_redirect",
         { redirectionUrl, expectedUrl },
