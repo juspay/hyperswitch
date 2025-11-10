@@ -880,4 +880,88 @@ describe("Corner cases", () => {
       cy.createCustomerCallTest(customerData, globalState);
     });
   });
+
+  context("Confirm Payment with Invalid Publishable Key", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm payment with invalid publishable key", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidPublishableKey"];
+
+      const originalKey = globalState.get("publishableKey");
+      //set invalid publishable key
+      cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      // Restore key synchronously after test
+      cy.then(() => globalState.set("publishableKey", originalKey));
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
+
+  context("Retrieve session token with invalid publishable key", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Session call with invalid publishable key", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidPublishableKey"];
+
+      const originalKey = globalState.get("publishableKey");
+      // set invalid publishable key
+      cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
+      cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
+
+      // Restore key synchronously after test
+      cy.then(() => globalState.set("publishableKey", originalKey));
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
 });

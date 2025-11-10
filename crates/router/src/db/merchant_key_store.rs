@@ -19,7 +19,6 @@ mod tests {
         types::domain,
     };
 
-    #[allow(clippy::unwrap_used, clippy::expect_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
         let conf = Settings::new().expect("invalid settings");
@@ -38,7 +37,6 @@ mod tests {
                 || {},
             )
             .unwrap();
-        #[allow(clippy::expect_used)]
         let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create mock DB");

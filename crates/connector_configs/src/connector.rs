@@ -3,11 +3,12 @@ use std::collections::HashMap;
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
+    enums::{
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+    },
     payments,
 };
 use serde::{Deserialize, Serialize};
-use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 
@@ -183,9 +184,7 @@ pub struct ConfigMetadata {
     pub account_id: Option<AccountIDSupportedMethods>,
     pub name: Option<InputData>,
     pub client_merchant_reference_id: Option<InputData>,
-    pub route: Option<InputData>,
-    pub mid: Option<InputData>,
-    pub tid: Option<InputData>,
+    pub merchant_payment_method_route_id: Option<InputData>,
     pub site: Option<InputData>,
 }
 
@@ -328,6 +327,7 @@ pub struct ConnectorConfig {
     pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub peachpayments: Option<ConnectorTomlConfig>,
+    pub payjustnow: Option<ConnectorTomlConfig>,
     pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -367,6 +367,7 @@ pub struct ConnectorConfig {
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
     pub worldpayxml: Option<ConnectorTomlConfig>,
     pub xendit: Option<ConnectorTomlConfig>,
+    pub zift: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
     pub dummy_connector: Option<ConnectorTomlConfig>,
@@ -415,6 +416,20 @@ impl ConnectorConfig {
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
+        }
+    }
+
+    pub fn get_billing_connector_config(
+        connector: BillingConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            BillingConnectors::Chargebee => Ok(connector_data.chargebee),
+            BillingConnectors::Stripebilling => Ok(connector_data.stripebilling),
+            BillingConnectors::Recurly => Ok(connector_data.recurly),
+            BillingConnectors::Custombilling => Ok(connector_data.custombilling),
+            #[cfg(feature = "dummy_connector")]
+            BillingConnectors::DummyBillingConnector => Ok(connector_data.dummy_connector),
         }
     }
 
@@ -600,6 +615,7 @@ impl ConnectorConfig {
             Connector::Xendit => Ok(connector_data.xendit),
             Connector::Paytm => Ok(connector_data.paytm),
             Connector::Phonepe => Ok(connector_data.phonepe),
+            Connector::Payjustnow => Ok(connector_data.payjustnow),
         }
     }
 }

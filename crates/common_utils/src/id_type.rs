@@ -248,7 +248,6 @@ pub trait GenerateId {
 
 #[cfg(test)]
 mod alphanumeric_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     const VALID_UNDERSCORE_ID_JSON: &str = r#""cus_abcdefghijklmnopqrstuv""#;

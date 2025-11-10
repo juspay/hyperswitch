@@ -881,7 +881,6 @@ pub mod core {
 pub use core::*;
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use std::collections::HashMap;
 
@@ -1046,7 +1045,7 @@ mod tests {
 
         // Check that our test tokens were replaced with the actual values from vault data
         let tokens_replaced = response_str.contains("4242429789164242") && // card_number
-                              response_str.contains("123") &&               // cvv  
+                              response_str.contains("123") &&               // cvv
                               response_str.contains("12/25"); // expiry
 
         assert!(

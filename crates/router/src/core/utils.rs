@@ -1,4 +1,3 @@
-pub mod customer_validation;
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
@@ -232,6 +231,7 @@ pub async fn construct_payout_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -407,6 +407,7 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -423,27 +424,9 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a diesel_refund::Refund,
-    creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        creds_identifier.as_deref(),
-        merchant_context.get_merchant_key_store(),
-        profile_id,
-        connector_id,
-        payment_attempt.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -616,6 +599,7 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -784,7 +768,6 @@ pub fn get_split_refunds(
 }
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -1062,6 +1045,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1168,6 +1152,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1283,6 +1268,7 @@ pub async fn construct_upload_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1358,6 +1344,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     })
 }
 
@@ -1466,6 +1453,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1596,6 +1584,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1705,6 +1694,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1807,6 +1797,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        is_migrated_card: None,
     };
     Ok(router_data)
 }

@@ -13,7 +13,10 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
-use crate::payments::{CustomerDetails, DeviceChannel, SdkInformation, ThreeDsCompletionIndicator};
+use crate::payments::{
+    ClickToPaySessionResponse, CustomerDetails, DeviceChannel, SdkInformation,
+    ThreeDsCompletionIndicator,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -60,6 +63,10 @@ pub struct AuthenticationCreateRequest {
     /// Acquirer details information
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -138,6 +145,10 @@ pub struct AuthenticationResponse {
     /// Profile Acquirer ID get from profile acquirer configuration
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// Customer details.
+    #[schema(value_type = Option<CustomerDetails>)]
+    pub customer_details: Option<CustomerDetails>,
 }
 
 impl ApiEventMetric for AuthenticationCreateRequest {
@@ -151,6 +162,42 @@ impl ApiEventMetric for AuthenticationCreateRequest {
 }
 
 impl ApiEventMetric for AuthenticationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationEligibilityCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),
@@ -280,6 +327,132 @@ pub struct AuthenticationEligibilityResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationEligibilityCheckRequest {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Optional secret value used to identify and authorize the client making the request.
+    /// This can help ensure that the payment session is secure and valid.
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<masking::Secret<String>>,
+    /// The data for this authentication eligibility check.
+    pub eligibility_check_data: AuthenticationEligibilityCheckData,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AuthenticationEligibilityCheckResponse {
+    /// The unique identifier for this authentication.
+    #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    pub authentication_id: id_type::AuthenticationId,
+    // The next action for this authentication eligibility check.
+    pub sdk_next_action: AuthenticationSdkNextAction,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationSdkNextAction {
+    /// The next action is to await for a merchant callback
+    AwaitMerchantCallback,
+    /// The next action is to deny the payment with an error message
+    Deny { message: String },
+    /// The next action is to proceed with the payment
+    Proceed,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationRetrieveEligibilityCheckRequest {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationRetrieveEligibilityCheckResponse {
+    /// The unique identifier for this authentication.
+    /// Added in the request for api event metrics, populated from path parameter
+    #[serde(skip)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// The data for this authentication eligibility check.
+    pub eligibility_check_data: AuthenticationEligibilityCheckResponseData,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationEligibilityCheckData {
+    ClickToPay(ClickToPayEligibilityCheckData),
+}
+
+#[cfg(feature = "v1")]
+impl AuthenticationEligibilityCheckData {
+    pub fn get_click_to_pay_data(&self) -> Option<&ClickToPayEligibilityCheckData> {
+        match self {
+            Self::ClickToPay(data) => Some(data),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationEligibilityCheckResponseData {
+    ClickToPayEnrollmentStatus(ClickToPayEligibilityCheckResponseData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayEligibilityCheckData {
+    // Visa specific eligibility check data
+    pub visa: Option<VisaEligibilityCheckData>,
+    // MasterCard specific eligibility check data
+    pub mastercard: Option<MasterCardEligibilityCheckData>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayEligibilityCheckResponseData {
+    // Visa specific eligibility check data
+    pub visa: Option<bool>,
+    // MasterCard specific eligibility check data
+    pub mastercard: Option<bool>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VisaEligibilityCheckData {
+    // Indicates whether the consumer is enrolled in Visa Secure program
+    pub consumer_present: bool,
+    // Status of the consumer in Visa Secure program]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consumer_status: Option<String>,
+    // Additional data for eligibility check
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub custom_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MasterCardEligibilityCheckData {
+    // Indicates whether the consumer is enrolled in MasterCard Identity Check program
+    pub consumer_present: bool,
+    // Session ID from MasterCard Identity Check program
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id_lookup_session_id: Option<String>,
+    // Timestamp of the last time the card was used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_used_card_timestamp: Option<String>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub enum EligibilityResponseParams {
     ThreeDsData(ThreeDsData),
@@ -367,6 +540,7 @@ pub struct AuthenticationAuthenticateResponse {
     #[schema(value_type = Option<TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
+    #[schema(value_type = String, example = "https://example.com/redirect")]
     pub acs_url: Option<url::Url>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
@@ -585,9 +759,53 @@ pub struct AuthenticationSyncRequest {
     /// The client secret for this authentication.
     #[schema(value_type = String)]
     pub client_secret: Option<masking::Secret<String>>,
+    /// Payment method data for Post Authentication sync
+    pub payment_method_details: Option<PostAuthenticationRequestPaymentMethodData>,
     /// Authentication ID for the authentication
     #[serde(skip_deserializing)]
     pub authentication_id: id_type::AuthenticationId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PostAuthenticationRequestPaymentMethodData {
+    pub payment_method_type: AuthenticationPaymentMethodType,
+    pub payment_method_data: AuthenticationPaymentMethodData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum AuthenticationPaymentMethodType {
+    #[serde(rename = "ctp")]
+    ClickToPay,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum AuthenticationPaymentMethodData {
+    ClickToPayDetails(ClickToPayDetails),
+}
+
+impl AuthenticationPaymentMethodData {
+    pub fn get_click_to_pay_details(&self) -> Option<&ClickToPayDetails> {
+        match self {
+            Self::ClickToPayDetails(details) => Some(details),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ClickToPayDetails {
+    /// merchant transaction id
+    pub merchant_transaction_id: Option<String>,
+    /// network transaction correlation id
+    pub correlation_id: Option<String>,
+    /// session transaction flow id
+    pub x_src_flow_id: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    #[schema(value_type = Option<CtpServiceProvider>)]
+    pub provider: Option<super::enums::CtpServiceProvider>,
+    /// Encrypted payload
+    #[schema(value_type = Option<String>)]
+    pub encrypted_payload: Option<masking::Secret<String>>,
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
@@ -606,6 +824,50 @@ pub struct AuthenticationSyncPostUpdateRequest {
 }
 
 impl ApiEventMetric for AuthenticationSyncPostUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionTokenRequest {
+    /// Authentication ID for the authentication
+    #[serde(skip_deserializing)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// Client Secret for the authentication
+    #[schema(value_type = String)]
+    pub client_secret: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub authentication_id: id_type::AuthenticationId,
+    /// The list of session token object
+    pub session_token: Vec<AuthenticationSessionToken>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "wallet_name")]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationSessionToken {
+    /// The sessions response structure for ClickToPay
+    ClickToPay(Box<ClickToPaySessionResponse>),
+    NoSessionTokenReceived,
+}
+
+impl ApiEventMetric for AuthenticationSessionTokenRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for AuthenticationSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
@@ -141,6 +142,7 @@ pub enum RoutableConnectors {
     Paytm,
     Payu,
     Peachpayments,
+    Payjustnow,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -197,10 +199,12 @@ pub enum RoutableConnectors {
     strum::Display,
     strum::EnumString,
     Hash,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
     Authipay,
     Adyenplatform,
@@ -326,6 +330,7 @@ pub enum Connector {
     Paytm,
     Payu,
     Peachpayments,
+    Payjustnow,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -573,6 +578,7 @@ impl Connector {
             | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
+            | Self::Payjustnow
             | Self::Phonepe => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
@@ -747,6 +753,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Hipay => Self::Hipay,
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
+            RoutableConnectors::Payjustnow => Self::Payjustnow,
         }
     }
 }
@@ -886,6 +893,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::Paytm => Ok(Self::Paytm),
             Connector::Phonepe => Ok(Self::Phonepe),
+            Connector::Payjustnow => Ok(Self::Payjustnow),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault

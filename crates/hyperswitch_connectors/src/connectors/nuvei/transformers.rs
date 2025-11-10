@@ -113,6 +113,9 @@ trait NuveiAuthorizePreprocessingCommon {
         Ok(None)
     }
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -198,6 +201,37 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
+                merchant_phone: descriptor.phone.clone(),
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -275,6 +309,37 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
+                merchant_phone: descriptor.phone.clone(),
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -351,6 +416,12 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
     }
 }
 
@@ -458,6 +529,14 @@ pub enum IsRebilling {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct NuveiDynamicDescriptor {
+    pub merchant_name: Option<Secret<String>>,
+    pub merchant_phone: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
     pub session_token: Secret<String>,
@@ -484,6 +563,7 @@ pub struct NuveiPaymentsRequest {
     pub items: Option<Vec<NuveiItem>>,
     pub is_partial_approval: Option<PartialApprovalFlag>,
     pub external_scheme_details: Option<ExternalSchemeDetails>,
+    pub dynamic_descriptor: Option<NuveiDynamicDescriptor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1661,8 +1741,7 @@ fn get_l2_l3_items(
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
-        data.order_details
-            .as_ref()
+        data.get_order_details()
             .map_or(Ok(None), |order_details_list| {
                 // Map each order to a Result<NuveiItem>
                 let results: Vec<Result<NuveiItem, error_stack::Report<errors::ConnectorError>>> =
@@ -1721,19 +1800,19 @@ fn get_amount_details(
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
         let total_tax = data
-            .order_tax_amount
+            .get_order_tax_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_shipping = data
-            .shipping_cost
+            .get_shipping_cost()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_discount = data
-            .discount_amount
+            .get_discount_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_handling = data
-            .duty_amount
+            .get_duty_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         Ok(Some(NuveiAmountDetails {
@@ -1744,7 +1823,6 @@ fn get_amount_details(
         }))
     })
 }
-
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
     Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
@@ -1861,10 +1939,13 @@ where
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
                 | PayLaterData::AtomeRedirect {}
-                | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nuvei"),
-                )
-                .into()),
+                | PayLaterData::BreadpayRedirect {}
+                | PayLaterData::PayjustnowRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
+                }
             },
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
@@ -1929,6 +2010,9 @@ where
         } else {
             request_data.device_details.clone()
         };
+
+        let dynamic_descriptor = item.request.get_dynamic_descriptor()?;
+
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
@@ -1946,6 +2030,7 @@ where
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
             external_scheme_details: request_data.external_scheme_details,
+            dynamic_descriptor,
             ..request
         })
     }

@@ -14,6 +14,7 @@ use common_utils::{
     consts::X_FLOW_NAME,
     errors::CustomResult,
     ext_traits::ValueExt,
+    id_type,
     request::{Method, RequestBuilder, RequestContent},
 };
 use diesel_models::types::FeatureMetadata;
@@ -32,15 +33,18 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_response_types::PaymentsResponseData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds,
+    router_request_types::RefundsData,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod, wallet_payment_method_type::WalletType,
+    CardDetails, CardPaymentMethodType, CryptoCurrency, CryptoCurrencyPaymentMethodType,
+    PaymentServiceAuthorizeResponse, RewardPaymentMethodType, WalletPaymentMethodType,
 };
 
 #[cfg(feature = "v2")]
@@ -61,10 +65,92 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::{
+        transformers::{ForeignFrom, ForeignTryFrom},
+        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
+    },
 };
 
 pub mod transformers;
+
+pub async fn get_access_token_from_ucs_response(
+    session_state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    creds_identifier: Option<String>,
+    ucs_state: Option<&unified_connector_service_client::payments::ConnectorState>,
+) -> Option<AccessToken> {
+    let ucs_access_token = ucs_state
+        .and_then(|state| state.access_token.as_ref())
+        .map(AccessToken::foreign_from)?;
+
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let merchant_connector_id_or_connector_name = merchant_connector_id
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(creds_identifier.map(|id| id.to_string()))
+        .unwrap_or(connector_name.to_string());
+
+    if let Ok(Some(cached_token)) = session_state
+        .store
+        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+        .await
+    {
+        if cached_token.token.peek() == ucs_access_token.token.peek() {
+            return None;
+        }
+    }
+
+    Some(ucs_access_token)
+}
+
+pub async fn set_access_token_for_ucs(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+    access_token: AccessToken,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    creds_identifier: Option<String>,
+) -> Result<(), errors::StorageError> {
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+
+    let merchant_connector_id_or_connector_name = merchant_connector_id
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(creds_identifier.map(|id| id.to_string()))
+        .unwrap_or(connector_name.to_string());
+
+    let modified_access_token = AccessToken {
+        expires: access_token
+            .expires
+            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+        ..access_token
+    };
+
+    logger::debug!(
+        access_token_expiry_after_modification = modified_access_token.expires,
+        merchant_id = ?merchant_id,
+        connector_name = connector_name,
+        merchant_connector_id_or_connector_name = merchant_connector_id_or_connector_name
+    );
+
+    if let Err(access_token_set_error) = state
+        .store
+        .set_access_token(
+            merchant_id,
+            &merchant_connector_id_or_connector_name,
+            modified_access_token,
+        )
+        .await
+    {
+        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+        // Payments should not fail, once the access token is successfully created
+        // The next request will create new access token, if required
+        logger::error!(access_token_set_error=?access_token_set_error, "Failed to store UCS access token");
+    }
+
+    Ok(())
+}
 
 // Re-export webhook transformer types for easier access
 pub use transformers::{WebhookTransformData, WebhookTransformationStatus};
@@ -78,22 +164,29 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-/// Gets the rollout percentage for a given config key
-async fn get_rollout_percentage(state: &SessionState, config_key: &str) -> Option<f64> {
+/// Type alias for return type used by unified connector service refund response handlers
+type UnifiedConnectorServiceRefundResult =
+    CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
+
+/// Checks if a config key exists and returns its percentage if present
+/// Returns (key_exists, rollout_percentage)
+async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
-                Ok(config) => Some(config.rollout_percent),
-                Err(_) => {
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>().ok()
-                }
-            }
+            // Key exists, try to parse percentage
+            let percentage =
+                match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
+                    Ok(config) => Some(config.rollout_percent),
+                    Err(_) => {
+                        // Fallback to legacy format (simple float)
+                        rollout_config.config.parse::<f64>().ok()
+                    }
+                };
+            (true, percentage)
         }
-        Err(_) => None,
+        Err(_) => (false, None), // Key doesn't exist
     }
 }
 
@@ -160,15 +253,17 @@ async fn determine_connector_integration_type(
     }
 }
 
-pub async fn should_call_unified_connector_service<F: Clone, T, D>(
+pub async fn should_call_unified_connector_service<F: Clone, T, R, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
-    router_data: &RouterData<F, T, PaymentsResponseData>,
+    router_data: &RouterData<F, T, R>,
     payment_data: Option<&D>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(ExecutionPath, SessionState)>
 where
     D: OperationSessionGetters<F>,
+    R: Send + Sync + Clone,
 {
     // Extract context information
     let merchant_id = merchant_context
@@ -179,22 +274,18 @@ where
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
 
-    let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    // Build rollout keys
-    let rollout_key = format!(
-        "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+    let (rollout_key, shadow_rollout_key) = build_rollout_keys(
         merchant_id,
         connector_name,
-        payment_method,
-        flow_name
+        &flow_name,
+        router_data.payment_method,
     );
 
     // Determine connector integration type
@@ -203,38 +294,42 @@ where
 
     // Extract previous gateway from payment data
     let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
-    let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
-    // Check both rollout keys to determine priority based on shadow percentage
+    // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let (shadow_key_exists, _shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
 
-    // Get shadow percentage to determine priority
-    let shadow_percentage = get_rollout_percentage(state, &shadow_rollout_key)
-        .await
-        .unwrap_or(0.0);
+    // Simplified decision logic: Shadow takes priority, then rollout, then direct
+    let shadow_rollout_availability = if shadow_key_exists {
+        // Block 1: Shadow key exists - check if it's enabled
+        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
 
-    let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage != 0.0 {
-            // Shadow is present and percentage is non-zero, use shadow
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is present with non-zero percentage, using shadow"
-            );
-            ShadowRolloutAvailability::IsAvailable
-        } else if rollout_result.should_execute {
-            // Either shadow is 0.0 or not present, use rollout if available
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage,
-                "Shadow rollout is 0.0 or not present, using rollout"
-            );
+        if shadow_percentage != 0.0 {
+            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
             ShadowRolloutAvailability::IsAvailable
         } else {
+            router_env::logger::debug!(
+                shadow_key = %shadow_rollout_key,
+                shadow_percentage = shadow_percentage,
+                rollout_enabled = rollout_result.should_execute,
+                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
+            );
+            // Shadow disabled, result is the same regardless of rollout status
             ShadowRolloutAvailability::NotAvailable
-        };
+        }
+    } else if rollout_result.should_execute {
+        // Block 2: No shadow key, but rollout is enabled - use primary UCS
+        router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
+        ShadowRolloutAvailability::NotAvailable
+    } else {
+        // Block 3: Neither shadow nor rollout enabled - use direct
+        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Neither shadow nor rollout enabled, using Direct mode" );
+        ShadowRolloutAvailability::NotAvailable
+    };
 
     // Single decision point using pattern matching
-    let (_gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
@@ -263,7 +358,14 @@ where
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
-                (GatewaySystem::Direct, ExecutionPath::Direct)
+                if shadow_ucs_call_connector_action.is_some() {
+                    (
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    )
+                } else {
+                    (GatewaySystem::Direct, ExecutionPath::Direct)
+                }
             }
             CallConnectorAction::Trigger
             | CallConnectorAction::Avoid
@@ -278,7 +380,14 @@ where
         }
     };
 
-    router_env::logger::info!( "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, payment_method={}, flow={}", execution_path, merchant_id, connector_name, payment_method, flow_name );
+    router_env::logger::info!(
+        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
+    );
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
@@ -418,7 +527,7 @@ fn decide_execution_path(
         // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
         (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
             Ok((
-                GatewaySystem::UnifiedConnectorService,
+                GatewaySystem::Direct,
                 ExecutionPath::ShadowUnifiedConnectorService,
             ))
         }
@@ -443,6 +552,42 @@ fn decide_execution_path(
             ExecutionPath::UnifiedConnectorService,
         )),
     }
+}
+
+/// Build rollout keys based on flow type - include payment method for payments, skip for refunds
+fn build_rollout_keys(
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payment_method: common_enums::PaymentMethod,
+) -> (String, String) {
+    // Detect if this is a refund flow based on flow name
+    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+
+    let rollout_key = if is_refund_flow {
+        // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
+        format!(
+            "{}_{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            merchant_id,
+            connector_name,
+            flow_name
+        )
+    } else {
+        // Payment flows: UCS_merchant_connector_paymentmethod_flow (e.g., UCS_merchant123_stripe_card_Authorize)
+        let payment_method_str = payment_method.to_string();
+        format!(
+            "{}_{}_{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            merchant_id,
+            connector_name,
+            payment_method_str,
+            flow_name
+        )
+    };
+
+    let shadow_rollout_key = format!("{rollout_key}_shadow");
+    (rollout_key, shadow_rollout_key)
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -513,36 +658,89 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     merchant_context: &MerchantContext,
     connector_name: &str,
-) -> RouterResult<bool> {
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        logger::debug!(
-            connector = connector_name.to_string(),
-            "Unified Connector Service client is not available for webhooks"
-        );
-        return Ok(false);
-    }
-
-    let ucs_config_key = consts::UCS_ENABLED;
-
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        return Ok(false);
-    }
-
+) -> RouterResult<ExecutionPath> {
+    // Extract context information
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let config_key = format!(
-        "{}_{}_{}_Webhooks",
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
+
+    let flow_name = "Webhooks";
+
+    // Check UCS availability using idiomatic helper
+    let ucs_availability = check_ucs_availability(state).await;
+
+    // Build rollout keys - webhooks don't use payment method, so use a simplified key format
+    let rollout_key = format!(
+        "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_name
+        connector_name,
+        flow_name
+    );
+    let shadow_rollout_key = format!("{rollout_key}_shadow");
+
+    // Determine connector integration type
+    let connector_integration_type =
+        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+
+    // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
+    let previous_gateway = None;
+
+    // Check both rollout keys to determine priority based on shadow percentage
+    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+
+    // Get shadow percentage to determine priority
+    let (_shadow_key_exists, shadow_percentage) =
+        get_rollout_config_info(state, &shadow_rollout_key).await;
+
+    let shadow_rollout_availability =
+        if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
+            // Shadow is present and percentage is non-zero, use shadow
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
+                "Shadow rollout is present with non-zero percentage for webhooks, using shadow"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else if rollout_result.should_execute {
+            // Either shadow is 0.0 or not present, use rollout if available
+            router_env::logger::debug!(
+                shadow_percentage = shadow_percentage.unwrap_or(0.0),
+                "Shadow rollout is 0.0 or not present for webhooks, using rollout"
+            );
+            ShadowRolloutAvailability::IsAvailable
+        } else {
+            ShadowRolloutAvailability::NotAvailable
+        };
+
+    // Use the same decision logic as payments, with no call_connector_action to consider
+    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+        router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
+        (GatewaySystem::Direct, ExecutionPath::Direct)
+    } else {
+        // UCS is enabled, use decide function with no previous gateway for webhooks
+        decide_execution_path(
+            connector_integration_type,
+            previous_gateway,
+            shadow_rollout_availability,
+        )?
+    };
+
+    router_env::logger::info!(
+        "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
     );
 
-    let rollout_result = should_execute_based_on_rollout(state, &config_key).await?;
-
-    Ok(rollout_result.should_execute)
+    Ok(execution_path)
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -631,6 +829,33 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(upi_type),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+            bank_redirect_data,
+        ) => match bank_redirect_data {
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
+                issuer,
+                country,
+            } => {
+                let open_banking_uk = payments_grpc::OpenBankingUk {
+                    issuer: issuer.map(|issuer| issuer.to_string()),
+                    country: country.map(|country| country.to_string()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OnlineBanking(
+                            payments_grpc::OnlineBankingPaymentMethodType {
+                                online_banking_type: Some(
+                                    payments_grpc::online_banking_payment_method_type::OnlineBankingType::OpenBankingUk(open_banking_uk)
+                                ),
+                            }
+                        )),
+                    })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank redirect type: {bank_redirect_data:?}"
+            ))
+            .into()),
+        },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
             match payment_method_type {
                 PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
@@ -648,6 +873,36 @@ pub fn build_unified_connector_service_payment_method(
                 ))
                 .into()),
             }
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+            match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
+                    mifinity_data,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                        wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
+                            date_of_birth: Some(
+                                mifinity_data.date_of_birth.peek().to_string().into(),
+                            ),
+                            language_preference: mifinity_data.language_preference,
+                        })),
+                    })),
+                }),
+                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "Unimplemented payment method subtype: {payment_method_type:?}"
+                ))
+                .into()),
+            }
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => {
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Crypto(CryptoCurrencyPaymentMethodType {
+                    crypto_currency: Some(CryptoCurrency {
+                        pay_currency: crypto_data.pay_currency.clone(),
+                        network: crypto_data.network.clone(),
+                    }),
+                })),
+            })
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
@@ -712,6 +967,23 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
         }
     }
 }
+
+/// Gets the UCS client from session state
+fn get_ucs_client(
+    state: &SessionState,
+) -> RouterResult<
+    &external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient,
+> {
+    state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS client is not available")
+        })
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -764,6 +1036,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_SIGNATURE_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
+            key2: None,
             api_secret: Some(api_secret.clone()),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -773,6 +1046,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_BODY_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
+            key2: None,
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -782,6 +1056,7 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_HEADER_KEY.to_string(),
             api_key: Some(api_key.clone()),
             key1: None,
+            key2: None,
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
@@ -791,8 +1066,24 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_type: consts::UCS_AUTH_CURRENCY_AUTH_KEY.to_string(),
             api_key: None,
             key1: None,
+            key2: None,
             api_secret: None,
             auth_key_map: Some(auth_key_map.clone()),
+            merchant_id: Secret::new(merchant_id.to_string()),
+        }),
+        ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
+            key2: Some(key2.clone()),
+            api_secret: Some(api_secret.clone()),
+            auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
@@ -854,6 +1145,40 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
+) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
+
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsAuthorizeResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
+    response: payments_grpc::PaymentServicePostAuthenticateResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_authenticate(
+    response: payments_grpc::PaymentServiceAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -887,22 +1212,94 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
 
-    Ok((router_data_response, status_code))
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+
+    Ok(UcsSetupMandateResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(
+            response.clone(),
+        )?;
+
+    let connector_customer_id =
+        extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsRepeatPaymentResponseData {
+        router_data_response,
+        status_code,
+        connector_customer_id,
+        connector_response,
+    })
+}
+
+/// Extracts connector_customer_id from UCS state
+pub fn extract_connector_customer_id_from_ucs_state(
+    ucs_state: Option<&payments_grpc::ConnectorState>,
+) -> Option<String> {
+    ucs_state.and_then(|state| {
+        state
+            .connector_customer_id
+            .as_ref()
+            .map(|id| id.to_string())
+    })
+}
+
+/// Extracts connector_response from UCS response
+pub fn extract_connector_response_from_ucs(
+    connector_response: Option<&payments_grpc::ConnectorResponseData>,
+) -> Option<hyperswitch_domain_models::router_data::ConnectorResponseData> {
+    connector_response.and_then(|data| {
+        <hyperswitch_domain_models::router_data::ConnectorResponseData as hyperswitch_interfaces::helpers::ForeignTryFrom<payments_grpc::ConnectorResponseData>>::foreign_try_from(data.clone())
+            .map_err(|e| {
+                logger::warn!(
+                    error=?e,
+                    "Failed to deserialize connector_response from UCS"
+                );
+                e
+            })
+            .ok()
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_refund_execute(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response: Result<RefundsResponseData, ErrorResponse> =
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_refund_sync(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
 }
@@ -1088,13 +1485,13 @@ pub fn extract_webhook_content_from_ucs_response(
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
 #[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
-pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOutput>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
-) -> RouterResult<RouterData<T, Req, Resp>>
+) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
     T: std::fmt::Debug + Clone + Send + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
@@ -1107,7 +1504,8 @@ where
             external_services::grpc_client::GrpcHeadersUcs,
         ) -> Fut
         + Send,
-    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
+    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, FlowOutput, GrpcResp)>>
+        + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
     tracing::Span::current().record("flow_type", std::any::type_name::<T>());
@@ -1146,17 +1544,21 @@ where
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
-        Ok((updated_router_data, grpc_response)) => {
+        Ok((updated_router_data, flow_output, grpc_response)) => {
             let status = updated_router_data
                 .connector_http_status_code
                 .unwrap_or(200);
 
-            // Log the actual gRPC response
-            let grpc_response_body = serde_json::to_value(&grpc_response).unwrap_or_else(
+            // Log the actual gRPC response with masking
+            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
                 |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
             );
 
-            (status, Some(grpc_response_body), Ok(updated_router_data))
+            (
+                status,
+                Some(grpc_response_body),
+                Ok((updated_router_data, flow_output)),
+            )
         }
         Err(error) => {
             // Update error metrics for UCS calls
@@ -1204,13 +1606,60 @@ where
     // Emit event
     state.event_handler.log_event(&connector_event);
 
-    router_result
+    // Set external latency on router data
+    router_result.map(|mut router_data| {
+        router_data.0.external_latency =
+            Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
+        router_data
+    })
 }
 
 #[derive(serde::Serialize)]
 pub struct ComparisonData {
     pub hyperswitch_data: Secret<serde_json::Value>,
     pub unified_connector_service_data: Secret<serde_json::Value>,
+}
+
+/// Generic function to serialize router data and send comparison to external service
+/// Works for both payments and refunds
+#[cfg(feature = "v1")]
+pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
+    state: &SessionState,
+    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
+    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
+    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
+{
+    logger::info!("Simulating UCS call for shadow mode comparison");
+
+    let [hyperswitch_data, unified_connector_service_data] = [
+        (hyperswitch_router_data, "hyperswitch"),
+        (unified_connector_service_router_data, "ucs"),
+    ]
+    .map(|(data, source)| {
+        serde_json::to_value(data)
+            .map(Secret::new)
+            .unwrap_or_else(|e| {
+                Secret::new(serde_json::json!({
+                    "error": e.to_string(),
+                    "source": source
+                }))
+            })
+    });
+
+    let comparison_data = ComparisonData {
+        hyperswitch_data,
+        unified_connector_service_data,
+    };
+    let _ = send_comparison_data(state, comparison_data)
+        .await
+        .map_err(|e| {
+            logger::debug!("Failed to send comparison data: {:?}", e);
+        });
+    Ok(())
 }
 
 /// Sends router data comparison to external service
@@ -1247,4 +1696,151 @@ pub async fn send_comparison_data(
         });
 
     Ok(())
+}
+
+// ============================================================================
+// REFUND UCS FUNCTIONS
+// ============================================================================
+
+/// Execute UCS refund request using PaymentService.Refund gRPC method
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_execute(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
+    // Get UCS client
+    let ucs_client = get_ucs_client(state)?;
+
+    // Build auth metadata using standard UCS function
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build UCS auth metadata for refund execute")?;
+
+    // Transform router data to UCS refund request
+    let ucs_refund_request =
+        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform router data to UCS refund request")?;
+
+    // Build gRPC headers
+    // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None);
+
+    // Make UCS refund call with logging wrapper
+    Box::pin(ucs_logging_wrapper(
+        router_data,
+        state,
+        ucs_refund_request,
+        grpc_header_builder,
+        |router_data, grpc_request, grpc_headers| async move {
+            // Call UCS payment_refund method
+            let response = ucs_client
+                .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS refund execution failed")?;
+
+            let grpc_response = response.into_inner();
+
+            // Transform UCS response back to RouterData
+            let (refund_response_data, status_code) =
+                handle_unified_connector_service_response_for_refund_execute(grpc_response.clone())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to transform UCS refund response")?;
+
+            let mut updated_router_data = router_data;
+            updated_router_data.response = refund_response_data;
+            updated_router_data.connector_http_status_code = Some(status_code);
+
+            Ok((updated_router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
+}
+
+/// Execute UCS refund sync request using RefundService.Get gRPC method
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_sync(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
+    // Get UCS client
+    let ucs_client = get_ucs_client(state)?;
+
+    // Build auth metadata using standard UCS function
+    let connector_auth_metadata =
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build UCS auth metadata for refund sync")?;
+
+    // Transform router data to UCS refund sync request
+    let ucs_refund_sync_request =
+        payments_grpc::RefundServiceGetRequest::foreign_try_from(&router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform router data to UCS refund sync request")?;
+
+    // Build gRPC headers
+    // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(execution_mode)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None);
+
+    // Make UCS refund sync call with logging wrapper
+    Box::pin(ucs_logging_wrapper(
+        router_data,
+        state,
+        ucs_refund_sync_request,
+        grpc_header_builder,
+        |router_data, grpc_request, grpc_headers| async move {
+            // Call UCS refund_sync method
+            let response = ucs_client
+                .refund_sync(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS refund sync execution failed")?;
+
+            let grpc_response = response.into_inner();
+
+            // Transform UCS response back to RouterData
+            let (refund_response_data, status_code) =
+                handle_unified_connector_service_response_for_refund_sync(grpc_response.clone())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to transform UCS refund sync response")?;
+
+            let mut updated_router_data = router_data;
+            updated_router_data.response = refund_response_data;
+            updated_router_data.connector_http_status_code = Some(status_code);
+
+            Ok((updated_router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
 }
