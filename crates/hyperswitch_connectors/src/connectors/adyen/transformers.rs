@@ -912,6 +912,20 @@ struct AdyenMetadata {
     pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
 }
 
+fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
+    if let serde_json::Value::Object(mut map) = metadata.clone() {
+        // Remove the fields that are specific to Adyen and should not be passed in metadata
+        map.remove("device_fingerprint");
+        map.remove("deviceFingerprint");
+        map.remove("platform_chargeback_logic");
+        map.remove("platformChargebackLogic");
+        map.remove("store");
+
+        serde_json::Value::Object(map)
+    } else {
+        metadata.clone()
+    }
+}
 impl TryFrom<&PaymentsAuthorizeRouterData> for JCSVoucherData {
     type Error = Error;
     fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -3091,7 +3105,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -3173,7 +3192,12 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -3260,7 +3284,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         };
         Ok(request)
@@ -3335,7 +3364,12 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
         };
@@ -3453,7 +3487,12 @@ impl
             splits,
             device_fingerprint,
             session_validity,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
         };
@@ -3530,7 +3569,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         };
         Ok(request)
@@ -3611,7 +3655,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -3742,7 +3791,12 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -3831,7 +3885,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -3913,7 +3972,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
@@ -6450,7 +6514,12 @@ impl
             splits,
             device_fingerprint,
             session_validity: None,
-            metadata: item.router_data.request.metadata.clone(),
+            metadata: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(filter_adyen_metadata),
             platform_chargeback_logic,
         })
     }
