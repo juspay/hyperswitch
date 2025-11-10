@@ -981,7 +981,7 @@ Cypress.Commands.add("customerListCall", (globalState) => {
 Cypress.Commands.add("customerListWithCountCallTest", (globalState) => {
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/api/customers/list_with_count?limit=20&offset=0`,
+    url: `${globalState.get("baseUrl")}/customers/list_with_count?limit=20&offset=0`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -1004,7 +1004,7 @@ Cypress.Commands.add("customerListPaginationCallTest", (globalState) => {
 
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/api/customers/list_with_count?limit=${limit}&offset=${offset}`,
+    url: `${globalState.get("baseUrl")}/customers/list_with_count?limit=${limit}&offset=${offset}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -1021,7 +1021,7 @@ Cypress.Commands.add("customerListPaginationCallTest", (globalState) => {
 });
 
 Cypress.Commands.add("customerListLimitValidationCallTest", (globalState) => {
-  const endpoint = `${globalState.get("baseUrl")}/api/customers/list_with_count`;
+  const endpoint = `${globalState.get("baseUrl")}/customers/list_with_count`;
 
   [0, 101].forEach((limit) => {
     cy.request({
@@ -3299,7 +3299,7 @@ Cypress.Commands.add(
 
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
+    if (!(connectorId === "adyen" && paymentMethodType === "sofort")) {
       handleRedirection(
         "bank_redirect",
         { redirectionUrl, expectedUrl },
