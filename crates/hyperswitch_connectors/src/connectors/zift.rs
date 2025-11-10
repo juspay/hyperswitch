@@ -246,7 +246,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        dbg!(res.response.clone());
         let response: zift::ZiftAuthPaymentsResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
