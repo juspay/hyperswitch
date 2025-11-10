@@ -3100,12 +3100,23 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("/{authentication_id}/eligibility-check")
+                    .route(web::post().to(authentication::authentication_eligibility_check))
+                    .route(
+                        web::get().to(authentication::authentication_retrieve_eligibility_check),
+                    ),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")
                     .route(web::post().to(authentication::authentication_sync_post_update)),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
                     .route(web::post().to(authentication::authentication_sync)),
+            )
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
             )
     }
 }

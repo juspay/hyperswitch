@@ -101,7 +101,7 @@ pub struct CardOnFileData {
 #[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyTransactionData {
     pub merchant_information: MerchantInformation,
-    pub routing: Routing,
+    pub routing_reference: RoutingReference,
     pub card: CardDetails,
     pub amount: AmountDetails,
     pub rrn: Option<String>,
@@ -111,7 +111,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
 #[serde(rename_all = "camelCase")]
 pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub merchant_information: MerchantInformation,
-    pub routing: Routing,
+    pub routing_reference: RoutingReference,
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
@@ -128,26 +128,6 @@ pub enum EcommercePaymentOnlyTransactionData {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInformation {
     pub client_merchant_reference_id: Secret<String>,
-    pub name: Secret<String>,
-    pub mcc: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<MerchantType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<url::Url>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -160,18 +140,8 @@ pub enum MerchantType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Routing {
-    pub route: Route,
-    pub mid: Secret<String>,
-    pub tid: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<Secret<String>>,
+pub struct RoutingReference {
+    pub merchant_payment_method_route_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -416,37 +386,7 @@ impl TryFrom<&PaymentsCancelRouterData> for PeachpaymentsVoidRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PeachPaymentsConnectorMetadataObject {
     pub client_merchant_reference_id: Secret<String>,
-    pub name: Secret<String>,
-    pub mcc: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<MerchantType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<url::Url>,
-    pub route: Route,
-    pub mid: Secret<String>,
-    pub tid: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<Secret<String>>,
+    pub merchant_payment_method_route_id: Secret<String>,
 }
 
 impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
@@ -493,29 +433,11 @@ impl
 
         let merchant_information = MerchantInformation {
             client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
-            name: connector_merchant_config.name,
-            mcc: connector_merchant_config.mcc,
-            phone: connector_merchant_config.phone,
-            email: connector_merchant_config.email,
-            mobile: connector_merchant_config.mobile,
-            address: connector_merchant_config.address,
-            city: connector_merchant_config.city,
-            postal_code: connector_merchant_config.postal_code,
-            region_code: connector_merchant_config.region_code,
-            merchant_type: connector_merchant_config.merchant_type,
-            website_url: connector_merchant_config.website_url,
         };
 
-        // Get routing configuration from metadata
-        let routing = Routing {
-            route: connector_merchant_config.route,
-            mid: connector_merchant_config.mid,
-            tid: connector_merchant_config.tid,
-            visa_payment_facilitator_id: connector_merchant_config.visa_payment_facilitator_id,
-            master_card_payment_facilitator_id: connector_merchant_config
-                .master_card_payment_facilitator_id,
-            sub_mid: connector_merchant_config.sub_mid,
-            amex_id: connector_merchant_config.amex_id,
+        let routing_reference = RoutingReference {
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
         };
 
         let network_token_data = NetworkTokenDetails {
@@ -542,7 +464,7 @@ impl
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
-                routing,
+                routing_reference,
                 network_token_data,
                 amount,
                 cof_data: CardOnFileData {
@@ -581,29 +503,11 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
 
         let merchant_information = MerchantInformation {
             client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
-            name: connector_merchant_config.name,
-            mcc: connector_merchant_config.mcc,
-            phone: connector_merchant_config.phone,
-            email: connector_merchant_config.email,
-            mobile: connector_merchant_config.mobile,
-            address: connector_merchant_config.address,
-            city: connector_merchant_config.city,
-            postal_code: connector_merchant_config.postal_code,
-            region_code: connector_merchant_config.region_code,
-            merchant_type: connector_merchant_config.merchant_type,
-            website_url: connector_merchant_config.website_url,
         };
 
-        // Get routing configuration from metadata
-        let routing = Routing {
-            route: connector_merchant_config.route,
-            mid: connector_merchant_config.mid,
-            tid: connector_merchant_config.tid,
-            visa_payment_facilitator_id: connector_merchant_config.visa_payment_facilitator_id,
-            master_card_payment_facilitator_id: connector_merchant_config
-                .master_card_payment_facilitator_id,
-            sub_mid: connector_merchant_config.sub_mid,
-            amex_id: connector_merchant_config.amex_id,
+        let routing_reference = RoutingReference {
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
         };
 
         let card = CardDetails {
@@ -623,7 +527,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
-                routing,
+                routing_reference,
                 card,
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),

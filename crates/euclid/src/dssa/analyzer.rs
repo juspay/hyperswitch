@@ -240,8 +240,6 @@ pub fn analyze<O: EuclidAnalysable + EuclidDirFilter>(
 
 #[cfg(all(test, feature = "ast_parser"))]
 mod tests {
-    #![allow(clippy::panic, clippy::expect_used)]
-
     use std::{ops::Deref, sync::Weak};
 
     use euclid_macros::knowledge;

@@ -5,10 +5,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId,
-    },
+    router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -20,7 +17,10 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
         RouterData as _,
@@ -830,12 +830,10 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCaptureRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaymentService, PaymentsCaptureData, PaymentsResponseData>,
+        item: PaymentsCaptureResponseRouterData<PaymentService>,
     ) -> Result<Self, Self::Error> {
         let reply = item
             .response
@@ -892,12 +890,10 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsCaptureData, Payme
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaymentService, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<PaymentService>,
     ) -> Result<Self, Self::Error> {
         let reply = item
             .response

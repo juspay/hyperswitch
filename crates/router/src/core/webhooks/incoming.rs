@@ -34,6 +34,7 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
+        payment_methods::cards,
         payments::{self, tokenization},
         refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
@@ -1075,6 +1076,8 @@ async fn process_webhook_business_logic(
                 webhook_details,
                 event_type,
                 source_verified,
+                request_details,
+                connector,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed"),
@@ -1370,6 +1373,7 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await?
             };
+
             lock_action
                 .free_lock_action(
                     &state,
@@ -1410,6 +1414,26 @@ async fn payments_incoming_webhook_flow(
     match payments_response {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response.payment_id.clone();
+            let payment_method_id_opt = payments_response.payment_method_id.clone();
+
+            match payment_method_id_opt {
+                Some(payment_method_id) => {
+                    if let Err(e) = update_additional_payment_method_data(
+                        &state,
+                        &merchant_context,
+                        connector,
+                        request_details,
+                        payment_method_id,
+                    )
+                    .await
+                    {
+                        logger::warn!(?e, "Failed to update additional payment method data");
+                    }
+                }
+                None => {
+                    logger::warn!("Failed to find payment_method_id in payments response");
+                }
+            }
 
             let status = payments_response.status;
 
@@ -1444,6 +1468,7 @@ async fn payments_incoming_webhook_flow(
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 async fn payouts_incoming_webhook_flow(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -1451,6 +1476,8 @@ async fn payouts_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
@@ -1491,17 +1518,38 @@ async fn payouts_incoming_webhook_flow(
             .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable("Failed to fetch the payout")?;
 
-        let payout_attempt_update = PayoutAttemptUpdate::StatusUpdate {
-            connector_payout_id: payout_attempt.connector_payout_id.clone(),
-            status: common_enums::PayoutStatus::foreign_try_from(event_type)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("failed payout status mapping from event type")?,
-            error_message: None,
-            error_code: None,
-            is_eligible: payout_attempt.is_eligible,
-            unified_code: None,
-            unified_message: None,
-            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+        let status = common_enums::PayoutStatus::foreign_try_from(event_type)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("failed payout status mapping from event type")?;
+
+        let payout_webhook_details = connector
+            .get_payout_webhook_details(request_details)
+            .switch()
+            .attach_printable("Failed to get error object for payouts")?;
+
+        // if status is failure then update the error_code and error_message as well
+        let payout_attempt_update = if status.is_payout_failure() {
+            PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_attempt.connector_payout_id.clone(),
+                status,
+                error_message: payout_webhook_details.error_message,
+                error_code: payout_webhook_details.error_code,
+                is_eligible: payout_attempt.is_eligible,
+                unified_code: None,
+                unified_message: None,
+                payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            }
+        } else {
+            PayoutAttemptUpdate::StatusUpdate {
+                connector_payout_id: payout_attempt.connector_payout_id.clone(),
+                status,
+                error_message: None,
+                error_code: None,
+                is_eligible: payout_attempt.is_eligible,
+                unified_code: None,
+                unified_message: None,
+                payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            }
         };
 
         let action_req =
@@ -2676,6 +2724,48 @@ fn should_update_connector_mandate_details(
     event_type: webhooks::IncomingWebhookEvent,
 ) -> bool {
     source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+}
+
+async fn update_additional_payment_method_data(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    payment_method_id: String,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let payment_method_update = connector
+        .get_additional_payment_method_data(request_details)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+    let db = state.store.as_ref();
+
+    let pm = db
+        .find_payment_method(
+            &state.into(),
+            merchant_context.get_merchant_key_store(),
+            payment_method_id.as_str(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    if pm.locker_id.is_some() {
+        return Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Cannot proceed to update Payment Method when locker_id is already present"
+                .into(),
+        }));
+    }
+
+    Box::pin(cards::update_customer_payment_method(
+        state.clone(),
+        merchant_context.clone(),
+        payment_method_update,
+        &payment_method_id,
+        Some(pm),
+    ))
+    .await?;
+    Ok(())
 }
 
 async fn update_connector_mandate_details(

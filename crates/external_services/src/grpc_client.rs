@@ -22,8 +22,7 @@ use health_check_client::HealthCheckClient;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
-use router_env::logger;
-use router_env::RequestId;
+use router_env::{logger, RequestId};
 use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
