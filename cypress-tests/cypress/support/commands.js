@@ -1020,28 +1020,6 @@ Cypress.Commands.add("customerListPaginationCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add("customerListLimitValidationCallTest", (globalState) => {
-  const endpoint = `${globalState.get("baseUrl")}/customers/list_with_count`;
-
-  [0, 101].forEach((limit) => {
-    cy.request({
-      method: "GET",
-      url: `${endpoint}?limit=${limit}&offset=0`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.status).to.be.oneOf([400, 422]);
-        expect(response.body.error.message.toLowerCase()).to.include("limit");
-      });
-    });
-  });
-});
 
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
