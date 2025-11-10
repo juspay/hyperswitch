@@ -1,4 +1,3 @@
-import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
 let globalState;
