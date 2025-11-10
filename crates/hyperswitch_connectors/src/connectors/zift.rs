@@ -421,77 +421,82 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Zift {
-    fn get_headers(
-        &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
+    // fn get_headers(
+    //     &self,
+    //     req: &PaymentsCancelRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    //     self.build_headers(req, connectors)
+    // }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+    // fn get_content_type(&self) -> &'static str {
+    //     self.common_get_content_type()
+    // }
 
-    fn get_url(
-        &self,
-        _req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}gates/xurl", self.base_url(connectors)))
-    }
+    // fn get_url(
+    //     &self,
+    //     _req: &PaymentsCancelRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<String, errors::ConnectorError> {
+    //     Ok(format!("{}gates/xurl", self.base_url(connectors)))
+    // }
 
-    fn get_request_body(
-        &self,
-        req: &PaymentsCancelRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = zift::ZiftCancelRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
+    // fn get_request_body(
+    //     &self,
+    //     req: &PaymentsCancelRouterData,
+    //     _connectors: &Connectors,
+    // ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    //     let connector_req = zift::ZiftCancelRequest::try_from(req)?;
+    //     Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    // }
 
     fn build_request(
         &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Void".to_owned(),
+            connector: "Zift".to_owned(),
+        }
+        .into())
+        // Ok(Some(
+        //     RequestBuilder::new()
+        //         .method(Method::Post)
+        //         .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+        //         .attach_default_headers()
+        //         .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+        //         .set_body(types::PaymentsVoidType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
     }
 
-    fn handle_response(
-        &self,
-        data: &PaymentsCancelRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: zift::ZiftVoidResponse = serde_urlencoded::from_bytes(&res.response)
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+    // fn handle_response(
+    //     &self,
+    //     data: &PaymentsCancelRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+    //     let response: zift::ZiftVoidResponse = serde_urlencoded::from_bytes(&res.response)
+    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    //     event_builder.map(|i| i.set_response_body(&response));
+    //     router_env::logger::info!(connector_response=?response);
+    //     RouterData::try_from(ResponseRouterData {
+    //         response,
+    //         data: data.clone(),
+    //         http_code: res.status_code,
+    //     })
+    // }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    // fn get_error_response(
+    //     &self,
+    //     res: Response,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    //     self.build_error_response(res, event_builder)
+    // }
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
