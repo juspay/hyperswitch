@@ -7,7 +7,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use josekit::jwe;
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use crate::{
     configs::settings,
@@ -39,6 +39,7 @@ async fn generate_fingerprint_request(
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
     tenant_id: id_type::TenantId,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
         .encode_to_vec()
@@ -61,6 +62,12 @@ async fn generate_fingerprint_request(
         headers::X_TENANT_ID,
         tenant_id.get_string_repr().to_owned().into(),
     );
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -124,8 +131,8 @@ pub async fn generate_fingerprint(
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let payload = blocklist::GenerateFingerprintRequest {
-        card: blocklist::Card { card_number },
-        hash_key,
+        data: card_number,
+        key: hash_key,
     };
 
     let generate_fingerprint_resp =
@@ -149,6 +156,7 @@ async fn call_to_locker_for_fingerprint(
         payload,
         locker_choice,
         state.tenant.tenant_id.clone(),
+        state.request_id,
     )
     .await?;
     let response = services::call_connector_api(state, request, "call_locker_to_get_fingerprint")
