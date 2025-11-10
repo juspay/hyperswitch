@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::Connector;
@@ -424,9 +425,11 @@ mod test {
     PartialEq,
     Eq,
     ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RetryAction {
     /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,
