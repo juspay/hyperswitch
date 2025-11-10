@@ -334,6 +334,11 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
     #[serde(rename = "network_token")]
     NetworkTokenType,
 }

@@ -1959,10 +1959,13 @@ where
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("nuvei"),
-            )
-            .into()),
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nuvei"),
+                )
+                .into())
+            }
         }?;
         let currency = item.request.get_currency_required()?;
         let request = Self::try_from(NuveiPaymentRequestData {

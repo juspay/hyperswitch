@@ -378,7 +378,8 @@ where
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
@@ -691,6 +692,7 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
