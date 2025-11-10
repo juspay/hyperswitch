@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::enums::{PaymentMethod, PayoutType};
@@ -198,10 +199,12 @@ pub enum RoutableConnectors {
     strum::Display,
     strum::EnumString,
     Hash,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
     Authipay,
     Adyenplatform,
