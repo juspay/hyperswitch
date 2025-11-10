@@ -246,6 +246,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        dbg!(res.response.clone());
         let response: zift::ZiftAuthPaymentsResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -306,6 +307,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zif
                 .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
