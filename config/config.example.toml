@@ -1316,3 +1316,7 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[hypersense]
+enabled = false                                # Enable or disable fee estimation module
+api_url = "http://0.0.0.0:8000"                # API url to call the hypersense backend service

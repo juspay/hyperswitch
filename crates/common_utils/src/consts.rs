@@ -172,6 +172,9 @@ pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
 /// Merchant ID Header
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 
+/// A custom Header for fee estimate for hypersense
+pub const X_HYPERSENSE_ID: &str = "x-hypersense-id";
+
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
 

@@ -21,22 +21,40 @@ pub async fn get_hypersense_fee_estimate(
     json_payload: external_service_hypersense_api::ExternalFeeEstimatePayload,
     user: authentication::UserFromToken,
 ) -> RouterResponse<external_service_hypersense_api::ExternalFeeEstimateResponse> {
+
+    let base = match &state.conf.hypersense {
+    Some(h) if h.enabled => &h.api_url,
+    _ => {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+        }
+    };
     let url = format!(
         "{}/fee-analysis/{}?{}",
-        state.conf.hypersense.api_url, api_path, query_params
+        base,
+        api_path,
+        query_params
     );
-    let combined = serde_json::json!({
-        "payload": {
-            "merchant_id": user.merchant_id,
-            "payload": json_payload.payload,
-        }
-    });
+    let merchant_id = user.merchant_id.get_string_repr().to_string();
+    let profile_id = user.profile_id.get_string_repr().to_string();
+    let org_id = user.org_id.get_string_repr().to_string();
+    let role_id = user.role_id;
+    let role_info = crate::services::authorization::roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &role_id,
+        &user.org_id,
+        user.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let role_scope = role_info.get_scope();
+    let header_value = format!("{},{},{},{}", merchant_id, profile_id, org_id, role_scope);
 
     let request_builder = RequestBuilder::new()
         .method(Method::Post)
         .url(&url)
         .attach_default_headers()
-        .set_body(RequestContent::Json(Box::new(combined)));
+        .header(consts::X_HYPERSENSE_ID, &header_value)
+        .set_body(RequestContent::Json(Box::new(json_payload.payload)));
 
     let request = request_builder.build();
 

@@ -122,7 +122,7 @@ pub async fn get_fee_estimate(
             )
         },
         &authentication::JWTAuth {
-            permission: Permission::MerchantAnalyticsRead,
+            permission: Permission::ProfileAnalyticsRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

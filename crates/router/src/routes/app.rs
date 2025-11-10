@@ -1729,7 +1729,12 @@ impl Hypersense {
                 web::resource("/signout")
                     .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             );
-            if state.conf.hypersense.enabled {
+        if state
+            .conf
+            .hypersense
+            .as_ref()
+            .map_or(false, |h| h.enabled)
+        {
             routes = routes.service(
                 web::resource("/fee_estimate/{tail:.*}")
                     .route(web::post().to(hypersense_routes::get_fee_estimate)),
