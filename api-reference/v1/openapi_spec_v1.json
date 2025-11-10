@@ -25254,13 +25254,13 @@
           },
           "card_exp_month": {
             "type": "string",
-            "description": "Card Expiry Month",
+            "description": "The card's expiry month",
             "example": "10",
             "nullable": true
           },
           "card_exp_year": {
             "type": "string",
-            "description": "Card Expiry Year",
+            "description": "The card's expiry year",
             "example": "25",
             "nullable": true
           }
@@ -37067,13 +37067,13 @@
           },
           "card_exp_month": {
             "type": "string",
-            "description": "Expiry Month of card",
+            "description": "The card's expiry month",
             "example": "03",
             "nullable": true
           },
           "card_exp_year": {
             "type": "string",
-            "description": "Expiry Year of card",
+            "description": "The card's expiry year",
             "example": "25",
             "nullable": true
           }
