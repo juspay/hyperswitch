@@ -5621,8 +5621,6 @@ key1 = "API Secret"
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]
   payment_method_type = "paysera"
-[[trustpayments.bank_redirect]]
-payment_method_type = "eps"
 [trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Password"
@@ -5637,6 +5635,14 @@ key1 = "Client secret"
 [[flexiti.pay_later]]
 payment_method_type = "flexiti"
 payment_experience = "redirect_to_url"
+
+[payjustnow]
+[payjustnow.connector_auth.BodyKey]
+api_key = "Signing Key"
+key1 = "Merchant Account Id"
+
+[[payjustnow.pay_later]]
+  payment_method_type = "payjustnow"
 
 [breadpay]
 [breadpay.connector_auth.BodyKey]
@@ -6305,7 +6311,4 @@ options=["CRYPTOGRAM_3DS"]
 
 [zift]
 [zift.connector_auth.HeaderKey]
-api_key = "API Key"
-
-[gigadat]
 api_key = "API Key"

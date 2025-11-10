@@ -6901,11 +6901,6 @@ key1 = "API Secret"
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]
   payment_method_type = "paysera"
-<<<<<<< HEAD
-[[trustpayments.bank_redirect]]
-payment_method_type = "eps"
-=======
->>>>>>> 6e506391f (PR Review changes)
 [trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Password"
@@ -7536,39 +7531,23 @@ label="Recipient Id"
 placeholder="Enter Recipient Id"
 required=true
 type="Text"
-[peachpayments.metadata.sub_mid]
-name="sub_mid"
-label="Sub Mid"
-placeholder="Enter Sub Mid"
-required=false
-type="Text"
-[peachpayments.metadata.visa_payment_facilitator_id]
-name="visa_payment_facilitator_id"
-label="Visa Payment Facilitator Id"
-placeholder="Enter Visa Payment Facilitator Id"
-required=false
-type="Text"
-[peachpayments.metadata.mastercard_payment_facilitator_id]
-name="mastercard_payment_facilitator_id"
-label="mastercard Payment Facilitator Id"
-placeholder="Enter mastercard Payment Facilitator Id"
-required=false
-type="Text"
+[[tesouro.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["CRYPTOGRAM_3DS"]
 
-[tokenex]
-[tokenex.connector_auth.HeaderKey]
+[zift]
+[zift.connector_auth.HeaderKey]
+
 api_key = "API Key"
 
-[gigadat]
-[gigadat.connector_auth.SignatureKey]
-api_key = "Username"
-api_secret = "Password"
-key1 = "Compaign Id"
-[[gigadat.bank_redirect]]
-payment_method_type = "interac"
-[gigadat.metadata.site]
-name = "site"
-label = "Site where transaction is initiated"
-placeholder = "Enter site where transaction is initiated"
-required = true
-type = "Text"
+[payjustnow]
+[payjustnow.connector_auth.BodyKey]
+api_key = "Signing Key"
+key1 = "Merchant Account Id"
+
+[[payjustnow.pay_later]]
+  payment_method_type = "payjustnow"

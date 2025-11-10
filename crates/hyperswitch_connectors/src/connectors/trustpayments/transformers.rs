@@ -1015,12 +1015,6 @@ impl
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         if !response_data.errorcode.is_success() {
-            router_env::logger::warn!(
-                "TrustPayments PSync Response - Error response: errorcode={:?}, message={}, status={:?}",
-                response_data.errorcode,
-                response_data.errormessage,
-                status
-            );
 
             return Ok(Self {
                 status,
