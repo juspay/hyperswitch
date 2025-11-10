@@ -310,6 +310,7 @@ impl ResponseCodeExt for String {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ZiftErrorResponse {
     pub response_code: String,
     pub response_message: String,
@@ -593,6 +594,7 @@ impl TryFrom<&PaymentsSyncRouterData> for ZiftSyncRequest {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ZiftSyncResponse {
     pub transaction_status: TransactionStatus,
     pub transaction_type: PaymentRequestType,
