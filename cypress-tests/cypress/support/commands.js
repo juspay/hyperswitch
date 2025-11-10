@@ -1043,7 +1043,6 @@ Cypress.Commands.add("customerListLimitValidationCallTest", (globalState) => {
   });
 });
 
-
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
 
