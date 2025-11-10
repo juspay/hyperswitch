@@ -727,7 +727,11 @@ pub async fn refund_retrieve_core(
         ..refund
     };
 
-    let (response, raw_connector_response) = if should_call_refund(&refund, request.force_sync.unwrap_or(false), request.return_raw_connector_response.unwrap_or(false)) {
+    let (response, raw_connector_response) = if should_call_refund(
+        &refund,
+        request.force_sync.unwrap_or(false),
+        request.return_raw_connector_response.unwrap_or(false),
+    ) {
         if state.conf.merchant_id_auth.merchant_id_auth_enabled {
             let merchant_connector_details = match request.merchant_connector_details {
                 Some(details) => details,
@@ -764,7 +768,11 @@ pub async fn refund_retrieve_core(
     Ok((response, raw_connector_response))
 }
 
-fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool, return_raw_connector_response: bool) -> bool {
+fn should_call_refund(
+    refund: &diesel_models::refund::Refund,
+    force_sync: bool,
+    return_raw_connector_response: bool,
+) -> bool {
     // This implies, we cannot perform a refund sync & `the connector_refund_id`
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
