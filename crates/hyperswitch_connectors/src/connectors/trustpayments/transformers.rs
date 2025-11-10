@@ -1015,7 +1015,6 @@ impl
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         if !response_data.errorcode.is_success() {
-
             return Ok(Self {
                 status,
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
