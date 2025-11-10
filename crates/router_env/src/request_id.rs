@@ -13,7 +13,6 @@
 //! - **Request extraction**: RequestId can be extracted in route handlers
 //! - **Response headers**: Automatically adds request ID to response headers
 //! - **Upstream logging**: Logs incoming request IDs for debugging
-//! - **Exact parity**: Supports `.as_hyphenated()` method like tracing_actix_web::RequestId
 //!
 //! # Examples
 //!
