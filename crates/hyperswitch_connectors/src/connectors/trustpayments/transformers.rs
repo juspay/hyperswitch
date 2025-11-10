@@ -40,14 +40,6 @@ pub enum TrustpaymentsSettleStatus {
     PendingSettlementRedirect,
     #[serde(rename = "100")]
     SettledRedirect,
-    #[serde(rename = "10")]
-    PendingSettlementRedirect,
-    #[serde(rename = "100")]
-    SettledRedirect,
-    #[serde(rename = "10")]
-    PendingSettlementRedirect,
-    #[serde(rename = "100")]
-    SettledRedirect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -85,8 +77,6 @@ impl TrustpaymentsSettleStatus {
             Self::Voided => "3",
             Self::PendingSettlementRedirect => "10",
             Self::SettledRedirect => "100",
-            Self::EpsPending => "10",
-
         }
     }
 }
@@ -382,13 +372,6 @@ pub enum TrustpaymentsPaymentTypes {
     PAYSERA,
 }
 
-#[derive( Debug, Copy, Serialize, Deserialize, Clone)]
-pub enum TrustpaymentsPaymentTypes {
-    ALIPAY,
-    TRUSTLY,
-    EPS,
-    PAYSERA,
-}
 #[derive(Debug, Serialize)]
 pub struct TrustpaymentsPaymentsRequest {
     pub alias: String,
@@ -396,7 +379,6 @@ pub struct TrustpaymentsPaymentsRequest {
     pub request: Vec<TrustpaymentsPaymentRequestData>,
 }
 #[serde_with::skip_serializing_none]
-#[derive(Default, Debug, Serialize)]
 #[derive(Default, Debug, Serialize)]
 pub struct TrustpaymentsPaymentRequestData {
     pub sitereference: String,
@@ -444,8 +426,10 @@ pub struct TrustpaymentsAlipayFields {
 }
 
 
+
+
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-    for TrustpaymentsEpsRequest
+    for TrustpaymentsPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -453,138 +437,22 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                match bank_redirect_data {
-                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
-                        Ok(Self {
-                            alias: auth.username.expose(),
-                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                            request: vec![TrustpaymentsEpsRequestData {
-                                sitereference: auth.site_reference.expose(),
-                                requesttypedescriptions: vec!["AUTH".to_string()],
-                                accounttypedescription: "ECOM".to_string(),
-                                paymenttypedescription: "EPS".to_string(),
-                                currencyiso3a: item.router_data.request.currency.to_string(),
-                                baseamount: item.amount.to_string(),
-                                orderreference: item.router_data.connector_request_reference_id.clone(),
-                                successfulurlredirect: item.router_data.request.router_return_url.clone(),
-                                errorurlredirect: item.router_data.request.router_return_url.clone(),
-                                billingfirstname: item
-                                    .router_data
-                                    .get_optional_billing_first_name()
-                                    .map(|name| name.expose()),
-                                billinglastname: item
-                                    .router_data
-                                    .get_optional_billing_last_name()
-                                    .map(|name| name.expose()),
-                                billingcountryiso2a: item
-                                    .router_data
-                                    .get_optional_billing_country()
-                                    .map(|country| country.to_string()),
-                                billingemail: Some("abc@gmail.com".to_string()),
-                            }],
-                        })
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank redirect method not supported for EPS".to_string(),
-                    )
-                    .into()),
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported for EPS".to_string(),
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpayments"),
             )
-            .into()),
+            .into());
         }
-    }
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsTrustlyRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsTrustlyRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsTrustlyRequestData {
-    pub sitereference: String,
-    pub orderreference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub paymenttypedescription: String,
-    pub accounttypedescription: String,
-    pub currencyiso3a: String,
-    pub baseamount: String,
-    pub returnurl: String,
-    pub billingfirstname: Option<String>,
-    pub billinglastname: Option<String>,
-    pub billingcountryiso2a: Option<String>,
-    pub billingemail: String,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsPayseraRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsPayseraRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsPayseraRequestData {
-    pub sitereference: String,
-    pub orderreference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub paymenttypedescription: String,
-    pub accounttypedescription: String,
-    pub currencyiso3a: String,
-    pub baseamount: String,
-    pub returnurl: String,
-    pub successfulurlredirect: Option<String>,
-    pub errorurlredirect: Option<String>,
-    pub billingfirstname: Option<String>,
-    pub billinglastname: Option<String>,
-    pub billingcountryiso2a: Option<String>,
-    pub billingemail: String,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsSepaRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsSepaRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsSepaRequestData {
-    pub sitereference: String,
-    pub orderreference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub paymenttypedescription: String,
-    pub accounttypedescription: String,
-    pub currencyiso3a: String,
-    pub baseamount: String,
-    pub billingfirstname: Option<String>,
-    pub billinglastname: Option<String>,
-    pub billingcountryiso2a: Option<String>,
-    pub billingemail: String,
-}
-
-impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-    for TrustpaymentsAlipayRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(req_data) => Self::try_from((item, &auth, req_data)),
             PaymentMethodData::BankRedirect(req_data) => Self::try_from((item, &auth, req_data)),
             PaymentMethodData::Wallet(req_data) => Self::try_from((item, &auth, req_data)),
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported for Trustly".to_string(),
+                "Payment method not supported".to_string(),
             )
             .into()),
         }
@@ -930,147 +798,6 @@ pub struct TrustpaymentsPaymentRecords{
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsAlipayResponse {
-    #[serde(alias = "response")]
-    pub responses: Vec<TrustpaymentsAlipayResponseData>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsAlipayResponseData {
-    pub errorcode: TrustpaymentsErrorCode,
-    pub errormessage: String,
-    pub transactionreference: Option<String>,
-    pub requesttypedescription: String,
-    pub redirecturl: Option<String>,
-    pub merchantname: Option<String>,
-    pub paymenttypedescription: Option<String>,
-    pub orderreference: Option<String>,
-    pub settleduedate: Option<String>,
-    pub baseamount: Option<String>,
-    pub transactionstartedtimestamp: Option<String>,
-    pub settlestatus: Option<String>,
-    pub accounttypedescription: Option<String>,
-    pub operatorname: Option<String>,
-    pub livestatus: Option<String>,
-    pub currencyiso3a: Option<String>,
-    #[serde(rename = "partner id")]
-    pub partner_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsPayseraResponse {
-    #[serde(alias = "response")]
-    pub responses: Vec<TrustpaymentsPayseraResponseData>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsPayseraResponseData {
-    pub errorcode: TrustpaymentsErrorCode,
-    pub errormessage: String,
-    pub transactionreference: Option<String>,
-    pub requesttypedescription: String,
-    pub redirecturl: Option<String>,
-    pub merchantname: Option<String>,
-    pub paymenttypedescription: Option<String>,
-    pub orderreference: Option<String>,
-    pub settleduedate: Option<String>,
-    pub baseamount: Option<String>,
-    pub transactionstartedtimestamp: Option<String>,
-    pub settlestatus: Option<String>,
-    pub accounttypedescription: Option<String>,
-    pub operatorname: Option<String>,
-    pub livestatus: Option<String>,
-    pub currencyiso3a: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsSepaResponse {
-    #[serde(alias = "response")]
-    pub responses: Vec<TrustpaymentsSepaResponseData>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsSepaResponseData {
-    pub errorcode: TrustpaymentsErrorCode,
-    pub errormessage: String,
-    pub transactionreference: Option<String>,
-    pub requesttypedescription: String,
-    pub redirecturl: Option<String>,
-    pub merchantname: Option<String>,
-    pub paymenttypedescription: Option<String>,
-    pub orderreference: Option<String>,
-    pub settleduedate: Option<String>,
-    pub baseamount: Option<String>,
-    pub transactionstartedtimestamp: Option<String>,
-    pub settlestatus: Option<String>,
-    pub accounttypedescription: Option<String>,
-    pub operatorname: Option<String>,
-    pub livestatus: Option<String>,
-    pub currencyiso3a: Option<String>,
-}
-
-impl TrustpaymentsAlipayResponseData {
-    pub fn get_alipay_status(&self) -> common_enums::AttemptStatus {
-        match self.errorcode {
-            TrustpaymentsErrorCode::Success => {
-                if self.redirecturl.is_some() {
-                    common_enums::AttemptStatus::AuthenticationPending
-                } else {
-                    common_enums::AttemptStatus::Authorized
-                }
-            }
-            _ => self.errorcode.get_attempt_status(),
-        }
-    }
-}
-
-
-
-impl TrustpaymentsSepaResponseData {
-    pub fn get_sepa_status(&self) -> common_enums::AttemptStatus {
-        match self.errorcode {
-            TrustpaymentsErrorCode::Success => {
-                if self.redirecturl.is_some() {
-                    common_enums::AttemptStatus::AuthenticationPending
-                } else {
-                    common_enums::AttemptStatus::Authorized
-                }
-            }
-            _ => self.errorcode.get_attempt_status(),
-        }
-    }
-}
-
-impl TrustpaymentsPayseraResponseData {
-    pub fn get_paysera_status(&self) -> common_enums::AttemptStatus {
-        match self.errorcode {
-            TrustpaymentsErrorCode::Success => {
-                if self.redirecturl.is_some() {
-                    common_enums::AttemptStatus::AuthenticationPending
-                } else if self.requesttypedescription == "TRANSACTIONQUERY" 
-                    && self.transactionreference.is_none() 
-                    && self.redirecturl.is_none() {
-                    // For Paysera sync queries, when transactionreference and redirecturl are null,
-                    // check if we have any indication of completion (timestamp, settlestatus, etc.)
-                    if self.transactionstartedtimestamp.is_some() || 
-                       self.settlestatus.is_some() ||
-                       self.baseamount.is_some() {
-                        // Payment has been processed/completed
-                        common_enums::AttemptStatus::Charged
-                    } else {
-                        // Payment is still pending (no processing indicators)
-                        common_enums::AttemptStatus::AuthenticationPending
-                    }
-                } else {
-                    common_enums::AttemptStatus::Authorized
-                }
-            }
-            _ => self.errorcode.get_attempt_status(),
-        }
-    }
-}
-
 impl TrustpaymentsSettleStatus{
     pub fn to_attempt_status(&self) -> common_enums::AttemptStatus {
         match self {
@@ -1284,10 +1011,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Starting response transformation, http_code: {}",
-            item.http_code
-        );
 
         let response_data = item
             .response
@@ -1297,10 +1020,6 @@ impl
 
         let status = response_data.get_payment_status_for_sync();
         
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Computed status: {:?}",
-            status
-        );
         
         let transaction_id = item
             .data
@@ -1309,10 +1028,6 @@ impl
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Transaction ID from request: {}",
-            transaction_id
-        );
 
         if !response_data.errorcode.is_success() {
             router_env::logger::warn!(
@@ -1340,11 +1055,6 @@ impl
             });
         }
 
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Success response: final_status={:?}, transaction_id={}",
-            status,
-            transaction_id
-        );
 
         Ok(Self {
             status,
