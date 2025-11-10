@@ -2,9 +2,7 @@ use common_enums::enums;
 use common_utils::{request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{
-        BankRedirectData, Card, PaymentMethodData, WalletData,
-    },
+    payment_method_data::{BankRedirectData, Card, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
@@ -328,7 +326,7 @@ impl TrustpaymentsRequestType {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Auth => "AUTH",
-            Self::TransactionUpdate => "TRANSACTIONUPDATE", 
+            Self::TransactionUpdate => "TRANSACTIONUPDATE",
             Self::TransactionQuery => "TRANSACTIONQUERY",
             Self::Refund => "REFUND",
             Self::AccountCheck => "ACCOUNTCHECK",
@@ -362,7 +360,6 @@ impl std::fmt::Display for TrustpaymentsAccountType {
         write!(f, "{}", self.as_str())
     }
 }
-
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone)]
 pub enum TrustpaymentsPaymentTypes {
@@ -425,9 +422,6 @@ pub struct TrustpaymentsAlipayFields {
     pub applicationtype: Option<String>,
 }
 
-
-
-
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     for TrustpaymentsPaymentsRequest
 {
@@ -476,12 +470,11 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.request.router_return_url.clone();
-        let billing_details = TrustpaymentsRequestBilling{
-            billingfirstname : Some(item.router_data.get_billing_first_name()?),
-            billinglastname : Some(item.router_data.get_billing_last_name()?),
-            billingcountryiso2a : Some(item.router_data.get_billing_country()?.to_string()),
+        let billing_details = TrustpaymentsRequestBilling {
+            billingfirstname: Some(item.router_data.get_billing_first_name()?),
+            billinglastname: Some(item.router_data.get_billing_last_name()?),
+            billingcountryiso2a: Some(item.router_data.get_billing_country()?.to_string()),
         };
-        
 
         match req_data {
             BankRedirectData::Eps { .. } => Ok(Self {
@@ -501,7 +494,7 @@ impl
                     settlestatus: None,
                     returnurl: None,
                     carddata: None,
-                    alipaydata: None
+                    alipaydata: None,
                 }],
             }),
             BankRedirectData::Trustly { .. } => Ok(Self {
@@ -549,8 +542,8 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let request_types = match item.router_data.request.capture_method {
-            Some(common_enums::CaptureMethod::Automatic) 
-            | Some(common_enums::CaptureMethod:: Manual)
+            Some(common_enums::CaptureMethod::Automatic)
+            | Some(common_enums::CaptureMethod::Manual)
             | None => vec![TrustpaymentsRequestType::Auth],
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled)
@@ -563,10 +556,10 @@ impl
             }
         };
 
-        let billing_details = TrustpaymentsRequestBilling{
-            billingfirstname : item.router_data.get_optional_billing_first_name(),
-            billinglastname : item.router_data.get_optional_billing_last_name(),
-            billingcountryiso2a : Some(item.router_data.get_billing_country()?.to_string()),
+        let billing_details = TrustpaymentsRequestBilling {
+            billingfirstname: item.router_data.get_optional_billing_first_name(),
+            billinglastname: item.router_data.get_optional_billing_last_name(),
+            billingcountryiso2a: Some(item.router_data.get_billing_country()?.to_string()),
         };
 
         let card_fields = TrustpaymentsCardFields {
@@ -600,11 +593,13 @@ impl
                             .as_str()
                             .to_string(),
                     ),
-                    _ => {return Err(errors::ConnectorError::NotSupported {
-                    message: "Capture method not supported".to_string(),
-                    connector: "TrustPayments",
-                }
-                .into());}
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Capture method not supported".to_string(),
+                            connector: "TrustPayments",
+                        }
+                        .into());
+                    }
                 },
 
                 carddata: Some(card_fields),
@@ -615,7 +610,6 @@ impl
                 errorurlredirect: None,
                 successfulurlredirect: None,
                 returnurl: None,
-                
             }],
         })
     }
@@ -640,10 +634,10 @@ impl
         let return_url = item.router_data.request.router_return_url.clone();
         let site_reference = auth.site_reference.clone().expose();
 
-        let billing_details = TrustpaymentsRequestBilling{
-            billingfirstname : item.router_data.get_optional_billing_first_name(),
-            billinglastname : item.router_data.get_optional_billing_last_name(),
-            billingcountryiso2a : Some(item.router_data.get_billing_country()?.to_string()),
+        let billing_details = TrustpaymentsRequestBilling {
+            billingfirstname: item.router_data.get_optional_billing_first_name(),
+            billinglastname: item.router_data.get_optional_billing_last_name(),
+            billingcountryiso2a: Some(item.router_data.get_billing_country()?.to_string()),
         };
 
         match req_data {
@@ -692,7 +686,6 @@ impl
                     returnurl: None,
                     carddata: None,
                     alipaydata: None,
-
                 }],
             }),
             WalletData::AliPayQr(_)
@@ -792,18 +785,16 @@ pub struct TrustpaymentsPaymentResponseData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsPaymentRecords{
-    pub settlestatus: Option<TrustpaymentsSettleStatus>
+pub struct TrustpaymentsPaymentRecords {
+    pub settlestatus: Option<TrustpaymentsSettleStatus>,
 }
 
-
-
-impl TrustpaymentsSettleStatus{
+impl TrustpaymentsSettleStatus {
     pub fn to_attempt_status(&self) -> common_enums::AttemptStatus {
         match self {
-            Self::PendingSettlement
-            | Self::Settled
-            | Self::SettledRedirect => common_enums::AttemptStatus::Charged,
+            Self::PendingSettlement | Self::Settled | Self::SettledRedirect => {
+                common_enums::AttemptStatus::Charged
+            }
             Self::ManualCapture => common_enums::AttemptStatus::Authorized,
             Self::Voided => common_enums::AttemptStatus::Voided,
             Self::PendingSettlementRedirect => common_enums::AttemptStatus::Pending,
@@ -811,10 +802,10 @@ impl TrustpaymentsSettleStatus{
     }
     pub fn to_attempt_status_for_sync(&self) -> common_enums::AttemptStatus {
         match self {
-            Self::PendingSettlement
-            | Self::ManualCapture => common_enums::AttemptStatus::Authorized,
-            Self::Settled
-            | Self::SettledRedirect=> common_enums::AttemptStatus::Charged,
+            Self::PendingSettlement | Self::ManualCapture => {
+                common_enums::AttemptStatus::Authorized
+            }
+            Self::Settled | Self::SettledRedirect => common_enums::AttemptStatus::Charged,
             Self::Voided => common_enums::AttemptStatus::Voided,
             Self::PendingSettlementRedirect => common_enums::AttemptStatus::Pending,
         }
@@ -822,7 +813,6 @@ impl TrustpaymentsSettleStatus{
 }
 
 impl TrustpaymentsPaymentResponseData {
-
     pub fn get_payment_status(&self) -> common_enums::AttemptStatus {
         match self.errorcode {
             TrustpaymentsErrorCode::Success => {
@@ -846,31 +836,29 @@ impl TrustpaymentsPaymentResponseData {
     pub fn get_payment_status_for_sync(&self) -> common_enums::AttemptStatus {
         let status = match self.errorcode {
             TrustpaymentsErrorCode::Success => {
-                if self.requesttypedescription == TrustpaymentsRequestType::TransactionQuery.as_str()
+                if self.requesttypedescription
+                    == TrustpaymentsRequestType::TransactionQuery.as_str()
                     && self.authcode.is_none()
                     && self.records.is_none()
                     && self.transactionreference.is_none()
                 {
                     common_enums::AttemptStatus::Charged
                 } else if self.authcode.is_some() {
-
                     self.settlestatus
                         .as_ref()
                         .map(|status| status.to_attempt_status_for_sync())
                         .unwrap_or(common_enums::AttemptStatus::Authorized)
-                } else if self.requesttypedescription == TrustpaymentsRequestType::TransactionQuery.as_str()
+                } else if self.requesttypedescription
+                    == TrustpaymentsRequestType::TransactionQuery.as_str()
                     && self.authcode.is_none()
                     && self.records.is_some()
                 {
-                    self
-                        .records
+                    self.records
                         .as_ref()
                         .and_then(|records| records.first())
                         .and_then(|record| record.settlestatus.as_ref())
                         .map(|status| status.to_attempt_status_for_sync())
                         .unwrap_or(common_enums::AttemptStatus::Authorized)
-
-                    
                 } else {
                     common_enums::AttemptStatus::Pending
                 }
@@ -964,7 +952,7 @@ impl
                 ),
                 Err(_) => {
                     return Err(errors::ConnectorError::ResponseDeserializationFailed)?;
-                },
+                }
             }
         } else {
             None
@@ -1011,7 +999,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-
         let response_data = item
             .response
             .responses
@@ -1019,15 +1006,13 @@ impl
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let status = response_data.get_payment_status_for_sync();
-        
-        
+
         let transaction_id = item
             .data
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
 
         if !response_data.errorcode.is_success() {
             router_env::logger::warn!(
@@ -1054,7 +1039,6 @@ impl
                 ..item.data
             });
         }
-
 
         Ok(Self {
             status,
