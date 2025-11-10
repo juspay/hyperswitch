@@ -1,3 +1,4 @@
+import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
 let globalState;
@@ -14,6 +15,6 @@ describe("Customer List With Count - Pagination flow test", () => {
   });
 
   it("customer-list-pagination-call-test", () => {
-    cy.customerListPaginationCallTest(globalState);
+    cy.customerListPaginationCallTest(fixtures.customerCreateBody, globalState);
   });
 });

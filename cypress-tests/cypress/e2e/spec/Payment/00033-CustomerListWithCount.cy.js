@@ -1,3 +1,4 @@
+import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
 let globalState;
@@ -14,6 +15,6 @@ describe("Customer List With Count API flow test", () => {
   });
 
   it("customer-list-with-count-call-test", () => {
-    cy.customerListWithCountCallTest(globalState);
+    cy.customerListWithCountCallTest(fixtures.customerCreateBody, globalState);
   });
 });
