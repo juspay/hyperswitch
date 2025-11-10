@@ -1795,6 +1795,8 @@ impl AddressDetailsData for AddressDetails {
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1828,6 +1830,26 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
         } else {
             Err(errors::ConnectorError::RequestEncodingFailed)
         }
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card_holder_name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            })
     }
 }
 

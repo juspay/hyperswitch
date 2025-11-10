@@ -180,6 +180,7 @@ pub enum RoutableConnectors {
     Worldpayxml,
     Xendit,
     Zen,
+    Zift,
     Plaid,
     Zsl,
 }
@@ -371,6 +372,7 @@ pub enum Connector {
     Riskified,
     Xendit,
     Zen,
+    Zift,
     Zsl,
 }
 
@@ -482,6 +484,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
+            | Self::Zift
             | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -693,6 +696,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
             RoutableConnectors::Loonio => Self::Loonio,
+            RoutableConnectors::Zift => Self::Zift,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -884,6 +888,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
+            Connector::Zift => Ok(Self::Zift),
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
