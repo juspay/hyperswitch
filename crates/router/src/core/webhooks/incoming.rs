@@ -1783,7 +1783,7 @@ async fn refunds_incoming_webhook_flow(
                 refund_id: refund_id.to_owned(),
                 force_sync: Some(true),
                 merchant_connector_details: None,
-                all_keys_required: Some(true),
+                all_keys_required: None,
             },
         ))
         .await

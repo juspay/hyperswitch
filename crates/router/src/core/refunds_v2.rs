@@ -304,8 +304,6 @@ pub async fn internal_trigger_refund_to_gateway(
         return_raw_connector_response,
     ))
     .await;
-    // .await
-    // .to_refund_failed_response()?;
 
     let refund_update = get_refund_update_object(
         state,
@@ -1254,7 +1252,6 @@ pub async fn validate_and_create_refund(
         ..refund
     };
 
-    // api::RefundResponse::foreign_try_from(refund)
     let mut refund_response: api::RefundResponse = api::RefundResponse::foreign_try_from(refund)?;
     refund_response.raw_connector_response = raw_connector_response;
 
