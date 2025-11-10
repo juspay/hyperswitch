@@ -43,10 +43,11 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     Error as ActixError, FromRequest, HttpMessage, HttpRequest,
 };
+use error_stack::{report, ResultExt};
 use uuid::Uuid;
 
 /// Custom result type for request ID operations.
-pub type RequestIdResult<T> = Result<T, RequestIdError>;
+pub type RequestIdResult<T> = Result<T, error_stack::Report<RequestIdError>>;
 
 /// Errors that can occur when working with request IDs.
 #[derive(Debug, Clone)]
@@ -118,13 +119,13 @@ impl Display for RequestId {
 }
 
 impl FromStr for RequestId {
-    type Err = RequestIdError;
+    type Err = error_stack::Report<RequestIdError>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
-            Err(RequestIdError::InvalidHeaderValue {
+            Err(report!(RequestIdError::InvalidHeaderValue {
                 value: s.to_string(),
-            })
+            }))
         } else {
             Ok(Self(s.into()))
         }
@@ -132,19 +133,14 @@ impl FromStr for RequestId {
 }
 
 impl TryFrom<HeaderValue> for RequestId {
-    type Error = RequestIdError;
+    type Error = error_stack::Report<RequestIdError>;
 
     fn try_from(value: HeaderValue) -> Result<Self, Self::Error> {
-        let s = value.to_str().map_err(|e| {
-            tracing::warn!(
-                error = %e,
-                header_value = ?value,
-                "Failed to convert header value to string"
-            );
-            RequestIdError::InvalidHeaderValue {
+        let s = value
+            .to_str()
+            .change_context(RequestIdError::InvalidHeaderValue {
                 value: format!("{:?}", value),
-            }
-        })?;
+            })?;
         Self::from_str(s)
     }
 }
@@ -156,46 +152,22 @@ impl From<RequestId> for String {
 }
 
 impl TryFrom<String> for RequestId {
-    type Error = RequestIdError;
+    type Error = error_stack::Report<RequestIdError>;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.is_empty() {
-            Err(RequestIdError::InvalidHeaderValue { value: s })
-        } else {
-            Ok(Self(s.into()))
-        }
+        Self::from_str(s.as_str())
     }
 }
 
 impl TryFrom<&str> for RequestId {
-    type Error = RequestIdError;
+    type Error = error_stack::Report<RequestIdError>;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if s.is_empty() {
-            Err(RequestIdError::InvalidHeaderValue {
-                value: s.to_string(),
-            })
-        } else {
-            Ok(Self(s.into()))
-        }
+        Self::from_str(s)
     }
 }
 
 impl RequestId {
-    /// Create a new RequestId from a string.
-    ///
-    /// Returns an error if the string is empty.
-    pub fn try_from_string(value: impl Into<Arc<str>>) -> RequestIdResult<Self> {
-        let arc_str: Arc<str> = value.into();
-        if arc_str.is_empty() {
-            Err(RequestIdError::InvalidHeaderValue {
-                value: arc_str.to_string(),
-            })
-        } else {
-            Ok(Self(arc_str))
-        }
-    }
-
     /// Extract request ID from ServiceRequest header or generate UUID v7.
     ///
     /// This is the core logic: try to extract from the specified header,
@@ -234,7 +206,7 @@ impl RequestId {
 
     /// Convert this request ID to a `HeaderValue`.
     pub fn to_header_value(&self) -> RequestIdResult<HeaderValue> {
-        HeaderValue::from_str(&self.0).map_err(|_| RequestIdError::InvalidHeaderValue {
+        HeaderValue::from_str(&self.0).change_context(RequestIdError::InvalidHeaderValue {
             value: self.0.to_string(),
         })
     }
