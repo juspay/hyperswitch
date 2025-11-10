@@ -1,6 +1,7 @@
 use api_models::{blocklist, enums as api_enums};
 use common_utils::{
     ext_traits::{Encode, StringExt},
+    id_type,
     request::RequestContent,
 };
 use error_stack::ResultExt;
@@ -37,6 +38,7 @@ async fn generate_fingerprint_request(
     locker: &settings::Locker,
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
+    tenant_id: id_type::TenantId,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
         .encode_to_vec()
@@ -55,6 +57,10 @@ async fn generate_fingerprint_request(
     url.push_str(LOCKER_FINGERPRINT_PATH);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -137,7 +143,14 @@ async fn call_to_locker_for_fingerprint(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
-    let request = generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
+    let request = generate_fingerprint_request(
+        jwekey,
+        locker,
+        payload,
+        locker_choice,
+        state.tenant.tenant_id.clone(),
+    )
+    .await?;
     let response = services::call_connector_api(state, request, "call_locker_to_get_fingerprint")
         .await
         .change_context(errors::VaultError::GenerateFingerprintFailed);
