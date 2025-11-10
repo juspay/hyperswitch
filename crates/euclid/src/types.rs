@@ -144,7 +144,7 @@ impl EuclidKey {
     pub fn key_type(&self) -> DataType {
         match self {
             Self::PaymentMethod => DataType::EnumVariant,
-            Self::CardBin => DataType::StrValue,
+            Self::CardBin => DataType::Number,
             Self::Metadata => DataType::MetadataValue,
             Self::PaymentMethodType => DataType::EnumVariant,
             Self::CardNetwork => DataType::EnumVariant,
@@ -268,7 +268,7 @@ impl NumValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EuclidValue {
     PaymentMethod(enums::PaymentMethod),
-    CardBin(StrValue),
+    CardBin(NumValue),
     Metadata(MetadataValue),
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
@@ -298,6 +298,7 @@ impl EuclidValue {
     pub fn get_num_value(&self) -> Option<NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::CardBin(val) => Some(val.clone()),
             _ => None,
         }
     }

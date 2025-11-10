@@ -354,7 +354,7 @@ impl DirKeyKind {
     pub fn get_type(&self) -> types::DataType {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
-            Self::CardBin => types::DataType::StrValue,
+            Self::CardBin => types::DataType::Number,
             Self::CardType => types::DataType::EnumVariant,
             Self::CardNetwork => types::DataType::EnumVariant,
             Self::MetaData => types::DataType::MetadataValue,
@@ -567,7 +567,7 @@ pub enum DirValue {
     #[serde(rename = "payment_method")]
     PaymentMethod(enums::PaymentMethod),
     #[serde(rename = "card_bin")]
-    CardBin(types::StrValue),
+    CardBin(types::NumValue),
     #[serde(rename = "card_type")]
     CardType(enums::CardType),
     #[serde(rename = "card_network")]
@@ -732,7 +732,6 @@ impl DirValue {
 
     pub fn get_str_val(&self) -> Option<types::StrValue> {
         match self {
-            Self::CardBin(val) => Some(val.clone()),
             Self::IssuerName(val) => Some(val.clone()),
             _ => None,
         }
@@ -741,6 +740,7 @@ impl DirValue {
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::CardBin(val) => Some(val.clone()),
             Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }
@@ -960,7 +960,7 @@ mod test {
 
         let values = vec![
             dirval!(PaymentMethod = Card),
-            dirval!(CardBin s= "123456"),
+            dirval!(CardBin = 123456),
             dirval!(CardType = Credit),
             dirval!(CardNetwork = Visa),
             dirval!(PayLaterType = Klarna),
