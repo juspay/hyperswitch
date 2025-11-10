@@ -481,6 +481,9 @@ pub struct PaymentMethodUpdate {
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetailUpdate>,
 
+    /// Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -769,20 +772,36 @@ pub struct MigrateNetworkTokenDetail {
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
+    #[schema(value_type = String, example = "10")]
     pub card_exp_month: Option<masking::Secret<String>>,
 
     /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
+    #[schema(value_type = String, example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
 
     /// Card Holder Name
-    #[schema(value_type = String,example = "John Doe")]
+    #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
-    #[schema(value_type = Option<String>,example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card's Last 4 Digits
+    #[schema(value_type = Option<String>, example = "1111")]
+    pub last4_digits: Option<String>,
+
+    /// Issuing Bank of the Particular Card
+    #[schema(value_type = Option<String>, example = "Bank of America")]
+    pub card_issuer: Option<String>,
+
+    /// The country where that particular card was issued
+    #[schema(value_type = Option<String>, example = "US")]
+    pub issuer_country: Option<String>,
+
+    /// The card network
+    #[schema(value_type = Option<String>, example = "VISA")]
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "v1")]
@@ -922,6 +941,70 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodUpdateResponse {
+    /// Unique identifier for a merchant
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The unique identifier of the Payment method
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    pub payment_method_id: String,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Card details from card locker
+    #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
+    pub card: Option<CardDetailFromLocker>,
+
+    /// Updated Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
+
+    /// Type of payment experience enabled with the connector
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// For Client based calls
+    pub client_secret: Option<String>,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct ConnectorTokenDetails {
@@ -1095,7 +1178,7 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
     pub last4: String,
@@ -1282,6 +1365,16 @@ pub struct NetworkTokenResponse {
 
 fn saved_in_locker_default() -> bool {
     true
+}
+
+#[cfg(feature = "v1")]
+impl PartialEq for CardDetailFromLocker {
+    fn eq(&self, other: &Self) -> bool {
+        self.last4_digits == other.last4_digits
+            && self.expiry_month == other.expiry_month
+            && self.expiry_year == other.expiry_year
+            && self.card_isin == other.card_isin
+    }
 }
 
 #[cfg(feature = "v1")]

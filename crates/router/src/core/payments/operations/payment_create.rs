@@ -1414,6 +1414,7 @@ impl PaymentCreate {
                 connector_mandate_detail: None,
                 request_extended_authorization: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: merchant_id.to_owned(),
@@ -1670,6 +1671,7 @@ impl PaymentCreate {
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
+            billing_descriptor: request.billing_descriptor.clone(),
         })
     }
 

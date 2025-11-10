@@ -1,5 +1,4 @@
 use common_utils::types::keymanager::KeyManagerState;
-use diesel_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 use storage_impl::MockDb;

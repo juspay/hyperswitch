@@ -305,7 +305,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PayBright
             | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley
-            | api_enums::PaymentMethodType::Breadpay => Self::PayLater,
+            | api_enums::PaymentMethodType::Breadpay
+            | api_enums::PaymentMethodType::Payjustnow => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
             | api_enums::PaymentMethodType::Sofort
