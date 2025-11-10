@@ -4,7 +4,7 @@ use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisi
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
-    pii,
+    fp_utils, pii,
 };
 use euclid::frontend::ast::Program;
 pub use euclid::{
@@ -766,6 +766,13 @@ impl DynamicRoutingAlgorithmRef {
         self.success_based_algorithm
             .as_ref()
             .map(|success_based_routing| {
+                if success_based_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
+                    return false;
+                }
                 success_based_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
                     || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
@@ -777,6 +784,13 @@ impl DynamicRoutingAlgorithmRef {
         self.elimination_routing_algorithm
             .as_ref()
             .map(|elimination_routing| {
+                if elimination_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
+                    return false;
+                }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
                     || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
@@ -1076,6 +1090,20 @@ impl EliminationRoutingConfig {
                 },
             ))
     }
+
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none()
+                && self.elimination_analyser_config.is_none()
+                && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: "All fields in EliminationRoutingConfig cannot be null".to_string(),
+                }
+                .into())
+            },
+        )
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1237,6 +1265,21 @@ impl SuccessBasedRoutingConfig {
                     field_name: "decision_engine_configs".to_string(),
                 },
             ))
+    }
+
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none()
+                && self.config.is_none()
+                && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: "All fields in SuccessBasedRoutingConfig cannot be null"
+                        .to_string(),
+                }
+                .into())
+            },
+        )
     }
 }
 
