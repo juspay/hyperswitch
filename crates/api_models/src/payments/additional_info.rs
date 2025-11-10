@@ -366,10 +366,10 @@ pub struct WalletAdditionalDataForCard {
     #[serde(rename = "type")]
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
-    /// Expiry Month of card
+    /// The card's expiry month
     #[schema(value_type = Option<String>, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
-    /// Expiry Year of card
+    /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
 }
