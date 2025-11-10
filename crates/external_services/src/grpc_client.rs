@@ -22,7 +22,8 @@ use health_check_client::HealthCheckClient;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
-use router_env::{logger, RequestId};
+use router_env::logger;
+use router_env::RequestId;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 use typed_builder::TypedBuilder;
