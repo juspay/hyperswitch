@@ -10450,12 +10450,12 @@
             "description": "The unique identifier for the directory server.",
             "nullable": true
           },
-          "token_data": {
-            "type": "object",
-            "description": "The tokens for vaulted data",
-            "additionalProperties": {
-              "type": "string"
-            },
+          "vault_token_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationVaultTokenData"
+              }
+            ],
             "nullable": true
           },
           "billing": {
@@ -10559,6 +10559,81 @@
           "three_ds",
           "no_three_ds"
         ]
+      },
+      "AuthenticationVaultTokenData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card_number",
+              "card_expiry_year",
+              "card_expiry_month",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "token representing card_number"
+              },
+              "card_expiry_year": {
+                "type": "string",
+                "description": "token representing card_numcard_expiry_yearber"
+              },
+              "card_expiry_month": {
+                "type": "string",
+                "description": "token representing card_expiry_month"
+              },
+              "card_cvc": {
+                "type": "string",
+                "description": "token representing card_cvc",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_token",
+              "token_expiry_year",
+              "token_expiry_month",
+              "type"
+            ],
+            "properties": {
+              "payment_token": {
+                "type": "string",
+                "description": "token representing payment_token"
+              },
+              "token_expiry_year": {
+                "type": "string",
+                "description": "token representing token_expiry_year"
+              },
+              "token_expiry_month": {
+                "type": "string",
+                "description": "token representing token_expiry_month"
+              },
+              "token_cryptogram": {
+                "type": "string",
+                "description": "token representing token_cryptogram",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "AuthorizationStatus": {
         "type": "string",
@@ -13317,6 +13392,12 @@
             "type": "string",
             "description": "Card Expiry Year",
             "example": "25"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "Card CVC for Volatile Storage",
+            "example": "123",
+            "nullable": true
           },
           "card_holder_name": {
             "type": "string",
