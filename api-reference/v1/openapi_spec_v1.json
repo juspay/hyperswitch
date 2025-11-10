@@ -17906,6 +17906,14 @@
               }
             ],
             "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultSdk"
+            },
+            "description": "Fields to tokenization in vault",
+            "nullable": true
           }
         }
       },
