@@ -9945,7 +9945,7 @@ pub enum SubscriptionStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Eci {
     #[serde(rename = "00")]
@@ -9995,7 +9995,7 @@ impl FromStr for Eci {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 pub enum CavvAlgorithm {
     #[serde(rename = "00")]
     Zero,
@@ -10011,7 +10011,7 @@ pub enum CavvAlgorithm {
     A,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExemptionIndicator {
     LowValue,
