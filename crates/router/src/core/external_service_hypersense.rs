@@ -5,14 +5,16 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use external_services::http_client;
-
 use router_env::logger;
 
 use crate::{
-    SessionState, core::{ errors::{self, RouterResponse}}, services::{api,
-            authentication::{self}}
+    core::errors::{self, RouterResponse},
+    services::{
+        api,
+        authentication::{self},
+    },
+    SessionState,
 };
-
 
 pub async fn get_hypersense_fee_estimate(
     state: SessionState,
@@ -21,19 +23,13 @@ pub async fn get_hypersense_fee_estimate(
     json_payload: external_service_hypersense_api::ExternalFeeEstimatePayload,
     user: authentication::UserFromToken,
 ) -> RouterResponse<external_service_hypersense_api::ExternalFeeEstimateResponse> {
-
     let base = match &state.conf.hypersense {
-    Some(h) if h.enabled => &h.api_url,
-    _ => {
-        return Err(errors::ApiErrorResponse::InternalServerError.into());
+        Some(h) if h.enabled => &h.api_url,
+        _ => {
+            return Err(errors::ApiErrorResponse::InternalServerError.into());
         }
     };
-    let url = format!(
-        "{}/fee-analysis/{}?{}",
-        base,
-        api_path,
-        query_params
-    );
+    let url = format!("{}/fee-analysis/{}?{}", base, api_path, query_params);
     let merchant_id = user.merchant_id.get_string_repr().to_string();
     let profile_id = user.profile_id.get_string_repr().to_string();
     let org_id = user.org_id.get_string_repr().to_string();
@@ -80,7 +76,11 @@ pub async fn get_hypersense_fee_estimate(
             .text()
             .await
             .unwrap_or_else(|_| "<failed to read response body>".to_string());
-        logger::warn!("Hypersense returned 4xx: status = {:?}, body = {}", status, body);
+        logger::warn!(
+            "Hypersense returned 4xx: status = {:?}, body = {}",
+            status,
+            body
+        );
 
         match status.as_u16() {
             404 => {

@@ -367,4 +367,3 @@ impl super::settings::HypersenseSettings {
         })
     }
 }
-

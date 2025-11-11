@@ -1021,10 +1021,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
-        self.hypersense
-            .as_ref()
-            .map(|x| x.validate())
-            .transpose()?;
+        self.hypersense.as_ref().map(|x| x.validate()).transpose()?;
         self.cors.validate()?;
 
         self.scheduler

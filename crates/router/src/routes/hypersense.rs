@@ -3,8 +3,7 @@ use api_models::{
     external_service_auth as external_service_auth_api,
     external_service_hypersense as external_service_hypersense_api,
 };
-
-use router_env::Flow;
+use router_env::{logger, Flow};
 
 use super::AppState;
 use crate::{
@@ -15,8 +14,6 @@ use crate::{
         authorization::permissions::Permission,
     },
 };
-
-use router_env::logger;
 
 pub async fn get_hypersense_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::HypersenseTokenRequest;
@@ -118,7 +115,7 @@ pub async fn get_fee_estimate(
                 api_path.clone(),
                 query_params,
                 json_payload,
-                user.clone()
+                user.clone(),
             )
         },
         &authentication::JWTAuth {

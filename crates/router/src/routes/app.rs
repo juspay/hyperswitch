@@ -1736,7 +1736,6 @@ impl Hypersense {
             )
         }
         routes.app_data(web::Data::new(state))
-
     }
 }
 
