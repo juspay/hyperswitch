@@ -452,7 +452,7 @@ pub struct ApplePayDecrypt {
     pub card_holder_name: Option<Secret<String>>,
 
     /// The card's network
-    #[schema(value_type = CardNetwork, example = "Visa")]
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<CardNetwork>,
 }
 

@@ -9110,8 +9110,7 @@
           "dpan",
           "expiry_month",
           "expiry_year",
-          "card_holder_name",
-          "card_network"
+          "card_holder_name"
         ],
         "properties": {
           "dpan": {
@@ -9133,7 +9132,12 @@
             "example": "John Doe"
           },
           "card_network": {
-            "$ref": "#/components/schemas/CardNetwork"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
