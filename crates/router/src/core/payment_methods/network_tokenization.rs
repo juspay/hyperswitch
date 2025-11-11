@@ -184,9 +184,12 @@ pub async fn generate_network_token(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -385,6 +388,11 @@ pub async fn get_network_token(
         customer_id,
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -452,6 +460,11 @@ pub async fn get_network_token(
         card_reference: network_token_requestor_ref_id,
         customer_id: customer_id.clone(),
     };
+
+    let masked_request_body = payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
@@ -733,6 +746,11 @@ pub async fn check_token_status_with_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -805,6 +823,11 @@ pub async fn check_token_status_with_tokenization_service(
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
     };
+
+    let masked_request_body = payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
@@ -966,6 +989,11 @@ pub async fn delete_network_token_from_tokenization_service(
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
     };
+
+    let masked_request_body = payload
+        .masked_serialize()
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
