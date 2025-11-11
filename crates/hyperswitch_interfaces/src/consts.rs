@@ -31,10 +31,10 @@ pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
 /// Header value for content type JSON
-pub const CONTENT_TYPE: &str = "application/json";
+pub const CONTENT_TYPE: &str = "Content-Type";
 
 /// Header name for flow name
-pub const X_FLOW_NAME: &str = "x-flow-name";
+pub const X_FLOW_NAME: &str = "x-flow";
 
 /// Header name for request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
