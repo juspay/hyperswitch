@@ -382,6 +382,7 @@ impl Connector {
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
+                | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]

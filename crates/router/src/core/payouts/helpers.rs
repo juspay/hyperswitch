@@ -153,6 +153,7 @@ pub async fn make_payout_method_data(
                         expiry_month: resp.card_exp_month,
                         expiry_year: resp.card_exp_year,
                         card_holder_name: resp.name_on_card,
+                        card_network: None,
                     })
                 }))
             }

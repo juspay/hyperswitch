@@ -1,5 +1,7 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+#[cfg(feature = "payouts")]
+use api_models::payouts::{ApplePayDecrypt, CardPayout};
+use common_enums::{enums, CardNetwork};
+use common_utils::{pii, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
@@ -12,6 +14,12 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{PoCancel, PoFulfill},
+    router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
+};
 use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -19,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
@@ -80,6 +88,8 @@ struct OrderModification {
     capture: Option<CaptureRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cancel: Option<CancelRequest>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "cancelRefund")]
+    cancel_payout: Option<CancelRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     refund: Option<RefundRequest>,
 }
@@ -120,6 +130,26 @@ pub struct Reply {
     order_status: Option<OrderStatus>,
     pub error: Option<WorldpayXmlErrorResponse>,
     ok: Option<OkResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutResponse {
+    pub reply: PayoutReply,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutReply {
+    pub ok: Option<OkPayoutResponse>,
+    pub error: Option<WorldpayXmlErrorResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OkPayoutResponse {
+    refund_received: Option<ModifyRequestReceived>,
+    cancel_received: Option<ModifyRequestReceived>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -255,8 +285,9 @@ struct SchemeResponse {
 struct Order {
     #[serde(rename = "@orderCode")]
     order_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@captureDelay")]
-    capture_delay: AutoCapture,
+    capture_delay: Option<AutoCapture>,
     description: String,
     amount: WorldpayXmlAmount,
     payment_details: PaymentDetails,
@@ -283,8 +314,24 @@ struct WorldpayXmlAmount {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PaymentDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@action")]
+    action: Option<String>,
+    #[serde(flatten)]
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum PaymentMethod {
     #[serde(rename = "CARD-SSL")]
-    card_ssl: CardSSL,
+    CardSSL(CardSSL),
+
+    #[serde(rename = "VISA-SSL")]
+    VisaSSL(CardSSL),
+
+    #[serde(rename = "ECMC-SSL")]
+    EcmcSSL(CardSSL),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -293,7 +340,28 @@ struct CardSSL {
     card_number: cards::CardNumber,
     expiry_date: ExpiryDate,
     card_holder_name: Option<Secret<String>>,
-    cvc: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cvc: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card_address: Option<CardAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purpose_of_payment_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CardAddress {
+    address: WorldpayxmlAddress,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorldpayxmlAddress {
+    last_name: Option<Secret<String>>,
+    address1: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
+    city: Option<String>,
+    country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -310,11 +378,38 @@ struct Date {
     year: Secret<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PayoutOutcome {
+    RefundReceived,
+    Refused,
+    Error,
+    QueryRequired,
+    CancelReceived,
+}
+
+impl From<PayoutOutcome> for enums::PayoutStatus {
+    fn from(item: PayoutOutcome) -> Self {
+        match item {
+            PayoutOutcome::RefundReceived => Self::Initiated,
+            PayoutOutcome::Error | PayoutOutcome::Refused => Self::Failed,
+            PayoutOutcome::QueryRequired => Self::Pending,
+            PayoutOutcome::CancelReceived => Self::Cancelled,
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WorldpayxmlPayoutConnectorMetadataObject {
+    pub purpose_of_payment: Option<String>,
+}
+
 impl TryFrom<&Card> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(card_data: &Card) -> Result<Self, Self::Error> {
         Ok(Self {
-            card_ssl: CardSSL {
+            action: None,
+            payment_method: PaymentMethod::CardSSL(CardSSL {
                 card_number: card_data.card_number.clone(),
                 expiry_date: ExpiryDate {
                     date: Date {
@@ -323,8 +418,10 @@ impl TryFrom<&Card> for PaymentDetails {
                     },
                 },
                 card_holder_name: card_data.card_holder_name.to_owned(),
-                cvc: card_data.card_cvc.to_owned(),
-            },
+                cvc: Some(card_data.card_cvc.to_owned()),
+                card_address: None,
+                purpose_of_payment_code: None,
+            }),
         })
     }
 }
@@ -344,9 +441,9 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             .connector_request_reference_id
             .to_owned();
         let capture_delay = if authorize_data.router_data.request.is_auto_capture()? {
-            AutoCapture::On
+            Some(AutoCapture::On)
         } else {
-            AutoCapture::Off
+            Some(AutoCapture::Off)
         };
         let description = authorize_data.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -429,6 +526,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsCaptureRouterData>> for PaymentServ
                         value: item.amount.to_owned(),
                     },
                 }),
+                cancel_payout: None,
                 cancel: None,
                 refund: None,
             },
@@ -455,6 +553,7 @@ impl TryFrom<&PaymentsCancelRouterData> for PaymentService {
             order_modification: OrderModification {
                 order_code: item.request.connector_transaction_id.clone(),
                 capture: None,
+                cancel_payout: None,
                 cancel: Some(CancelRequest {}),
                 refund: None,
             },
@@ -481,6 +580,7 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for PaymentServic
                 order_code: item.router_data.request.connector_transaction_id.clone(),
                 capture: None,
                 cancel: None,
+                cancel_payout: None,
                 refund: Some(RefundRequest {
                     amount: WorldpayXmlAmount {
                         currency_code: item.router_data.request.currency.to_owned(),
@@ -1062,6 +1162,342 @@ impl TryFrom<&RefundSyncRouterData> for PaymentService {
     }
 }
 
+impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for PaymentDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (apple_pay_decrypted_data, address, purpose_of_payment): (
+            ApplePayDecrypt,
+            Option<CardAddress>,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        // let (card_network,purpose_of_payment_code) = match apple_pay_decrypted_data.card_network.map(|n| n.to_lowercase()).as_deref() {
+        //     Some("visa") => ("VisaSSL".to_string(), purpose_of_payment),
+        //     Some("mastercard") | Some("ecmc") => ("EcmcSSL".to_string(), purpose_of_payment),
+        //     _ => ("CardSSL".to_string(), None),
+        // };
+
+        // Ok(Self {
+        //     action: Some("REFUND".to_string()),
+        //     payment_method: PaymentMethod::card_network(CardSSL {
+        //         card_number: apple_pay_decrypted_data.dpan.clone(),
+        //         expiry_date: ExpiryDate {
+        //             date: Date {
+        //                 month: apple_pay_decrypted_data.get_card_expiry_month_2_digit()?,
+        //                 year: apple_pay_decrypted_data.get_expiry_year_4_digit(),
+        //             },
+        //         },
+        //         card_holder_name: apple_pay_decrypted_data.card_holder_name.to_owned(),
+        //         cvc: None,
+        //         card_address: address,
+        //         purpose_of_payment_code,
+        //     }),
+        // })
+        let card_data = CardSSL {
+            card_number: apple_pay_decrypted_data.dpan.clone(),
+            expiry_date: ExpiryDate {
+                date: Date {
+                    month: apple_pay_decrypted_data.get_card_expiry_month_2_digit()?,
+                    year: apple_pay_decrypted_data.get_expiry_year_4_digit(),
+                },
+            },
+            card_holder_name: apple_pay_decrypted_data.card_holder_name.clone(),
+            cvc: None,
+            card_address: address,
+            purpose_of_payment_code: None,
+        };
+
+        let payment_method = match apple_pay_decrypted_data.card_network {
+            Some(CardNetwork::Visa) => PaymentMethod::VisaSSL(CardSSL {
+                purpose_of_payment_code: purpose_of_payment.clone(),
+                ..card_data
+            }),
+            Some(CardNetwork::Mastercard) => PaymentMethod::EcmcSSL(CardSSL {
+                purpose_of_payment_code: purpose_of_payment.clone(),
+                ..card_data
+            }),
+            _ => PaymentMethod::CardSSL(CardSSL {
+                purpose_of_payment_code: None,
+                ..card_data
+            }),
+        };
+
+        Ok(Self {
+            action: Some("REFUND".to_string()),
+            payment_method,
+        })
+    }
+}
+
+impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (card_payout, address, purpose_of_payment): (
+            CardPayout,
+            Option<CardAddress>,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let card_data = CardSSL {
+            card_number: card_payout.card_number.clone(),
+            expiry_date: ExpiryDate {
+                date: Date {
+                    month: card_payout.get_card_expiry_month_2_digit()?,
+                    year: card_payout.get_expiry_year_4_digit(),
+                },
+            },
+            card_holder_name: card_payout.card_holder_name.to_owned(),
+            cvc: None,
+            card_address: address,
+            purpose_of_payment_code: None,
+        };
+
+        let payment_method = match card_payout.card_network {
+            Some(CardNetwork::Visa) => PaymentMethod::VisaSSL(CardSSL {
+                purpose_of_payment_code: purpose_of_payment.clone(),
+                ..card_data
+            }),
+            Some(CardNetwork::Mastercard) => PaymentMethod::EcmcSSL(CardSSL {
+                purpose_of_payment_code: purpose_of_payment.clone(),
+                ..card_data
+            }),
+            _ => PaymentMethod::CardSSL(CardSSL {
+                purpose_of_payment_code: None,
+                ..card_data
+            }),
+        };
+
+        Ok(Self {
+            action: Some("REFUND".to_string()),
+            payment_method,
+        })
+    }
+}
+
+impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayxmlPayoutConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: Option<&pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self =
+            connector_utils::to_connector_meta_from_secret::<Self>(meta_data.cloned())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                })?;
+        Ok(metadata)
+    }
+}
+
+impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentService {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        let billing_details = Some(CardAddress {
+            address: WorldpayxmlAddress {
+                last_name: item.router_data.get_optional_billing_last_name(),
+                address1: item.router_data.get_optional_billing_line1(),
+                postal_code: item.router_data.get_optional_billing_zip(),
+                city: item.router_data.get_optional_billing_city(),
+                country_code: item.router_data.get_optional_billing_country(),
+            },
+        });
+
+        let purpose_of_payment: WorldpayxmlPayoutConnectorMetadataObject =
+            WorldpayxmlPayoutConnectorMetadataObject::try_from(
+                item.router_data.connector_meta_data.as_ref(),
+            )?;
+
+        let purpose_of_payment_code = map_purpose_code(purpose_of_payment.purpose_of_payment);
+
+        let payout_method_data = item.router_data.get_payout_method_data()?;
+        let payment_details = match payout_method_data {
+            api_models::payouts::PayoutMethodData::Wallet(
+                api_models::payouts::Wallet::ApplePayDecrypt(apple_pay_decrypted_data),
+            ) => PaymentDetails::try_from((
+                apple_pay_decrypted_data,
+                billing_details,
+                purpose_of_payment_code,
+            ))?,
+            api_models::payouts::PayoutMethodData::Card(card_payout) => {
+                PaymentDetails::try_from((card_payout, billing_details, purpose_of_payment_code))?
+            }
+            api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::Wallet(_)
+            | api_models::payouts::PayoutMethodData::BankRedirect(_)
+            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected Payout Method is not implemented for WorldpayXML".to_string(),
+                ))?
+            }
+        };
+
+        let order_code = item.router_data.connector_request_reference_id.to_owned();
+
+        let description = item.router_data.description.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "description",
+            },
+        )?;
+
+        let exponent = item
+            .router_data
+            .request
+            .destination_currency
+            .number_of_digits_after_decimal_point()
+            .to_string();
+
+        let amount = WorldpayXmlAmount {
+            currency_code: item.router_data.request.destination_currency.to_owned(),
+            exponent,
+            value: item.amount.to_owned(),
+        };
+
+        let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let submit = Some(Submit {
+            order: Order {
+                order_code,
+                capture_delay: None,
+                description,
+                amount,
+                payment_details,
+            },
+        });
+
+        Ok(Self {
+            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+            merchant_code: auth.merchant_code.clone(),
+            submit,
+            reply: None,
+            inquiry: None,
+            modify: None,
+        })
+    }
+}
+
+impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
+    for PayoutsRouterData<PoFulfill>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<PoFulfill, PayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        let reply = item.response.reply;
+
+        validate_payout_reply(&reply)?;
+
+        if let Some(ok_status) = reply.ok {
+            Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::RefundReceived)),
+                    connector_payout_id: ok_status.refund_received.map(|id| id.order_code),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: None,
+                    error_message: None,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
+        } else {
+            let error = reply
+                .error
+                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                    bytes::Bytes::from("Missing reply.error".to_string()),
+                ))?;
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::Error)),
+                    connector_payout_id: None,
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: Some(error.code),
+                    error_message: Some(error.message),
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
+        }
+    }
+}
+
+impl TryFrom<&PayoutsRouterData<PoCancel>> for PaymentService {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PayoutsRouterData<PoCancel>) -> Result<Self, Self::Error> {
+        let auth = WorldpayxmlAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let modify = Some(Modify {
+            order_modification: OrderModification {
+                order_code: item.request.connector_payout_id.to_owned().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_code",
+                    },
+                )?,
+                capture: None,
+                cancel: None,
+                cancel_payout: Some(CancelRequest {}),
+                refund: None,
+            },
+        });
+
+        Ok(Self {
+            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+            merchant_code: auth.merchant_code.clone(),
+            submit: None,
+            reply: None,
+            inquiry: None,
+            modify,
+        })
+    }
+}
+
+impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRouterData<PoCancel> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<PoCancel, PayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        let reply = item.response.reply;
+
+        validate_payout_reply(&reply)?;
+
+        if let Some(ok_status) = reply.ok {
+            Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::CancelReceived)),
+                    connector_payout_id: ok_status.cancel_received.map(|id| id.order_code),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: None,
+                    error_message: None,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
+        } else {
+            let error = reply
+                .error
+                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                    bytes::Bytes::from("Missing reply.error".to_string()),
+                ))?;
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::Error)),
+                    connector_payout_id: None,
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: Some(error.code),
+                    error_message: Some(error.message),
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
+        }
+    }
+}
+
 fn validate_reply(reply: &Reply) -> Result<(), errors::ConnectorError> {
     if (reply.error.is_some() && reply.order_status.is_some())
         || (reply.error.is_none() && reply.order_status.is_none())
@@ -1070,6 +1506,20 @@ fn validate_reply(reply: &Reply) -> Result<(), errors::ConnectorError> {
             bytes::Bytes::from(
                 "Either reply.error_data or reply.order_data must be present in the response"
                     .to_string(),
+            ),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_payout_reply(reply: &PayoutReply) -> Result<(), errors::ConnectorError> {
+    if (reply.error.is_some() && reply.ok.is_some())
+        || (reply.error.is_none() && reply.ok.is_none())
+    {
+        Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from(
+                "Either reply.error_data or reply.ok must be present in the response".to_string(),
             ),
         ))
     } else {
@@ -1132,4 +1582,33 @@ fn process_payment_response(
             charges: None,
         })
     }
+}
+
+pub fn map_purpose_code(value: Option<String>) -> Option<String> {
+    let val = value?.trim().to_lowercase();
+    if val.is_empty() {
+        return None;
+    }
+
+    let code = match val.as_str() {
+        "family support" => "00",
+        "regular labour transfers" | "regular labor transfers" => "01",
+        "travel and tourism" => "02",
+        "education" => "03",
+        "hospitalisation and medical treatment" | "hospitalisation" | "medical treatment" => "04",
+        "emergency need" => "05",
+        "savings" => "06",
+        "gifts" => "07",
+        "other" => "08",
+        "salary" => "09",
+        "crowd lending" | "crowdlending" => "10",
+        "crypto currency" | "cryptocurrency" => "11",
+        "gaming repayment" => "12",
+        "stock market proceeds" => "13",
+        "refund to a original card" | "refund to original card" => "M1",
+        "refund to a new card" | "refund to new card" => "M2",
+        _ => return None,
+    };
+
+    Some(code.to_string())
 }
