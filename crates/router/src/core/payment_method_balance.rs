@@ -401,7 +401,13 @@ pub async fn fetch_payment_methods_balances_from_redis(
         .into_iter()
         .map(|(key, value)| {
             value
+                .parse_struct("PaymentMethodBalance")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse PaymentMethodBalance")
+                .map(|parsed| (key, parsed))
+        })
+        .collect::<errors::RouterResult<HashMap<_, _>>>()?;
+
     payment_methods
         .iter()
         .map(|pm| {
