@@ -1672,6 +1672,7 @@ impl PaymentCreate {
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
+            billing_descriptor: request.billing_descriptor.clone(),
         })
     }
 

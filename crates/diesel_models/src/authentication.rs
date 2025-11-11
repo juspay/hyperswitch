@@ -8,7 +8,6 @@ use common_utils::{
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 use serde::{self, Deserialize, Serialize};
-use serde_json;
 
 use crate::schema::authentication;
 
