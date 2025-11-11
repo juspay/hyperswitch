@@ -869,7 +869,7 @@ impl PaymentIntent {
 
     pub fn is_split_payment(&self) -> bool {
         self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
-            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::GroupID
     }
 }
 
