@@ -6341,3 +6341,9 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
+[vgs]
+[vgs.connector_auth.SignatureKey]
+  api_key="Username"
+  key1="Password"
+  api_secret="Vault Id"
+
