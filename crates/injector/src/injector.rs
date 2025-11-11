@@ -345,14 +345,10 @@ pub mod core {
             )),
         );
 
-        let injector = Injector::new();
-        let result = injector.injector_core(request).await;
-
-        // Record total request time and track success/failure
-        let request_duration = start_time.elapsed();
+        // Extract values for metrics before moving request
         let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
         let http_method_str = format!("{:?}", request.connection_config.http_method);
-
+        
         // Extract endpoint host for dimension (privacy-friendly)
         let endpoint_host = request
             .connection_config
@@ -361,13 +357,19 @@ pub mod core {
             .map(|url| url.host_str().unwrap_or("unknown").to_string())
             .unwrap_or_else(|_| "invalid_url".to_string());
 
+        let injector = Injector::new();
+        let result = injector.injector_core(request).await;
+
+        // Record total request time and track success/failure
+        let request_duration = start_time.elapsed();
+
         let base_attributes = router_env::metric_attributes!(
             ("vault_connector", vault_connector_str.clone()),
             ("http_method", http_method_str.clone()),
             ("endpoint_host", endpoint_host.clone())
         );
 
-        metrics::INJECTOR_REQUEST_TIME.record(request_duration.as_secs_f64(), &base_attributes);
+        metrics::INJECTOR_REQUEST_TIME.record(request_duration.as_secs_f64(), base_attributes);
 
         // Track success/failure metrics
         match &result {
@@ -376,7 +378,7 @@ pub mod core {
             }
             Err(e) => {
                 logger::error!("Injector core failed: {:?}", e);
-                metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(1, &base_attributes);
+                metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(1, base_attributes);
             }
         }
 
