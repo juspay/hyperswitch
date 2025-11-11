@@ -450,26 +450,27 @@ async fn should_force_schedule_due_to_missed_slots(
     token: Secret<String, PhoneNumberStrategy>,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> CustomResult<bool, StorageError> {
-
     Ok(RedisTokenManager::find_nearest_date_from_current(
-        &token_with_retry_info.token_status.daily_retry_history
+        &token_with_retry_info.token_status.daily_retry_history,
     )
     // Filter: only consider entries with actual retries (retry_count > 0)
     .filter(|(_, retry_count)| *retry_count > 0)
     .map(|(most_recent_date, _retry_count)| {
-        let threshold_hours = TOTAL_SLOTS_IN_MONTH 
-            / state.conf.revenue_recovery.card_config
+        let threshold_hours = TOTAL_SLOTS_IN_MONTH
+            / state
+                .conf
+                .revenue_recovery
+                .card_config
                 .get_network_config(card_network.clone())
                 .max_retry_count_for_thirty_day;
-        
+
         // Calculate time difference and compare
-        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc())
-            .whole_hours() > threshold_hours.into()
+        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc()).whole_hours()
+            > threshold_hours.into()
     })
     // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
     .unwrap_or(false))
 }
-
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
@@ -863,7 +864,7 @@ pub async fn calculate_smart_retry_time(
         card_network.clone(),
         connector_customer_id,
         masked_token.clone(),
-        token_with_retry_info
+        token_with_retry_info,
     )
     .await
     .unwrap_or(false)
