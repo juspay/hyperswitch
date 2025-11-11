@@ -4435,6 +4435,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time",
+ "tokio 1.45.1",
 ]
 
 [[package]]

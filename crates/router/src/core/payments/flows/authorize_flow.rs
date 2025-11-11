@@ -24,7 +24,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, helpers, tokenization,
+            transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -203,6 +204,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        _gateway_context: Option<gateway_context::RouterGatewayContext>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,

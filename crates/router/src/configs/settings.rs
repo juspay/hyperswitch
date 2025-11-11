@@ -7,11 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{
-    ext_traits::ConfigExt,
-    id_type,
-    types::{user::EmailThemeConfig, Url},
-};
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -34,7 +30,7 @@ pub use hyperswitch_interfaces::{
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
-    types::Proxy,
+    types::{ComparisonServiceConfig, Proxy},
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
@@ -206,13 +202,6 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ComparisonServiceConfig {
-    pub url: Url,
-    pub enabled: bool,
-    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

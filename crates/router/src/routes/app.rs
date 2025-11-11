@@ -23,7 +23,9 @@ use external_services::{
 use hyperswitch_interfaces::{
     crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
+    helpers as interfaces_helpers,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    types as interfaces_types,
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
@@ -248,6 +250,12 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+}
+
+impl interfaces_helpers::GetComparisonServiceConfig for SessionState {
+    fn get_comparison_service_config(&self) -> Option<interfaces_types::ComparisonServiceConfig> {
+        self.conf.comparison_service.clone()
     }
 }
 
