@@ -705,19 +705,6 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaymentMethodBalanceCheckResponse {
-    /// Global Payment Id for the payment
-    #[schema(value_type = String)]
-    pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the payment method
-    pub balance: MinorUnit,
-    /// The currency of the payment method
-    #[schema(value_type = Currency)]
-    pub currency: common_enums::Currency,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -3530,6 +3517,8 @@ pub struct ApplyPaymentMethodDataRequest {
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodBalanceApi {
     pub balance: MinorUnit,
+    pub applicable_amount: MinorUnit,
+    #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
 }
 
@@ -7229,19 +7218,6 @@ pub struct PaymentsConfirmIntentRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
-}
-
-// Serialize is implemented because, this will be serialized in the api events.
-// Usually request types should not have serialize implemented.
-//
-/// Request for Payment method balance check
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentMethodBalanceCheckRequest {
-    /// The payment method data to be used for the balance check request. It can
-    /// only be a payment method that supports checking balance e.g. gift card
-    pub payment_method_data: BalanceCheckPaymentMethodData,
 }
 
 #[cfg(feature = "v2")]

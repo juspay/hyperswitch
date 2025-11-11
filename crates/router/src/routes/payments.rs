@@ -3213,34 +3213,6 @@ pub async fn payment_confirm_intent(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodBalanceCheck, payment_id))]
-pub async fn payment_check_gift_card_balance(
-    state: web::Data<app::AppState>,
-    req: actix_web::HttpRequest,
-    json_payload: web::Json<api_models::payments::PaymentMethodBalanceCheckRequest>,
-    path: web::Path<common_utils::id_type::GlobalPaymentId>,
-) -> impl Responder {
-    let flow = Flow::PaymentMethodBalanceCheck;
-
-    let global_payment_id = path.into_inner();
-    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
-
-    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id: global_payment_id.clone(),
-        payload: json_payload.into_inner(),
-    };
-
-    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => {
-            return api::log_and_return_error_response(err);
-        }
-    };
-
-    todo!()
-}
-
-#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApplyPaymentMethodData, payment_id))]
 pub async fn payments_apply_pm_data(
     state: web::Data<app::AppState>,

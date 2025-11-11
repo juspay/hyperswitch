@@ -2593,65 +2593,7 @@
         ]
       }
     },
-    "/v2/payments/{id}/payment-methods/check-balance": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments - Payment Method Balance Check",
-        "description": "Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency",
-        "operationId": "Retrieve Payment Method Balance",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The global payment id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "pro_abcdefghijklmnop"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodBalanceCheckRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Get the Payment Method Balance",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodBalanceCheckResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
-    "/v2/payments/{id}/apply-payment-method-data": {
+    "/v2/payments/{id}/check-and-apply-pm-data": {
       "post": {
         "tags": [
           "Payments"
@@ -5348,11 +5290,18 @@
       "ApplyPaymentMethodDataResponse": {
         "type": "object",
         "required": [
+          "balances",
           "remaining_amount",
           "currency",
           "requires_additional_pm_data"
         ],
         "properties": {
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BalanceCheckResponseItem"
+            }
+          },
           "remaining_amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
@@ -5678,6 +5627,21 @@
             }
           }
         ]
+      },
+      "BalanceCheckResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "eligibility"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PaymentMethodBalanceCheckEligibility"
+          }
+        }
       },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
@@ -17987,38 +17951,50 @@
           "mobile_payment"
         ]
       },
-      "PaymentMethodBalanceCheckRequest": {
-        "type": "object",
-        "description": "Request for Payment method balance check",
-        "required": [
-          "payment_method_data"
-        ],
-        "properties": {
-          "payment_method_data": {
-            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
-          }
-        },
-        "additionalProperties": false
-      },
-      "PaymentMethodBalanceCheckResponse": {
+      "PaymentMethodBalanceApi": {
         "type": "object",
         "required": [
-          "payment_id",
           "balance",
+          "applicable_amount",
           "currency"
         ],
         "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
           "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "applicable_amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           }
         }
+      },
+      "PaymentMethodBalanceCheckEligibility": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "success"
+            ],
+            "properties": {
+              "success": {
+                "$ref": "#/components/schemas/PaymentMethodBalanceApi"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure"
+            ],
+            "properties": {
+              "failure": {
+                "type": "string"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [

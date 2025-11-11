@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::payments::{
     ApplyPaymentMethodDataRequest, ApplyPaymentMethodDataResponse, GetPaymentMethodType,
-    PaymentMethodBalanceApi, PaymentMethodBalanceCheckRequest, PaymentMethodBalanceCheckResponse,
+    PaymentMethodBalanceApi,
 };
 use common_enums::CallConnectorAction;
 use common_utils::{
@@ -40,9 +40,9 @@ pub async fn payments_check_gift_card_balance_core(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
     _req_state: &ReqState,
-    req: PaymentMethodBalanceCheckRequest,
+    payment_method_data: api_models::payments::BalanceCheckPaymentMethodData,
     payment_id: &id_type::GlobalPaymentId,
-) -> errors::RouterResult<PaymentMethodBalanceCheckResponse> {
+) -> errors::RouterResult<(MinorUnit, common_enums::Currency)> {
     let db = state.store.as_ref();
 
     let key_manager_state = &state.into();
@@ -51,7 +51,7 @@ pub async fn payments_check_gift_card_balance_core(
     let payment_intent = db
         .find_payment_intent_by_id(
             key_manager_state,
-            &payment_id,
+            payment_id,
             merchant_context.get_merchant_key_store(),
             storage_scheme,
         )
@@ -80,7 +80,7 @@ pub async fn payments_check_gift_card_balance_core(
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
-                &state,
+                state,
                 merchant_context.get_merchant_key_store(),
                 Some(&gift_card_connector_id),
             )
@@ -111,7 +111,7 @@ pub async fn payments_check_gift_card_balance_core(
     let resource_common_data = GiftCardBalanceCheckFlowData;
 
     let api_models::payments::BalanceCheckPaymentMethodData::GiftCard(gift_card_data) =
-        req.payment_method_data;
+        payment_method_data;
 
     let router_data: RouterDataV2<
         GiftCardBalanceCheck,
@@ -191,11 +191,7 @@ pub async fn payments_check_gift_card_balance_core(
         .await
         .attach_printable("Failed to persist gift card balance details in redis")?;
 
-    let resp = PaymentMethodBalanceCheckResponse {
-        payment_id: payment_intent.id.clone(),
-        balance,
-        currency,
-    };
+    let resp = (balance, currency);
 
     Ok(resp)
 }
@@ -230,7 +226,7 @@ pub async fn payments_check_and_apply_pm_data_core(
     .await
     .attach_printable("Failed to retrieve payment method balances from redis")?;
 
-    let balance_values: Vec<api_models::payments::BalanceCheckResponseItem> =
+    let mut balance_values: Vec<api_models::payments::BalanceCheckResponseItem> =
         futures::future::join_all(req.payment_methods.into_iter().map(|pm| async {
             let api_models::payments::BalanceCheckPaymentMethodData::GiftCard(gift_card_data) =
                 pm.clone();
@@ -250,6 +246,7 @@ pub async fn payments_check_and_apply_pm_data_core(
                     api_models::payments::PaymentMethodBalanceCheckEligibility::Success(
                         PaymentMethodBalanceApi {
                             balance: balance.balance,
+                            applicable_amount: MinorUnit::zero(), // Will be calculated after sorting
                             currency: balance.currency,
                         },
                     )
@@ -260,18 +257,17 @@ pub async fn payments_check_and_apply_pm_data_core(
                         &merchant_context,
                         &profile,
                         &_req_state,
-                        PaymentMethodBalanceCheckRequest {
-                            payment_method_data: pm.clone(),
-                        },
+                        pm.clone(),
                         &payment_id,
                     )
                     .await
                     {
-                        Ok(balance) => {
+                        Ok((balance, currency)) => {
                             api_models::payments::PaymentMethodBalanceCheckEligibility::Success(
                                 PaymentMethodBalanceApi {
-                                    balance: balance.balance,
-                                    currency: balance.currency,
+                                    balance,
+                                    applicable_amount: MinorUnit::zero(), // Will be calculated after sorting
+                                    currency,
                                 },
                             )
                         }
@@ -295,6 +291,41 @@ pub async fn payments_check_and_apply_pm_data_core(
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
 
+    // Sort balance_values by balance in ascending order (smallest first)
+    // This ensures smaller gift cards are fully utilized before larger ones
+    balance_values.sort_by(|a, b| {
+        let balance_a = match &a.eligibility {
+            api_models::payments::PaymentMethodBalanceCheckEligibility::Success(balance_api) => {
+                balance_api.balance
+            }
+            api_models::payments::PaymentMethodBalanceCheckEligibility::Failure(_) => {
+                MinorUnit::zero()
+            }
+        };
+        let balance_b = match &b.eligibility {
+            api_models::payments::PaymentMethodBalanceCheckEligibility::Success(balance_api) => {
+                balance_api.balance
+            }
+            api_models::payments::PaymentMethodBalanceCheckEligibility::Failure(_) => {
+                MinorUnit::zero()
+            }
+        };
+        balance_a.cmp(&balance_b)
+    });
+
+    // Calculate applicable amounts with running total
+    let mut running_total = MinorUnit::zero();
+    let order_amount = payment_intent.amount_details.order_amount;
+    for balance_item in balance_values.iter_mut() {
+        if let api_models::payments::PaymentMethodBalanceCheckEligibility::Success(balance_api) =
+            &mut balance_item.eligibility
+        {
+            let remaining_amount = (order_amount - running_total).max(MinorUnit::zero());
+            balance_api.applicable_amount = std::cmp::min(balance_api.balance, remaining_amount);
+            running_total = running_total + balance_api.applicable_amount;
+        }
+    }
+
     let total_balance: MinorUnit = balance_values
         .iter()
         .filter_map(|value| {
@@ -302,7 +333,7 @@ pub async fn payments_check_and_apply_pm_data_core(
                 balance_api,
             ) = &value.eligibility
             {
-                Some(balance_api.balance)
+                Some(balance_api.applicable_amount)
             } else {
                 None
             }

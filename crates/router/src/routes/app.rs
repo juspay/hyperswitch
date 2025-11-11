@@ -787,16 +787,9 @@ impl Payments {
                     web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
-                .service(
-                    web::scope("/payment-methods")
-                        .service(
-                            web::resource("").route(web::get().to(payments::list_payment_methods)),
-                        )
-                        .service(
-                            web::resource("/check-balance")
-                                .route(web::post().to(payments::payment_check_gift_card_balance)),
-                        ),
-                )
+                .service(web::scope("/payment-methods").service(
+                    web::resource("").route(web::get().to(payments::list_payment_methods)),
+                ))
                 .service(
                     web::resource("/eligibility/check-and-apply-pm-data")
                         .route(web::post().to(payments::payments_apply_pm_data)),
