@@ -1,7 +1,11 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::{ApplePayDecrypt, CardPayout};
-use common_enums::{enums, CardNetwork};
-use common_utils::{pii, types::StringMinorUnit};
+#[cfg(feature = "payouts")]
+use common_enums::CardNetwork;
+use common_enums::enums;
+#[cfg(feature = "payouts")]
+use common_utils::pii;
+use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
@@ -88,8 +92,8 @@ struct OrderModification {
     capture: Option<CaptureRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cancel: Option<CancelRequest>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "cancelRefund")]
-    cancel_payout: Option<CancelRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cancel_refund: Option<CancelRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     refund: Option<RefundRequest>,
 }
@@ -285,8 +289,7 @@ struct SchemeResponse {
 struct Order {
     #[serde(rename = "@orderCode")]
     order_code: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@captureDelay")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "@captureDelay")]
     capture_delay: Option<AutoCapture>,
     description: String,
     amount: WorldpayXmlAmount,
@@ -314,9 +317,8 @@ struct WorldpayXmlAmount {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PaymentDetails {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@action")]
-    action: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "@action")]
+    action: Option<Action>,
     #[serde(flatten)]
     payment_method: PaymentMethod,
 }
@@ -408,6 +410,12 @@ impl From<PayoutOutcome> for enums::PayoutStatus {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayxmlPayoutConnectorMetadataObject {
     pub purpose_of_payment: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum Action {
+    Refund,
 }
 
 impl TryFrom<&Card> for PaymentDetails {
@@ -532,7 +540,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsCaptureRouterData>> for PaymentServ
                         value: item.amount.to_owned(),
                     },
                 }),
-                cancel_payout: None,
+                cancel_refund: None,
                 cancel: None,
                 refund: None,
             },
@@ -559,7 +567,7 @@ impl TryFrom<&PaymentsCancelRouterData> for PaymentService {
             order_modification: OrderModification {
                 order_code: item.request.connector_transaction_id.clone(),
                 capture: None,
-                cancel_payout: None,
+                cancel_refund: None,
                 cancel: Some(CancelRequest {}),
                 refund: None,
             },
@@ -586,7 +594,7 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for PaymentServic
                 order_code: item.router_data.request.connector_transaction_id.clone(),
                 capture: None,
                 cancel: None,
-                cancel_payout: None,
+                cancel_refund: None,
                 refund: Some(RefundRequest {
                     amount: WorldpayXmlAmount {
                         currency_code: item.router_data.request.currency.to_owned(),
@@ -1207,7 +1215,7 @@ impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for Payment
         };
 
         Ok(Self {
-            action: Some("REFUND".to_string()),
+            action: Some(Action::Refund),
             payment_method,
         })
     }
@@ -1252,7 +1260,7 @@ impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetai
         };
 
         Ok(Self {
-            action: Some("REFUND".to_string()),
+            action: Some(Action::Refund),
             payment_method,
         })
     }
@@ -1285,12 +1293,18 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             }),
         });
 
-        let purpose_of_payment: WorldpayxmlPayoutConnectorMetadataObject =
-            WorldpayxmlPayoutConnectorMetadataObject::try_from(
-                item.router_data.connector_meta_data.as_ref(),
-            )?;
+        let purpose_of_payment: Option<WorldpayxmlPayoutConnectorMetadataObject> =
+            match item.router_data.connector_meta_data {
+                None => None,
+                Some(_) => Some(WorldpayxmlPayoutConnectorMetadataObject::try_from(
+                    item.router_data.connector_meta_data.as_ref(),
+                )?),
+            };
 
-        let purpose_of_payment_code = map_purpose_code(purpose_of_payment.purpose_of_payment);
+        let purpose_of_payment_code = match purpose_of_payment {
+            None => None,
+            Some(purpose) => map_purpose_code(purpose.purpose_of_payment),
+        };
 
         let payout_method_data = item.router_data.get_payout_method_data()?;
         let payment_details = match payout_method_data {
@@ -1421,7 +1435,7 @@ impl TryFrom<&PayoutsRouterData<PoCancel>> for PaymentService {
                 )?,
                 capture: None,
                 cancel: None,
-                cancel_payout: Some(CancelRequest {}),
+                cancel_refund: Some(CancelRequest {}),
                 refund: None,
             },
         });
@@ -1569,28 +1583,23 @@ fn process_payment_response(
 }
 
 pub fn map_purpose_code(value: Option<String>) -> Option<String> {
-    let val = value?.trim().to_lowercase();
-    if val.is_empty() {
-        return None;
-    }
-
-    let code = match val.as_str() {
-        "family support" => "00",
-        "regular labour transfers" | "regular labor transfers" => "01",
-        "travel and tourism" => "02",
-        "education" => "03",
-        "hospitalisation and medical treatment" | "hospitalisation" | "medical treatment" => "04",
-        "emergency need" => "05",
-        "savings" => "06",
-        "gifts" => "07",
-        "other" => "08",
-        "salary" => "09",
-        "crowd lending" | "crowdlending" => "10",
-        "crypto currency" | "cryptocurrency" => "11",
-        "gaming repayment" => "12",
-        "stock market proceeds" => "13",
-        "refund to a original card" | "refund to original card" => "M1",
-        "refund to a new card" | "refund to new card" => "M2",
+    let code = match value?.as_str() {
+        "Family Support" => "00",
+        "Regular Labour Transfers" => "01",
+        "Travel and Tourism" => "02",
+        "Education" => "03",
+        "Hospitalisation and Medical Treatment" => "04",
+        "Emergency Need" => "05",
+        "Savings" => "06",
+        "Gifts" => "07",
+        "Other" => "08",
+        "Salary" => "09",
+        "Crowd Lending" => "10",
+        "Crypto Currency" => "11",
+        "Gaming Repayment" => "12",
+        "Stock Market Proceeds" => "13",
+        "Refund to a original card" => "M1",
+        "Refund to a new card" => "M2",
         _ => return None,
     };
 

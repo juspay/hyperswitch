@@ -762,15 +762,9 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
     fn get_headers(
         &self,
         req: &PayoutsRouterData<PoFulfill>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -874,15 +868,9 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Worldp
     fn get_headers(
         &self,
         req: &PayoutsRouterData<PoCancel>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(

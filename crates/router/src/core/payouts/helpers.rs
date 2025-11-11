@@ -1513,7 +1513,7 @@ pub async fn get_additional_payout_data(
                 payout_additional::AdditionalPayoutMethodData::Card(Box::new(
                     payout_additional::CardAdditionalData {
                         card_issuer: None,
-                        card_network: None,
+                        card_network: card_data.card_network.clone(),
                         bank_code: None,
                         card_type: None,
                         card_issuing_country: None,
