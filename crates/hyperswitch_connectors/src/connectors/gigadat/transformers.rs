@@ -220,7 +220,7 @@ impl GigadatFlow {
             #[cfg(feature = "payouts")]
             "ETO" | "RTO" | "RTX" | "ANR" | "ANX" => Ok(Self::Payout),
 
-            "ETI" | "RFM" => Ok(Self::Payment),
+            "ETI" | "RFM" | "CPI" | "ACK" => Ok(Self::Payment),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Invalid transaction type ".to_string(),
             )),
