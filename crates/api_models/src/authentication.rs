@@ -749,36 +749,44 @@ pub enum AuthenticationVaultTokenData {
     CardToken {
         /// token representing card_number
         #[schema(value_type = String)]
-        card_number: masking::Secret<String>,
+        #[serde(rename = "card_number")]
+        tokenized_card_number: masking::Secret<String>,
 
         /// token representing card_numcard_expiry_yearber
         #[schema(value_type = String)]
-        card_expiry_year: masking::Secret<String>,
+        #[serde(rename = "card_expiry_year")]
+        tokenized_card_expiry_year: masking::Secret<String>,
 
         /// token representing card_expiry_month
         #[schema(value_type = String)]
-        card_expiry_month: masking::Secret<String>,
+        #[serde(rename = "card_expiry_month")]
+        tokenized_card_expiry_month: masking::Secret<String>,
 
         /// token representing card_cvc
         #[schema(value_type = Option<String>)]
-        card_cvc: Option<masking::Secret<String>>,
+        #[serde(rename = "card_cvc")]
+        tokenized_card_cvc: Option<masking::Secret<String>>,
     },
     NetworkToken {
         /// token representing payment_token
         #[schema(value_type = String)]
-        payment_token: masking::Secret<String>,
+        #[serde(rename = "payment_token")]
+        tokenized_payment_token: masking::Secret<String>,
 
         /// token representing token_expiry_year
         #[schema(value_type = String)]
-        token_expiry_year: masking::Secret<String>,
+        #[serde(rename = "token_expiry_year")]
+        tokenized_expiry_year: masking::Secret<String>,
 
         /// token representing token_expiry_month
         #[schema(value_type = String)]
-        token_expiry_month: masking::Secret<String>,
+        #[serde(rename = "token_expiry_month")]
+        tokenized_expiry_month: masking::Secret<String>,
 
         /// token representing token_cryptogram
         #[schema(value_type = Option<String>)]
-        token_cryptogram: Option<masking::Secret<String>>,
+        #[serde(rename = "token_cryptogram")]
+        tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }
 

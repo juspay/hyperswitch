@@ -204,8 +204,11 @@ impl MerchantId {
     }
 
     /// get should call auth tokenization for modular authentication
-    pub fn get_should_call_auth_tokenization(&self) -> String {
-        format!("should_call_auth_tokenization_{}", self.get_string_repr())
+    pub fn get_should_disable_auth_tokenization(&self) -> String {
+        format!(
+            "should_disable_auth_tokenization_{}",
+            self.get_string_repr()
+        )
     }
 
     /// get_max_auto_single_connector_payout_retries_enabled_

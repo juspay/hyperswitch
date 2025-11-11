@@ -731,16 +731,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        card_number: masking::Secret<String>,
-        card_expiry_year: masking::Secret<String>,
-        card_expiry_month: masking::Secret<String>,
-        card_cvc: Option<masking::Secret<String>>,
+        tokenized_card_number: masking::Secret<String>,
+        tokenized_card_expiry_year: masking::Secret<String>,
+        tokenized_card_expiry_month: masking::Secret<String>,
+        tokenized_card_cvc: Option<masking::Secret<String>>,
     },
     NetworkToken {
-        network_token: masking::Secret<String>,
-        network_token_exp_year: masking::Secret<String>,
-        network_token_exp_month: masking::Secret<String>,
-        cryptogram: Option<masking::Secret<String>>,
+        tokenized_network_token: masking::Secret<String>,
+        tokenized_network_token_exp_year: masking::Secret<String>,
+        tokenized_network_token_exp_month: masking::Secret<String>,
+        tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }
 
@@ -765,29 +765,29 @@ impl VaultIdType {
         match self.clone() {
             Self::MultiVauldIds(multi_vault_data) => match multi_vault_data {
                 MultiVaultIdType::Card {
-                    card_number,
-                    card_expiry_year,
-                    card_expiry_month,
-                    card_cvc,
+                    tokenized_card_number,
+                    tokenized_card_expiry_year,
+                    tokenized_card_expiry_month,
+                    tokenized_card_cvc,
                 } => Ok(
                     api_models::authentication::AuthenticationVaultTokenData::CardToken {
-                        card_number,
-                        card_expiry_month,
-                        card_expiry_year,
-                        card_cvc,
+                        tokenized_card_number,
+                        tokenized_card_expiry_month,
+                        tokenized_card_expiry_year,
+                        tokenized_card_cvc,
                     },
                 ),
                 MultiVaultIdType::NetworkToken {
-                    network_token,
-                    network_token_exp_month,
-                    network_token_exp_year,
-                    cryptogram,
+                    tokenized_network_token,
+                    tokenized_network_token_exp_month,
+                    tokenized_network_token_exp_year,
+                    tokenized_cryptogram,
                 } => Ok(
                     api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                        payment_token: network_token,
-                        token_expiry_month: network_token_exp_month,
-                        token_expiry_year: network_token_exp_year,
-                        token_cryptogram: cryptogram,
+                        tokenized_payment_token: tokenized_network_token,
+                        tokenized_expiry_month: tokenized_network_token_exp_month,
+                        tokenized_expiry_year: tokenized_network_token_exp_year,
+                        tokenized_cryptogram,
                     },
                 ),
             },

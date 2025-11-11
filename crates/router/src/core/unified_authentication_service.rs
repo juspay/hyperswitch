@@ -1649,11 +1649,11 @@ pub async fn authentication_sync_core(
 
             let config = db
                 .find_config_by_key_unwrap_or(
-                    &merchant_id.get_should_call_auth_tokenization(),
+                    &merchant_id.get_should_disable_auth_tokenization(),
                     Some("false".to_string()),
                 )
                 .await;
-            let should_tokenize_auth_token = match config {
+            let should_disable_auth_tokenization = match config {
                 Ok(conf) => conf.config == "true",
                 Err(error) => {
                     router_env::logger::error!(?error);
@@ -1661,7 +1661,9 @@ pub async fn authentication_sync_core(
                 }
             };
 
-            let vault_token_data = if should_tokenize_auth_token {
+            let vault_token_data = if should_disable_auth_tokenization {
+                utils::get_raw_authentication_token_data(&post_auth_response)
+            } else {
                 Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &merchant_context,
@@ -1669,8 +1671,6 @@ pub async fn authentication_sync_core(
                     &post_auth_response,
                 ))
                 .await?
-            } else {
-                utils::get_raw_authentication_token_data(&post_auth_response)
             };
 
             let auth_update_response = utils::external_authentication_update_trackers(

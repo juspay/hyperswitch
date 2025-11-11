@@ -10,7 +10,11 @@ use crate::{
     },
     routes::{metrics, SessionState},
     services,
-    types::{self, api as api_types, domain},
+    types::{
+        self,
+        api::{self as api_types, ConnectorCommon},
+        domain,
+    },
 };
 
 pub async fn create_access_token<F: Clone + 'static>(
@@ -43,8 +47,6 @@ pub async fn add_access_token_for_external_vault<F: Clone + 'static>(
     merchant_account: &domain::MerchantAccount,
     router_data: &VaultRouterData<F>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    use crate::types::api::ConnectorCommon;
-
     if connector
         .connector_name
         .supports_access_token_for_external_vault()

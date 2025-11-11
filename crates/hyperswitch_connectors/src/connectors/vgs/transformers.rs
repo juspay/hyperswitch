@@ -238,33 +238,32 @@ impl
         match item.data.request.payment_method_vaulting_data.clone() {
             Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
                 let multi_tokens = MultiVaultIdType::NetworkToken {
-                    network_token: get_token_from_response(
+                    tokenized_network_token: get_token_from_response(
                         &item.response.data,
                         &network_token_data.network_token.get_card_no(),
                     )
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "network_token",
                     })?,
-                    network_token_exp_year: get_token_from_response(
+                    tokenized_network_token_exp_year: get_token_from_response(
                         &item.response.data,
                         network_token_data.network_token_exp_year.peek(),
                     )
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "network_token_exp_year",
                     })?,
-                    network_token_exp_month: get_token_from_response(
+                    tokenized_network_token_exp_month: get_token_from_response(
                         &item.response.data,
                         network_token_data.network_token_exp_month.peek(),
                     )
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "network_token_exp_month",
                     })?,
-                    cryptogram: network_token_data
-                        .cryptogram
-                        .clone()
-                        .and_then(|cryptogram| {
+                    tokenized_cryptogram: network_token_data.cryptogram.clone().and_then(
+                        |cryptogram| {
                             get_token_from_response(&item.response.data, cryptogram.peek())
-                        }),
+                        },
+                    ),
                 };
 
                 Ok(Self {
@@ -287,7 +286,7 @@ impl
                 #[cfg(feature = "v1")]
                 {
                     let multi_tokens = MultiVaultIdType::Card {
-                        card_number: get_token_from_response(
+                        tokenized_card_number: get_token_from_response(
                             &item.response.data,
                             &card_data.card_number.get_card_no(),
                         )
@@ -296,7 +295,7 @@ impl
                                 field_name: "card_number",
                             },
                         )?,
-                        card_expiry_month: get_token_from_response(
+                        tokenized_card_expiry_month: get_token_from_response(
                             &item.response.data,
                             card_data.card_exp_month.peek(),
                         )
@@ -305,7 +304,7 @@ impl
                                 field_name: "card_expiry_month",
                             },
                         )?,
-                        card_expiry_year: get_token_from_response(
+                        tokenized_card_expiry_year: get_token_from_response(
                             &item.response.data,
                             card_data.card_exp_year.peek(),
                         )
@@ -314,7 +313,7 @@ impl
                                 field_name: "card_expiry_year",
                             },
                         )?,
-                        card_cvc: card_data.card_cvc.clone().and_then(|card_cvc| {
+                        tokenized_card_cvc: card_data.card_cvc.clone().and_then(|card_cvc| {
                             get_token_from_response(&item.response.data, card_cvc.peek())
                         }),
                     };
