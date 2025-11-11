@@ -72,6 +72,27 @@ pub async fn get_hypersense_fee_estimate(
         response
     );
 
+    let status = response.status();
+
+    // Handle 4xx responses with more specific api error mapping
+    if status.is_client_error() {
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "<failed to read response body>".to_string());
+        logger::warn!("Hypersense returned 4xx: status = {:?}, body = {}", status, body);
+
+        match status.as_u16() {
+            404 => {
+                // Not Found -> treat as invalid request URL
+                return Err(errors::ApiErrorResponse::InvalidRequestUrl.into());
+            }
+            _ => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData { message: body }.into());
+            }
+        }
+    }
+
     let data = response
         .json()
         .await
