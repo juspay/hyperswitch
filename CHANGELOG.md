@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.11.1
+
+### Features
+
+- **revenue_recovery:** Add account updater support in revenue recovery flow for worldpayvantiv connector ([#10112](https://github.com/juspay/hyperswitch/pull/10112)) ([`66ffd8a`](https://github.com/juspay/hyperswitch/commit/66ffd8a26c05ead26bf737029bd1fcadc451fb17))
+- **router:** Add is_split_payment field to payments response (v2) ([#10140](https://github.com/juspay/hyperswitch/pull/10140)) ([`cf6e5a1`](https://github.com/juspay/hyperswitch/commit/cf6e5a10bb481937ecf9ebee57981dc087305f4b))
+
+**Full Changelog:** [`2025.11.11.0...2025.11.11.1`](https://github.com/juspay/hyperswitch/compare/2025.11.11.0...2025.11.11.1)
+
+- - -
+
 ## 2025.11.11.0
 
 ### Features
