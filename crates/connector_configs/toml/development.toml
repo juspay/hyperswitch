@@ -7592,6 +7592,7 @@ options=["CRYPTOGRAM_3DS"]
 [[zift.debit]]
   payment_method_type = "CartesBancaires"
 [[zift.debit]]
+  payment_method_type = "UnionPay"
 [zift.connector_auth.SignatureKey]
 api_key="Username"
 api_secret="Password"
