@@ -451,8 +451,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
         | AttemptStatus::Authorized
-        | AttemptStatus::Charged
         | AttemptStatus::Authorizing
+        | AttemptStatus::Charged
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
         | AttemptStatus::VoidedPostCharge
@@ -461,8 +461,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AutoRefunded
         | AttemptStatus::PartialCharged
         | AttemptStatus::PartialChargedAndChargeable
-        | AttemptStatus::Unresolved
         | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending

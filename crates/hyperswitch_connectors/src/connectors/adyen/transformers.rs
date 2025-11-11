@@ -4118,6 +4118,7 @@ fn build_connector_response(
         None,
         None,
         Some(extend_authorization_response),
+        None,
     ))
 }
 
