@@ -342,7 +342,7 @@ struct CardSSL {
     card_holder_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cvc: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "CardAddress::is_empty_option")]
     card_address: Option<CardAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     purpose_of_payment_code: Option<String>,
@@ -351,16 +351,22 @@ struct CardSSL {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CardAddress {
-    address: WorldpayxmlAddress,
+    #[serde(skip_serializing_if = "WorldpayxmlAddress::is_empty_option")]
+    address: Option<WorldpayxmlAddress>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WorldpayxmlAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
     last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     country_code: Option<common_enums::CountryAlpha2>,
 }
 
@@ -1171,28 +1177,6 @@ impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for Payment
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        // let (card_network,purpose_of_payment_code) = match apple_pay_decrypted_data.card_network.map(|n| n.to_lowercase()).as_deref() {
-        //     Some("visa") => ("VisaSSL".to_string(), purpose_of_payment),
-        //     Some("mastercard") | Some("ecmc") => ("EcmcSSL".to_string(), purpose_of_payment),
-        //     _ => ("CardSSL".to_string(), None),
-        // };
-
-        // Ok(Self {
-        //     action: Some("REFUND".to_string()),
-        //     payment_method: PaymentMethod::card_network(CardSSL {
-        //         card_number: apple_pay_decrypted_data.dpan.clone(),
-        //         expiry_date: ExpiryDate {
-        //             date: Date {
-        //                 month: apple_pay_decrypted_data.get_card_expiry_month_2_digit()?,
-        //                 year: apple_pay_decrypted_data.get_expiry_year_4_digit(),
-        //             },
-        //         },
-        //         card_holder_name: apple_pay_decrypted_data.card_holder_name.to_owned(),
-        //         cvc: None,
-        //         card_address: address,
-        //         purpose_of_payment_code,
-        //     }),
-        // })
         let card_data = CardSSL {
             card_number: apple_pay_decrypted_data.dpan.clone(),
             expiry_date: ExpiryDate {
@@ -1292,13 +1276,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
         item: &WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let billing_details = Some(CardAddress {
-            address: WorldpayxmlAddress {
+            address: Some(WorldpayxmlAddress {
                 last_name: item.router_data.get_optional_billing_last_name(),
                 address1: item.router_data.get_optional_billing_line1(),
                 postal_code: item.router_data.get_optional_billing_zip(),
                 city: item.router_data.get_optional_billing_city(),
                 country_code: item.router_data.get_optional_billing_country(),
-            },
+            }),
         });
 
         let purpose_of_payment: WorldpayxmlPayoutConnectorMetadataObject =
@@ -1611,4 +1595,30 @@ pub fn map_purpose_code(value: Option<String>) -> Option<String> {
     };
 
     Some(code.to_string())
+}
+
+impl WorldpayxmlAddress {
+    fn is_empty(&self) -> bool {
+        self.last_name.is_none()
+            && self.address1.is_none()
+            && self.postal_code.is_none()
+            && self.city.is_none()
+            && self.country_code.is_none()
+    }
+
+    fn is_empty_option(addr: &Option<Self>) -> bool {
+        match addr {
+            Some(a) => a.is_empty(),
+            None => true,
+        }
+    }
+}
+
+impl CardAddress {
+    fn is_empty_option(addr: &Option<Self>) -> bool {
+        match addr {
+            Some(a) => WorldpayxmlAddress::is_empty_option(&a.address),
+            None => true,
+        }
+    }
 }
