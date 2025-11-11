@@ -7,7 +7,8 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE, crypto::{VerifySignature, HmacSha256},
+    consts::BASE64_ENGINE,
+    crypto::{HmacSha256, VerifySignature},
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -768,11 +769,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Payload {
-     fn get_webhook_source_verification_algorithm(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(HmacSha256))
     }
 
@@ -782,7 +782,7 @@ impl webhooks::IncomingWebhook for Payload {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-       Ok(request.body.to_vec())
+        Ok(request.body.to_vec())
     }
 
     fn get_webhook_source_verification_signature(
@@ -790,9 +790,11 @@ impl webhooks::IncomingWebhook for Payload {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-          let security_header_with_algo = utils::get_header_key_value("X-Payload-Signature", request.headers)?;
-          let security_header = security_header_with_algo.strip_prefix("sha256=")
-          .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let security_header_with_algo =
+            utils::get_header_key_value("X-Payload-Signature", request.headers)?;
+        let security_header = security_header_with_algo
+            .strip_prefix("sha256=")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         hex::decode(security_header)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
@@ -890,7 +892,7 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::ChargebackReversal
             | responses::PayloadWebhooksTrigger::TransactionOperation
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
-            Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)                 
+                Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)
             }
             responses::PayloadWebhooksTrigger::Refund => {
                 Box::new(responses::PayloadRefundResponse::try_from(webhook_body)?)
