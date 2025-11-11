@@ -126,6 +126,7 @@ mod vgs;
 mod volt;
 mod wellsfargo;
 mod worldpayvantiv;
+mod zift;
 // mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;

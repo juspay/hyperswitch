@@ -18,6 +18,8 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
@@ -2690,8 +2692,56 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let attempt_status = updated_payment_attempt.status;
 
+        let mandate_reference_id = response_router_data
+            .connector_response
+            .as_ref()
+            .and_then(|data| data.mandate_reference.as_ref())
+            .and_then(|mandate_ref| mandate_ref.connector_mandate_id.clone());
+
+        let updated_metadata_details = response_router_data
+            .connector_response
+            .as_ref()
+            .and_then(|data| data.mandate_reference.as_ref())
+            .and_then(|mandate_ref| mandate_ref.mandate_metadata.clone());
+
+        let updated_metadata_info = updated_metadata_details
+            .map(|data| {
+                serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(
+                    data.peek().clone(),
+                )
+            })
+            .transpose()
+            .inspect_err(|e| {
+                logger::error!(
+                    "Failed to deserialize UpdatedMandateDetails from mandate metadata: {:?}",
+                    e
+                );
+            })
+            .ok()
+            .flatten();
+
+        let mandate_data_updated = match updated_metadata_info {
+            Some(data) => Some(api_models::payments::MandateIds {
+                mandate_id: None,
+                mandate_reference_id: Some(
+                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        api_models::payments::ConnectorMandateReferenceId::new(
+                            mandate_reference_id,
+                            None,
+                            None,
+                            None,
+                            None,
+                            Some(data),
+                        ),
+                    ),
+                ),
+            }),
+            None => payment_data.mandate_data,
+        };
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+        payment_data.mandate_data = mandate_data_updated;
 
         if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
@@ -3169,6 +3219,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
                 None,
                 mandate_metadata,
                 connector_mandate_request_reference_id,
+                None,
             ))
         }
     } else {

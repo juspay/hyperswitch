@@ -1881,6 +1881,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization,
             enable_overcapture: None,
             mit_category: None,
+            billing_descriptor: None,
         })
     }
     async fn convert_back(
@@ -2222,6 +2223,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
         })
     }
 
@@ -2332,6 +2334,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
+                billing_descriptor: storage_model.billing_descriptor,
             })
         }
         .await
@@ -2414,6 +2417,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
         })
     }
 }

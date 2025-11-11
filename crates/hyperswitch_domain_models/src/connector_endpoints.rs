@@ -2,7 +2,6 @@
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
 use masking::Secret;
-use router_derive;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -147,6 +146,7 @@ pub struct Connectors {
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
     pub worldpayxml: ConnectorParams,
     pub xendit: ConnectorParams,
+    pub zift: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
 }
