@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.11.0
+
+### Features
+
+- **connector:** [ADYEN] send platform_chargeback_logic in metadata ([#10175](https://github.com/juspay/hyperswitch/pull/10175)) ([`484305e`](https://github.com/juspay/hyperswitch/commit/484305e6a4606f409fa74fc852cd924b00a5fabb))
+- **feature:** [Zift] Add Cards Support ([#10171](https://github.com/juspay/hyperswitch/pull/10171)) ([`e5f32f1`](https://github.com/juspay/hyperswitch/commit/e5f32f1a5779970402def9ae468e72e943b821d4))
+- **framework:** Add Smithy Annotations for Payments and Refunds Payloads ([#9911](https://github.com/juspay/hyperswitch/pull/9911)) ([`7518168`](https://github.com/juspay/hyperswitch/commit/751816810b83197fa27a5c926e2a7d7af9cdc58b))
+- **global_search:** Add payouts configuration and update related structures in OpenSearch ([#10081](https://github.com/juspay/hyperswitch/pull/10081)) ([`5fb8b46`](https://github.com/juspay/hyperswitch/commit/5fb8b46d049cf3ad2b282842cd06c739cdcbb443))
+- **payouts:** Add payout report generation endpoints and configuration ([#10073](https://github.com/juspay/hyperswitch/pull/10073)) ([`4174929`](https://github.com/juspay/hyperswitch/commit/4174929beab17ef7eaae961cb331a9d83934b990))
+- **routing:** Validation for configs ([#10133](https://github.com/juspay/hyperswitch/pull/10133)) ([`0e287d7`](https://github.com/juspay/hyperswitch/commit/0e287d752135729316c6937b025c3b0fe9a0b394))
+
+### Bug Fixes
+
+- **connector:** Remove card holder name as required field in sdk [ADYEN] ([#10148](https://github.com/juspay/hyperswitch/pull/10148)) ([`8e5084d`](https://github.com/juspay/hyperswitch/commit/8e5084d303b8c219695a433628d3ef45d1521119))
+- **routing:** Add field length validation for the routing config name field ([#9575](https://github.com/juspay/hyperswitch/pull/9575)) ([`735259f`](https://github.com/juspay/hyperswitch/commit/735259f5201bb7a28986aae4ebc54f8b27519180))
+
+### Refactors
+
+- **payment-methods:** Add support to avoid duplication while adding card to ext vault and add resource locking for payment methods for concurrent requests ([#9963](https://github.com/juspay/hyperswitch/pull/9963)) ([`38941d2`](https://github.com/juspay/hyperswitch/commit/38941d26c3268f51114da2a81e6032573ef30e30))
+
+**Full Changelog:** [`2025.11.10.0...2025.11.11.0`](https://github.com/juspay/hyperswitch/compare/2025.11.10.0...2025.11.11.0)
+
+- - -
+
 ## 2025.11.10.0
 
 ### Features
