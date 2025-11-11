@@ -239,4 +239,12 @@ impl MerchantId {
     pub fn get_should_perform_eligibility_check_key(&self) -> String {
         format!("should_perform_eligibility_{}", self.get_string_repr())
     }
+
+    /// Get should store eligibility check data for authentication
+    pub fn get_should_store_eligibility_check_data_for_authentication(&self) -> String {
+        format!(
+            "should_store_eligibility_check_data_for_authentication_{}",
+            self.get_string_repr()
+        )
+    }
 }

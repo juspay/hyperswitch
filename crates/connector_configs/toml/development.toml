@@ -7196,115 +7196,11 @@ label="Client Merchant Reference Id"
 placeholder="Enter Client Merchant Reference Id"
 required=true
 type="Text"
-[peachpayments.metadata.name]
-name="name"
-label="Merchant Name"
-placeholder="Enter Merchant Name"
+[peachpayments.metadata.merchant_payment_method_route_id]
+name="merchant_payment_method_route_id"
+label="Merchant Payment Method Route Id"
+placeholder="Enter Merchant Payment Method Route Id"
 required=true
-type="Text"
-[peachpayments.metadata.mcc]
-name="mcc"
-label="Merchant Category Code"
-placeholder="Enter MCC (e.g., 5411)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_phone]
-name="merchant_phone"
-label="Merchant Phone"
-placeholder="Enter merchant phone (e.g., +27123456789)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_email]
-name="merchant_email"
-label="Merchant Email"
-placeholder="Enter merchant email"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_mobile]
-name="merchant_mobile"
-label="Merchant Mobile"
-placeholder="Enter merchant mobile (e.g., +27123456789)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_address]
-name="merchant_address"
-label="Merchant Address"
-placeholder="Enter merchant address"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_city]
-name="merchant_city"
-label="Merchant City"
-placeholder="Enter merchant city"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_postal_code]
-name="merchant_postal_code"
-label="Merchant Postal Code"
-placeholder="Enter postal code"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_region_code]
-name="merchant_region_code"
-label="Merchant Region Code"
-placeholder="Enter region code (e.g., WC)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_type]
-name="merchant_type"
-label="Merchant Type"
-placeholder="Select merchant type"
-required=true
-type="Select"
-options=["direct", "sub"]
-[peachpayments.metadata.merchant_website]
-name="merchant_website"
-label="Merchant Website"
-placeholder="Enter merchant website URL"
-required=true
-type="Text"
-[peachpayments.metadata.mid]
-name="mid"
-label="Routing MID"
-placeholder="Enter routing MID"
-required=true
-type="Text"
-[peachpayments.metadata.tid]
-name="tid"
-label="Routing TID"
-placeholder="Enter routing TID"
-required=true
-type="Text"
-[peachpayments.metadata.route]
-name="route"
-label="Routing Route"
-placeholder="Select routing route"
-required=true
-type="Select"
-options=["cardgateway_emulator", "exipay_emulator", "absa_base24", "nedbank_postbridge"]
-[peachpayments.metadata.amex_id]
-name="amex_id"
-label="AmEx ID"
-placeholder="Enter AmEx ID for routing"
-required=false
-type="Text"
-[peachpayments.metadata.sub_mid]
-name="sub_mid"
-label="Sub Mid"
-placeholder="Enter Sub Mid"
-required=false
-type="Text"
-[peachpayments.metadata.visa_payment_facilitator_id]
-name="visa_payment_facilitator_id"
-label="Visa Payment Facilitator Id"
-placeholder="Enter Visa Payment Facilitator Id"
-required=false
-type="Text"
-[peachpayments.metadata.mastercard_payment_facilitator_id]
-name="mastercard_payment_facilitator_id"
-label="mastercard Payment Facilitator Id"
-placeholder="Enter mastercard Payment Facilitator Id"
-required=false
 type="Text"
 
 [tokenex]
@@ -7661,8 +7557,45 @@ type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
 [zift]
-[zift.connector_auth.HeaderKey]
-api_key = "API Key"
+[[zift.credit]]
+  payment_method_type = "Mastercard"
+[[zift.credit]]
+  payment_method_type = "Visa"
+[[zift.credit]]
+  payment_method_type = "Interac"
+[[zift.credit]]
+  payment_method_type = "AmericanExpress"
+[[zift.credit]]
+  payment_method_type = "JCB"
+[[zift.credit]]
+  payment_method_type = "DinersClub"
+[[zift.credit]]
+  payment_method_type = "Discover"
+[[zift.credit]]
+  payment_method_type = "CartesBancaires"
+[[zift.credit]]
+  payment_method_type = "UnionPay"
+[[zift.debit]]
+  payment_method_type = "Mastercard"
+[[zift.debit]]
+  payment_method_type = "Visa"
+[[zift.debit]]
+  payment_method_type = "Interac"
+[[zift.debit]]
+  payment_method_type = "AmericanExpress"
+[[zift.debit]]
+  payment_method_type = "JCB"
+[[zift.debit]]
+  payment_method_type = "DinersClub"
+[[zift.debit]]
+  payment_method_type = "Discover"
+[[zift.debit]]
+  payment_method_type = "CartesBancaires"
+[[zift.debit]]
+[zift.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Account ID"
 
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]

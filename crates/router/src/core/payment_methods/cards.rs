@@ -1641,18 +1641,23 @@ pub async fn update_customer_payment_method(
     merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
+
+    pm_data: Option<domain::PaymentMethod>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodUpdateResponse> {
     let db = state.store.as_ref();
 
-    let pm = db
-        .find_payment_method(
+    let pm = if let Some(pm) = pm_data {
+        pm
+    } else {
+        db.find_payment_method(
             &((&state).into()),
             merchant_context.get_merchant_key_store(),
             payment_method_id,
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    };
 
     if let Some(cs) = &req.client_secret {
         let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
@@ -1777,8 +1782,12 @@ pub async fn update_customer_payment_method(
             // Construct new updated card object. Consider a field if passed in request or else populate it with the existing value from existing_card_data
             let updated_card = Some(api::CardDetailFromLocker {
                 scheme: existing_card_data.scheme,
-                last4_digits: Some(card_data_from_locker.card_number.get_last4()),
-                issuer_country: existing_card_data.issuer_country,
+                last4_digits: card_update
+                    .last4_digits
+                    .or(Some(card_data_from_locker.card_number.get_last4())),
+                issuer_country: card_update
+                    .issuer_country
+                    .or(existing_card_data.issuer_country),
                 card_number: existing_card_data.card_number,
                 expiry_month: card_update
                     .card_exp_month
@@ -1790,9 +1799,9 @@ pub async fn update_customer_payment_method(
                     .card_holder_name
                     .or(existing_card_data.card_holder_name),
                 nick_name: card_update.nick_name.or(existing_card_data.nick_name),
-                card_network: existing_card_data.card_network,
+                card_network: card_update.card_network.or(existing_card_data.card_network),
                 card_isin: existing_card_data.card_isin,
-                card_issuer: existing_card_data.card_issuer,
+                card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
                 saved_to_locker: true,
             });

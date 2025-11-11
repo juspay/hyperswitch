@@ -777,20 +777,36 @@ pub struct MigrateNetworkTokenDetail {
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
+    #[schema(value_type = String, example = "10")]
     pub card_exp_month: Option<masking::Secret<String>>,
 
     /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
+    #[schema(value_type = String, example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
 
     /// Card Holder Name
-    #[schema(value_type = String,example = "John Doe")]
+    #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
-    #[schema(value_type = Option<String>,example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card's Last 4 Digits
+    #[schema(value_type = Option<String>, example = "1111")]
+    pub last4_digits: Option<String>,
+
+    /// Issuing Bank of the Particular Card
+    #[schema(value_type = Option<String>, example = "Bank of America")]
+    pub card_issuer: Option<String>,
+
+    /// The country where that particular card was issued
+    #[schema(value_type = Option<String>, example = "US")]
+    pub issuer_country: Option<String>,
+
+    /// The card network
+    #[schema(value_type = Option<String>, example = "VISA")]
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "v1")]
@@ -1356,6 +1372,16 @@ pub struct NetworkTokenResponse {
 
 fn saved_in_locker_default() -> bool {
     true
+}
+
+#[cfg(feature = "v1")]
+impl PartialEq for CardDetailFromLocker {
+    fn eq(&self, other: &Self) -> bool {
+        self.last4_digits == other.last4_digits
+            && self.expiry_month == other.expiry_month
+            && self.expiry_year == other.expiry_year
+            && self.card_isin == other.card_isin
+    }
 }
 
 #[cfg(feature = "v1")]

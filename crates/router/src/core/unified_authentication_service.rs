@@ -1,22 +1,30 @@
 pub mod types;
 use std::str::FromStr;
 
+use common_utils::ext_traits::StringExt;
+
 pub mod utils;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
+    AuthenticationEligibilityCheckData, AuthenticationEligibilityCheckRequest,
+    AuthenticationEligibilityCheckResponse, AuthenticationEligibilityCheckResponseData,
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
+    AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest, AuthenticationSyncResponse,
+    ClickToPayEligibilityCheckResponseData,
 };
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSessionTokenRequest,
+        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSdkNextAction,
+        AuthenticationSessionTokenRequest,
     },
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
 use common_utils::{
-    ext_traits::ValueExt, types::keymanager::ToEncryptable, types::AmountConvertor,
+    errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
+    types::AmountConvertor,
 };
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -1431,6 +1439,250 @@ pub async fn authentication_authenticate_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
+    ))
+}
+
+// Trait for Eligibility Checks
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+trait EligibilityCheck {
+    type Output;
+
+    // Determine if the check should be run based on the runtime checks
+    async fn should_run(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+    ) -> CustomResult<bool, ApiErrorResponse>;
+
+    // Run the actual check and return the SDK Next Action if applicable
+    async fn execute_check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
+    ) -> CustomResult<Self::Output, ApiErrorResponse>;
+
+    fn transform(output: Self::Output) -> Option<AuthenticationSdkNextAction>;
+}
+
+// Result of an Eligibility Check
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone)]
+pub enum CheckResult {
+    Allow,
+    Deny { message: String },
+    Await,
+}
+
+#[cfg(feature = "v1")]
+impl From<CheckResult> for Option<AuthenticationSdkNextAction> {
+    fn from(result: CheckResult) -> Self {
+        match result {
+            CheckResult::Allow => None,
+            CheckResult::Deny { message } => Some(AuthenticationSdkNextAction::Deny { message }),
+            CheckResult::Await => Some(AuthenticationSdkNextAction::AwaitMerchantCallback),
+        }
+    }
+}
+
+// Perform StoreEligibilityCheckData for the authentication
+#[cfg(feature = "v1")]
+struct StoreEligibilityCheckData;
+
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+impl EligibilityCheck for StoreEligibilityCheckData {
+    type Output = CheckResult;
+
+    async fn should_run(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+    ) -> CustomResult<bool, ApiErrorResponse> {
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let should_store_eligibility_check_data_key =
+            merchant_id.get_should_store_eligibility_check_data_for_authentication();
+        let should_store_eligibility_check_data = state
+            .store
+            .find_config_by_key_unwrap_or(
+                &should_store_eligibility_check_data_key,
+                Some("false".to_string()),
+            )
+            .await;
+
+        Ok(match should_store_eligibility_check_data {
+            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+
+            // If it is not present in db we are defaulting it to false
+            Err(inner) => {
+                if !inner.current_context().is_db_not_found() {
+                    router_env::logger::error!(
+                        "Error fetching should store eligibility check data enabled config {:?}",
+                        inner
+                    );
+                }
+                false
+            }
+        })
+    }
+
+    async fn execute_check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
+    ) -> CustomResult<CheckResult, ApiErrorResponse> {
+        let redis = &state
+            .store
+            .get_redis_conn()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let key = format!(
+            "{}_{}_{}",
+            consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+            merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_string_repr(),
+            authentication_eligibility_check_request
+                .authentication_id
+                .get_string_repr()
+        );
+        redis
+            .serialize_and_set_key_with_expiry(
+                &key.as_str().into(),
+                &authentication_eligibility_check_request.eligibility_check_data,
+                consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL,
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to set key in redis")?;
+        Ok(CheckResult::Await)
+    }
+
+    fn transform(output: CheckResult) -> Option<AuthenticationSdkNextAction> {
+        output.into()
+    }
+}
+
+// Eligibility handler to run all the eligibility checks
+#[cfg(feature = "v1")]
+pub struct EligibilityHandler {
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+}
+
+#[cfg(feature = "v1")]
+impl EligibilityHandler {
+    fn new(
+        state: SessionState,
+        merchant_context: domain::MerchantContext,
+        authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+    ) -> Self {
+        Self {
+            state,
+            merchant_context,
+            authentication_eligibility_check_request,
+        }
+    }
+
+    async fn run_check<C: EligibilityCheck>(
+        &self,
+        check: C,
+    ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
+        let should_run = check
+            .should_run(&self.state, &self.merchant_context)
+            .await?;
+        Ok(match should_run {
+            true => check
+                .execute_check(
+                    &self.state,
+                    &self.merchant_context,
+                    &self.authentication_eligibility_check_request,
+                )
+                .await
+                .map(C::transform)?,
+            false => None,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationEligibilityCheckRequest,
+    _auth_flow: AuthFlow,
+) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
+    let authentication_id = req.authentication_id.clone();
+    let eligibility_handler = EligibilityHandler::new(state, merchant_context, req);
+    // Run the checks in sequence, short-circuiting on the first that returns a next action
+    let sdk_next_action = eligibility_handler
+        .run_check(StoreEligibilityCheckData)
+        .await?
+        .unwrap_or(AuthenticationSdkNextAction::Proceed);
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationEligibilityCheckResponse {
+            authentication_id,
+            sdk_next_action,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_retrieve_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationRetrieveEligibilityCheckRequest,
+) -> RouterResponse<AuthenticationRetrieveEligibilityCheckResponse> {
+    let redis = &state
+        .store
+        .get_redis_conn()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "{}_{}_{}",
+        consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        req.authentication_id.get_string_repr()
+    );
+    let eligibility_check_data: AuthenticationEligibilityCheckData = redis
+        .get_key::<String>(&key.as_str().into())
+        .await
+        .change_context(ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Eligibility check data not found for authentication id: {}",
+                req.authentication_id.get_string_repr()
+            ),
+        })
+        .attach_printable("Failed to get key from redis")?
+        .parse_struct("PaymentTokenData")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize eligibility check data")?;
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationRetrieveEligibilityCheckResponse {
+            authentication_id: req.authentication_id,
+            eligibility_check_data:
+                AuthenticationEligibilityCheckResponseData::ClickToPayEnrollmentStatus(
+                    ClickToPayEligibilityCheckResponseData {
+                        visa: eligibility_check_data
+                            .get_click_to_pay_data()
+                            .and_then(|data| data.visa.clone().map(|visa| visa.consumer_present)),
+                        mastercard: eligibility_check_data.get_click_to_pay_data().and_then(
+                            |data| {
+                                data.mastercard
+                                    .clone()
+                                    .map(|mastercard| mastercard.consumer_present)
+                            },
+                        ),
+                    },
+                ),
+        },
     ))
 }
 

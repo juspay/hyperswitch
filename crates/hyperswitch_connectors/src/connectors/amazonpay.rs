@@ -13,7 +13,6 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use hex;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData as WalletDataPaymentMethod},
     router_data::{AccessToken, ErrorResponse, RouterData},
