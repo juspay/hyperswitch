@@ -348,7 +348,7 @@ pub mod core {
         // Extract values for metrics before moving request
         let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
         let http_method_str = format!("{:?}", request.connection_config.http_method);
-        
+
         // Extract endpoint host for dimension (privacy-friendly)
         let endpoint_host = request
             .connection_config
