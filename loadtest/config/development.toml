@@ -207,7 +207,7 @@ tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
-trustpayments.base_url = "https://webservices.securetrading.net/"
+trustpayments.base_url = "https://webservices.securetrading.net"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
@@ -707,6 +707,13 @@ apple_pay = { currency = "USD, CAD" }
 
 [pm_filters.payjustnow]
 payjustnow = { country = "ZA", currency = "ZAR" }
+
+[pm_filters.trustpayments]
+eps = {currency = "EUR"}
+paysera = {currency = "EUR"}
+trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
+ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
+
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

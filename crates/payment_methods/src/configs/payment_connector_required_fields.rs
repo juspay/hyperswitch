@@ -1748,6 +1748,30 @@ fn get_bank_redirect_required_fields(
                         common: HashMap::new(),
                     },
                 ),
+                (
+                    Connector::Trustpayments,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingAddressCountries(vec![
+                                "DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT",
+                                "SE", "SK",
+                            ])
+                            .to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (
@@ -2273,6 +2297,26 @@ fn get_bank_redirect_required_fields(
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([
                             RequiredField::Email.to_tuple(),
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["AT"]).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+                (
+                    Connector::Trustpayments,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
                             RequiredField::BillingFirstName(
                                 "billing_first_name",
                                 FieldType::UserBillingName,

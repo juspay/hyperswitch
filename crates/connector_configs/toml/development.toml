@@ -6914,10 +6914,18 @@ key1 = "API Secret"
   payment_method_type = "Mastercard"
 [[trustpayments.debit]]
   payment_method_type = "Visa"
-[trustpayments.connector_auth.HeaderKey]
+[[trustpayments.bank_redirect]]
+  payment_method_type = "eps"
+[[trustpayments.bank_redirect]]
+  payment_method_type = "trustly"
+[[trustpayments.wallet]]
+  payment_method_type = "ali_pay"
+[[trustpayments.wallet]]
+  payment_method_type = "paysera"
+[trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
-[trustpayments.connector_webhook_details]
-merchant_secret = "Source verification key"
+key1 = "Password"
+api_secret = "API Secret"
 
 
 [breadpay]
@@ -7604,3 +7612,4 @@ key1 = "Merchant Account Id"
 
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
+
