@@ -647,10 +647,8 @@ impl PaymentAttempt {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 
-        let mut attempt_amount_details =
-            intent_amount_details.create_attempt_amount_details(request);
-
-        attempt_amount_details.net_amount = split_amount;
+        let attempt_amount_details =
+            intent_amount_details.create_split_attempt_amount_details(request, split_amount);
 
         let now = common_utils::date_time::now();
 

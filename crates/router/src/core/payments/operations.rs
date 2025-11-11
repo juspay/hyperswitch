@@ -231,17 +231,17 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers_for_split_payments<'a>(
         &'a self,
-        state: &'a SessionState,
-        payment_id: &common_utils::id_type::GlobalPaymentId,
-        request: &R,
-        merchant_context: &domain::MerchantContext,
-        profile: &domain::Profile,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        split_amount_data: (
+        _state: &'a SessionState,
+        _payment_id: &common_utils::id_type::GlobalPaymentId,
+        _request: &R,
+        _merchant_context: &domain::MerchantContext,
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _split_amount_data: (
             api_models::payments::PaymentMethodData,
             common_utils::types::MinorUnit,
         ),
-        attempts_group_id: &common_utils::id_type::GlobalAttemptGroupId,
+        _attempts_group_id: &common_utils::id_type::GlobalAttemptGroupId,
     ) -> RouterResult<GetTrackerResponse<D>> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: errors::NotImplementedMessage::Default,

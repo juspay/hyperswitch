@@ -1156,7 +1156,7 @@ diesel::table! {
         split_txns_enabled -> Nullable<Varchar>,
         #[max_length = 64]
         active_attempts_group_id -> Nullable<Varchar>,
-        #[max_length = 32]
+        #[max_length = 16]
         active_attempt_id_type -> Nullable<Varchar>,
     }
 }

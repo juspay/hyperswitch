@@ -65,18 +65,22 @@ impl SplitPaymentResponseData {
 
 /// This function has been written to support multiple gift cards + at most one non-gift card
 /// payment method.
-async fn get_payment_method_and_amount_split(
+async fn get_payment_method_amount_split(
     state: &SessionState,
     payment_id: &id_type::GlobalPaymentId,
     request: &payments_api::PaymentsConfirmIntentRequest,
     payment_intent: &PaymentIntent,
 ) -> RouterResult<split_payments::PaymentMethodAmountSplit> {
-    let split_payment_methods_data = request.split_payment_method_data.clone().ok_or(
+    // This function is called inside split payments flow, so its mandatory to have split_payment_method_data
+    let split_payment_method_data = request.split_payment_method_data.clone().ok_or(
         errors::ApiErrorResponse::MissingRequiredField {
             field_name: "split_payment_method_data",
         },
     )?;
 
+    // The primary/secondary payment method distinction is decided on the backend. Its irrelevant whether a payment_method
+    // is received in the top level `payment_method_data` field or inside `split_payment_method_data`
+    // Add the outer payment_method_data to the PMs inside split_payment_method_data to create a combined Vec and then segregate.
     let payment_method_data = SplitPaymentMethodDataRequest {
         payment_method_data: request
             .payment_method_data
@@ -89,7 +93,7 @@ async fn get_payment_method_and_amount_split(
         payment_method_subtype: request.payment_method_subtype,
     };
 
-    let combined_pm_data: Vec<_> = split_payment_methods_data
+    let combined_pm_data: Vec<_> = split_payment_method_data
         .into_iter()
         .chain(std::iter::once(payment_method_data))
         .collect();
@@ -138,6 +142,7 @@ async fn get_payment_method_and_amount_split(
         .iter()
         .fold(MinorUnit::zero(), |acc, x| acc + x.1.balance);
 
+    // TODO: Add surcharge calculation when it is added in v2
     let total_amount = payment_intent.amount_details.calculate_net_amount();
 
     let remaining_amount = (total_amount - total_balances).max(MinorUnit::zero());
@@ -231,6 +236,8 @@ pub(crate) async fn split_payments_execute_core(
 
     let attempts_group_id = id_type::GlobalAttemptGroupId::generate(&cell_id);
 
+    // Change the active_attempt_id_type of PaymentIntent to `GroupID`. This indicates that the customer
+    // has attempted a split payment for this intent
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::AttemptGroupUpdate {
             updated_by: merchant_context
@@ -254,7 +261,7 @@ pub(crate) async fn split_payments_execute_core(
         .attach_printable("Unable to update payment intent")?;
 
     let pm_amount_split =
-        get_payment_method_and_amount_split(&state, &payment_id, &request, &payment_intent).await?;
+        get_payment_method_amount_split(&state, &payment_id, &request, &payment_intent).await?;
 
     let (
         primary_pm_response,
@@ -262,6 +269,8 @@ pub(crate) async fn split_payments_execute_core(
         external_latency,
         connector_response_data,
     ) = {
+        // If a non-balance Payment Method is present, we will execute that first, otherwise we will execute
+        // a balance Payment Method
         let (payment_method_data, amount) = pm_amount_split
             .non_balance_pm_split
             .clone()
@@ -347,6 +356,9 @@ pub(crate) async fn split_payments_execute_core(
         secondary_payment_response_data: vec![],
     };
 
+    // We have executed the primary payment method, now get a vector of the secondary payment methods
+    // If we had a non-balance payment method, it was executed first, so the remaining ones are the balance PMs
+    // otherwise the first balance payment method was executed, so remove it from the remaining PMs
     let remaining_pm_amount_split = if pm_amount_split.non_balance_pm_split.is_some() {
         pm_amount_split.balance_pm_split
     } else {
@@ -381,9 +393,9 @@ pub(crate) async fn split_payments_execute_core(
             payment_data,
             _req,
             _customer,
-            connector_http_status_code,
-            external_latency,
-            connector_response_data,
+            _connector_http_status_code,
+            _external_latency,
+            _connector_response_data,
         ) = Box::pin(payments_operation_core(
             &state,
             req_state.clone(),
