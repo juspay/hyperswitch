@@ -745,11 +745,7 @@ pub trait Authenticate {
         None
     }
 
-    fn is_external_three_ds_data_passed_by_merchant(
-        &self,
-        _connector_details: &ConnectorCallType,
-    ) -> () {
-        ()
+    fn is_external_three_ds_data_passed_by_merchant(&self, _connector_details: &ConnectorCallType) {
     }
 }
 
@@ -777,10 +773,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         self.all_keys_required
     }
 
-    fn is_external_three_ds_data_passed_by_merchant(
-        &self,
-        connector_details: &ConnectorCallType,
-    ) -> () {
+    fn is_external_three_ds_data_passed_by_merchant(&self, connector_details: &ConnectorCallType) {
         let maybe_connector_enum = match &connector_details {
             ConnectorCallType::PreDetermined(connector_data) => {
                 Some(connector_data.connector_data.connector_name)
