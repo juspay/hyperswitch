@@ -719,14 +719,12 @@ impl ConnectorAccessTokenSuffix for ConnectorEnum {
         merchant_connector_id_or_connector_name: String,
     ) -> CustomResult<String, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_access_token_key(
-                router_data,
-                merchant_connector_id_or_connector_name,
-            ),
-            Self::New(connector) => connector.get_access_token_key(
-                router_data,
-                merchant_connector_id_or_connector_name,
-            ),
+            Self::Old(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
         }
     }
 }
