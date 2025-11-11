@@ -1190,6 +1190,7 @@ pub async fn save_in_locker_external(
             &payment_method_vaulting_data,
             merchant_context.get_merchant_account(),
             merchant_connector_account_details,
+            None,
         ))
         .await?;
 

@@ -409,6 +409,7 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                         &vault_data,
                         merchant_context.get_merchant_account(),
                         merchant_connector_account_details,
+                        Some(true),
                     ),
                 )
                 .await?;

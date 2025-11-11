@@ -1,6 +1,7 @@
-#[cfg(not(feature = "v1"))]
-use common_utils::ext_traits::Encode;
-use common_utils::{ext_traits::StringExt, types::StringMinorUnit};
+use common_utils::{
+    ext_traits::{Encode, StringExt},
+    types::StringMinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -31,7 +32,6 @@ impl<T> From<(StringMinorUnit, T)> for VgsRouterData<T> {
 }
 
 const VGS_FORMAT: &str = "UUID";
-#[cfg(not(feature = "v1"))]
 const VGS_CLASSIFIER: &str = "data";
 
 #[derive(Debug, Serialize)]
@@ -59,8 +59,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
             Some(PaymentMethodVaultingData::Card(req_card)) => {
-                #[cfg(feature = "v1")]
-                {
+                if item.request.should_generate_multiple_tokens == Some(true) {
                     let mut data = vec![
                         VgsTokenRequestItem {
                             value: Secret::new(req_card.card_number.get_card_no()),
@@ -92,9 +91,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                     }
 
                     Ok(Self { data })
-                }
-                #[cfg(not(feature = "v1"))]
-                {
+                } else {
                     let stringified_card = req_card
                         .encode_to_string_of_json()
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -283,8 +280,7 @@ impl
                 })
             }
             Some(PaymentMethodVaultingData::Card(card_data)) => {
-                #[cfg(feature = "v1")]
-                {
+                if item.data.request.should_generate_multiple_tokens == Some(true) {
                     let multi_tokens = MultiVaultIdType::Card {
                         tokenized_card_number: get_token_from_response(
                             &item.response.data,
@@ -333,9 +329,7 @@ impl
                         }),
                         ..item.data
                     })
-                }
-                #[cfg(not(feature = "v1"))]
-                {
+                } else {
                     let vgs_alias = item
                         .response
                         .data

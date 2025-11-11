@@ -1463,6 +1463,7 @@ pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub should_generate_multiple_tokens: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone)]

@@ -2321,6 +2321,7 @@ pub async fn vault_payment_method_external(
         Some(pmd.clone()),
         None,
         None,
+        None,
     )
     .await?;
 
@@ -2368,6 +2369,7 @@ pub async fn vault_payment_method_external_v1(
     pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let router_data = core_utils::construct_vault_router_data(
         state,
@@ -2376,6 +2378,7 @@ pub async fn vault_payment_method_external_v1(
         Some(pmd.clone()),
         None,
         None,
+        should_generate_multiple_tokens,
     )
     .await?;
 
