@@ -3237,44 +3237,7 @@ pub async fn payment_check_gift_card_balance(
         }
     };
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        internal_payload,
-        |state, auth: auth::AuthenticationData, req, req_state| async {
-            let payment_id = req.global_payment_id;
-            let request = req.payload;
-
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            Box::pin(
-                payment_method_balance::payments_check_gift_card_balance_core(
-                    state,
-                    merchant_context,
-                    auth.profile,
-                    req_state,
-                    request,
-                    header_payload.clone(),
-                    payment_id,
-                ),
-            )
-            .await
-        },
-        auth::api_or_client_auth(
-            &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-                global_payment_id,
-            )),
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    todo!()
 }
 
 #[cfg(feature = "v2")]
@@ -3307,13 +3270,16 @@ pub async fn payments_apply_pm_data(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(payment_method_balance::payments_apply_pm_data_core(
-                state,
-                merchant_context,
-                req_state,
-                request,
-                payment_id,
-            ))
+            Box::pin(
+                payment_method_balance::payments_check_and_apply_pm_data_core(
+                    state,
+                    merchant_context,
+                    auth.profile,
+                    req_state,
+                    request,
+                    payment_id,
+                ),
+            )
             .await
         },
         auth::api_or_client_auth(

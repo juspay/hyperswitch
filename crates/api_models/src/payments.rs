@@ -3528,7 +3528,27 @@ pub struct ApplyPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentMethodBalanceApi {
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodBalanceCheckEligibility {
+    Success(PaymentMethodBalanceApi),
+    Failure(String),
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct BalanceCheckResponseItem {
+    pub payment_method_data: BalanceCheckPaymentMethodData,
+    pub eligibility: PaymentMethodBalanceCheckEligibility,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataResponse {
+    pub balances: Vec<BalanceCheckResponseItem>,
     pub remaining_amount: MinorUnit,
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,

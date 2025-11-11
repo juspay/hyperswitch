@@ -798,7 +798,7 @@ impl Payments {
                         ),
                 )
                 .service(
-                    web::resource("/apply-payment-method-data")
+                    web::resource("/eligibility/check-and-apply-pm-data")
                         .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
