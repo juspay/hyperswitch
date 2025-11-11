@@ -372,17 +372,10 @@ pub mod core {
         metrics::INJECTOR_REQUEST_TIME.record(request_duration.as_secs_f64(), base_attributes);
 
         // Track success/failure metrics
-        match &result {
-            Ok(_) => {
-                // Success metrics are tracked in the individual injector_core method
-            }
-            Err(e) => {
-                logger::error!("Injector core failed: {:?}", e);
-                metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(1, base_attributes);
-            }
-        }
-
-        result
+        result.inspect_err(|e| {
+            logger::error!("Injector core failed: {:?}", e);
+            metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(1, base_attributes);
+        })
     }
 
     /// Represents a token reference found in a template string
