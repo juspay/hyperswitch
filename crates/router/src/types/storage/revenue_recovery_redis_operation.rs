@@ -253,29 +253,6 @@ impl RedisTokenManager {
         Ok(payment_processor_token_info_map)
     }
 
-    /// Gets the retry history for the customer
-    pub async fn get_connector_customer_retry_history(
-        state: &SessionState,
-        connector_customer_id: &str,
-    ) -> CustomResult<HashMap<String, HashMap<Date, i32>>, errors::StorageError> {
-        let payment_processor_tokens =
-            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
-                .await?;
-
-        // Extract only the retry history for each token
-        let retry_history_map = payment_processor_tokens
-            .into_iter()
-            .map(|(token_id, token_status)| (token_id, token_status.daily_retry_history))
-            .collect();
-
-        tracing::debug!(
-            connector_customer_id = connector_customer_id,
-            "Extracted retry history for payment processor tokens"
-        );
-
-        Ok(retry_history_map)
-    }
-
     /// Find the most recent date from retry history
     pub fn find_nearest_date_from_current(
         retry_history: &HashMap<Date, i32>,

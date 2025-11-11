@@ -1384,7 +1384,7 @@ job_schedule_buffer_time_in_seconds = 3600
 reopen_workflow_buffer_time_in_seconds = 3600
 max_random_schedule_delay_in_seconds = 300
 redis_ttl_buffer_in_seconds= 300
-add_schedule_time_for_unretried_invoice = 60
+unretried_invoice_schedule_time_offset_seconds = 60
 
 [revenue_recovery.card_config.amex]
 max_retries_per_day = 20

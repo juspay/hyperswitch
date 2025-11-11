@@ -448,37 +448,28 @@ async fn should_force_schedule_due_to_missed_slots(
     card_network: Option<CardNetwork>,
     connector_customer_id: &str,
     token: Secret<String, PhoneNumberStrategy>,
+    token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> CustomResult<bool, StorageError> {
-    let retry_history =
-        RedisTokenManager::get_connector_customer_retry_history(state, connector_customer_id)
-            .await?;
 
-    let token_string = token.expose();
-    let retry_history_of_current_token = retry_history.get(&token_string);
-
-    if let Some(token_history) = retry_history_of_current_token {
-        if let Some((most_recent_date, _retry_count)) =
-            RedisTokenManager::find_nearest_date_from_current(token_history)
-        {
-            // Get card config and calculate dynamic threshold
-            let card_config = &state.conf.revenue_recovery.card_config;
-            let card_network_config = card_config.get_network_config(card_network.clone());
-
-            // Calculate threshold: 720 hours / max_retry_count_for_thirty_day
-            let threshold_hours =
-                TOTAL_SLOTS_IN_MONTH / card_network_config.max_retry_count_for_thirty_day;
-
-            // Calculate time difference
-            let now = time::OffsetDateTime::now_utc();
-            let most_recent_datetime = most_recent_date.midnight().assume_utc();
-            let time_diff_hours = (now - most_recent_datetime).whole_hours();
-
-            return Ok(time_diff_hours > threshold_hours.into());
-        }
-    }
-
-    Ok(false)
+    Ok(RedisTokenManager::find_nearest_date_from_current(
+        &token_with_retry_info.token_status.daily_retry_history
+    )
+    // Filter: only consider entries with actual retries (retry_count > 0)
+    .filter(|(_, retry_count)| *retry_count > 0)
+    .map(|(most_recent_date, _retry_count)| {
+        let threshold_hours = TOTAL_SLOTS_IN_MONTH 
+            / state.conf.revenue_recovery.card_config
+                .get_network_config(card_network.clone())
+                .max_retry_count_for_thirty_day;
+        
+        // Calculate time difference and compare
+        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc())
+            .whole_hours() > threshold_hours.into()
+    })
+    // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
+    .unwrap_or(false))
 }
+
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
@@ -872,6 +863,7 @@ pub async fn calculate_smart_retry_time(
         card_network.clone(),
         connector_customer_id,
         masked_token.clone(),
+        token_with_retry_info
     )
     .await
     .unwrap_or(false)
@@ -880,7 +872,7 @@ pub async fn calculate_smart_retry_time(
             .conf
             .revenue_recovery
             .recovery_timestamp
-            .add_schedule_time_for_unretried_invoice;
+            .unretried_invoice_schedule_time_offset_seconds;
         let scheduled_time =
             time::OffsetDateTime::now_utc() + time::Duration::minutes(schedule_delay);
         logger::info!(
