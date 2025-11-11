@@ -4103,6 +4103,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
     for api_models::payments::PaymentsListResponseItem
 {
     fn foreign_from((pi, pa): (storage::PaymentIntent, Option<storage::PaymentAttempt>)) -> Self {
+        let is_split_payment = pi.is_split_payment();
         Self {
             id: pi.id,
             merchant_id: pi.merchant_id,
@@ -4142,6 +4143,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             allowed_payment_method_types: pi.allowed_payment_method_types,
             authorization_count: pi.authorization_count,
             modified_at: pa.as_ref().map(|p| p.modified_at),
+            is_split_payment,
         }
     }
 }
