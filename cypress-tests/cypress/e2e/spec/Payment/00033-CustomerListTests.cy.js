@@ -17,15 +17,15 @@ describe("Customer List API Tests", () => {
     it("should work with default limit (20)", () => {
       cy.customerListWithCountCallTest(globalState); // default 20, 0
     });
-    
+
     it("should work with small limit (5)", () => {
       cy.customerListWithCountCallTest(globalState, 5, 0);
     });
-    
+
     it("should work with limit 1 (edge case)", () => {
       cy.customerListWithCountCallTest(globalState, 1, 0);
     });
-    
+
     it("should work with large limit (100)", () => {
       cy.customerListWithCountCallTest(globalState, 100, 0);
     });

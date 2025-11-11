@@ -978,48 +978,56 @@ Cypress.Commands.add("customerListCall", (globalState) => {
 
 // NEW customer list (with count and pagination)
 
-Cypress.Commands.add("customerListWithCountCallTest", (globalState, limit = 20, offset = 0) => {
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/customers/list_with_count?limit=${limit}&offset=${offset}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+Cypress.Commands.add(
+  "customerListWithCountCallTest",
+  (globalState, limit = 20, offset = 0) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/customers/list_with_count?limit=${limit}&offset=${offset}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      expect(response.status).to.eq(200);
-      expect(response.body).to.have.property("data");
-      expect(response.body).to.have.property("total_count");
-      
-      const actualDataLength = response.body.data.length;
-      const totalCount = response.body.total_count;
-      
-      // Validate total_count is a number
-      expect(totalCount).to.be.a('number');
-      
-      // Data length should never exceed the requested limit
-      expect(actualDataLength).to.be.at.most(limit, 
-        `Data length (${actualDataLength}) should not exceed limit (${limit})`);
-      
-      // If offset is within range, validate data length expectations
-      if (offset < totalCount) {
-        const remainingRecords = totalCount - offset;
-        const expectedDataLength = Math.min(limit, remainingRecords);
-        expect(actualDataLength).to.equal(expectedDataLength,
-          `Expected ${expectedDataLength} records but got ${actualDataLength} (total: ${totalCount}, offset: ${offset}, limit: ${limit})`);
-      } else {
-        // If offset >= total_count, data should be empty
-        expect(actualDataLength).to.equal(0,
-          `When offset (${offset}) >= total_count (${totalCount}), data should be empty`);
-      }
+      cy.wrap(response).then(() => {
+        expect(response.status).to.eq(200);
+        expect(response.body).to.have.property("data");
+        expect(response.body).to.have.property("total_count");
+
+        const actualDataLength = response.body.data.length;
+        const totalCount = response.body.total_count;
+
+        // Validate total_count is a number
+        expect(totalCount).to.be.a("number");
+
+        // Data length should never exceed the requested limit
+        expect(actualDataLength).to.be.at.most(
+          limit,
+          `Data length (${actualDataLength}) should not exceed limit (${limit})`
+        );
+
+        // If offset is within range, validate data length expectations
+        if (offset < totalCount) {
+          const remainingRecords = totalCount - offset;
+          const expectedDataLength = Math.min(limit, remainingRecords);
+          expect(actualDataLength).to.equal(
+            expectedDataLength,
+            `Expected ${expectedDataLength} records but got ${actualDataLength} (total: ${totalCount}, offset: ${offset}, limit: ${limit})`
+          );
+        } else {
+          // If offset >= total_count, data should be empty
+          expect(actualDataLength).to.equal(
+            0,
+            `When offset (${offset}) >= total_count (${totalCount}), data should be empty`
+          );
+        }
+      });
     });
-  });
-});
-
+  }
+);
 
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
