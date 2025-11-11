@@ -381,19 +381,7 @@ pub trait ConnectorCommon {
     }
 }
 
-impl ConnectorAccessTokenSuffix for BoxedConnector {
-    fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "access_token_{}_{}",
-            router_data.merchant_id.get_string_repr(),
-            merchant_connector_id_or_connector_name
-        ))
-    }
-}
+impl ConnectorAccessTokenSuffix for BoxedConnector {}
 
 /// Current flow information passed to the connector specifications trait
 ///
@@ -903,5 +891,11 @@ pub trait ConnectorAccessTokenSuffix {
         &self,
         router_data: &RouterData<F, Req, Res>,
         merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError>;
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "access_token_{}_{}",
+            router_data.merchant_id.get_string_repr(),
+            merchant_connector_id_or_connector_name
+        ))
+    }
 }
