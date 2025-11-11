@@ -6,6 +6,9 @@ use com.hyperswitch.smithy.types#PaymentsRequest
 use com.hyperswitch.smithy.types#PaymentsResponse
 use com.hyperswitch.smithy.types#RefundRequest
 use com.hyperswitch.smithy.types#RefundResponse
+use com.hyperswitch.smithy.types#RefundUpdateRequest
+use com.hyperswitch.smithy.types#RefundListRequest
+use com.hyperswitch.smithy.types#RefundListResponse
 use com.hyperswitch.smithy.types#PaymentsCaptureRequest
 use com.hyperswitch.smithy.types#PaymentsCancelRequest
 use com.hyperswitch.smithy.types#CustomerRequest
@@ -29,7 +32,7 @@ use aws.protocols#restJson1
 )
 service Hyperswitch {
     version: "2024-07-31",
-    operations: [PaymentsCreate, PaymentsConfirm, PaymentsUpdate, PaymentsRetrieve, PaymentsCapture, PaymentsCancel, RefundsCreate, RefundsRetrieve, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, MandatesRevoke, MandatesRetrieve, MandatesList]
+    operations: [PaymentsCreate, PaymentsConfirm, PaymentsUpdate, PaymentsRetrieve, PaymentsCapture, PaymentsCancel, RefundsCreate, RefundsRetrieve, RefundsUpdate, RefundsList, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, MandatesRevoke, MandatesRetrieve, MandatesList]
 }
 
 /// Structure for creating a payment
@@ -168,6 +171,41 @@ structure RefundsRetrieveRequest {
 operation RefundsRetrieve {
     input: RefundsRetrieveRequest,
     output: RefundResponse,
+}
+
+/// Structure for updating a refund
+structure RefundsUpdateRequest {
+    /// The unique identifier for the refund to update
+    @required
+    @httpLabel
+    id: smithy.api#String
+
+    /// The refund update request details
+    @required
+    @httpPayload
+    payload: RefundUpdateRequest
+}
+
+@documentation("Update a refund using the refund_id.")
+@http(method: "POST", uri: "/refunds/{id}")
+operation RefundsUpdate {
+    input: RefundsUpdateRequest,
+    output: RefundResponse,
+}
+
+/// Structure for listing refunds
+structure RefundsListRequestInput {
+    /// The refund list request details
+    @required
+    @httpPayload
+    payload: RefundListRequest
+}
+
+@documentation("Retrieve a list of refunds.")
+@http(method: "POST", uri: "/refunds/list")
+operation RefundsList {
+    input: RefundsListRequestInput,
+    output: RefundListResponse,
 }
 
 /// Structure for creating a customer
