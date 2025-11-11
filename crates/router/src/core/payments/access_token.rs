@@ -143,13 +143,17 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
-        let key = connector
+            let key = connector
             .connector
-            .get_access_token_key_from_connector(
+            .get_access_token_key(
                 router_data,
-                merchant_connector_id_or_connector_name,
+                merchant_connector_id_or_connector_name.clone(),
             )
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to get access token key for connector: {:?}",
+                connector.connector_name
+            ))?;
 
         let old_access_token = store
             .get_access_token(key.clone())
