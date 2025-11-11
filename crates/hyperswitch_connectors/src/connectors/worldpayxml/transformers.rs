@@ -1,8 +1,8 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::{ApplePayDecrypt, CardPayout};
+use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_enums::CardNetwork;
-use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
 use common_utils::types::StringMinorUnit;
