@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::BASE64_ENGINE, crypto::{VerifySignature, HmacSha256},
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsVoidType, Response, SetupMandateType},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -768,19 +768,34 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Payload {
-    async fn verify_webhook_source(
+     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError>
+    {
+        Ok(Box::new(HmacSha256))
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
-        _connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        // Payload does not support source verification
-        // It does, but the client id and client secret generation is not possible at present
-        // It requires OAuth connect which falls under Access Token flow and it also requires multiple calls to be made
-        // We return false just so that a PSync call is triggered internally
-        Ok(false)
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+       Ok(request.body.to_vec())
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+          let security_header_with_algo = utils::get_header_key_value("X-Payload-Signature", request.headers)?;
+          let security_header = security_header_with_algo.strip_prefix("sha256=")
+          .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        hex::decode(security_header)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_object_reference_id(
@@ -856,7 +871,31 @@ impl webhooks::IncomingWebhook for Payload {
             .body
             .parse_struct("PayloadWebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(Box::new(webhook_body))
+        Ok(match webhook_body.trigger {
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::Processed
+            | responses::PayloadWebhooksTrigger::Authorized
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Reversal
+            | responses::PayloadWebhooksTrigger::Void
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::BankAccountReject
+            | responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)                 
+            }
+            responses::PayloadWebhooksTrigger::Refund => {
+                Box::new(responses::PayloadRefundResponse::try_from(webhook_body)?)
+            }
+        })
     }
 }
 

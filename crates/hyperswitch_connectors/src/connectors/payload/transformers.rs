@@ -477,3 +477,123 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
         }
     }
 }
+
+impl TryFrom<responses::PayloadWebhooksTrigger>
+    for responses::PayloadPaymentStatus
+{
+    type Error = Error;
+    fn try_from(
+        trigger: responses::PayloadWebhooksTrigger,
+    ) -> Result<Self, Self::Error> {
+          match trigger {
+                responses::PayloadWebhooksTrigger::Refund =>  Ok(Self::Processing),
+
+            // Payment Success Events
+            responses::PayloadWebhooksTrigger::Processed => Ok(Self::Processed),
+            responses::PayloadWebhooksTrigger::Authorized => {
+                Ok(Self::Authorized)
+            }
+            // Payment Processing Events
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Reversal  => Ok(Self::Processing),
+            // Payment Failure Events
+            responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::BankAccountReject => Ok(Self::Declined),
+            responses::PayloadWebhooksTrigger::Void => Ok(Self::Voided),
+            |responses::PayloadWebhooksTrigger::Chargeback
+            |responses::PayloadWebhooksTrigger::ChargebackReversal 
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                Err(errors::ConnectorError::WebhookResponseEncodingFailed.into())
+            }
+        }
+    }
+}
+
+impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        webhook_body: responses::PayloadWebhookEvent
+    ) -> Result<Self, Self::Error> {
+        let status = responses::PayloadPaymentStatus::try_from(webhook_body.trigger.clone())?;
+        Ok(Self::PayloadCardsResponse (
+            responses::PayloadCardsResponseData {
+                     amount: None,
+                     avs: None,
+                     customer_id: None,
+                     transaction_id: webhook_body.triggered_on.transaction_id.ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                     connector_payment_method_id: None,
+                     processing_id: None,
+                     processing_method_id: None,
+                     ref_number: None,
+                     status,
+                     status_code: None,
+                     status_message: None,
+                    response_type: None
+            }
+        ))
+    }
+}
+
+
+impl TryFrom<responses::PayloadWebhooksTrigger>
+    for responses::RefundStatus
+{
+    type Error = Error;
+    fn try_from(
+        trigger: responses::PayloadWebhooksTrigger,
+    ) -> Result<Self, Self::Error> {
+          match trigger {
+            // Payment Success Events
+             responses::PayloadWebhooksTrigger::Refund  => Ok(Self::Processed),
+            responses::PayloadWebhooksTrigger::Processed
+            |responses::PayloadWebhooksTrigger::Authorized 
+            | responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Reversal
+            |responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::BankAccountReject 
+            |responses::PayloadWebhooksTrigger::Void
+            |responses::PayloadWebhooksTrigger::Chargeback
+            |responses::PayloadWebhooksTrigger::ChargebackReversal 
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                Err(errors::ConnectorError::WebhookResponseEncodingFailed.into())
+            }
+        }
+    }
+}
+
+
+
+impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadRefundResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        webhook_body: responses::PayloadWebhookEvent
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: None,
+            transaction_id: webhook_body.triggered_on.transaction_id.ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+            ledger: vec![],
+            connector_payment_method_id: None,
+            processing_id: None,
+            ref_number: None,
+            status: responses::RefundStatus::try_from(webhook_body.trigger)?,
+            status_code: None,
+            status_message: None,
+        })
+    }
+}
