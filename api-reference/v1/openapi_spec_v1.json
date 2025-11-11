@@ -9110,7 +9110,8 @@
           "dpan",
           "expiry_month",
           "expiry_year",
-          "card_holder_name"
+          "card_holder_name",
+          "card_network"
         ],
         "properties": {
           "dpan": {
@@ -9130,6 +9131,9 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
           }
         }
       },
@@ -13614,7 +13618,8 @@
           "card_number",
           "expiry_month",
           "expiry_year",
-          "card_holder_name"
+          "card_holder_name",
+          "card_network"
         ],
         "properties": {
           "card_number": {
@@ -13634,6 +13639,9 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
           }
         }
       },
@@ -30017,7 +30025,8 @@
           "paypal",
           "stripe",
           "wise",
-          "worldpay"
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
