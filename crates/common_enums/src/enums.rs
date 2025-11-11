@@ -9945,21 +9945,29 @@ pub enum SubscriptionStatus {
     Failed,
 }
 
+/// Represents the Electronic Commerce Indicator (ECI) value returned from a 3DS authentication process.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Eci {
+    /// `00` — Transaction attempted without authentication (invalid or not permitted).
     #[serde(rename = "00")]
     Zero,
+    /// `01` — Channel encrypted but authentication not performed.
     #[serde(rename = "01")]
     One,
+    /// `02` — Channel encrypted and transaction authenticated by cardholder (e.g., 3DS 2 frictionless flow).
     #[serde(rename = "02")]
     Two,
+    /// `05` — Fully authenticated transaction (3DS 1 or 3DS 2 challenge flow).
     #[serde(rename = "05")]
     Five,
+    /// `06` — Merchant authentication performed (non-3DS but secure).
     #[serde(rename = "06")]
     Six,
+    /// `07` — Transaction attempted without 3DS authentication (merchant liability).
     #[serde(rename = "07")]
     Seven,
+    /// Any other or unrecognized ECI value.
     #[serde(other)]
     Unknown,
 }
@@ -9995,33 +10003,51 @@ impl FromStr for Eci {
     }
 }
 
+/// This is typically provided by the card network or Access Control Server (ACS)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
 pub enum CavvAlgorithm {
+    /// `00` — Reserved or unspecified algorithm.
     #[serde(rename = "00")]
     Zero,
+    /// `01` — HMAC-based algorithm.
     #[serde(rename = "01")]
     One,
+    /// `02` — RSA-based algorithm (standard 3DS cryptographic method).
     #[serde(rename = "02")]
     Two,
+    /// `03` — Elliptic Curve algorithm.
     #[serde(rename = "03")]
     Three,
+    /// `04` — Proprietary algorithm defined by the card network.
     #[serde(rename = "04")]
     Four,
+    /// `A` — Custom or network-defined algorithm indicator.
     #[serde(rename = "A")]
     A,
 }
 
+/// Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExemptionIndicator {
+    /// Low-value payment exemption (below regulatory threshold).
     LowValue,
+    /// Secure corporate payment (SCP) exemption.
     SecureCorporatePayment,
+    /// Trusted beneficiary or whitelist exemption.
     TrustedListing,
+    /// Transaction Risk Analysis (TRA) exemption.
     TransactionRiskAssessment,
+    /// 3DS server or ACS outage exemption.
     ThreeDsOutage,
+    /// SCA delegation exemption (authentication delegated to another party).
     ScaDelegation,
+    /// Out of SCA scope (e.g., one-leg-out transactions).
     OutOfScaScope,
+    /// Other exemption reason not covered by known types.
     Other,
+    /// Low-risk program exemption (network-initiated low-risk flag).
     LowRiskProgram,
+    /// Recurring transaction exemption (subsequent payment in a series).
     RecurringOperation,
 }

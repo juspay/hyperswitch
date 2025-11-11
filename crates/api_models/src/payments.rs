@@ -82,6 +82,7 @@ use crate::{
         CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
         WalletAdditionalDataForCard,
     },
+    three_ds_decision_rule::ExternalThreeDsData,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
@@ -1284,7 +1285,7 @@ pub struct PaymentsRequest {
     pub request_external_three_ds_authentication: Option<bool>,
 
     /// Three Ds Data supplied by the Merchant, Merchant have done the external authentication
-    pub three_ds_data: Option<crate::three_ds_decision_rule::ExternalThreeDsData>,
+    pub three_ds_data: Option<ExternalThreeDsData>,
 
     /// Details required for recurring payment
     #[smithy(value_type = "Option<RecurringDetails>")]

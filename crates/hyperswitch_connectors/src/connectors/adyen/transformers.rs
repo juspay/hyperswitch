@@ -3234,37 +3234,27 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 _ => (None, None, None),
             };
 
-        let auth_value = if let Some(data) = external_auth {
+        let auth_value = external_auth.clone().and_then(|data| {
             match &value.0.router_data.request.payment_method_data {
-                PaymentMethodData::NetworkToken(_) => {
-                    if let api_models::three_ds_decision_rule::Cryptogram::Tavv {
+                PaymentMethodData::NetworkToken(_) => match &data.authentication_cryptogram {
+                    api_models::three_ds_decision_rule::Cryptogram::Tavv {
                         token_authentication_cryptogram,
-                    } = &data.authentication_cryptogram
-                    {
-                        Some(AuthenticationValue::Tavv {
-                            tavv: token_authentication_cryptogram.clone(),
-                        })
-                    } else {
-                        None
-                    }
-                }
-                PaymentMethodData::Card(_) => {
-                    if let api_models::three_ds_decision_rule::Cryptogram::Cavv {
+                    } => Some(AuthenticationValue::Tavv {
+                        tavv: token_authentication_cryptogram.clone(),
+                    }),
+                    _ => None,
+                },
+                PaymentMethodData::Card(_) => match &data.authentication_cryptogram {
+                    api_models::three_ds_decision_rule::Cryptogram::Cavv {
                         authentication_cryptogram,
-                    } = &data.authentication_cryptogram
-                    {
-                        Some(AuthenticationValue::Cavv {
-                            cavv: authentication_cryptogram.clone(),
-                        })
-                    } else {
-                        None
-                    }
-                }
+                    } => Some(AuthenticationValue::Cavv {
+                        cavv: authentication_cryptogram.clone(),
+                    }),
+                    _ => None,
+                },
                 _ => None,
             }
-        } else {
-            None
-        };
+        });
 
         let mpi_data = AdyenMpiData {
             directory_response: external_auth

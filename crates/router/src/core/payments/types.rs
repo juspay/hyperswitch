@@ -420,7 +420,11 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 eci: authentication
                     .eci
                     .as_ref()
-                    .and_then(|s| common_enums::enums::Eci::from_str(s).ok()),
+                    .map(|s| common_enums::enums::Eci::from_str(s))
+                    .transpose()
+                    .map_err(|_| {
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    })?,
                 created_at: authentication.created_at,
                 cavv,
                 threeds_server_transaction_id,

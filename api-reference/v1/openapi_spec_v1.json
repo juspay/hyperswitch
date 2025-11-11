@@ -13946,8 +13946,47 @@
           "debit"
         ]
       },
+      "CartesBancairesParams": {
+        "type": "object",
+        "description": "Represents network-specific parameters for the Cartes Bancaires 3DS process.",
+        "required": [
+          "cb_exemption",
+          "cb_score"
+        ],
+        "properties": {
+          "cavv_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CavvAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "cb_exemption": {
+            "type": "string",
+            "description": "Exemption indicator specific to Cartes Bancaires network (e.g., \"low_value\", \"trusted_merchant\")"
+          },
+          "cb_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cartes Bancaires risk score assigned during 3DS authentication."
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
+      },
+      "CavvAlgorithm": {
+        "type": "string",
+        "description": "This is typically provided by the card network or Access Control Server (ACS)",
+        "enum": [
+          "00",
+          "01",
+          "02",
+          "03",
+          "04",
+          "A"
+        ]
       },
       "ChargeRefunds": {
         "type": "object",
@@ -15803,6 +15842,49 @@
           }
         ]
       },
+      "Cryptogram": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cavv"
+            ],
+            "properties": {
+              "cavv": {
+                "type": "object",
+                "description": "Cardholder Authentication Verification Value (CAVV) cryptogram.",
+                "properties": {
+                  "authentication_cryptogram": {
+                    "type": "string",
+                    "description": "The authentication cryptogram provided by the issuer or ACS.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "tavv"
+            ],
+            "properties": {
+              "tavv": {
+                "type": "object",
+                "description": "Token Authentication Verification Value (TAVV) cryptogram for network token transactions.",
+                "properties": {
+                  "token_authentication_cryptogram": {
+                    "type": "string",
+                    "description": "The token authentication cryptogram used for tokenized cards.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Represents the 3DS cryptogram data returned after authentication."
+      },
       "CtpServiceDetails": {
         "type": "object",
         "properties": {
@@ -17292,6 +17374,19 @@
           "none"
         ]
       },
+      "Eci": {
+        "type": "string",
+        "description": "Represents the Electronic Commerce Indicator (ECI) value returned from a 3DS authentication process.",
+        "enum": [
+          "00",
+          "01",
+          "02",
+          "05",
+          "06",
+          "07",
+          "unknown"
+        ]
+      },
       "ElementPosition": {
         "type": "string",
         "enum": [
@@ -17749,6 +17844,22 @@
           "invoice_paid"
         ]
       },
+      "ExemptionIndicator": {
+        "type": "string",
+        "description": "Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.",
+        "enum": [
+          "low_value",
+          "secure_corporate_payment",
+          "trusted_listing",
+          "transaction_risk_assessment",
+          "three_ds_outage",
+          "sca_delegation",
+          "out_of_sca_scope",
+          "other",
+          "low_risk_program",
+          "recurring_operation"
+        ]
+      },
       "ExtendedCardInfo": {
         "type": "object",
         "required": [
@@ -17888,6 +17999,60 @@
             "type": "string",
             "description": "Error Message",
             "nullable": true
+          }
+        }
+      },
+      "ExternalThreeDsData": {
+        "type": "object",
+        "description": "Represents external 3DS authentication data used in the payment flow.",
+        "required": [
+          "network_params"
+        ],
+        "properties": {
+          "authentication_cryptogram": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Cryptogram"
+              }
+            ],
+            "nullable": true
+          },
+          "ds_trans_id": {
+            "type": "string",
+            "description": "Directory Server Transaction ID generated during the 3DS process.",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\").",
+            "nullable": true
+          },
+          "eci": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Eci"
+              }
+            ],
+            "nullable": true
+          },
+          "transaction_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "exemption_indicator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExemptionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "network_params": {
+            "$ref": "#/components/schemas/NetworkParams"
           }
         }
       },
@@ -22159,6 +22324,20 @@
           }
         }
       },
+      "NetworkParams": {
+        "type": "object",
+        "description": "Represents additional network-level parameters for 3DS processing.",
+        "properties": {
+          "cartes_bancaires": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CartesBancairesParams"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -26301,6 +26480,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -26797,6 +26984,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
             "nullable": true
           },
           "recurring_details": {
@@ -28311,6 +28506,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -29632,6 +29835,14 @@
             "type": "boolean",
             "description": "Whether to perform external authentication (if applicable)",
             "example": true,
+            "nullable": true
+          },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
             "nullable": true
           },
           "recurring_details": {
