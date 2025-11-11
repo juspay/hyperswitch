@@ -74,6 +74,7 @@ pub async fn mk_tokenization_req(
     };
     let masked_request_body = api_payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -188,6 +189,7 @@ pub async fn generate_network_token(
     };
     let masked_request_body = api_payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -390,6 +392,7 @@ pub async fn get_network_token(
 
     let masked_request_body = payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -463,6 +466,7 @@ pub async fn get_network_token(
 
     let masked_request_body = payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -748,6 +752,7 @@ pub async fn check_token_status_with_tokenization_service(
 
     let masked_request_body = payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -826,6 +831,7 @@ pub async fn check_token_status_with_tokenization_service(
 
     let masked_request_body = payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
@@ -992,6 +998,7 @@ pub async fn delete_network_token_from_tokenization_service(
 
     let masked_request_body = payload
         .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
