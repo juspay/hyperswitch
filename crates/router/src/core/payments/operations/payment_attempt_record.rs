@@ -260,7 +260,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     {
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
         let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
-        let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::AttemptsGroupID);
+        let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::GroupID);
         let amount_captured = payment_data.payment_intent.amount_captured;
         let status = if amount_captured > Some(MinorUnit::new(0))
             && *payment_data

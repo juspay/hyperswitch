@@ -793,9 +793,14 @@ impl PaymentIntent {
                     }
                 )
             })?;
+        let amount = self.amount_details.order_amount
+            - self
+                .amount_details
+                .amount_captured
+                .unwrap_or(MinorUnit::zero());
 
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
-            amount: self.amount_details.order_amount,
+            amount,
             currency: self.amount_details.currency,
             merchant_reference_id,
             connector_transaction_id: None, // No connector id

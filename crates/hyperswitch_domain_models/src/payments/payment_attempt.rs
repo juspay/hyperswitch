@@ -894,7 +894,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
-            attempts_group_id: payment_intent.active_attempts_group_id.clone(),
+            attempts_group_id: group_id.clone(),
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector,
