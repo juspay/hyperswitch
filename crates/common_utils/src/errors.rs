@@ -1,5 +1,7 @@
 //! Errors and error specific types for universal use
 
+use serde::Serialize;
+
 use crate::types::MinorUnit;
 
 /// Custom Result
@@ -46,6 +48,9 @@ pub enum ParsingError {
     /// Failed to parse i64 value for f64 value conversion
     #[error("Failed to parse i64 value for f64 value conversion")]
     I64ToDecimalConversionFailure,
+    /// Failed to parse i64 value for String value conversion
+    #[error("Failed to parse i64 value for String value conversion")]
+    I64ToStringConversionFailure,
     /// Failed to parse String value to Decimal value conversion because `error`
     #[error("Failed to parse String value to Decimal value conversion because {error}")]
     StringToDecimalConversionFailure { error: String },
@@ -75,7 +80,7 @@ pub enum ValidationError {
 }
 
 /// Integrity check errors.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct IntegrityCheckError {
     /// Field names for which integrity check failed!
     pub field_names: String,

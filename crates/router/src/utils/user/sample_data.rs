@@ -297,6 +297,9 @@ pub async fn generate_sample_data(
             tax_status: None,
             shipping_amount_tax: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
+            mit_category: None,
+            billing_descriptor: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -384,6 +387,7 @@ pub async fn generate_sample_data(
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: Some(merchant_id.clone()),
@@ -392,6 +396,9 @@ pub async fn generate_sample_data(
             routing_approach: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_details: None,
+            is_stored_credential: None,
+            authorized_amount: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

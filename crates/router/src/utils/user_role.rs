@@ -27,7 +27,7 @@ use crate::{
     services::authorization::{
         self as authz,
         permission_groups::{ParentGroupExt, PermissionGroupExt},
-        roles,
+        permissions, roles,
     },
     types::domain,
 };
@@ -40,9 +40,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
-    if unique_groups.contains(&PermissionGroup::OrganizationManage)
-        || unique_groups.contains(&PermissionGroup::InternalManage)
-    {
+    if unique_groups.contains(&PermissionGroup::InternalManage) {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Invalid groups present in the custom role");
     }
@@ -495,7 +493,7 @@ pub async fn fetch_user_roles_by_payload(
         .filter_map(|user_role| {
             let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
             request_entity_type
-                .map_or(true, |req_entity_type| entity_type == req_entity_type)
+                .is_none_or(|req_entity_type| entity_type == req_entity_type)
                 .then_some(user_role)
         })
         .collect::<HashSet<_>>())
@@ -570,15 +568,33 @@ pub fn permission_groups_to_parent_group_info(
                 .into_iter()
                 .collect();
 
-            let description =
-                ParentGroup::get_descriptions_for_groups(entity_type, permission_groups.to_vec())
-                    .and_then(|descriptions| descriptions.get(&name).cloned())?;
+            let filtered_resources =
+                permissions::filter_resources_by_entity_type(name.resources(), entity_type)?;
 
             Some(role_api::ParentGroupInfo {
                 name,
-                description,
+                resources: filtered_resources,
                 scopes: unique_scopes,
             })
         })
         .collect()
+}
+
+pub fn resources_to_description(
+    resources: Vec<common_enums::Resource>,
+    entity_type: EntityType,
+) -> Option<String> {
+    if resources.is_empty() {
+        return None;
+    }
+
+    let filtered_resources = permissions::filter_resources_by_entity_type(resources, entity_type)?;
+
+    let description = filtered_resources
+        .iter()
+        .map(|res| permissions::get_resource_name(*res, entity_type))
+        .collect::<Option<Vec<_>>>()?
+        .join(", ");
+
+    Some(description)
 }

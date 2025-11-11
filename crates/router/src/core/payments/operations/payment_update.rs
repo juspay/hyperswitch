@@ -339,7 +339,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                         connector_id.get_payment_method_id(),           // payment_method_id
                                         None,                                     // update_history
                                         connector_id.get_mandate_metadata(),            // mandate_metadata
-                                        connector_id.get_connector_mandate_request_reference_id()  // connector_mandate_request_reference_id
+                                        connector_id.get_connector_mandate_request_reference_id(),
+                                        None // connector_mandate_request_reference_id
                                     )
                                 ))
                             }
@@ -460,6 +461,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
 
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &payment_attempt.capture_method,
+        )?;
+        payment_intent.enable_overcapture = request.enable_overcapture;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -515,6 +522,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -968,6 +977,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     enable_partial_authorization: payment_data
                         .payment_intent
                         .enable_partial_authorization,
+                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
                 })),
                 key_store,
                 storage_scheme,
@@ -1054,7 +1064,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing
             .clone()

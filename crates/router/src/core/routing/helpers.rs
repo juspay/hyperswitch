@@ -2250,7 +2250,15 @@ pub async fn create_specific_dynamic_routing_setup(
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let success_config = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in SuccessBasedRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2275,7 +2283,15 @@ pub async fn create_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let elimination_config = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in EliminationRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),
@@ -2481,7 +2497,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
@@ -2559,7 +2575,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
@@ -2640,7 +2656,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_DELETE_ENDPOINT,
@@ -2691,7 +2707,7 @@ pub async fn create_decision_engine_merchant(
         gateway_success_rate_based_decider_input: None,
     };
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
@@ -2717,7 +2733,7 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Delete,
         &path,
@@ -2728,6 +2744,65 @@ pub async fn delete_decision_engine_merchant(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to delete merchant account on decision engine")?;
+
+    Ok(())
+}
+
+pub async fn redact_cgraph_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let cgraph_payouts_key = format!(
+        "cgraph_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let cgraph_payments_key = format!(
+        "cgraph_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let config_payouts_key = cache::CacheKind::CGraph(cgraph_payouts_key.clone().into());
+    let config_payments_key = cache::CacheKind::CGraph(cgraph_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [config_payouts_key, config_payments_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the cgraph cache")?;
+
+    Ok(())
+}
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
 
     Ok(())
 }

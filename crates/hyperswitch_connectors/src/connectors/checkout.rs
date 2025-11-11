@@ -14,6 +14,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -35,7 +36,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -54,7 +55,7 @@ use hyperswitch_interfaces::{
     types::{
         AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
         PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        SubmitEvidenceType, TokenizationType, UploadFileType,
+        SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
     },
     webhooks,
 };
@@ -68,7 +69,9 @@ use crate::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData, UploadFileRouterData,
     },
-    utils::{self, ConnectorErrorType, RefundsRequestData},
+    utils::{
+        self, is_mandate_supported, ConnectorErrorType, PaymentMethodDataType, RefundsRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -195,6 +198,17 @@ impl ConnectorCommon for Checkout {
 }
 
 impl ConnectorValidation for Checkout {
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
+        ]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
     fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
@@ -333,16 +347,88 @@ impl MandateSetup for Checkout {}
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Checkout
 {
-    // Issue: #173
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "payments"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let authorize_req = utils::convert_payment_authorize_router_response((
+            req,
+            utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
+        ));
+
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            authorize_req.request.minor_amount,
+            authorize_req.request.currency,
+        )?;
+
+        let connector_router_data = checkout::CheckoutRouterData::from((amount, &authorize_req));
+        let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Checkout".to_string())
-                .into(),
-        )
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: checkout::PaymentsResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -983,8 +1069,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         req: &UploadFileRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::FormData(connector_req))
+        transformers::construct_file_upload_request(req.clone())
     }
 
     fn build_request(
@@ -1490,7 +1575,7 @@ static CHECKOUT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -1509,7 +1594,7 @@ static CHECKOUT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(

@@ -30,7 +30,9 @@ use crate::{
             NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse,
         },
     },
-    types::{PaymentsSyncResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsPreprocessingResponseRouterData, PaymentsSyncResponseRouterData, ResponseRouterData,
+    },
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
@@ -297,7 +299,8 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                 }
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
-                | BankDebitData::BecsBankDebit { .. } => {
+                | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),
                     )
@@ -405,24 +408,12 @@ fn convert_nordea_payment_response(
     Ok((response_data, status))
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PreProcessing,
-            NordeaPaymentsInitiateResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>>
+    for RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            PreProcessing,
-            NordeaPaymentsInitiateResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = convert_nordea_payment_response(&item.response)?;
         Ok(Self {

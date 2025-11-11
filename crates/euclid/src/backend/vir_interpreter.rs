@@ -42,7 +42,7 @@ where
     fn eval_statement(stmt: &vir::ValuedIfStatement, ctx: &types::Context) -> bool {
         if Self::eval_condition(&stmt.condition, ctx) {
             {
-                stmt.nested.as_ref().map_or(true, |nested_stmts| {
+                stmt.nested.as_ref().is_none_or(|nested_stmts| {
                     nested_stmts.iter().any(|s| Self::eval_statement(s, ctx))
                 })
             }
@@ -106,7 +106,6 @@ where
 }
 #[cfg(all(test, feature = "ast_parser"))]
 mod test {
-    #![allow(clippy::expect_used)]
     use common_utils::types::MinorUnit;
     use rustc_hash::FxHashMap;
 

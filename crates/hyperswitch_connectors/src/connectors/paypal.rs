@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::fmt::Write;
+use std::{fmt::Write, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -20,8 +20,9 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate, Void,
+            Authorize, Capture, ExtendAuthorization, IncrementalAuthorization, PSync,
+            PaymentMethodToken, PostSessionTokens, PreProcessing, SdkSessionUpdate, Session,
+            SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         CompleteAuthorize, VerifyWebhookSource,
@@ -29,19 +30,22 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, ResponseId, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, VerifyWebhookSourceResponseData,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt, VerifyWebhookSourceResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -62,10 +66,11 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
-        Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
+        ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
+        VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -118,6 +123,7 @@ impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
 impl api::PaymentPostSessionTokens for Paypal {}
 impl api::PaymentSessionUpdate for Paypal {}
+impl api::PaymentExtendAuthorization for Paypal {}
 
 impl api::Payouts for Paypal {}
 #[cfg(feature = "payouts")]
@@ -369,22 +375,6 @@ impl ConnectorCommon for Paypal {
 }
 
 impl ConnectorValidation for Paypal {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -1106,6 +1096,107 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.get_order_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>
+    for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let incremental_authorization_id = paypal_meta.incremental_authorization_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing incremental_authorization_id id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}v2/payments/authorizations/{}/reauthorize",
+            self.base_url(connectors),
+            incremental_authorization_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
+        let connector_req =
+            paypal::PaypalExtendAuthorizationRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ExtendedAuthorizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(ExtendedAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ExtendedAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsExtendAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsExtendAuthorizationRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalExtendedAuthResponse = res
+            .response
+            .parse_struct("Paypal PaypalExtendedAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -2348,4 +2439,151 @@ impl ConnectorErrorTypeMapping for Paypal {
     }
 }
 
-impl ConnectorSpecifications for Paypal {}
+static PAYPAL_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_capture_methods_bank_redirect = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut paypal_supported_payment_methods = SupportedPaymentMethods::new();
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network,
+                    }
+                }),
+            ),
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Paypal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods_bank_redirect.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Giropay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods_bank_redirect.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods_bank_redirect.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Sofort,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods_bank_redirect.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods
+});
+
+static PAYPAL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Paypal",
+    description: "PayPal is a global online payment system that enables individuals and businesses to send and receive money electronically.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
+};
+
+static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Paypal {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYPAL_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PAYPAL_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PAYPAL_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

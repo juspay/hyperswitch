@@ -10,12 +10,17 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
+            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
+            UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
+        revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
+        },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -24,12 +29,17 @@ use hyperswitch_domain_models::{
             ExternalVaultRetrieveFlow,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuthentication, BillingConnectorInvoiceSync,
+        AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
     },
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
+        },
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -39,10 +49,12 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        FetchDisputesRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
@@ -51,11 +63,17 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
+        },
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -111,6 +129,19 @@ pub type CreateOrderType =
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreProcessingType =
     dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+
+/// Type alias for `ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>`
+pub type PaymentsPreAuthenticateType =
+    dyn ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
+
+/// Type alias for `ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>`
+pub type PaymentsAuthenticateType =
+    dyn ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>;
+
+/// Type alias for `ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>`
+pub type PaymentsPostAuthenticateType =
+    dyn ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>;
+
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
@@ -122,6 +153,12 @@ pub type PaymentsPreAuthorizeType = dyn ConnectorIntegration<
     AuthorizeSessionToken,
     AuthorizeSessionTokenData,
     PaymentsResponseData,
+>;
+/// Type alias for `ConnectorIntegration<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, GiftCardBalanceCheckResponseData>`
+pub type PaymentsGiftCardBalanceCheckType = dyn ConnectorIntegration<
+    GiftCardBalanceCheck,
+    GiftCardBalanceCheckRequestData,
+    GiftCardBalanceCheckResponseData,
 >;
 /// Type alias for `ConnectorIntegration<InitPayment, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsInitType =
@@ -155,6 +192,20 @@ pub type IncrementalAuthorizationType = dyn ConnectorIntegration<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>`
+pub type ExtendedAuthorizationType = dyn ConnectorIntegration<
+    ExtendAuthorization,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
+
+/// Type alias for ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>
+pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`
@@ -264,11 +315,18 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
-    RecoveryRecordBack,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+/// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type InvoiceRecordBackType = dyn ConnectorIntegration<
+    InvoiceRecordBack,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>`
+pub type SubscriptionCreateType = dyn ConnectorIntegration<
+    SubscriptionCreate,
+    SubscriptionCreateRequest,
+    SubscriptionCreateResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
@@ -285,12 +343,12 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
-    RecoveryRecordBack,
-    flow_common_types::RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+/// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type InvoiceRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    InvoiceRecordBack,
+    flow_common_types::InvoiceRecordBackData,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
 >;
 
 /// Type alias for `ConnectorIntegrationV2<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
@@ -309,6 +367,41 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncResponse,
 >;
 
+/// Type alias for `ConnectorIntegration<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>`
+pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
+    GetSubscriptionPlans,
+    GetSubscriptionPlansRequest,
+    GetSubscriptionPlansResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<GetSubscriptionEstimate, GetSubscriptionEstimateRequest, GetSubscriptionEstimateResponse>`
+pub type GetSubscriptionEstimateType = dyn ConnectorIntegration<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>`
+pub type SubscriptionPauseType = dyn ConnectorIntegration<
+    SubscriptionPause,
+    SubscriptionPauseRequest,
+    SubscriptionPauseResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>`
+pub type SubscriptionResumeType = dyn ConnectorIntegration<
+    SubscriptionResume,
+    SubscriptionResumeRequest,
+    SubscriptionResumeResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>`
+pub type SubscriptionCancelType = dyn ConnectorIntegration<
+    SubscriptionCancel,
+    SubscriptionCancelRequest,
+    SubscriptionCancelResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
 pub type ExternalVaultInsertType =
     dyn ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>;
@@ -323,7 +416,7 @@ pub type ExternalVaultCreateType =
     dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
 /// Proxy configuration structure
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
 pub struct Proxy {
     /// The URL of the HTTP proxy server.
@@ -337,6 +430,12 @@ pub struct Proxy {
 
     /// A comma-separated list of hosts that should bypass the proxy.
     pub bypass_proxy_hosts: Option<String>,
+
+    /// The CA certificate used for man-in-the-middle (MITM) proxying, if enabled.
+    pub mitm_ca_certificate: Option<masking::Secret<String>>,
+
+    /// Whether man-in-the-middle (MITM) proxying is enabled.
+    pub mitm_enabled: Option<bool>,
 }
 
 impl Default for Proxy {
@@ -346,6 +445,31 @@ impl Default for Proxy {
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
             bypass_proxy_hosts: Default::default(),
+            mitm_ca_certificate: None,
+            mitm_enabled: None,
         }
     }
 }
+
+impl Proxy {
+    /// Check if any proxy configuration is present
+    pub fn has_proxy_config(&self) -> bool {
+        self.http_url.is_some() || self.https_url.is_some()
+    }
+}
+/// Proxy override configuration for rollout-based proxy switching
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProxyOverride {
+    /// Override HTTP proxy URL
+    pub http_url: Option<String>,
+    /// Override HTTPS proxy URL  
+    pub https_url: Option<String>,
+}
+
+/// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, PaymentsResponseData>`
+pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
+    CreateConnectorCustomer,
+    flow_common_types::PaymentFlowData,
+    ConnectorCustomerData,
+    PaymentsResponseData,
+>;

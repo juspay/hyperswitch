@@ -11,12 +11,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{
-        payments::Void,
-        refunds::{Execute, RSync},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{
+        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    router_request_types::{PaymentsCancelData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::{
@@ -39,7 +38,10 @@ use super::{
     },
 };
 use crate::{
-    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, RefreshTokenRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{self, is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -372,9 +374,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         item: ResponseRouterData<F, FacilitapayCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.data.customer_id.expose(),
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(
+                    item.response.data.customer_id.expose(),
+                ),
+            )),
             ..item.data
         })
     }
@@ -527,19 +531,12 @@ impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
 }
 
 // Void (cancel unprocessed payment) transformer
-impl
-    TryFrom<
-        ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
-    > for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
+    for types::PaymentsCancelRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            Void,
-            FacilitapayVoidResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<FacilitapayVoidResponse>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
 

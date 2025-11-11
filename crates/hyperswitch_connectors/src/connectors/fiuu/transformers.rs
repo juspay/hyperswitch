@@ -18,9 +18,9 @@ use hyperswitch_domain_models::{
         BankRedirectData, Card, CardDetailsForNetworkTransactionId, GooglePayWalletData,
         PaymentMethodData, RealTimePaymentData, WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -43,7 +43,7 @@ use crate::{
     constants,
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{self, PaymentsAuthorizeRequestData, QrImage, RefundsRequestData, RouterData as _},
@@ -576,6 +576,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::MbWayRedirect(_)
                     | WalletData::MobilePayRedirect(_)
                     | WalletData::PaypalRedirect(_)
+                    | WalletData::AmazonPay(_)
                     | WalletData::PaypalSdk(_)
                     | WalletData::Paze(_)
                     | WalletData::SamsungPay(_)
@@ -863,19 +864,10 @@ pub struct ExtraParameters {
     pub token: Option<Secret<String>>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, FiuuPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            FiuuPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<FiuuPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             FiuuPaymentsResponse::QRPaymentResponse(ref response) => Ok(Self {

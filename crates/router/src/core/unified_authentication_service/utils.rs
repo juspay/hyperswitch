@@ -87,6 +87,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: address.unwrap_or_default(),
@@ -130,6 +131,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
+        is_migrated_card: None,
     })
 }
 
@@ -223,6 +226,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_request: authentication_details
                             .authn_flow_type
                             .get_challenge_request(),
+                        challenge_request_key: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request_key(),
                         acs_reference_number: authentication_details
                             .authn_flow_type
                             .get_acs_reference_number(),
@@ -317,12 +323,12 @@ pub fn get_checkout_event_status_and_reason(
 ) -> (Option<String>, Option<String>) {
     match attempt_status {
         common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized => (
-            Some("02".to_string()),
-            Some("Approval Code received".to_string()),
+            Some("01".to_string()),
+            Some("The payment was successful".to_string()),
         ),
         _ => (
             Some("03".to_string()),
-            Some("No Approval Code received".to_string()),
+            Some("The payment was not successful".to_string()),
         ),
     }
 }

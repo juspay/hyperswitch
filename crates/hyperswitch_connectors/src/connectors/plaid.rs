@@ -1,6 +1,8 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -19,7 +21,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
@@ -443,4 +448,47 @@ impl IncomingWebhook for Plaid {
     }
 }
 
-impl ConnectorSpecifications for Plaid {}
+static PLAID_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let mut plaid_supported_payment_methods = SupportedPaymentMethods::new();
+
+    plaid_supported_payment_methods.add(
+        enums::PaymentMethod::OpenBanking,
+        enums::PaymentMethodType::OpenBankingPIS,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
+
+    plaid_supported_payment_methods
+});
+
+static PLAID_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Plaid",
+    description: "Plaid is a data network that helps millions connect their financial accounts to apps like Venmo, SoFi, and Betterment. It powers tools used by Fortune 500 companies, major banks, and leading fintechs to enable easier, smarter financial lives.",
+    connector_type: enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
+};
+
+static PLAID_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Plaid {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PLAID_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PLAID_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PLAID_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

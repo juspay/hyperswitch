@@ -605,12 +605,43 @@ export const connectorDetails = {
         },
       },
       Request: {
-        currency: "BRL",
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
+          amount: 0,
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 0,
+          setup_future_usage: "off_session",
+          payment_method_type: "credit",
         },
       },
     },
@@ -630,11 +661,10 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          code: "IR_00",
-          message: "Setup Mandate flow for Payload is not implemented",
-          type: "invalid_request",
+          status: "succeeded",
+          amount: 0,
         },
       },
     },

@@ -9,11 +9,10 @@ use hyperswitch_domain_models::{
     },
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        Authorize, Capture, CompleteAuthorize, Execute, PreProcessing, RSync, SetupMandate, Void,
+        Authorize, Capture, CompleteAuthorize, Execute, RSync, SetupMandate, Void,
     },
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreProcessingData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCaptureData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
@@ -27,7 +26,10 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
         AddressDetailsData as _, CardData as _, PaymentsAuthorizeRequestData,
@@ -163,24 +165,12 @@ pub struct NmiVaultResponse {
     pub transactionid: String,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PreProcessing,
-            NmiVaultResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for PaymentsPreProcessingRouterData
+impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            PreProcessing,
-            NmiVaultResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<NmiVaultResponse>,
     ) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.data.connector_auth_type).try_into()?;
         let amount_data = item
@@ -640,6 +630,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)

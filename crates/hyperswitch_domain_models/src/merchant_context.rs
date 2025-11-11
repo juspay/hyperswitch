@@ -11,7 +11,6 @@ pub enum MerchantContext {
     /// Represents a normal operation merchant context.
     NormalMerchant(Box<Context>),
 }
-
 /// `Context` holds the merchant account details and cryptographic key store.
 #[derive(Clone, Debug)]
 pub struct Context(pub MerchantAccount, pub MerchantKeyStore);

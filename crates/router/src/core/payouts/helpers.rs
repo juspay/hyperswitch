@@ -4,7 +4,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{AsyncExt, StringExt},
+    ext_traits::{AsyncExt, StringExt, ValueExt},
     fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
@@ -38,6 +38,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
+        self as router_types,
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
@@ -377,7 +378,9 @@ pub async fn save_payout_data_to_locker(
                         Some(wallet.to_owned()),
                         api_enums::PaymentMethodType::foreign_from(wallet),
                     ),
-                    payouts::PayoutMethodData::Card(_) => {
+                    payouts::PayoutMethodData::Card(_)
+                    | payouts::PayoutMethodData::BankRedirect(_)
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -605,6 +608,22 @@ pub async fn save_payout_data_to_locker(
             )
         };
 
+    let payment_method_billing_address = payout_data
+        .billing_address
+        .clone()
+        .async_map(|billing_addr| async {
+            cards::create_encrypted_data(
+                &key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                billing_addr,
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt billing address")?;
+
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
@@ -625,11 +644,12 @@ pub async fn save_payout_data_to_locker(
                 connector_mandate_details,
                 None,
                 None,
+                payment_method_billing_address,
                 None,
                 None,
                 None,
                 None,
-                None,
+                Default::default(),
             )
             .await?,
         );
@@ -1268,37 +1288,19 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data.payouts.customer_id.clone()
     };
 
-    // We have to do this because the function that is being used to create / get address is from payments
-    // which expects a payment_id
-    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-        payout_id.get_string_repr().to_string(),
-    ))
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
-    })
-    .attach_printable("Error converting payout_id to PaymentId type")?;
-
-    // Fetch address details from request and create new or else use existing address that was attached
-    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+    let (billing_address, address_id) = resolve_billing_address_for_payout(
         state,
         req.billing.as_ref(),
-        None,
-        merchant_context.get_merchant_account().get_id(),
+        payout_data.payouts.address_id.as_ref(),
+        payout_data.payment_method.as_ref(),
+        merchant_context,
         customer_id.as_ref(),
-        merchant_context.get_merchant_key_store(),
-        &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        &payout_id,
     )
     .await?;
-    let address_id = if billing_address.is_some() {
-        payout_data.billing_address = billing_address;
-        payout_data
-            .billing_address
-            .as_ref()
-            .map(|address| address.address_id.clone())
-    } else {
-        payout_data.payouts.address_id.clone()
-    };
+
+    // Update payout state with resolved billing address
+    payout_data.billing_address = billing_address;
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
@@ -1534,5 +1536,123 @@ pub async fn get_additional_payout_data(
                 Box::new(wallet_data.to_owned().into()),
             ))
         }
+        api::PayoutMethodData::BankRedirect(bank_redirect_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::BankRedirect(
+                Box::new(bank_redirect_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
+            ))
+        }
     }
+}
+
+pub async fn resolve_billing_address_for_payout(
+    state: &SessionState,
+    req_billing: Option<&api_models::payments::Address>,
+    existing_address_id: Option<&String>,
+    payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    merchant_context: &domain::MerchantContext,
+    customer_id: Option<&id_type::CustomerId>,
+    payout_id: &id_type::PayoutId,
+) -> RouterResult<(
+    Option<hyperswitch_domain_models::address::Address>,
+    Option<String>,
+)> {
+    let payout_id_as_payment_id = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
+        payout_id.get_string_repr().to_string(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
+
+    match (req_billing, existing_address_id, payment_method) {
+        // Address in request
+        (Some(_), _, _) => {
+            let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+                state,
+                req_billing,
+                None,
+                merchant_context.get_merchant_account().get_id(),
+                customer_id,
+                merchant_context.get_merchant_key_store(),
+                &payout_id_as_payment_id,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await?;
+            let address_id = billing_address.as_ref().map(|a| a.address_id.clone());
+            let hyperswitch_address = billing_address
+                .map(|addr| hyperswitch_domain_models::address::Address::from(&addr));
+            Ok((hyperswitch_address, address_id))
+        }
+
+        // Existing address using address_id
+        (None, Some(address_id), _) => {
+            let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+                state,
+                None,
+                Some(address_id),
+                merchant_context.get_merchant_account().get_id(),
+                customer_id,
+                merchant_context.get_merchant_key_store(),
+                &payout_id_as_payment_id,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await?;
+            let hyperswitch_address = billing_address
+                .map(|addr| hyperswitch_domain_models::address::Address::from(&addr));
+            Ok((hyperswitch_address, Some(address_id.clone())))
+        }
+
+        // Existing address in stored payment method
+        (None, None, Some(pm)) => {
+            pm.payment_method_billing_address.as_ref().map_or_else(
+                || {
+                    logger::info!("No billing address found in payment method");
+                    Ok((None, None))
+                },
+                |encrypted_billing_address| {
+                    logger::info!("Found encrypted billing address data in payment method");
+
+                    #[cfg(feature = "v1")]
+                    {
+                        encrypted_billing_address
+                            .clone()
+                            .into_inner()
+                            .expose()
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment_method_billing_address",
+                            )
+                            .map(|domain_address| {
+                                logger::info!("Successfully parsed as hyperswitch_domain_models::address::Address");
+                                (Some(domain_address), None)
+                            })
+                            .map_err(|e| {
+                                logger::error!("Failed to parse billing address into (hyperswitch_domain_models::address::Address): {:?}", e);
+                                errors::ApiErrorResponse::InternalServerError
+                            })
+                            .attach_printable("Failed to parse stored billing address")
+                    }
+
+                    #[cfg(feature = "v2")]
+                    {
+                        // TODO: Implement v2 logic when needed
+                        logger::warn!("v2 billing address resolution not yet implemented");
+                        Ok((None, None))
+                    }
+                },
+            )
+        }
+
+        (None, None, None) => Ok((None, None)),
+    }
+}
+
+pub fn should_continue_payout<F: Clone + 'static>(
+    router_data: &router_types::PayoutsRouterData<F>,
+) -> bool {
+    router_data.response.is_ok()
 }

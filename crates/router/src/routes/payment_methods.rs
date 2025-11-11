@@ -21,7 +21,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
-        payment_methods::{self as payment_methods_routes, cards},
+        payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
@@ -403,6 +403,46 @@ pub async fn migrate_payment_methods(
                     &merchant_context,
                     merchant_connector_ids,
                     &controller,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchUpdate))]
+pub async fn update_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<update_migration::PaymentMethodsUpdateForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchUpdate;
+    let (merchant_id, records) = match form.validate_and_get_payment_method_records() {
+        Ok((merchant_id, records)) => (merchant_id, records),
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
+                Box::pin(update_migration::update_payment_methods(
+                    &state,
+                    req,
+                    &merchant_id,
+                    &merchant_context,
                 ))
                 .await
             }
@@ -824,7 +864,13 @@ pub async fn payment_method_update_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            cards::update_customer_payment_method(state, merchant_context, req, &payment_method_id)
+            cards::update_customer_payment_method(
+                state,
+                merchant_context,
+                req,
+                &payment_method_id,
+                None,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -1000,7 +1046,6 @@ pub async fn default_payment_method_set_api(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use api_models::payment_methods::PaymentMethodListRequest;
 
     use super::*;
@@ -1515,6 +1560,40 @@ pub async fn payment_method_session_delete_saved_payment_method(
                 payment_method_session_id,
             ),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenStatusCheck))]
+pub async fn network_token_status_check_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenStatusCheck;
+    let payment_method_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_id,
+        |state, auth: auth::AuthenticationData, payment_method_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payment_methods_routes::check_network_token_status(
+                state,
+                merchant_context,
+                payment_method_id,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

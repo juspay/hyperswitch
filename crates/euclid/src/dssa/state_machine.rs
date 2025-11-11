@@ -424,7 +424,7 @@ impl<'a> ProgramStateMachine<'a> {
     pub fn is_finished(&self) -> bool {
         self.current_rule_machine
             .as_ref()
-            .map_or(true, |rsm| rsm.is_finished())
+            .is_none_or(|rsm| rsm.is_finished())
             && self.rule_machines.is_empty()
     }
 
@@ -449,7 +449,7 @@ impl<'a> ProgramStateMachine<'a> {
         if self
             .current_rule_machine
             .as_ref()
-            .map_or(true, |rsm| rsm.is_finished())
+            .is_none_or(|rsm| rsm.is_finished())
         {
             self.current_rule_machine = self.rule_machines.pop();
             context.clear();
@@ -519,8 +519,6 @@ pub fn make_connector_selection_data<O: EuclidAnalysable>(
 
 #[cfg(all(test, feature = "ast_parser"))]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     use super::*;
     use crate::{dirval, frontend::ast, types::DummyOutput};
 

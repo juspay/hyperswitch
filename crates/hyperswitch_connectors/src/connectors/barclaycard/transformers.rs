@@ -1,5 +1,6 @@
 use base64::Engine;
 use common_enums::enums;
+use common_types::payments::ApplePayPredecryptData;
 use common_utils::{
     consts, date_time,
     ext_traits::ValueExt,
@@ -8,21 +9,20 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{GooglePayWalletData, PaymentMethodData, WalletData},
+    payment_method_data::{ApplePayWalletData, GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ErrorResponse, RouterData,
+        ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
-        ResponseId,
+        authentication::MessageExtensionAttribute, CompleteAuthorizeData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -32,7 +32,12 @@ use serde_json::Value;
 
 use crate::{
     constants,
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
+    unimplemented_payment_method,
     utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData,
@@ -180,10 +185,43 @@ pub struct GooglePayPaymentInformation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCard {
+    number: cards::CardNumber,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    cryptogram: Option<Secret<String>>,
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: ApplePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPaymentInformation {
+    tokenized_card: TokenizedCard,
+}
+
+pub const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
     GooglePay(Box<GooglePayPaymentInformation>),
+    ApplePay(Box<ApplePayPaymentInformation>),
+    ApplePayToken(Box<ApplePayTokenPaymentInformation>),
 }
 
 #[derive(Debug, Serialize)]
@@ -202,6 +240,8 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct FluidData {
     value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -289,12 +329,20 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
 #[derive(Debug, Serialize)]
 pub enum PaymentSolution {
     GooglePay,
+    ApplePay,
+}
+
+#[derive(Debug, Serialize)]
+pub enum TransactionType {
+    #[serde(rename = "1")]
+    InApp,
 }
 
 impl From<PaymentSolution> for String {
     fn from(solution: PaymentSolution) -> Self {
         let payment_solution = match solution {
             PaymentSolution::GooglePay => "012",
+            PaymentSolution::ApplePay => "001",
         };
         payment_solution.to_string()
     }
@@ -338,7 +386,23 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let commerce_indicator = get_commerce_indicator(network);
+        let commerce_indicator = solution
+            .as_ref()
+            .map(|pm_solution| match pm_solution {
+                PaymentSolution::ApplePay => network
+                    .as_ref()
+                    .map(|card_network| match card_network.to_lowercase().as_str() {
+                        "amex" => "internet",
+                        "discover" => "internet",
+                        "mastercard" => "spa",
+                        "visa" => "internet",
+                        _ => "internet",
+                    })
+                    .unwrap_or("internet"),
+                PaymentSolution::GooglePay => "internet",
+            })
+            .unwrap_or("internet")
+            .to_string();
         let cavv_algorithm = Some("2".to_string());
         Ok(Self {
             capture: Some(matches!(
@@ -834,24 +898,12 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardPreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardPreProcessingResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPreProcessingResponse::ClientAuthCheckInfo(info_response) => {
@@ -1278,6 +1330,90 @@ impl
     }
 }
 
+impl
+    TryFrom<(
+        &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+        Box<ApplePayPredecryptData>,
+        ApplePayWalletData,
+    )> for BarclaycardPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, apple_pay_data, apple_pay_wallet_data): (
+            &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+            Box<ApplePayPredecryptData>,
+            ApplePayWalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+        let processing_information =
+            ProcessingInformation::try_from((item, Some(PaymentSolution::ApplePay), None))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let expiration_month = apple_pay_data.get_expiry_month().change_context(
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "expiration_month",
+            },
+        )?;
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
+        let payment_information =
+            PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
+                tokenized_card: TokenizedCard {
+                    number: apple_pay_data.application_primary_account_number,
+                    cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
+                    transaction_type: TransactionType::InApp,
+                    expiration_year,
+                    expiration_month,
+                },
+            }));
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(convert_metadata_to_merchant_defined_info);
+        let ucaf_collection_indicator = match apple_pay_wallet_data
+            .payment_method
+            .network
+            .to_lowercase()
+            .as_str()
+        {
+            "mastercard" => Some("2".to_string()),
+            _ => None,
+        };
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information: Some(BarclaycardConsumerAuthInformation {
+                ucaf_collection_indicator,
+                cavv: None,
+                ucaf_authentication_data: None,
+                xid: None,
+                directory_server_transaction_id: None,
+                specification_version: None,
+                pa_specification_version: None,
+                veres_enrolled: None,
+                eci_raw: None,
+                pares_status: None,
+                authentication_date: None,
+                effective_authentication_type: None,
+                challenge_code: None,
+                pares_status_reason: None,
+                challenge_cancel_code: None,
+                network_score: None,
+                acs_transaction_id: None,
+            }),
+            merchant_defined_information,
+        })
+    }
+}
+
 impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for BarclaycardPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1287,11 +1423,105 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => Self::try_from((item, google_pay_data)),
+                WalletData::ApplePay(apple_pay_data) => {
+                    match item.router_data.payment_method_token.clone() {
+                        Some(payment_method_token) => match payment_method_token {
+                            PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                Self::try_from((item, decrypt_data, apple_pay_data))
+                            }
+                            PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
+                                "Apple Pay",
+                                "Manual",
+                                "Cybersource"
+                            ))?,
+                            PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                            }
+                            PaymentMethodToken::GooglePayDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
+                            }
+                        },
+                        None => {
+                            let transaction_type = TransactionType::InApp;
+                            let email = item
+                                .router_data
+                                .get_billing_email()
+                                .or(item.router_data.request.get_email())?;
+                            let bill_to =
+                                build_bill_to(item.router_data.get_billing_address()?, email)?;
+                            let order_information =
+                                OrderInformationWithBill::from((item, Some(bill_to)));
+                            let processing_information = ProcessingInformation::try_from((
+                                item,
+                                Some(PaymentSolution::ApplePay),
+                                Some(apple_pay_data.payment_method.network.clone()),
+                            ))?;
+                            let client_reference_information =
+                                ClientReferenceInformation::from(item);
+
+                            let apple_pay_encrypted_data = apple_pay_data
+                                .payment_data
+                                .get_encrypted_apple_pay_payment_data_mandatory()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "Apple pay encrypted data",
+                                })?;
+                            let payment_information = PaymentInformation::ApplePayToken(Box::new(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard { transaction_type },
+                                },
+                            ));
+                            let merchant_defined_information =
+                                item.router_data.request.metadata.clone().map(|metadata| {
+                                    convert_metadata_to_merchant_defined_info(metadata)
+                                });
+                            let ucaf_collection_indicator = match apple_pay_data
+                                .payment_method
+                                .network
+                                .to_lowercase()
+                                .as_str()
+                            {
+                                "mastercard" => Some("2".to_string()),
+                                _ => None,
+                            };
+                            Ok(Self {
+                                processing_information,
+                                payment_information,
+                                order_information,
+                                client_reference_information,
+                                merchant_defined_information,
+                                consumer_authentication_information: Some(
+                                    BarclaycardConsumerAuthInformation {
+                                        ucaf_collection_indicator,
+                                        cavv: None,
+                                        ucaf_authentication_data: None,
+                                        xid: None,
+                                        directory_server_transaction_id: None,
+                                        specification_version: None,
+                                        pa_specification_version: None,
+                                        veres_enrolled: None,
+                                        eci_raw: None,
+                                        pares_status: None,
+                                        authentication_date: None,
+                                        effective_authentication_type: None,
+                                        challenge_code: None,
+                                        pares_status_reason: None,
+                                        challenge_cancel_code: None,
+                                        network_score: None,
+                                        acs_transaction_id: None,
+                                    },
+                                ),
+                            })
+                        }
+                    }
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
-                | WalletData::ApplePay(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1318,6 +1548,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
                 | WalletData::BluecodeRedirect {}
+                | WalletData::AmazonPay(_)
                 | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
@@ -1349,24 +1580,12 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardAuthSetupResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardAuthSetupResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BarclaycardAuthSetupResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
@@ -1803,24 +2022,12 @@ fn get_payment_response(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BarclaycardPaymentsResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BarclaycardPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1911,24 +2118,12 @@ fn convert_to_additional_payment_method_connector_response(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<BarclaycardPaymentsResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<BarclaycardPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1954,24 +2149,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<BarclaycardPaymentsResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<BarclaycardPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -2026,24 +2209,12 @@ pub struct ApplicationInformation {
     status: Option<BarclaycardPaymentStatus>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BarclaycardTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
+    for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BarclaycardTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(app_status) => {
@@ -2671,6 +2842,7 @@ impl TryFrom<&GooglePayWalletData> for PaymentInformation {
                             .clone(),
                     ),
                 ),
+                descriptor: None,
             },
         })))
     }

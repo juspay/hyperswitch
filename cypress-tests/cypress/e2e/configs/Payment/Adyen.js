@@ -207,11 +207,24 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },
-
+    Overcapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null, // Amount is updated via webhooks
+        },
+      },
+    },
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -222,7 +235,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },

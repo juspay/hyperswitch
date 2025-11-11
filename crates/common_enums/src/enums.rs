@@ -11,10 +11,11 @@ pub use accounts::{
 };
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::RoutableConnectors;
+pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -122,6 +123,7 @@ impl From<std::io::Error> for ApplicationError {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -129,6 +131,7 @@ impl From<std::io::Error> for ApplicationError {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AttemptStatus {
     Started,
     AuthenticationFailed,
@@ -235,6 +238,7 @@ pub enum ApplePayPaymentMethodType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -243,6 +247,7 @@ pub enum ApplePayPaymentMethodType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardDiscovery {
     #[default]
     Manual,
@@ -331,6 +336,7 @@ pub enum GsmFeature {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -340,12 +346,19 @@ pub enum GsmFeature {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
     ThreeDs,
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
     #[default]
     NoThreeDs,
+}
+
+impl AuthenticationType {
+    pub fn is_three_ds(&self) -> bool {
+        matches!(self, Self::ThreeDs)
+    }
 }
 
 /// The status of the capture
@@ -381,6 +394,7 @@ pub enum FraudCheckStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -389,6 +403,7 @@ pub enum FraudCheckStatus {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CaptureStatus {
     // Capture request initiated
     #[default]
@@ -409,6 +424,7 @@ pub enum CaptureStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -417,6 +433,7 @@ pub enum CaptureStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthorizationStatus {
     Success,
     Failure,
@@ -487,6 +504,7 @@ pub enum BlocklistDataKind {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -496,6 +514,7 @@ pub enum BlocklistDataKind {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CaptureMethod {
     /// Post the payment authorization, the capture will be executed on the full amount immediately.
     #[default]
@@ -573,6 +592,31 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSConsumeResponse(Vec<u8>),
+    UCSHandleResponse(Vec<u8>),
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "UPPERCASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum DocumentKind {
+    Cnpj,
+    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -592,8 +636,10 @@ pub enum CallConnectorAction {
     strum::EnumIter,
     strum::VariantNames,
     ToSchema,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Currency {
     AED,
     AFN,
@@ -1479,6 +1525,29 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventObjectType {
+    PaymentDetails,
+    RefundDetails,
+    DisputeDetails,
+    MandateDetails,
+    PayoutDetails,
+    SubscriptionDetails,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Hash,
     Eq,
     PartialEq,
@@ -1498,6 +1567,7 @@ pub enum EventClass {
     Mandates,
     #[cfg(feature = "payouts")]
     Payouts,
+    Subscriptions,
 }
 
 impl EventClass {
@@ -1536,6 +1606,7 @@ impl EventClass {
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
             ]),
+            Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
     }
 }
@@ -1595,6 +1666,7 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    InvoicePaid,
 }
 
 #[derive(
@@ -1616,6 +1688,29 @@ pub enum WebhookDeliveryAttempt {
     InitialAttempt,
     AutomaticRetry,
     ManualRetry,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OutgoingWebhookEndpointStatus {
+    /// The webhook endpoint is active and operational.
+    Active,
+    /// The webhook endpoint is temporarily disabled.
+    Inactive,
+    /// The webhook endpoint is deprecated and can no longer be reactivated.
+    Deprecated,
 }
 
 // TODO: This decision about using KV mode or not,
@@ -1654,6 +1749,7 @@ pub enum MerchantStorageScheme {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -1661,6 +1757,7 @@ pub enum MerchantStorageScheme {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum IntentStatus {
     /// The payment has succeeded. Refunds and disputes can be initiated.
     /// Manual retries are not allowed to be performed.
@@ -1756,6 +1853,7 @@ impl IntentStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -1765,6 +1863,7 @@ impl IntentStatus {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum FutureUsage {
     OffSession,
     #[default]
@@ -1820,6 +1919,7 @@ pub enum PaymentMethodIssuerCode {
     Hash,
     serde::Serialize,
     serde::Deserialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -1827,6 +1927,7 @@ pub enum PaymentMethodIssuerCode {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodStatus {
     /// Indicates that the payment method is active and can be used for payments.
     Active,
@@ -1887,10 +1988,12 @@ impl From<AttemptStatus> for PaymentMethodStatus {
     strum::Display,
     ToSchema,
     Default,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentExperience {
     /// The URL to which the customer needs to be redirected for completing the payment.
     #[default]
@@ -1933,6 +2036,7 @@ pub enum SamsungPayCardBrand {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -1942,6 +2046,7 @@ pub enum SamsungPayCardBrand {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodType {
     Ach,
     Affirm,
@@ -2015,6 +2120,7 @@ pub enum PaymentMethodType {
     PermataBankTransfer,
     OpenBankingUk,
     PayBright,
+    Payjustnow,
     Paypal,
     Paze,
     Pix,
@@ -2027,6 +2133,7 @@ pub enum PaymentMethodType {
     SamsungPay,
     Sepa,
     SepaBankTransfer,
+    SepaGuarenteedDebit,
     Skrill,
     Sofort,
     Swish,
@@ -2035,6 +2142,7 @@ pub enum PaymentMethodType {
     Twint,
     UpiCollect,
     UpiIntent,
+    UpiQr,
     Vipps,
     VietQr,
     Venmo,
@@ -2141,6 +2249,7 @@ impl PaymentMethodType {
             Self::PermataBankTransfer => "Permata Bank Transfer",
             Self::OpenBankingUk => "Open Banking UK",
             Self::PayBright => "PayBright",
+            Self::Payjustnow => "Payjustnow",
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
@@ -2152,6 +2261,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2161,6 +2271,7 @@ impl PaymentMethodType {
             Self::Twint => "TWINT",
             Self::UpiCollect => "UPI Collect",
             Self::UpiIntent => "UPI Intent",
+            Self::UpiQr => "UPI QR",
             Self::Vipps => "Vipps",
             Self::VietQr => "VietQR",
             Self::Venmo => "Venmo",
@@ -2198,6 +2309,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2207,6 +2319,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethod {
     #[default]
     Card,
@@ -2254,56 +2367,9 @@ pub enum GatewaySystem {
     UnifiedConnectorService,
 }
 
-/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentType {
-    #[default]
-    Normal,
-    NewMandate,
-    SetupMandate,
-    RecurringMandate,
-}
-
-/// SCA Exemptions types available for authentication
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ScaExemptionType {
-    #[default]
-    LowValue,
-    TransactionRiskAnalysis,
-}
-
-#[derive(
-    Clone,
     Debug,
     Default,
     Eq,
@@ -2322,6 +2388,189 @@ pub enum ScaExemptionType {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Indicates the execution path through which the payment is processed.
+pub enum ExecutionPath {
+    #[default]
+    Direct,
+    UnifiedConnectorService,
+    ShadowUnifiedConnectorService,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ShadowRolloutAvailability {
+    IsAvailable,
+    NotAvailable,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UcsAvailability {
+    Enabled,
+    Disabled,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ExecutionMode {
+    #[default]
+    Primary,
+    Shadow,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorIntegrationType {
+    UcsConnector,
+    DirectConnector,
+}
+
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentType {
+    #[default]
+    Normal,
+    NewMandate,
+    SetupMandate,
+    RecurringMandate,
+}
+
+/// SCA Exemptions types available for authentication
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum ScaExemptionType {
+    #[default]
+    LowValue,
+    TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Describes the channel through which the payment was initiated.
 pub enum PaymentChannel {
     #[default]
@@ -2344,12 +2593,16 @@ pub enum PaymentChannel {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CtpServiceProvider {
+    #[strum(serialize = "ctp_visa")]
     Visa,
+    #[strum(serialize = "ctp_mastercard")]
     Mastercard,
 }
 
@@ -2488,6 +2741,7 @@ pub enum MandateStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2495,6 +2749,7 @@ pub enum MandateStatus {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
     Visa,
@@ -2655,6 +2910,7 @@ impl CardNetwork {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -2663,6 +2919,7 @@ impl CardNetwork {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum DisputeStage {
     PreDispute,
     #[default]
@@ -2683,6 +2940,7 @@ pub enum DisputeStage {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -2691,6 +2949,7 @@ pub enum DisputeStage {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum DisputeStatus {
     #[default]
     DisputeOpened,
@@ -2809,10 +3068,12 @@ pub struct MerchantCategoryCodeWithName {
     strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
-    Copy
+    Copy,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[rustfmt::skip]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CountryAlpha2 {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
     AZ, BS, BH, BD, BB, BY, BE, BZ, BJ, BM, BT, BO, BQ, BA, BW,
@@ -2857,6 +3118,52 @@ pub enum RequestIncrementalAuthorization {
     #[default]
     False,
     Default,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SplitTxnsEnabled {
+    Enable,
+    #[default]
+    Skip,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ActiveAttemptIDType {
+    AttemptsGroupID,
+    #[default]
+    AttemptID,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -3234,6 +3541,620 @@ pub enum UsStatesAbbreviation {
     WV,
     WI,
     WY,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum AustraliaStatesAbbreviation {
+    ACT,
+    NT,
+    NSW,
+    QLD,
+    SA,
+    TAS,
+    VIC,
+    WA,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum JapanStatesAbbreviation {
+    #[strum(serialize = "23")]
+    Aichi,
+    #[strum(serialize = "05")]
+    Akita,
+    #[strum(serialize = "02")]
+    Aomori,
+    #[strum(serialize = "38")]
+    Ehime,
+    #[strum(serialize = "21")]
+    Gifu,
+    #[strum(serialize = "10")]
+    Gunma,
+    #[strum(serialize = "34")]
+    Hiroshima,
+    #[strum(serialize = "01")]
+    Hokkaido,
+    #[strum(serialize = "18")]
+    Fukui,
+    #[strum(serialize = "40")]
+    Fukuoka,
+    #[strum(serialize = "07")]
+    Fukushima,
+    #[strum(serialize = "28")]
+    Hyogo,
+    #[strum(serialize = "08")]
+    Ibaraki,
+    #[strum(serialize = "17")]
+    Ishikawa,
+    #[strum(serialize = "03")]
+    Iwate,
+    #[strum(serialize = "37")]
+    Kagawa,
+    #[strum(serialize = "46")]
+    Kagoshima,
+    #[strum(serialize = "14")]
+    Kanagawa,
+    #[strum(serialize = "39")]
+    Kochi,
+    #[strum(serialize = "43")]
+    Kumamoto,
+    #[strum(serialize = "26")]
+    Kyoto,
+    #[strum(serialize = "24")]
+    Mie,
+    #[strum(serialize = "04")]
+    Miyagi,
+    #[strum(serialize = "45")]
+    Miyazaki,
+    #[strum(serialize = "20")]
+    Nagano,
+    #[strum(serialize = "42")]
+    Nagasaki,
+    #[strum(serialize = "29")]
+    Nara,
+    #[strum(serialize = "15")]
+    Niigata,
+    #[strum(serialize = "44")]
+    Oita,
+    #[strum(serialize = "33")]
+    Okayama,
+    #[strum(serialize = "47")]
+    Okinawa,
+    #[strum(serialize = "27")]
+    Osaka,
+    #[strum(serialize = "41")]
+    Saga,
+    #[strum(serialize = "11")]
+    Saitama,
+    #[strum(serialize = "25")]
+    Shiga,
+    #[strum(serialize = "32")]
+    Shimane,
+    #[strum(serialize = "22")]
+    Shizuoka,
+    #[strum(serialize = "12")]
+    Chiba,
+    #[strum(serialize = "36")]
+    Tokusima,
+    #[strum(serialize = "13")]
+    Tokyo,
+    #[strum(serialize = "09")]
+    Tochigi,
+    #[strum(serialize = "31")]
+    Tottori,
+    #[strum(serialize = "16")]
+    Toyama,
+    #[strum(serialize = "30")]
+    Wakayama,
+    #[strum(serialize = "06")]
+    Yamagata,
+    #[strum(serialize = "35")]
+    Yamaguchi,
+    #[strum(serialize = "19")]
+    Yamanashi,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum NewZealandStatesAbbreviation {
+    #[strum(serialize = "AUK")]
+    Auckland,
+    #[strum(serialize = "BOP")]
+    BayOfPlenty,
+    #[strum(serialize = "CAN")]
+    Canterbury,
+    #[strum(serialize = "GIS")]
+    Gisborne,
+    #[strum(serialize = "HKB")]
+    HawkesBay,
+    #[strum(serialize = "MWT")]
+    ManawatūWhanganui,
+    #[strum(serialize = "MBH")]
+    Marlborough,
+    #[strum(serialize = "NSN")]
+    Nelson,
+    #[strum(serialize = "NTL")]
+    Northland,
+    #[strum(serialize = "OTA")]
+    Otago,
+    #[strum(serialize = "STL")]
+    Southland,
+    #[strum(serialize = "TKI")]
+    Taranaki,
+    #[strum(serialize = "TAS")]
+    Tasman,
+    #[strum(serialize = "WKO")]
+    Waikato,
+    #[strum(serialize = "CIT")]
+    ChathamIslandsTerritory,
+    #[strum(serialize = "WGN")]
+    GreaterWellington,
+    #[strum(serialize = "WTC")]
+    WestCoast,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum SingaporeStatesAbbreviation {
+    #[strum(serialize = "01")]
+    CentralSingapore,
+    #[strum(serialize = "02")]
+    NorthEast,
+    #[strum(serialize = "03")]
+    NorthWest,
+    #[strum(serialize = "04")]
+    SouthEast,
+    #[strum(serialize = "05")]
+    SouthWest,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum ThailandStatesAbbreviation {
+    #[strum(serialize = "37")]
+    AmnatCharoen,
+    #[strum(serialize = "15")]
+    AngThong,
+    #[strum(serialize = "10")]
+    Bangkok,
+    #[strum(serialize = "38")]
+    BuengKan,
+    #[strum(serialize = "31")]
+    BuriRam,
+    #[strum(serialize = "24")]
+    Chachoengsao,
+    #[strum(serialize = "18")]
+    ChaiNat,
+    #[strum(serialize = "36")]
+    Chaiyaphum,
+    #[strum(serialize = "22")]
+    Chanthaburi,
+    #[strum(serialize = "57")]
+    ChiangRai,
+    #[strum(serialize = "50")]
+    ChiangMai,
+    #[strum(serialize = "20")]
+    ChonBuri,
+    #[strum(serialize = "86")]
+    Chumphon,
+    #[strum(serialize = "46")]
+    Kalasin,
+    #[strum(serialize = "62")]
+    KamphaengPhet,
+    #[strum(serialize = "71")]
+    Kanchanaburi,
+    #[strum(serialize = "40")]
+    KhonKaen,
+    #[strum(serialize = "81")]
+    Krabi,
+    #[strum(serialize = "52")]
+    Lampang,
+    #[strum(serialize = "51")]
+    Lamphun,
+    #[strum(serialize = "42")]
+    Loei,
+    #[strum(serialize = "16")]
+    LopBuri,
+    #[strum(serialize = "58")]
+    MaeHongSon,
+    #[strum(serialize = "44")]
+    MahaSarakham,
+    #[strum(serialize = "49")]
+    Mukdahan,
+    #[strum(serialize = "26")]
+    NakhonNayok,
+    #[strum(serialize = "73")]
+    NakhonPathom,
+    #[strum(serialize = "48")]
+    NakhonPhanom,
+    #[strum(serialize = "30")]
+    NakhonRatchasima,
+    #[strum(serialize = "60")]
+    NakhonSawan,
+    #[strum(serialize = "80")]
+    NakhonSiThammarat,
+    #[strum(serialize = "55")]
+    Nan,
+    #[strum(serialize = "96")]
+    Narathiwat,
+    #[strum(serialize = "39")]
+    NongBuaLamPhu,
+    #[strum(serialize = "43")]
+    NongKhai,
+    #[strum(serialize = "12")]
+    Nonthaburi,
+    #[strum(serialize = "13")]
+    PathumThani,
+    #[strum(serialize = "94")]
+    Pattani,
+    #[strum(serialize = "82")]
+    Phangnga,
+    #[strum(serialize = "93")]
+    Phatthalung,
+    #[strum(serialize = "56")]
+    Phayao,
+    #[strum(serialize = "S")]
+    Phatthaya,
+    #[strum(serialize = "67")]
+    Phetchabun,
+    #[strum(serialize = "76")]
+    Phetchaburi,
+    #[strum(serialize = "66")]
+    Phichit,
+    #[strum(serialize = "65")]
+    Phitsanulok,
+    #[strum(serialize = "54")]
+    Phrae,
+    #[strum(serialize = "14")]
+    PhraNakhonSiAyutthaya,
+    #[strum(serialize = "83")]
+    Phuket,
+    #[strum(serialize = "25")]
+    PrachinBuri,
+    #[strum(serialize = "77")]
+    PrachuapKhiriKhan,
+    #[strum(serialize = "85")]
+    Ranong,
+    #[strum(serialize = "70")]
+    Ratchaburi,
+    #[strum(serialize = "21")]
+    Rayong,
+    #[strum(serialize = "45")]
+    RoiEt,
+    #[strum(serialize = "27")]
+    SaKaeo,
+    #[strum(serialize = "47")]
+    SakonNakhon,
+    #[strum(serialize = "11")]
+    SamutPrakan,
+    #[strum(serialize = "74")]
+    SamutSakhon,
+    #[strum(serialize = "75")]
+    SamutSongkhram,
+    #[strum(serialize = "19")]
+    Saraburi,
+    #[strum(serialize = "91")]
+    Satun,
+    #[strum(serialize = "33")]
+    SiSaKet,
+    #[strum(serialize = "17")]
+    SingBuri,
+    #[strum(serialize = "90")]
+    Songkhla,
+    #[strum(serialize = "64")]
+    Sukhothai,
+    #[strum(serialize = "72")]
+    SuphanBuri,
+    #[strum(serialize = "84")]
+    SuratThani,
+    #[strum(serialize = "32")]
+    Surin,
+    #[strum(serialize = "63")]
+    Tak,
+    #[strum(serialize = "92")]
+    Trang,
+    #[strum(serialize = "23")]
+    Trat,
+    #[strum(serialize = "34")]
+    UbonRatchathani,
+    #[strum(serialize = "41")]
+    UdonThani,
+    #[strum(serialize = "61")]
+    UthaiThani,
+    #[strum(serialize = "53")]
+    Uttaradit,
+    #[strum(serialize = "95")]
+    Yala,
+    #[strum(serialize = "35")]
+    Yasothon,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum PhilippinesStatesAbbreviation {
+    #[strum(serialize = "ABR")]
+    Abra,
+    #[strum(serialize = "AGN")]
+    AgusanDelNorte,
+    #[strum(serialize = "AGS")]
+    AgusanDelSur,
+    #[strum(serialize = "AKL")]
+    Aklan,
+    #[strum(serialize = "ALB")]
+    Albay,
+    #[strum(serialize = "ANT")]
+    Antique,
+    #[strum(serialize = "APA")]
+    Apayao,
+    #[strum(serialize = "AUR")]
+    Aurora,
+    #[strum(serialize = "14")]
+    AutonomousRegionInMuslimMindanao,
+    #[strum(serialize = "BAS")]
+    Basilan,
+    #[strum(serialize = "BAN")]
+    Bataan,
+    #[strum(serialize = "BTN")]
+    Batanes,
+    #[strum(serialize = "BTG")]
+    Batangas,
+    #[strum(serialize = "BEN")]
+    Benguet,
+    #[strum(serialize = "05")]
+    Bicol,
+    #[strum(serialize = "BIL")]
+    Biliran,
+    #[strum(serialize = "BOH")]
+    Bohol,
+    #[strum(serialize = "BUK")]
+    Bukidnon,
+    #[strum(serialize = "BUL")]
+    Bulacan,
+    #[strum(serialize = "CAG")]
+    Cagayan,
+    #[strum(serialize = "02")]
+    CagayanValley,
+    #[strum(serialize = "40")]
+    Calabarzon,
+    #[strum(serialize = "CAN")]
+    CamarinesNorte,
+    #[strum(serialize = "CAS")]
+    CamarinesSur,
+    #[strum(serialize = "CAM")]
+    Camiguin,
+    #[strum(serialize = "CAP")]
+    Capiz,
+    #[strum(serialize = "13")]
+    Caraga,
+    #[strum(serialize = "CAT")]
+    Catanduanes,
+    #[strum(serialize = "CAV")]
+    Cavite,
+    #[strum(serialize = "CEB")]
+    Cebu,
+    #[strum(serialize = "03")]
+    CentralLuzon,
+    #[strum(serialize = "07")]
+    CentralVisayas,
+    #[strum(serialize = "15")]
+    CordilleraAdministrativeRegion,
+    #[strum(serialize = "NCO")]
+    Cotabato,
+    #[strum(serialize = "11")]
+    Davao,
+    #[strum(serialize = "DVO")]
+    DavaoOccidental,
+    #[strum(serialize = "DAO")]
+    DavaoOriental,
+    #[strum(serialize = "COM")]
+    DavaoDeOro,
+    #[strum(serialize = "DAV")]
+    DavaoDelNorte,
+    #[strum(serialize = "DAS")]
+    DavaoDelSur,
+    #[strum(serialize = "DIN")]
+    DinagatIslands,
+    #[strum(serialize = "EAS")]
+    EasternSamar,
+    #[strum(serialize = "08")]
+    EasternVisayas,
+    #[strum(serialize = "GUI")]
+    Guimaras,
+    #[strum(serialize = "ILN")]
+    HilagangIloko,
+    #[strum(serialize = "LAN")]
+    HilagangLanaw,
+    #[strum(serialize = "MGN")]
+    HilagangMagindanaw,
+    #[strum(serialize = "NSA")]
+    HilagangSamar,
+    #[strum(serialize = "ZAN")]
+    HilagangSambuwangga,
+    #[strum(serialize = "SUN")]
+    HilagangSurigaw,
+    #[strum(serialize = "IFU")]
+    Ifugao,
+    #[strum(serialize = "01")]
+    Ilocos,
+    #[strum(serialize = "ILS")]
+    IlocosSur,
+    #[strum(serialize = "ILI")]
+    Iloilo,
+    #[strum(serialize = "ISA")]
+    Isabela,
+    #[strum(serialize = "KAL")]
+    Kalinga,
+    #[strum(serialize = "MDC")]
+    KanlurangMindoro,
+    #[strum(serialize = "MSC")]
+    KanlurangMisamis,
+    #[strum(serialize = "NEC")]
+    KanlurangNegros,
+    #[strum(serialize = "SLE")]
+    KatimogangLeyte,
+    #[strum(serialize = "QUE")]
+    Keson,
+    #[strum(serialize = "QUI")]
+    Kirino,
+    #[strum(serialize = "LUN")]
+    LaUnion,
+    #[strum(serialize = "LAG")]
+    Laguna,
+    #[strum(serialize = "MOU")]
+    LalawigangBulubundukin,
+    #[strum(serialize = "LAS")]
+    LanaoDelSur,
+    #[strum(serialize = "LEY")]
+    Leyte,
+    #[strum(serialize = "MGS")]
+    MaguindanaoDelSur,
+    #[strum(serialize = "MAD")]
+    Marinduque,
+    #[strum(serialize = "MAS")]
+    Masbate,
+    #[strum(serialize = "41")]
+    Mimaropa,
+    #[strum(serialize = "MDR")]
+    MindoroOriental,
+    #[strum(serialize = "MSR")]
+    MisamisOccidental,
+    #[strum(serialize = "00")]
+    NationalCapitalRegion,
+    #[strum(serialize = "NER")]
+    NegrosOriental,
+    #[strum(serialize = "10")]
+    NorthernMindanao,
+    #[strum(serialize = "NUE")]
+    NuevaEcija,
+    #[strum(serialize = "NUV")]
+    NuevaVizcaya,
+    #[strum(serialize = "PLW")]
+    Palawan,
+    #[strum(serialize = "PAM")]
+    Pampanga,
+    #[strum(serialize = "PAN")]
+    Pangasinan,
+    #[strum(serialize = "06")]
+    RehiyonNgKanlurangBisaya,
+    #[strum(serialize = "12")]
+    RehiyonNgSoccsksargen,
+    #[strum(serialize = "09")]
+    RehiyonNgTangwayNgSambuwangga,
+    #[strum(serialize = "RIZ")]
+    Risal,
+    #[strum(serialize = "ROM")]
+    Romblon,
+    #[strum(serialize = "WSA")]
+    Samar,
+    #[strum(serialize = "ZMB")]
+    Sambales,
+    #[strum(serialize = "ZSI")]
+    SambuwanggaSibugay,
+    #[strum(serialize = "SAR")]
+    Sarangani,
+    #[strum(serialize = "SIG")]
+    Sikihor,
+    #[strum(serialize = "SOR")]
+    Sorsogon,
+    #[strum(serialize = "SCO")]
+    SouthCotabato,
+    #[strum(serialize = "SUK")]
+    SultanKudarat,
+    #[strum(serialize = "SLU")]
+    Sulu,
+    #[strum(serialize = "SUR")]
+    SurigaoDelSur,
+    #[strum(serialize = "TAR")]
+    Tarlac,
+    #[strum(serialize = "TAW")]
+    TawiTawi,
+    #[strum(serialize = "ZAS")]
+    TimogSambuwangga,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum IndiaStatesAbbreviation {
+    #[strum(serialize = "AN")]
+    AndamanAndNicobarIslands,
+    #[strum(serialize = "AP")]
+    AndhraPradesh,
+    #[strum(serialize = "AR")]
+    ArunachalPradesh,
+    #[strum(serialize = "AS")]
+    Assam,
+    #[strum(serialize = "BR")]
+    Bihar,
+    #[strum(serialize = "CH")]
+    Chandigarh,
+    #[strum(serialize = "CG")]
+    Chhattisgarh,
+    #[strum(serialize = "DL")]
+    Delhi,
+    #[strum(serialize = "DH")]
+    DadraAndNagarHaveliAndDamanAndDiu,
+    #[strum(serialize = "GA")]
+    Goa,
+    #[strum(serialize = "GJ")]
+    Gujarat,
+    #[strum(serialize = "HR")]
+    Haryana,
+    #[strum(serialize = "HP")]
+    HimachalPradesh,
+    #[strum(serialize = "JK")]
+    JammuAndKashmir,
+    #[strum(serialize = "JH")]
+    Jharkhand,
+    #[strum(serialize = "KA")]
+    Karnataka,
+    #[strum(serialize = "KL")]
+    Kerala,
+    #[strum(serialize = "LA")]
+    Ladakh,
+    #[strum(serialize = "LD")]
+    Lakshadweep,
+    #[strum(serialize = "MP")]
+    MadhyaPradesh,
+    #[strum(serialize = "MH")]
+    Maharashtra,
+    #[strum(serialize = "MN")]
+    Manipur,
+    #[strum(serialize = "ML")]
+    Meghalaya,
+    #[strum(serialize = "MZ")]
+    Mizoram,
+    #[strum(serialize = "NL")]
+    Nagaland,
+    #[strum(serialize = "OD")]
+    Odisha,
+    #[strum(serialize = "PY")]
+    Puducherry,
+    #[strum(serialize = "PB")]
+    Punjab,
+    #[strum(serialize = "RJ")]
+    Rajasthan,
+    #[strum(serialize = "SK")]
+    Sikkim,
+    #[strum(serialize = "TN")]
+    TamilNadu,
+    #[strum(serialize = "TG")]
+    Telangana,
+    #[strum(serialize = "TR")]
+    Tripura,
+    #[strum(serialize = "UP")]
+    UttarPradesh,
+    #[strum(serialize = "UK")]
+    Uttarakhand,
+    #[strum(serialize = "WB")]
+    WestBengal,
 }
 
 #[derive(
@@ -7158,6 +8079,15 @@ pub enum PayoutStatus {
     RequiresVendorAccountCreation,
 }
 
+impl PayoutStatus {
+    pub fn is_payout_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+        )
+    }
+}
+
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,
@@ -7183,6 +8113,7 @@ pub enum PayoutType {
     Card,
     Bank,
     Wallet,
+    BankRedirect,
 }
 
 /// Type of entity to whom the payout is being carried out to, select from the given list of options
@@ -7326,6 +8257,7 @@ pub enum MerchantDecision {
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
@@ -7334,6 +8266,7 @@ pub enum MerchantDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum TaxStatus {
     Taxable,
     Exempt,
@@ -7408,6 +8341,7 @@ pub enum AuthenticationConnectors {
     UnifiedAuthenticationService,
     Juspaythreedsserver,
     CtpVisa,
+    Cardinal,
 }
 
 impl AuthenticationConnectors {
@@ -7418,9 +8352,31 @@ impl AuthenticationConnectors {
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
-            | Self::CtpVisa => false,
+            | Self::CtpVisa
+            | Self::Cardinal => false,
             Self::Gpayments => true,
         }
+    }
+
+    pub fn is_jwt_flow(&self) -> bool {
+        match self {
+            Self::Threedsecureio
+            | Self::Netcetera
+            | Self::CtpMastercard
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa
+            | Self::Gpayments => false,
+            Self::Cardinal => true,
+        }
+    }
+
+    pub fn is_pre_auth_required_in_post_authn_flow(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
+    }
+
+    pub fn is_click_to_pay(&self) -> bool {
+        matches!(self, Self::CtpMastercard | Self::CtpVisa)
     }
 }
 
@@ -7453,6 +8409,7 @@ pub enum VaultSdk {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
@@ -7461,6 +8418,7 @@ pub enum VaultSdk {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthenticationStatus {
     #[default]
     Started,
@@ -7480,6 +8438,10 @@ impl AuthenticationStatus {
     pub fn is_failed(self) -> bool {
         self == Self::Failed
     }
+
+    pub fn is_success(self) -> bool {
+        self == Self::Success
+    }
 }
 
 #[derive(
@@ -7491,6 +8453,7 @@ impl AuthenticationStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
@@ -7499,6 +8462,7 @@ impl AuthenticationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum DecoupledAuthenticationType {
     #[default]
     Challenge,
@@ -7693,12 +8657,6 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsView,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    MerchantDetailsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    OrganizationManage,
     AccountView,
     AccountManage,
     ReconReportsView,
@@ -7753,6 +8711,7 @@ pub enum Resource {
     RunRecon,
     ReconConfig,
     RevenueRecovery,
+    Subscription,
     InternalConnector,
     Theme,
 }
@@ -7776,12 +8735,14 @@ pub enum PermissionScope {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
     AmericanExpress,
     AffinBank,
@@ -7939,12 +8900,14 @@ pub enum BankNames {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankType {
     Checking,
     Savings,
@@ -7958,12 +8921,14 @@ pub enum BankType {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankHolderType {
     Personal,
     Business,
@@ -8419,9 +9384,12 @@ impl ErrorCategory {
     strum::EnumString,
     ToSchema,
     Hash,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentChargeType {
     #[serde(untagged)]
+    #[smithy(value_type = "StripeChargeType")]
     Stripe(StripeChargeType),
 }
 
@@ -8437,9 +9405,11 @@ pub enum PaymentChargeType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    SmithyModel,
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum StripeChargeType {
     #[default]
     Direct,
@@ -8489,6 +9459,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    RevenueGrowthManagementPlatform,
 }
 
 /// Connector Integration Status
@@ -8586,12 +9557,14 @@ pub enum GooglePayAuthMethod {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumString,
     ToSchema,
 )]
 #[strum(serialize_all = "PascalCase")]
 #[serde(rename_all = "PascalCase")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AdyenSplitType {
     /// Books split amount to the specified account.
     BalanceAccount,
@@ -8659,6 +9632,35 @@ pub enum TriggeredBy {
     Copy,
     Debug,
     Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum MitCategory {
+    /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
+    Installment,
+    /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
+    Unscheduled,
+    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    Recurring,
+    /// A retried MIT after a previous transaction failed or was declined.
+    Resubmission,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -8708,6 +9710,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    InvoiceSyncflow,
 }
 
 #[derive(Debug)]
@@ -8788,9 +9791,8 @@ impl RoutingApproach {
     pub fn from_decision_engine_approach(approach: &str) -> Self {
         match approach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
-            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "SR_V3_HEDGING" | "DEFAULT" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
-            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }
@@ -8814,4 +9816,130 @@ impl RoutingApproach {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CallbackMapperIdType {
     NetworkTokenRequestorReferenceID,
+}
+
+/// Payment Method Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultType {
+    /// Indicates that the payment method is stored in internal vault.
+    Internal,
+    /// Indicates that the payment method is stored in external vault.
+    External,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ExternalVaultEnabled {
+    Enable,
+    #[default]
+    Skip,
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "UPPERCASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum GooglePayCardFundingSource {
+    Credit,
+    Debit,
+    Prepaid,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<IntentStatus> for InvoiceStatus {
+    fn from(value: IntentStatus) -> Self {
+        match value {
+            IntentStatus::Succeeded => Self::InvoicePaid,
+            IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyCaptured
+            | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | IntentStatus::Processing
+            | IntentStatus::RequiresCustomerAction
+            | IntentStatus::RequiresConfirmation
+            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            IntentStatus::RequiresMerchantAction => Self::ManualReview,
+            IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
+            IntentStatus::Expired => Self::PaymentPendingTimeout,
+            IntentStatus::Failed | IntentStatus::Conflicted => Self::PaymentFailed,
+        }
+    }
+}
+
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive.
+/// - `Pending`: Subscription is pending activation.
+/// - `Trial`: Subscription is in a trial period.
+/// - `Paused`: Subscription is paused.
+/// - `Unpaid`: Subscription is unpaid.
+/// - `Onetime`: Subscription is a one-time payment.
+/// - `Cancelled`: Subscription has been cancelled.
+/// - `Failed`: Subscription has failed.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    strum::EnumString,
+    strum::Display,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionStatus {
+    /// Subscription is active.
+    Active,
+    /// Subscription is created but not yet active.
+    Created,
+    /// Subscription is inactive.
+    InActive,
+    /// Subscription is in pending state.
+    Pending,
+    /// Subscription is in trial state.
+    Trial,
+    /// Subscription is paused.
+    Paused,
+    /// Subscription is unpaid.
+    Unpaid,
+    /// Subscription is a one-time payment.
+    Onetime,
+    /// Subscription is cancelled.
+    Cancelled,
+    /// Subscription has failed.
+    Failed,
 }

@@ -21,26 +21,29 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void,
+            Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        Accept, Defend, Evidence, Retrieve, Upload,
+        Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
         SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse, PaymentMethodDetails,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt, UploadFileResponse,
+        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
+        GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
         SetupMandateRouterData,
     },
@@ -68,9 +71,10 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response,
-        SetupMandateType, SubmitEvidenceType,
+        AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
+        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
+        SubmitEvidenceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -231,7 +235,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Givex
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
-                | PaymentMethodType::Walley => match capture_method {
+                | PaymentMethodType::Walley
+                | PaymentMethodType::Payjustnow => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::SequentialAutomatic => Ok(()),
@@ -333,6 +338,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
                 | PaymentMethodType::UpiIntent
+                | PaymentMethodType::UpiQr
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
                 | PaymentMethodType::LocalBankRedirect
@@ -344,7 +350,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::SepaBankTransfer
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
-                | PaymentMethodType::Bluecode => {
+                | PaymentMethodType::Bluecode
+                | PaymentMethodType::SepaGuarenteedDebit => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -416,6 +423,7 @@ impl api::PaymentCapture for Adyen {}
 impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
+impl api::PaymentsGiftCardBalanceCheck for Adyen {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Adyen
@@ -1164,6 +1172,140 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ad
     }
 }
 
+impl
+    ConnectorIntegration<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            PaymentsGiftCardBalanceCheckType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{endpoint}{ADYEN_API_VERSION}/paymentMethods/balance",
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsGiftCardBalanceCheckType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsGiftCardBalanceCheckType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsGiftCardBalanceCheckType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsGiftCardBalanceCheckRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsGiftCardBalanceCheckRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenBalanceResponse = res
+            .response
+            .parse_struct("AdyenBalanceResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        let currency = data
+            .request
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+
+        if response.balance.currency != currency {
+            Ok(RouterData {
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
+                    message: NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(constants::MISMATCHED_CURRENCY.to_string()),
+                    status_code: res.status_code,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: Some(response.psp_reference),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl api::Payouts for Adyen {}
 #[cfg(feature = "payouts")]
 impl api::PayoutCancel for Adyen {}
@@ -1470,6 +1612,111 @@ impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for A
     }
 }
 
+impl api::PaymentExtendAuthorization for Adyen {}
+impl
+    ConnectorIntegration<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>
+    for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let id = req.request.connector_transaction_id.as_str();
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{endpoint}{ADYEN_API_VERSION}/payments/{id}/amountUpdates"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
+        let connector_req =
+            adyen::AdyenExtendAuthorizationRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsExtendAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ExtendedAuthorizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(ExtendedAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ExtendedAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsExtendAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsExtendAuthorizationRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenExtendAuthorizationResponse = res
+            .response
+            .parse_struct("Adyen AdyenExtendAuthorizationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen {
     fn get_url(
@@ -1483,15 +1730,19 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
             &req.connector_meta_data,
         )?;
         let payout_type = req.request.get_payout_type()?;
+        let path_segment = match payout_type {
+            enums::PayoutType::Bank | enums::PayoutType::Wallet => "confirmThirdParty",
+            enums::PayoutType::Card => "payout",
+            enums::PayoutType::BankRedirect => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "bank redirect payouts not supoorted by adyen".to_string(),
+                )
+                .into())
+            }
+        };
         Ok(format!(
             "{}pal/servlet/Payout/{}/{}",
-            endpoint,
-            ADYEN_API_VERSION,
-            match payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet =>
-                    "confirmThirdParty".to_string(),
-                enums::PayoutType::Card => "payout".to_string(),
-            }
+            endpoint, ADYEN_API_VERSION, path_segment
         ))
     }
 
@@ -1517,7 +1768,9 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet => {
+                enums::PayoutType::Bank
+                | enums::PayoutType::Wallet
+                | enums::PayoutType::BankRedirect => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
                 enums::PayoutType::Card => auth.api_key.into_masked(),
@@ -1808,7 +2061,7 @@ impl IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         // for capture_event, original_reference field will have the authorized payment's PSP reference
-        if adyen::is_capture_or_cancel_event(&notif.event_code) {
+        if adyen::is_capture_or_cancel_or_adjust_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     notif
@@ -1946,8 +2199,52 @@ impl IncomingWebhook for Adyen {
                 });
         Ok(optional_network_txn_id)
     }
-}
 
+    #[cfg(feature = "v1")]
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let expiry = notif
+            .additional_data
+            .expiry_date
+            .map(|date| transformers::CardExpiry::parse(&date.expose()))
+            .transpose()?
+            .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        let month_str = expiry.month();
+        let year_str = expiry.year();
+
+        Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str),
+                card_exp_year: Some(year_str),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .map(|last4| last4.expose().to_string()),
+                card_network: adyen::from_payment_method_variant(
+                    notif
+                        .additional_data
+                        .payment_method_variant
+                        .map(|network| network.expose()),
+                ),
+            }),
+            wallet: None,
+            client_secret: None,
+        }))
+    }
+}
 impl Dispute for Adyen {}
 impl DefendDispute for Adyen {}
 impl AcceptDispute for Adyen {}

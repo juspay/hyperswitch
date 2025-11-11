@@ -10,6 +10,8 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
+    pub(crate) const MERCHANTID: &str = "MerchantID";
+    pub(crate) const MERCHANT_TOKEN: &str = "MerchantToken";
     pub(crate) const REQUEST_ID: &str = "request-id";
     pub(crate) const NONCE: &str = "nonce";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
@@ -47,6 +49,8 @@ pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 
+pub const MISMATCHED_CURRENCY: &str = "Payment Method currency does not match the payment currency";
+
 pub const DUIT_NOW_BRAND_COLOR: &str = "#ED2E67";
 
 pub const DUIT_NOW_BRAND_TEXT: &str = "MALAYSIA NATIONAL QR";
@@ -56,3 +60,5 @@ pub(crate) const CANNOT_CONTINUE_AUTH: &str =
 
 #[cfg(feature = "payouts")]
 pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
+
+pub(crate) const PLAN_ITEM_TYPE: &str = "plan";

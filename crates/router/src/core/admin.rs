@@ -23,6 +23,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -1218,25 +1219,6 @@ pub async fn merchant_account_delete(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
-    }
-
-    // Call to DE here
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.dynamic_routing_enabled && is_deleted {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    logger::error!("Failed to delete merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
     }
 
     let state = state.clone();
@@ -2596,6 +2578,9 @@ pub async fn create_connector(
             },
         )?;
 
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
+
     #[cfg(feature = "v1")]
     disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
 
@@ -2888,7 +2873,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             key_manager_state,
-            mca,
+            mca.clone(),
             payment_connector.into(),
             &key_store,
         )
@@ -2905,6 +2890,37 @@ pub async fn update_connector(
 
             )
         })?;
+
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // redact routing cache on connector updation
+    #[cfg(feature = "v1")]
+    let merchant_config = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    #[cfg(feature = "v1")]
+    if req.disabled.unwrap_or(false) {
+        merchant_config
+            .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    } else {
+        merchant_config
+            .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    }
 
     let response = updated_mca.foreign_try_into()?;
 
@@ -2975,6 +2991,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
@@ -3495,6 +3513,17 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
+            always_enable_overcapture: self.always_enable_overcapture,
+            external_vault_details: domain::ExternalVaultDetails::try_from((
+                self.is_external_vault_enabled,
+                self.external_vault_connector_details
+                    .map(ForeignFrom::foreign_from),
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating external vault details")?,
+            billing_processor_id: self.billing_processor_id,
+            is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
         }))
     }
 
@@ -3645,6 +3674,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 }
@@ -3810,7 +3841,20 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
-        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+        let webhook_details = self
+            .webhook_details
+            .map(|webhook_details| {
+                let existing_webhook_details = business_profile
+                    .webhook_details
+                    .clone()
+                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
+
+                match existing_webhook_details {
+                    Some(existing_details) => existing_details.merge(webhook_details),
+                    None => webhook_details,
+                }
+            })
+            .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
             let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
@@ -3968,6 +4012,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                always_request_extended_authorization: self.always_request_extended_authorization,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: dynamic_routing_algo_ref,
@@ -3981,7 +4026,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge, //
+                force_3ds_challenge: self.force_3ds_challenge,
                 is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -3989,6 +4034,14 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
+                is_manual_retry_enabled: self.is_manual_retry_enabled,
+                always_enable_overcapture: self.always_enable_overcapture,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
+                billing_processor_id: self.billing_processor_id,
+                is_l2_l3_enabled: self.is_l2_l3_enabled,
             },
         )))
     }
@@ -4133,6 +4186,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
+                split_txns_enabled: self.split_txns_enabled,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }

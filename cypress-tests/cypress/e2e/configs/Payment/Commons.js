@@ -738,6 +738,62 @@ export const connectorDetails = {
         body: {},
       },
     }),
+    ManualRetryPaymentDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    }),
+    ManualRetryPaymentEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    }),
+    ManualRetryPaymentCutoffExpired: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1560,6 +1616,19 @@ export const connectorDetails = {
             message:
               "Duplicate refund request. Refund already attempted with the refund ID",
             code: "HE_01",
+          },
+        },
+      },
+    },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
           },
         },
       },

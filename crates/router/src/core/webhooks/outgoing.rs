@@ -60,7 +60,9 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
-        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
+        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to generate idempotent event ID")?;
     let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
 
     if !state.conf.webhooks.outgoing_enabled
@@ -1024,6 +1026,13 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(subscription) => {
+                Self::Subscription {
+                    subscription_id: subscription.id.clone(),
+                    invoice_id: subscription.get_optional_invoice_id(),
+                    payment_id: subscription.get_optional_payment_id(),
+                }
+            }
         }
     }
 }
@@ -1066,6 +1075,16 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         } => OutgoingWebhookEventContent::Mandate {
             payment_method_id,
             mandate_id,
+            content: serde_json::Value::Null,
+        },
+        diesel_models::EventMetadata::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
+        } => OutgoingWebhookEventContent::Subscription {
+            subscription_id,
+            invoice_id,
+            payment_id,
             content: serde_json::Value::Null,
         },
     })

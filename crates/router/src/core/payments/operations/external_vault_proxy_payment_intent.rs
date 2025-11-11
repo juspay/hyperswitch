@@ -280,6 +280,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                         None,
                         None,
                         None,
+                        None,
                     ),
                 )
             }),
@@ -298,6 +299,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
             payment_method: None,
             merchant_connector_details: None,
             external_vault_pmd: payment_method_data,
+            webhook_url: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -312,14 +314,28 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 {
     async fn get_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut PaymentConfirmData<F>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        // TODO: Implement external vault specific customer details retrieval
-        Ok((Box::new(self), None))
+        match payment_data.payment_intent.customer_id.clone() {
+            Some(id) => {
+                let customer = state
+                    .store
+                    .find_customer_by_global_id(
+                        &state.into(),
+                        &id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await?;
+
+                Ok((Box::new(self), Some(customer)))
+            }
+            None => Ok((Box::new(self), None)),
+        }
     }
 
     #[instrument(skip_all)]
@@ -414,16 +430,16 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         merchant_context: &domain::MerchantContext,
         payment_data: &mut PaymentConfirmData<F>,
     ) {
-        if let (true, Some(payment_method_id)) = (
+        if let (true, Some(payment_method)) = (
             payment_data.payment_attempt.customer_acceptance.is_some(),
-            payment_data.payment_attempt.payment_method_id.clone(),
+            payment_data.payment_method.as_ref(),
         ) {
             payment_methods::update_payment_method_status_internal(
                 state,
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
-                &payment_method_id,
+                payment_method.get_id(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));

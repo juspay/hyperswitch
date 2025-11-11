@@ -11,7 +11,8 @@ key1 = "MerchantId"
 api_secret = "Secondary key"
 
 [amazonpay]
-api_key="API Key"
+api_key="Private Key"
+key1="Public Key"
 
 [archipel]
 api_key="CA Certificate PEM"
@@ -363,5 +364,19 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
-[bluecode]
+[calida]
 api_key="EOrder Token"
+
+[peachpayments]
+api_key="API Key"
+key1="Tenant ID"
+
+[tesouro]
+api_key="Client ID"
+key1="Client Secret"
+
+[finix]
+api_key = "Username"
+key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
+api_secret = "Password"

@@ -14,6 +14,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use crate::router_data::RecurringMandatePaymentData;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
@@ -54,7 +56,7 @@ pub struct MandateAmountData {
 
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
-#[derive(Default, Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Serialize)]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
@@ -172,6 +174,20 @@ pub struct PaymentsMandateReferenceRecord {
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
     pub connector_mandate_request_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<&PaymentsMandateReferenceRecord> for RecurringMandatePaymentData {
+    fn from(mandate_reference_record: &PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            payment_method_type: mandate_reference_record.payment_method_type,
+            original_payment_authorized_amount: mandate_reference_record
+                .original_payment_authorized_amount,
+            original_payment_authorized_currency: mandate_reference_record
+                .original_payment_authorized_currency,
+            mandate_metadata: mandate_reference_record.mandate_metadata.clone(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

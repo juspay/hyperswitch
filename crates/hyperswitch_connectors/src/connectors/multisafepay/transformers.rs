@@ -499,6 +499,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::DinersClub
             | utils::CardIssuer::JCB
             | utils::CardIssuer::CarteBlanche
+            | utils::CardIssuer::UnionPay
             | utils::CardIssuer::CartesBancaires => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
             )
@@ -525,6 +526,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -595,6 +597,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Gateway::MbWay,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -772,6 +775,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -813,7 +817,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         | PayLaterData::WalleyRedirect {}
                         | PayLaterData::AlmaRedirect {}
                         | PayLaterData::AtomeRedirect {}
-                        | PayLaterData::BreadpayRedirect {} => {
+                        | PayLaterData::BreadpayRedirect {}
+                        | PayLaterData::PayjustnowRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",

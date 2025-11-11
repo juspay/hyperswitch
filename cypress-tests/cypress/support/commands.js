@@ -3469,7 +3469,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -3511,7 +3511,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4075,12 +4075,49 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
         expect(response.body).to.have.property("key").to.equal(key);
         expect(response.body).to.have.property("value").to.equal(value);
       } else {
-        throw new Error(
-          `Failed to set configs with status ${response.status} and message ${response.body.error.message}`
-        );
+        Cypress.log({
+          name: "setConfigs",
+          message: `Failed for key: ${key} → status ${response.status}, message: ${response.body?.error?.message}`,
+        });
       }
     });
   });
+});
+
+Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
+  cy.setConfigs(globalState, key, value, "DELETE");
+  cy.setConfigs(globalState, key, value, "CREATE");
+});
+
+// UCS Configuration Commands
+Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
+  cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "CREATE");
+  });
+});
+
+Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "DELETE");
+  });
+
+  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
 // DDC Race Condition Test Commands

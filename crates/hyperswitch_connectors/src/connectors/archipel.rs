@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
 use common_utils::{
@@ -21,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -29,7 +34,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_MESSAGE,
     errors,
@@ -45,7 +53,6 @@ use transformers::{
 };
 
 use crate::{
-    capture_method_not_supported,
     constants::headers,
     types::ResponseRouterData,
     utils::{is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData},
@@ -79,7 +86,6 @@ impl api::RefundExecute for Archipel {}
 impl api::RefundSync for Archipel {}
 impl api::Payment for Archipel {}
 impl api::PaymentIncrementalAuthorization for Archipel {}
-impl api::ConnectorSpecifications for Archipel {}
 
 fn build_env_specific_endpoint(
     base_url: &str,
@@ -180,34 +186,6 @@ impl ConnectorCommon for Archipel {
 }
 
 impl ConnectorValidation for Archipel {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-        _payment_method: common_enums::PaymentMethod,
-        pmt: Option<common_enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::SequentialAutomatic
-            | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
-                let connector = self.id();
-                match pmt {
-                    Some(payment_method_type) => {
-                        capture_method_not_supported!(
-                            connector,
-                            capture_method,
-                            payment_method_type
-                        )
-                    }
-                    None => capture_method_not_supported!(connector, capture_method),
-                }
-            }
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -1082,5 +1060,99 @@ impl IncomingWebhook for Archipel {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+static ARCHIPEL_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::CartesBancaires,
+        ];
+
+        let mut archipel_supported_payment_methods = SupportedPaymentMethods::new();
+
+        archipel_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        archipel_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network,
+                        }
+                    }),
+                ),
+            },
+        );
+
+        archipel_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        archipel_supported_payment_methods
+    });
+
+static ARCHIPEL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Archipel",
+    description: "Full-service processor offering secure payment solutions and innovative banking technologies for businesses of all sizes.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
+};
+
+static ARCHIPEL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Archipel {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&ARCHIPEL_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*ARCHIPEL_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&ARCHIPEL_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
