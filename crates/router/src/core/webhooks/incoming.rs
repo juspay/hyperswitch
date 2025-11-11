@@ -1612,6 +1612,7 @@ async fn payouts_incoming_webhook_flow(
             status: payout_data.payout_attempt.status,
         })
     } else {
+        metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
         // Form connector data
         let connector_data = match &payout_attempt.connector {
             Some(connector) => ConnectorData::get_payout_connector_by_name(
