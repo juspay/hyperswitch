@@ -1,6 +1,4 @@
 use api_models::payment_methods;
-#[cfg(feature = "v2")]
-use error_stack;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]

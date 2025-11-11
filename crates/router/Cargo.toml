@@ -105,7 +105,7 @@ strum = { version = "0.26", features = ["derive"] }
 tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.12.0"
@@ -155,7 +155,7 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
-tokio = "1.45.1"
+tokio = "1.48.0"
 wiremock = "0.6.3"
 
 # First party dev-dependencies

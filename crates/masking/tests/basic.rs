@@ -1,4 +1,4 @@
-#![allow(dead_code, clippy::unwrap_used, clippy::panic_in_result_fn)]
+#![allow(dead_code, clippy::panic_in_result_fn)]
 
 use masking::Secret;
 #[cfg(feature = "serde")]
@@ -9,7 +9,7 @@ use masking::ZeroizableSecret;
 use serde::Serialize;
 
 #[test]
-fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn basic() {
     #[cfg_attr(feature = "serde", derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct AccountNumber(String);
@@ -61,12 +61,10 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     // end
-
-    Ok(())
 }
 
 #[test]
-fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn without_serialize() {
     #[cfg_attr(feature = "serde", derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct AccountNumber(String);
@@ -111,12 +109,10 @@ fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     // end
-
-    Ok(())
 }
 
 #[test]
-fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn for_string() {
     #[cfg_attr(all(feature = "alloc", feature = "serde"), derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Composite {
@@ -155,6 +151,4 @@ fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     // end
-
-    Ok(())
 }

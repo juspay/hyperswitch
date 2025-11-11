@@ -5,7 +5,6 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -24,11 +23,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,7 +42,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
 use transformers as zift;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -85,16 +84,13 @@ where
 {
     fn build_headers(
         &self,
-        req: &RouterData<Flow, Request, Response>,
+        _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        )])
     }
 }
 
@@ -104,14 +100,11 @@ impl ConnectorCommon for Zift {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/x-www-form-urlencoded"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -120,14 +113,9 @@ impl ConnectorCommon for Zift {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = zift::ZiftAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -135,9 +123,7 @@ impl ConnectorCommon for Zift {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: zift::ZiftErrorResponse = res
-            .response
-            .parse_struct("ZiftErrorResponse")
+        let response: zift::ZiftErrorResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -145,9 +131,9 @@ impl ConnectorCommon for Zift {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.response_code,
+            message: response.response_message.clone(),
+            reason: Some(response.response_message),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -164,12 +150,14 @@ impl ConnectorValidation for Zift {
         _pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
         match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
+            PaymentMethodData::Card(_) => Ok(()),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
             .into()),
-            _ => Ok(()),
         }
     }
 
@@ -208,9 +196,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}gates/xurl", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -226,7 +214,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = zift::ZiftRouterData::from((amount, req));
         let connector_req = zift::ZiftPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -257,10 +245,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: zift::ZiftPaymentsResponse = res
-            .response
-            .parse_struct("Zift PaymentsAuthorizeResponse")
+        let response: zift::ZiftAuthPaymentsResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -291,13 +278,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zif
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = zift::ZiftSyncRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
 
     fn get_url(
         &self,
         _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}gates/xurl", self.base_url(connectors)))
     }
 
     fn build_request(
@@ -307,9 +302,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zif
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -321,10 +319,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zif
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: zift::ZiftPaymentsResponse = res
-            .response
-            .parse_struct("zift PaymentsSyncResponse")
+        let response: zift::ZiftSyncResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -359,17 +356,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}gates/xurl", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_router_data = zift::ZiftRouterData::from((amount, req));
+        let connector_req = zift::ZiftCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -398,9 +402,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: zift::ZiftPaymentsResponse = res
-            .response
-            .parse_struct("Zift PaymentsCaptureResponse")
+        let response: zift::ZiftCaptureResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -420,7 +422,84 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Zift {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Zift {
+    // fn get_headers(
+    //     &self,
+    //     req: &PaymentsCancelRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    //     self.build_headers(req, connectors)
+    // }
+
+    // fn get_content_type(&self) -> &'static str {
+    //     self.common_get_content_type()
+    // }
+
+    // fn get_url(
+    //     &self,
+    //     _req: &PaymentsCancelRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<String, errors::ConnectorError> {
+    //     Ok(format!("{}gates/xurl", self.base_url(connectors)))
+    // }
+
+    // fn get_request_body(
+    //     &self,
+    //     req: &PaymentsCancelRouterData,
+    //     _connectors: &Connectors,
+    // ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    //     let connector_req = zift::ZiftCancelRequest::try_from(req)?;
+    //     Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    // }
+
+    fn build_request(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Void".to_owned(),
+            connector: "Zift".to_owned(),
+        }
+        .into())
+        // Ok(Some(
+        //     RequestBuilder::new()
+        //         .method(Method::Post)
+        //         .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+        //         .attach_default_headers()
+        //         .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+        //         .set_body(types::PaymentsVoidType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
+    }
+
+    // fn handle_response(
+    //     &self,
+    //     data: &PaymentsCancelRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+    //     let response: zift::ZiftVoidResponse = serde_urlencoded::from_bytes(&res.response)
+    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    //     event_builder.map(|i| i.set_response_body(&response));
+    //     router_env::logger::info!(connector_response=?response);
+    //     RouterData::try_from(ResponseRouterData {
+    //         response,
+    //         data: data.clone(),
+    //         http_code: res.status_code,
+    //     })
+    // }
+
+    // fn get_error_response(
+    //     &self,
+    //     res: Response,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    //     self.build_error_response(res, event_builder)
+    // }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
     fn get_headers(
@@ -438,9 +517,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}gates/xurl", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -456,7 +535,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
 
         let connector_router_data = zift::ZiftRouterData::from((refund_amount, req));
         let connector_req = zift::ZiftRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -484,9 +563,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: zift::RefundResponse = res
-            .response
-            .parse_struct("zift RefundResponse")
+        let response: zift::RefundResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -507,62 +584,66 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zift {
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Zift {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
+    // fn get_headers(
+    //     &self,
+    //     req: &RefundSyncRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    //     self.build_headers(req, connectors)
+    // }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+    // fn get_content_type(&self) -> &'static str {
+    //     self.common_get_content_type()
+    // }
 
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
+    // fn get_url(
+    //     &self,
+    //     _req: &RefundSyncRouterData,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<String, errors::ConnectorError> {
+    //     Ok(format!("{}gates/xurl", self.base_url(connectors)))
+    // }
 
     fn build_request(
         &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        // Ok(Some(
+        //     RequestBuilder::new()
+        //         .method(Method::Post)
+        //         .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+        //         .attach_default_headers()
+        //         .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+        //         .set_body(types::RefundSyncType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RefundSync".to_owned(),
+            connector: "Zift".to_owned(),
+        }
+        .into())
     }
+    // }
 
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: zift::RefundResponse =
-            res.response
-                .parse_struct("zift RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+    // fn handle_response(
+    //     &self,
+    //     data: &RefundSyncRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+    // let response: zift::RefundResponse = serde_urlencoded::from_bytes(&res.response)
+    //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    // event_builder.map(|i| i.set_response_body(&response));
+    // router_env::logger::info!(connector_response=?response);
+    // RouterData::try_from(ResponseRouterData {
+    //     response,
+    //     data: data.clone(),
+    //     http_code: res.status_code,
+    // })
+    // }
 
     fn get_error_response(
         &self,
@@ -597,8 +678,64 @@ impl webhooks::IncomingWebhook for Zift {
     }
 }
 
-static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        common_enums::CaptureMethod::Automatic,
+        common_enums::CaptureMethod::Manual,
+        common_enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Discover,
+    ];
+
+    let mut zift_supported_payment_methods = SupportedPaymentMethods::new();
+
+    zift_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        common_enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    zift_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        common_enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    zift_supported_payment_methods
+});
 
 static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Zift",

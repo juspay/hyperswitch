@@ -1,5 +1,3 @@
-use diesel;
-
 use crate::{schema, schema_v2};
 
 /// This trait will return a single column as primary key even in case of composite primary key.
