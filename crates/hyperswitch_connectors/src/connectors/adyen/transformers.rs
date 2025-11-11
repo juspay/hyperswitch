@@ -1928,28 +1928,17 @@ fn get_shopper_statement(item: &PaymentsAuthorizeRouterData) -> Option<String> {
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    // is_migrated_card to be changed intto is_migrated_payment_method to cover all migrated payment methods.
-    let shopper_reference = Some(match item.is_migrated_card {
-        Some(true) => match item.get_connector_customer_id() {
-            Ok(connector_customer_id) => connector_customer_id,
-            Err(_) => {
-                let customer_id = item.get_customer_id()?;
-                format!(
-                    "{}_{}",
-                    item.merchant_id.get_string_repr(),
-                    customer_id.get_string_repr()
-                )
-            }
-        },
-        _ => {
+    let shopper_reference = match item.get_connector_customer_id() {
+        Ok(connector_customer_id) => Some(connector_customer_id),
+        Err(_) => {
             let customer_id = item.get_customer_id()?;
-            format!(
+            Some(format!(
                 "{}_{}",
                 item.merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
-            )
+            ))
         }
-    });
+    };
 
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {
