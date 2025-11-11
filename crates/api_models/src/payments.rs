@@ -1206,6 +1206,9 @@ pub struct PaymentsRequest {
     #[schema(example = true)]
     pub request_external_three_ds_authentication: Option<bool>,
 
+    /// Three Ds Data supplied by the Merchant, Merchant have done the external authentication
+    pub three_ds_data: Option<crate::three_ds_decision_rule::ExternalThreeDsData>,
+
     /// Details required for recurring payment
     pub recurring_details: Option<RecurringDetails>,
 

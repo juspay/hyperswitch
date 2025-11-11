@@ -91,3 +91,37 @@ impl common_utils::events::ApiEventMetric for ThreeDsDecisionRuleExecuteResponse
         Some(common_utils::events::ApiEventsType::ThreeDsDecisionRule)
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    pub authentication_cryptogram: Cryptogram,
+    pub ds_trans_id: String,
+    pub version: String,
+    pub eci: common_enums::Eci,
+    pub transaction_status: common_enums::TransactionStatus,
+    pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
+    pub network_params: Option<NetworkParams>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    Cavv {
+        authentication_cryptogram: masking::Secret<String>,
+    },
+    Tavv {
+        token_authentication_cryptogram: masking::Secret<String>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct NetworkParams {
+    pub cartes_bancaires: Option<CartesBancairesParams>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CartesBancairesParams {
+    pub cavv_algorithm: common_enums::CavvAlgorithm,
+    pub cb_exemption: String,
+    pub cb_score: i32,
+}

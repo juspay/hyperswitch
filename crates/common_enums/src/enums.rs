@@ -4,6 +4,7 @@ mod ui;
 use std::{
     collections::HashSet,
     num::{ParseFloatError, TryFromIntError},
+    str::FromStr,
 };
 
 pub use accounts::{
@@ -9873,4 +9874,85 @@ pub enum SubscriptionStatus {
     Cancelled,
     /// Subscription has failed.
     Failed,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Eci {
+    #[serde(rename = "00")]
+    Zero,
+    #[serde(rename = "01")]
+    One,
+    #[serde(rename = "02")]
+    Two,
+    #[serde(rename = "05")]
+    Five,
+    #[serde(rename = "06")]
+    Six,
+    #[serde(rename = "07")]
+    Seven,
+    #[serde(other)]
+    Unknown,
+}
+
+impl std::fmt::Display for Eci {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Zero => "00",
+            Self::One => "01",
+            Self::Two => "02",
+            Self::Five => "05",
+            Self::Six => "06",
+            Self::Seven => "07",
+            Self::Unknown => "unknown",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for Eci {
+    type Err = ApiClientError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "0" | "00" => Ok(Self::Zero),
+            "1" | "01" => Ok(Self::One),
+            "2" | "02" => Ok(Self::Two),
+            "5" | "05" => Ok(Self::Five),
+            "6" | "06" => Ok(Self::Six),
+            "7" | "07" => Ok(Self::Seven),
+            _ => Err(ApiClientError::UnexpectedState),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+pub enum CavvAlgorithm {
+    #[serde(rename = "00")]
+    Zero,
+    #[serde(rename = "01")]
+    One,
+    #[serde(rename = "02")]
+    Two,
+    #[serde(rename = "03")]
+    Three,
+    #[serde(rename = "04")]
+    Four,
+    #[serde(rename = "A")]
+    A,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExemptionIndicator {
+    LowValue,
+    SecureCorporatePayment,
+    TrustedListing,
+    TransactionRiskAssessment,
+    ThreeDsOutage,
+    ScaDelegation,
+    OutOfScaScope,
+    Other,
+    LowRiskProgram,
+    RecurringOperation,
 }

@@ -777,13 +777,13 @@ impl
 
 fn get_commerce_indicator_for_external_authentication(
     card_network: Option<String>,
-    eci: String,
+    eci: enums::Eci,
 ) -> String {
     let card_network_lower_case = card_network
         .as_ref()
         .map(|card_network| card_network.to_lowercase());
-    match eci.as_str() {
-        "00" | "01" | "02" => {
+    match eci {
+        enums::Eci::Zero | enums::Eci::One | enums::Eci::Two => {
             if matches!(
                 card_network_lower_case.as_deref(),
                 Some("mastercard") | Some("maestro")
@@ -793,7 +793,7 @@ fn get_commerce_indicator_for_external_authentication(
                 "internet"
             }
         }
-        "05" => match card_network_lower_case.as_deref() {
+        enums::Eci::Five => match card_network_lower_case.as_deref() {
             Some("amex") => "aesk",
             Some("discover") => "dipb",
             Some("mastercard") => "spa",
@@ -802,7 +802,7 @@ fn get_commerce_indicator_for_external_authentication(
             Some("upi") => "up3ds",
             _ => "internet",
         },
-        "06" => match card_network_lower_case.as_deref() {
+        enums::Eci::Six => match card_network_lower_case.as_deref() {
             Some("amex") => "aesk_attempted",
             Some("discover") => "dipb_attempted",
             Some("mastercard") => "spa",
@@ -811,7 +811,7 @@ fn get_commerce_indicator_for_external_authentication(
             Some("upi") => "up3ds_attempted",
             _ => "internet",
         },
-        "07" => match card_network_lower_case.as_deref() {
+        enums::Eci::Seven => match card_network_lower_case.as_deref() {
             Some("amex") => "internet",
             Some("discover") => "internet",
             Some("mastercard") => "spa",

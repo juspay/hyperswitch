@@ -1014,6 +1014,7 @@ impl Default for PaymentAuthorizeType {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            external_authentication_three_ds_data: None,
         };
         Self(data)
     }

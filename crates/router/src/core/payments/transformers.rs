@@ -460,6 +460,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
+        external_authentication_three_ds_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4425,6 +4426,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            external_authentication_three_ds_data: None,
         })
     }
 }
@@ -4661,6 +4663,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            external_authentication_three_ds_data: payment_data.external_authentication_data,
         })
     }
 }

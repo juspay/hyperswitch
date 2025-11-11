@@ -90,6 +90,8 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub external_authentication_three_ds_data:
+        Option<api_models::three_ds_decision_rule::ExternalThreeDsData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1064,7 +1066,7 @@ pub struct UcsAuthenticationData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthenticationData {
-    pub eci: Option<String>,
+    pub eci: Option<common_enums::enums::Eci>,
     pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,

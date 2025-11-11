@@ -264,7 +264,7 @@ pub struct GooglePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: String,
+    eci: enums::Eci,
     cryptogram: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
 }
@@ -277,7 +277,7 @@ pub struct ApplePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: Option<String>,
+    eci: Option<enums::Eci>,
     cryptogram: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
 }
@@ -419,7 +419,7 @@ pub enum CheckoutChallengeIndicator {
 pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
-    eci: Option<String>,
+    eci: Option<enums::Eci>,
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
@@ -573,7 +573,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                 token_type: "googlepay".to_string(),
                                 expiry_month,
                                 expiry_year,
-                                eci: "06".to_string(),
+                                eci: enums::Eci::Six,
                                 cryptogram,
                                 billing_address: billing_details,
                             }))

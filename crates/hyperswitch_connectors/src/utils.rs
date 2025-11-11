@@ -6951,6 +6951,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
+        external_authentication_three_ds_data: None,
     }
 }
 

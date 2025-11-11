@@ -438,7 +438,7 @@ pub struct TesouroNetworkTokenPassThroughDetails {
     pub expiration_year: Secret<String>,
     pub token_value: cards::CardNumber,
     pub wallet_type: TesouroWalletType,
-    pub ecommerce_indicator: Option<String>,
+    pub ecommerce_indicator: Option<enums::Eci>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]

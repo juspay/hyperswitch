@@ -394,7 +394,7 @@ pub struct FiuuApplePayData {
     cc_month: Secret<String>,
     cc_year: Secret<String>,
     cc_token: CardNumber,
-    eci: Option<String>,
+    eci: Option<enums::Eci>,
     token_cryptogram: Secret<String>,
     token_type: FiuuTokenType,
     #[serde(rename = "non_3DS")]

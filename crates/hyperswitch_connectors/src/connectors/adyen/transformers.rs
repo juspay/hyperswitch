@@ -156,6 +156,30 @@ pub struct AdditionalData {
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
+    sca_exemption: Option<AdyenExemptionValues>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AdyenExemptionValues {
+    LowValue,
+    SecureCorporate,
+    TrustedBeneficiary,
+    TransactionRiskAnalysis,
+}
+
+fn to_adyen_exemption(data: &enums::ExemptionIndicator) -> Option<AdyenExemptionValues> {
+    match data {
+        enums::ExemptionIndicator::LowValue => Some(AdyenExemptionValues::LowValue),
+        enums::ExemptionIndicator::SecureCorporatePayment => {
+            Some(AdyenExemptionValues::SecureCorporate)
+        }
+        enums::ExemptionIndicator::TrustedListing => Some(AdyenExemptionValues::TrustedBeneficiary),
+        enums::ExemptionIndicator::TransactionRiskAssessment => {
+            Some(AdyenExemptionValues::TransactionRiskAnalysis)
+        }
+        _ => None,
+    }
 }
 
 #[serde_with::skip_serializing_none]
@@ -322,9 +346,28 @@ struct AdyenSplitData {
 struct AdyenMpiData {
     directory_response: String,
     authentication_response: String,
-    cavv: Option<Secret<String>>,
-    token_authentication_verification_value: Option<Secret<String>>,
-    eci: Option<String>,
+    #[serde(flatten)]
+    auth_value: AuthenticationValue,
+    eci: enums::Eci,
+    #[serde(rename = "dsTransID")]
+    ds_trans_id: Option<String>,
+    #[serde(rename = "threeDSVersion")]
+    three_ds_version: Option<String>,
+    challenge_cancel: Option<String>,
+    risk_score: Option<String>,
+    cavv_algorithm: Option<enums::CavvAlgorithm>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum AuthenticationValue {
+    Cavv {
+        cavv: Secret<String>,
+    },
+    Tavv {
+        #[serde(rename = "token_authentication_verification_value")]
+        tavv: Secret<String>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -1962,6 +2005,15 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
         recurring_shopper_reference: None,
         recurring_processing_model: None,
         riskdata,
+        sca_exemption: item
+            .request
+            .external_authentication_three_ds_data
+            .as_ref()
+            .and_then(|data| {
+                data.exemption_indicator
+                    .as_ref()
+                    .and_then(to_adyen_exemption)
+            }),
         ..AdditionalData::default()
     })
 }
@@ -3117,6 +3169,94 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
 
+        let external_auth = &value
+            .0
+            .router_data
+            .request
+            .external_authentication_three_ds_data;
+
+        let (cavv_algorithm, challenge_cancel, risk_score) =
+            match &value.0.router_data.request.payment_method_data {
+                PaymentMethodData::Card(card)
+                    if matches!(
+                        card.card_network,
+                        Some(common_enums::CardNetwork::CartesBancaires)
+                    ) =>
+                {
+                    let cartes_params = external_auth
+                        .as_ref()
+                        .and_then(|data| data.network_params.as_ref())
+                        .and_then(|net| net.cartes_bancaires.as_ref());
+
+                    (
+                        cartes_params.as_ref().map(|cb| cb.cavv_algorithm.clone()),
+                        cartes_params.as_ref().map(|cb| cb.cb_exemption.clone()),
+                        cartes_params.as_ref().map(|cb| cb.cb_score.to_string()),
+                    )
+                }
+                _ => (None, None, None),
+            };
+
+        let auth_value = if let Some(data) = external_auth {
+            match &value.0.router_data.request.payment_method_data {
+                PaymentMethodData::NetworkToken(_) => {
+                    if let api_models::three_ds_decision_rule::Cryptogram::Tavv {
+                        token_authentication_cryptogram,
+                    } = &data.authentication_cryptogram
+                    {
+                        Some(AuthenticationValue::Tavv {
+                            tavv: token_authentication_cryptogram.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                }
+                PaymentMethodData::Card(_) => {
+                    if let api_models::three_ds_decision_rule::Cryptogram::Cavv {
+                        authentication_cryptogram,
+                    } = &data.authentication_cryptogram
+                    {
+                        Some(AuthenticationValue::Cavv {
+                            cavv: authentication_cryptogram.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        let mpi_data = AdyenMpiData {
+            directory_response: external_auth
+                .as_ref()
+                .map(|d| d.transaction_status.to_string())
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "three_ds_data.transaction_status",
+                })?,
+            authentication_response: external_auth
+                .as_ref()
+                .map(|d| d.transaction_status.to_string())
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "three_ds_data.transaction_status",
+                })?,
+            eci: external_auth.as_ref().map(|d| d.eci.clone()).ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "three_ds_data.eci",
+                },
+            )?,
+            ds_trans_id: external_auth.as_ref().map(|d| d.ds_trans_id.clone()),
+            three_ds_version: external_auth.as_ref().map(|d| d.version.clone()),
+            auth_value: auth_value.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "three_ds_data.auth_value",
+            })?,
+            cavv_algorithm,
+            challenge_cancel,
+            risk_score,
+        };
+
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3127,7 +3267,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             recurring_processing_model,
             browser_info,
             additional_data,
-            mpi_data: None,
+            mpi_data: Some(mpi_data),
             telephone_number,
             shopper_name,
             shopper_email,
@@ -3693,18 +3833,36 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 Some(PaymentMethodToken::PazeDecrypt(paze_data)) => Some(AdyenMpiData {
                     directory_response: "Y".to_string(),
                     authentication_response: "Y".to_string(),
-                    cavv: None,
-                    token_authentication_verification_value: Some(
-                        paze_data.token.payment_account_reference,
-                    ),
-                    eci: paze_data.eci,
+                    auth_value: AuthenticationValue::Tavv {
+                        tavv: paze_data.token.payment_account_reference,
+                    },
+                    eci: paze_data
+                        .eci
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "three_ds_data.eci",
+                        })?,
+                    ds_trans_id: None,
+                    three_ds_version: None,
+                    challenge_cancel: None,
+                    risk_score: None,
+                    cavv_algorithm: None,
                 }),
                 Some(PaymentMethodToken::ApplePayDecrypt(apple_data)) => Some(AdyenMpiData {
                     directory_response: "Y".to_string(),
                     authentication_response: "Y".to_string(),
-                    cavv: Some(apple_data.payment_data.online_payment_cryptogram),
-                    token_authentication_verification_value: None,
-                    eci: apple_data.payment_data.eci_indicator,
+                    auth_value: AuthenticationValue::Cavv {
+                        cavv: apple_data.payment_data.online_payment_cryptogram,
+                    },
+                    eci: apple_data.payment_data.eci_indicator.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "three_ds_data.eci",
+                        },
+                    )?,
+                    ds_trans_id: None,
+                    three_ds_version: None,
+                    challenge_cancel: None,
+                    risk_score: None,
+                    cavv_algorithm: None,
                 }),
                 _ => None,
             }
@@ -6442,11 +6600,15 @@ impl
         let mpi_data = AdyenMpiData {
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
-            cavv: None,
-            token_authentication_verification_value: Some(
-                token_data.get_cryptogram().clone().unwrap_or_default(),
-            ),
-            eci: Some("02".to_string()),
+            auth_value: AuthenticationValue::Tavv {
+                tavv: token_data.get_cryptogram().clone().unwrap_or_default(),
+            },
+            eci: common_enums::enums::Eci::Two,
+            ds_trans_id: None,
+            three_ds_version: None,
+            challenge_cancel: None,
+            risk_score: None,
+            cavv_algorithm: None,
         };
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(

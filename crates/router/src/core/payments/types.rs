@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::TryFromIntError};
+use std::{collections::HashMap, num::TryFromIntError, str::FromStr};
 
 use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
@@ -417,7 +417,10 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("cavv must not be null when authentication_status is success")?;
             Ok(Self {
-                eci: authentication.eci.clone(),
+                eci: authentication
+                    .eci
+                    .as_ref()
+                    .and_then(|s| common_enums::enums::Eci::from_str(s).ok()),
                 created_at: authentication.created_at,
                 cavv,
                 threeds_server_transaction_id,

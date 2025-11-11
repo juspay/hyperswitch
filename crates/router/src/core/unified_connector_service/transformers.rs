@@ -1900,7 +1900,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
 
     fn foreign_try_from(authentication_data: AuthenticationData) -> Result<Self, Self::Error> {
         Ok(Self {
-            eci: authentication_data.eci,
+            eci: authentication_data.eci.as_ref().map(|eci| eci.to_string()),
             cavv: Some(authentication_data.cavv.expose()),
             threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
                 |id| Identifier {

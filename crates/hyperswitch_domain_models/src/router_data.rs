@@ -455,7 +455,7 @@ pub struct ApplePayPredecryptDataInternal {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<String>,
+    pub eci_indicator: Option<common_enums::enums::Eci>,
 }
 
 impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayPredecryptData {
@@ -539,7 +539,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub expiration_year: cards::CardExpirationYear,
     pub pan: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
-    pub eci_indicator: Option<String>,
+    pub eci_indicator: Option<common_enums::enums::Eci>,
     pub card_network: Option<String>,
 }
 
@@ -553,7 +553,7 @@ pub struct PazeDecryptedData {
     pub dynamic_data: Vec<PazeDynamicData>,
     pub billing_address: PazeAddress,
     pub consumer: PazeConsumer,
-    pub eci: Option<String>,
+    pub eci: Option<common_enums::enums::Eci>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

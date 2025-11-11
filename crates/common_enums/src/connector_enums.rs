@@ -439,6 +439,9 @@ impl Connector {
     pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)
     }
+    pub fn is_external_authentication_supported_by_merchant(self) -> bool {
+        matches!(self, Self::Adyen)
+    }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]

@@ -456,7 +456,7 @@ pub struct GPayPredecryptData {
 
     /// Electronic Commerce Indicator
     #[schema(value_type = String, example = "07")]
-    pub eci_indicator: Option<String>,
+    pub eci_indicator: Option<common_enums::Eci>,
 }
 impl GpayTokenizationData {
     /// Get the encrypted Google Pay payment data, returning an error if it does not exist
@@ -583,7 +583,7 @@ pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: Secret<String>,
     /// The ECI (Electronic Commerce Indicator) value
     #[schema(value_type = String, example = "05")]
-    pub eci_indicator: Option<String>,
+    pub eci_indicator: Option<common_enums::Eci>,
 }
 
 impl ApplePayPaymentData {

@@ -660,7 +660,7 @@ pub struct StripeApplePayPredecrypt {
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
-    eci: Option<String>,
+    eci: Option<enums::Eci>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
