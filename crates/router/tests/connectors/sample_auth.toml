@@ -192,7 +192,10 @@ api_key="API Key"
 api_key="API Key"
 
 [volt]
-api_key="API Key"
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
 
 [prophetpay]
 api_key="API Key"
