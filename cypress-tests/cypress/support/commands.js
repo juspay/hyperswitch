@@ -4166,29 +4166,34 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("blocklistToggle", (status, globalState) => {
+Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
-  const url = `${baseUrl}/blocklist/toggle?status=${status}`;
+  const url = `${baseUrl}/blocklist`;
+
+  const body = {
+    type: type,
+    data: data,
+  };
 
   cy.request({
-    method: "POST",
+    method: "DELETE",
     url: url,
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
     },
-    body: "",
+    body: body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        cy.log(`Blocklist status toggled to: ${status}`);
+        cy.log(`Blocklist rule deleted for ${type}: ${data}`);
       } else {
         throw new Error(
-          `Blocklist toggle failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          `Blocklist delete failed with status: ${response.status} and message: ${response.body?.error?.message}`
         );
       }
     });

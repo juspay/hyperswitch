@@ -46,8 +46,12 @@ describe("Payments Eligibility API with Blocklist", () => {
       );
     });
 
-    it("should enable blocklist functionality", () => {
-      cy.blocklistToggle("true", globalState);
+    it("should enable blocklist functionality using configs API", () => {
+      const merchantId = globalState.get("merchantId");
+      const key = `guard_blocklist_for_${merchantId}`;
+      const value = "true";
+      
+      cy.setConfigs(globalState, key, value, "CREATE");
     });
   });
 
@@ -151,8 +155,16 @@ describe("Payments Eligibility API with Blocklist", () => {
   });
 
   context("Cleanup", () => {
-    it("should disable blocklist functionality", () => {
-      cy.blocklistToggle("false", globalState); // true = disable blocklist
+    it("should delete blocklist rule", () => {
+      cy.blocklistDeleteRule("card_bin", "424242", globalState);
+    });
+
+    it("should disable blocklist functionality using configs API", () => {
+      const merchantId = globalState.get("merchantId");
+      const key = `guard_blocklist_for_${merchantId}`;
+      const value = "true";
+      
+      cy.setConfigs(globalState, key, value, "DELETE");
     });
   });
 });
