@@ -1,0 +1,39 @@
+[package]
+name = "payment_link"
+description = "Payment Link rendering and WASM bindings"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = ["v1"]
+v1 = ["api_models/v1", "hyperswitch_domain_models/v1"]
+v2 = ["api_models/v2", "hyperswitch_domain_models/v2"]
+wasm = ["dep:wasm-bindgen", "getrandom/js"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tera = "1.0"
+url = "2.5"
+urlencoding = "2.1"
+error-stack = "0.4"
+thiserror = "1.0"
+api_models = { path = "../api_models", default-features = false }
+hyperswitch_domain_models = { path = "../hyperswitch_domain_models", default-features = false }
+getrandom = { version = "0.2", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+
+[build-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.8"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
+[lints]
+workspace = true
