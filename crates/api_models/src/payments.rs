@@ -10844,7 +10844,7 @@ pub enum PaymentLinkData {
     PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
-#[derive(Debug, serde::Serialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,

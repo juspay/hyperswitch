@@ -489,7 +489,7 @@ pub async fn initiate_payment_link_flow(
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
+pub fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
     let payment_details_str = serde_json::to_string(payment_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize PaymentLinkData")?;
@@ -558,7 +558,7 @@ fn generate_dynamic_css(
     Ok(css_string)
 }
 
-fn get_payment_link_css_script(
+pub fn get_payment_link_css_script(
     payment_link_config: &PaymentLinkConfig,
 ) -> Result<String, errors::ApiErrorResponse> {
     let custom_rules_css_option = payment_link_config
@@ -588,7 +588,7 @@ fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {
     )
 }
 
-fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
+pub fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
     format!(
         r#"<meta property="og:title" content="Payment request from {0}"/>
         <meta property="og:description" content="{1}"/>"#,
