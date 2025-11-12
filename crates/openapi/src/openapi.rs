@@ -417,6 +417,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultSdk,
         api_models::admin::ExternalVaultConnectorDetails,
+        api_models::admin::VaultTokenField,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,

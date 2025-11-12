@@ -17910,7 +17910,7 @@
           "vault_token_selector": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/VaultSdk"
+              "$ref": "#/components/schemas/VaultTokenField"
             },
             "description": "Fields to tokenization in vault",
             "nullable": true
@@ -36783,6 +36783,17 @@
           "vgs_sdk",
           "hyperswitch_sdk"
         ]
+      },
+      "VaultTokenField": {
+        "type": "object",
+        "required": [
+          "token_type"
+        ],
+        "properties": {
+          "token_type": {
+            "$ref": "#/components/schemas/common_enums.VaultTokenType"
+          }
+        }
       },
       "Venmo": {
         "type": "object",
