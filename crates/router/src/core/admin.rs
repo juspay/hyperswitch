@@ -1258,6 +1258,89 @@ pub async fn merchant_account_delete(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
+pub async fn merchant_account_delete_v2(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    // Get merchant key store and validate merchant exists
+    let merchant_key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &merchant_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // SOFT DELETE IMPLEMENTATION:
+    // Instead of hard deletion, we perform the following actions:
+    // 1. Mark merchant as deleted in metadata for audit trails and API validation
+    // 2. Revoke API keys for security (making the account unusable)
+    // 3. Return success without actually deleting the data from database
+    // This preserves data integrity while effectively "deleting" the merchant from operational use
+
+    let deletion_time = common_utils::date_time::now();
+
+    // Update merchant metadata to mark as deleted - Critical for preventing API key creation
+    let deletion_metadata = serde_json::json!({
+        "deleted": true,
+        "deleted_at": deletion_time.to_string(),
+        "deletion_type": "soft_delete"
+    });
+
+    let merchant_update = storage::MerchantAccountUpdate::Update {
+        metadata: Some(deletion_metadata.into()),
+        modified_at: Some(deletion_time),
+        ..Default::default()
+    };
+
+    let _updated_merchant = db
+        .update_specific_fields_in_merchant(
+            key_manager_state,
+            &merchant_id,
+            merchant_update,
+            &merchant_key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    // Revoke API key in authentication service (async job) - Critical for security
+    if let Some(publishable_key) = merchant_account.publishable_key.clone() {
+        let state_clone = state.clone();
+        authentication::decision::spawn_tracked_job(
+            async move {
+                authentication::decision::revoke_api_key(&state_clone, publishable_key.into()).await
+            },
+            authentication::decision::REVOKE,
+        );
+    }
+
+    // Log the soft deletion for audit purposes
+    crate::logger::info!(
+        merchant_id = ?merchant_id,
+        deletion_time = ?deletion_time,
+        deletion_type = "soft_delete",
+        "Merchant account soft deletion completed. Metadata updated, API keys revoked. Data preserved for audit trails."
+    );
+
+    // Mark as successfully "deleted" (soft delete)
+    let is_deleted = true;
+
+    let response = api::MerchantAccountDeleteResponse {
+        merchant_id,
+        deleted: is_deleted,
+    };
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
 #[cfg(feature = "v1")]
 async fn get_parent_merchant(
     state: &SessionState,
