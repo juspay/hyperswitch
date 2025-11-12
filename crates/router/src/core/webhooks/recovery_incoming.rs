@@ -957,6 +957,7 @@ impl RevenueRecoveryAttempt {
                 last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
                 card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
+                card_isin: revenue_recovery_attempt_data.card_info.card_isin.clone(),
             },
             is_active: Some(true), // Tokens created from recovery attempts are active by default
             account_update_history: None, // No prior account update history exists for freshly ingested tokens

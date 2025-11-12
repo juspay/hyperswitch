@@ -474,6 +474,8 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "strum 0.26.3",
  "tempfile",
  "time",
@@ -2005,6 +2007,8 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "strum 0.26.3",
  "thiserror 1.0.69",
  "utoipa",
@@ -2023,6 +2027,8 @@ dependencies = [
  "masking 0.1.0",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "time",
  "utoipa",
 ]
@@ -7364,6 +7370,7 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "cargo_metadata 0.18.1",
  "config",
  "error-stack 0.4.1",
@@ -7385,6 +7392,7 @@ dependencies = [
  "tracing-attributes",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "uuid",
  "vergen",
 ]
 

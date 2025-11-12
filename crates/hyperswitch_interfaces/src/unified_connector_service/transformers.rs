@@ -300,6 +300,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_response_data,
+            None,
         ))
     }
 }
