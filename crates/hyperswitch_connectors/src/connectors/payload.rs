@@ -809,7 +809,7 @@ impl webhooks::IncomingWebhook for Payload {
             .parse_struct("PayloadWebhookEvent")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let reference_id = match webhook_body.trigger {
+        match webhook_body.trigger {
             responses::PayloadWebhooksTrigger::Payment
             | responses::PayloadWebhooksTrigger::Processed
             | responses::PayloadWebhooksTrigger::Authorized
@@ -824,30 +824,28 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal
             | responses::PayloadWebhooksTrigger::TransactionOperation
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
+                let reference_id = webhook_body
+                    .triggered_on
+                    .transaction_id
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        reference_id
                     ),
-                )
+                ))
             }
             // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
             // The only differentiator is the distinct IDs received for payment and refund.
-            responses::PayloadWebhooksTrigger::Refund => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Refund Webhook".to_string(),
-                    connector: "Payload",
-                })
+            responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal => {
+                Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
-        };
+        }
 
-        Ok(reference_id)
     }
 
     fn get_webhook_event_type(
@@ -870,34 +868,8 @@ impl webhooks::IncomingWebhook for Payload {
             .body
             .parse_struct("PayloadWebhookEvent")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(match webhook_body.trigger {
-            responses::PayloadWebhooksTrigger::Payment
-            | responses::PayloadWebhooksTrigger::Processed
-            | responses::PayloadWebhooksTrigger::Authorized
-            | responses::PayloadWebhooksTrigger::Credit
-            | responses::PayloadWebhooksTrigger::Reversal
-            | responses::PayloadWebhooksTrigger::Void
-            | responses::PayloadWebhooksTrigger::AutomaticPayment
-            | responses::PayloadWebhooksTrigger::Decline
-            | responses::PayloadWebhooksTrigger::Deposit
-            | responses::PayloadWebhooksTrigger::Reject
-            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
-            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
-            | responses::PayloadWebhooksTrigger::ProcessingStatus
-            | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal
-            | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
-                Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)
-            }
-            responses::PayloadWebhooksTrigger::Refund => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Refund Webhook".to_string(),
-                    connector: "Payload",
-                })
-            }
-        })
+
+        Ok(Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?))
     }
 }
 

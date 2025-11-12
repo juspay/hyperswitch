@@ -497,7 +497,7 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
                 Err(errors::ConnectorError::NotSupported {
                     message: "Refund Webhook".to_string(),
                     connector: "Payload",
-                })
+                }.into())
             }
             responses::PayloadWebhooksTrigger::Chargeback
             | responses::PayloadWebhooksTrigger::ChargebackReversal
