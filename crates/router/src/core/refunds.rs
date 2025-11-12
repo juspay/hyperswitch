@@ -282,6 +282,7 @@ pub async fn trigger_refund_to_gateway(
                     refund,
                     router_data,
                     merchant_connector_account.clone(),
+                    all_keys_required,
                 ))
                 .await?
             }
@@ -540,6 +541,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     refund: &diesel_refund::Refund,
     router_data: types::RefundExecuteRouterData,
     merchant_connector_account: MerchantConnectorAccountType,
+    all_keys_required: Option<bool>,
 ) -> RouterResult<types::RefundExecuteRouterData> {
     // Execute Direct connector (PRIMARY)
     let direct_result = Box::pin(execute_refund_execute_via_direct(
@@ -548,7 +550,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
         merchant_context,
         refund,
         router_data.clone(),
-        None,
+        all_keys_required,
     ))
     .await;
 
