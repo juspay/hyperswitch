@@ -9130,6 +9130,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13699,6 +13707,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14453,6 +14469,7 @@
           "riskified",
           "xendit",
           "zen",
+          "zift",
           "zsl"
         ]
       },
@@ -30143,7 +30160,8 @@
           "paypal",
           "stripe",
           "wise",
-          "worldpay"
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -34115,6 +34133,7 @@
           "worldpayxml",
           "xendit",
           "zen",
+          "zift",
           "plaid",
           "zsl"
         ]

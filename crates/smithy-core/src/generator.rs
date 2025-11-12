@@ -170,6 +170,11 @@ impl SmithyGenerator {
                     if let Some(doc) = &enum_value.documentation {
                         def.push_str(&format!("    /// {}\n", doc));
                     }
+
+                    for smithy_trait in &enum_value.traits {
+                        def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
+                    }
+
                     def.push_str(&format!("    {}\n", value_name));
                 }
 
@@ -285,6 +290,12 @@ impl SmithyGenerator {
                 format!("httpQuery(\"{}\")", name)
             }
             types::SmithyTrait::Mixin => "mixin".to_string(),
+            types::SmithyTrait::JsonName { name } => {
+                format!("jsonName(\"{}\")", name)
+            }
+            types::SmithyTrait::EnumValue { value } => {
+                format!("enumValue(\"{}\")", value)
+            }
         }
     }
 }
