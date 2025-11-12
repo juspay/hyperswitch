@@ -30,7 +30,6 @@ pub trait GetComparisonServiceConfig {
 
 /// Generic function to serialize router data and send comparison to external service
 /// Works for both payments and refunds
-#[cfg(feature = "v1")]
 pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
     state: &dyn api_client::ApiClientWrapper,
     hyperswitch_router_data: router_data::RouterData<F, RouterDReq, RouterDResp>,
