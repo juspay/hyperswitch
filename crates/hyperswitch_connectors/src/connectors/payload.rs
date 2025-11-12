@@ -836,18 +836,9 @@ impl webhooks::IncomingWebhook for Payload {
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 )
-            }
-
-            responses::PayloadWebhooksTrigger::Refund => {
-                api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
-                )
-            }
+            },
+        responses::PayloadWebhooksTrigger::Refund => Err(errors::ConnectorError::NotSupported{  message: "Refund Webhook".to_string(),
+        connector: "Payload"})
         };
 
         Ok(reference_id)
@@ -872,7 +863,7 @@ impl webhooks::IncomingWebhook for Payload {
         let webhook_body: responses::PayloadWebhookEvent = request
             .body
             .parse_struct("PayloadWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(match webhook_body.trigger {
             responses::PayloadWebhooksTrigger::Payment
             | responses::PayloadWebhooksTrigger::Processed
@@ -895,7 +886,8 @@ impl webhooks::IncomingWebhook for Payload {
                 Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)
             }
             responses::PayloadWebhooksTrigger::Refund => {
-                Box::new(responses::PayloadRefundResponse::try_from(webhook_body)?)
+                Err(errors::ConnectorError::NotSupported{  message: "Refund Webhook".to_string(),
+        connector: "Payload"})
             }
         })
     }
