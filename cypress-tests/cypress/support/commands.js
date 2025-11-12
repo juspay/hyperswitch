@@ -4120,6 +4120,148 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
+// Blocklist and Eligibility API Commands
+Cypress.Commands.add(
+  "blocklistCreateRule",
+  (requestBody, cardBin, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/blocklist`;
+
+    const body = {
+      ...requestBody,
+      type: "card_bin",
+      data: cardBin,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("fingerprint_id")
+            .to.equal(cardBin);
+          expect(response.body)
+            .to.have.property("data_kind")
+            .to.equal("card_bin");
+          expect(response.body).to.have.property("created_at").to.not.be.null;
+          globalState.set("blocklistRuleId", response.body.fingerprint_id);
+        } else {
+          throw new Error(
+            `Blocklist create rule failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("blocklistToggle", (status, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/blocklist/toggle?status=${status}`;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: "",
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.log(`Blocklist status toggled to: ${status}`);
+      } else {
+        throw new Error(
+          `Blocklist toggle failed with status: ${response.status} and message: ${response.body?.error?.message}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "paymentsEligibilityCheck",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const publishableKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/payments/${paymentId}/eligibility`;
+
+    const body = {
+      ...requestBody,
+      client_secret: clientSecret,
+      ...reqData,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": publishableKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("payment_id")
+            .to.equal(paymentId);
+
+          // Check for expected response structure based on test case
+          if (resData.body.sdk_next_action?.next_action?.deny) {
+            expect(response.body).to.have.property("sdk_next_action");
+            expect(response.body.sdk_next_action).to.have.property(
+              "next_action"
+            );
+            expect(response.body.sdk_next_action.next_action).to.have.property(
+              "deny"
+            );
+            expect(response.body.sdk_next_action.next_action.deny)
+              .to.have.property("message")
+              .to.equal(resData.body.sdk_next_action.next_action.deny.message);
+          } else {
+            // For non-blocklisted cards, we expect no deny action
+            if (response.body.sdk_next_action?.next_action?.deny) {
+              throw new Error(
+                "Expected no deny action for non-blocklisted card"
+              );
+            }
+          }
+        } else {
+          throw new Error(
+            `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",
