@@ -27172,14 +27172,30 @@
       },
       "VaultTokenField": {
         "type": "object",
-        "required": [
-          "token_type"
-        ],
         "properties": {
           "token_type": {
-            "$ref": "#/components/schemas/common_enums.VaultTokenType"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenType"
+            },
+            "description": "Type of field to be tokenized in",
+            "nullable": true
           }
         }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "token_expiry_year",
+          "token_expiry_month",
+          "token_cryptogram"
+        ]
       },
       "Venmo": {
         "type": "object",
