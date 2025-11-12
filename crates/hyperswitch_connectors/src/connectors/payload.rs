@@ -837,9 +837,9 @@ impl webhooks::IncomingWebhook for Payload {
                     ),
                 )
             }
-        // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
-        // The only differentiator is the distinct IDs received for payment and refund.
-        responses::PayloadWebhooksTrigger::Refund => {
+            // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
+            // The only differentiator is the distinct IDs received for payment and refund.
+            responses::PayloadWebhooksTrigger::Refund => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Refund Webhook".to_string(),
                     connector: "Payload",
