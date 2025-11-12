@@ -933,7 +933,6 @@ export const connectorDetails = {
                     field_type: "user_card_cvc",
                     value: null,
                   },
-              
                 },
               },
             ],
@@ -977,7 +976,6 @@ export const connectorDetails = {
                     field_type: "user_card_expiry_year",
                     value: null,
                   },
-                 
                 },
               },
             ],
@@ -996,8 +994,7 @@ export const connectorDetails = {
                     eligible_connectors: ["adyen"],
                   },
                 ],
-                required_fields: {
-                },
+                required_fields: {},
               },
             ],
           },
