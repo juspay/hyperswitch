@@ -149,7 +149,6 @@ pub async fn construct_relay_refund_router_data<F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)

@@ -9,8 +9,8 @@ use hyperswitch_domain_models::{
     router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -21,7 +21,10 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{AdditionalCardInfo, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -75,6 +78,7 @@ pub enum RequestType {
     Capture,
     Refund,
     Find,
+    Void,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -467,6 +471,7 @@ pub struct ZiftRefundRequest {
     auth: ZiftAuthType,
     transaction_id: String,
     amount: StringMinorUnit,
+    transaction_code: String,
 }
 
 impl<F> TryFrom<&ZiftRouterData<&RefundsRouterData<F>>> for ZiftRefundRequest {
@@ -478,21 +483,17 @@ impl<F> TryFrom<&ZiftRouterData<&RefundsRouterData<F>>> for ZiftRefundRequest {
             auth,
             transaction_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount.to_owned(),
+            transaction_code: item.router_data.request.refund_id.clone(),
         })
     }
 }
-
-// impl From<ResponseCode> for enums::RefundStatus {
-//     fn from(item: enums::RefundStatus) -> Self {
-//         match item {}
-//     }
-// }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    transaction_id: String,
+    transaction_id: Option<String>,
     response_code: String,
     response_message: Option<String>,
+    transaction_code: Option<String>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -511,7 +512,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         };
         let response = if refund_response.response_code.is_approved() {
             Ok(RefundsResponseData {
-                connector_refund_id: item.response.transaction_id.to_string(),
+                connector_refund_id: item
+                    .response
+                    .transaction_id
+                    .clone()
+                    .or(item.response.transaction_code.clone())
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                 refund_status,
             })
         } else {
@@ -701,6 +707,85 @@ impl TryFrom<&ZiftRouterData<&PaymentsCaptureRouterData>> for ZiftCaptureRequest
                 .parse::<i64>()
                 .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?,
             amount: item.amount.to_owned(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZiftCancelRequest {
+    request_type: RequestType,
+    #[serde(flatten)]
+    auth: ZiftAuthType,
+    transaction_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZiftVoidResponse {
+    pub response_code: String,
+    pub response_message: String,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for ZiftCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            request_type: RequestType::Void,
+            auth,
+            transaction_id: item
+                .request
+                .connector_transaction_id
+                .parse::<i64>()
+                .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?,
+        })
+    }
+}
+
+impl TryFrom<PaymentsCancelResponseRouterData<ZiftVoidResponse>> for PaymentsCancelRouterData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: PaymentsCancelResponseRouterData<ZiftVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let void_response = &item.response;
+
+        let response = if void_response.response_code.is_approved() {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                code: void_response.response_code.to_string(),
+                message: void_response.response_message.clone(),
+                reason: Some(void_response.response_message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        };
+
+        Ok(Self {
+            status: if void_response.response_code.is_approved() {
+                common_enums::AttemptStatus::Voided
+            } else {
+                common_enums::AttemptStatus::Failure
+            },
+            response,
+            ..item.data
         })
     }
 }
