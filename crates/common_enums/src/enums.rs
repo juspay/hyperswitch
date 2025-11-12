@@ -9973,9 +9973,9 @@ pub enum VaultTokenType {
     /// Network token
     NetworkToken,
     /// Token expiry year
-    TokenExpiryYear,
+    NetworkTokenExpiryYear,
     /// Token expiry month
-    TokenExpiryMonth,
+    NetworkTokenExpiryMonth,
     /// Token cryptogram
-    TokenCryptogram,
+    NetworkTokenCryptogram,
 }

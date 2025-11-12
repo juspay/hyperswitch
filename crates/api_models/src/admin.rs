@@ -304,7 +304,7 @@ pub struct ExternalVaultConnectorDetails {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct VaultTokenField {
     /// Type of field to be tokenized in
-    #[schema(value_type = Option<Vec<VaultTokenType>>)]
+    #[schema(value_type = Option<VaultTokenType>)]
     pub token_type: common_enums::VaultTokenType,
 }
 
