@@ -50,7 +50,7 @@ describe("Payments Eligibility API with Blocklist", () => {
       const merchantId = globalState.get("merchantId");
       const key = `guard_blocklist_for_${merchantId}`;
       const value = "true";
-      
+
       cy.setConfigs(globalState, key, value, "CREATE");
     });
   });
@@ -163,7 +163,7 @@ describe("Payments Eligibility API with Blocklist", () => {
       const merchantId = globalState.get("merchantId");
       const key = `guard_blocklist_for_${merchantId}`;
       const value = "true";
-      
+
       cy.setConfigs(globalState, key, value, "DELETE");
     });
   });
