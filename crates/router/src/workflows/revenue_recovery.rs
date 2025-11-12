@@ -923,12 +923,8 @@ async fn process_token_for_retry(
             })
         }
         false => {
-            let (schedule_time, force_scheduled) = calculate_smart_retry_time(
-                state,
-                payment_intent,
-                token_with_retry_info,
-            )
-            .await?;
+            let (schedule_time, force_scheduled) =
+                calculate_smart_retry_time(state, payment_intent, token_with_retry_info).await?;
 
             Ok(TokenProcessResult {
                 scheduled_token: schedule_time.map(|schedule_time| ScheduledToken {
@@ -982,12 +978,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             let mut force_scheduled_found = false;
 
             for token_with_retry_info in processor_tokens.values() {
-                let result = process_token_for_retry(
-                    state,
-                    token_with_retry_info,
-                    payment_intent,
-                )
-                .await?;
+                let result =
+                    process_token_for_retry(state, token_with_retry_info, payment_intent).await?;
 
                 // Add the scheduled token if it exists
                 if let Some(scheduled_token) = result.scheduled_token {
