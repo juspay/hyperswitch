@@ -461,10 +461,10 @@ async fn should_force_schedule_due_to_missed_slots(
                 .card_config
                 .get_network_config(card_network.clone())
                 .max_retry_count_for_thirty_day;
-        
+
         // Calculate time difference since last retry and compare with threshold
-        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc())
-            .whole_hours() > threshold_hours.into()
+        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc()).whole_hours()
+            > threshold_hours.into()
     })
     // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
     .unwrap_or(false))
@@ -864,13 +864,9 @@ pub async fn calculate_smart_retry_time(
     let card_network = card_info.card_network.clone();
 
     // Check if the last retry is not done within defined slot, force the retry to next slot
-    if should_force_schedule_due_to_missed_slots(
-        state,
-        card_network.clone(),
-        token_with_retry_info
-    )
-    .await
-    .unwrap_or(false)
+    if should_force_schedule_due_to_missed_slots(state, card_network.clone(), token_with_retry_info)
+        .await
+        .unwrap_or(false)
     {
         let schedule_offset = state
             .conf
@@ -885,10 +881,13 @@ pub async fn calculate_smart_retry_time(
             masked_token,
             scheduled_time
         );
-        return Ok((Some(time::PrimitiveDateTime::new(
-            scheduled_time.date(),
-            scheduled_time.time(),
-        )), true)); // force_scheduled = true
+        return Ok((
+            Some(time::PrimitiveDateTime::new(
+                scheduled_time.date(),
+                scheduled_time.time(),
+            )),
+            true,
+        )); // force_scheduled = true
     }
 
     // Normal smart retry path
@@ -899,7 +898,7 @@ pub async fn calculate_smart_retry_time(
         token_with_retry_info,
     )
     .await?;
-    
+
     Ok((schedule_time, false)) // force_scheduled = false
 }
 
@@ -934,7 +933,7 @@ async fn process_token_for_retry(
                 connector_customer_id,
             )
             .await?;
-            
+
             Ok(TokenProcessResult {
                 scheduled_token: schedule_time.map(|schedule_time| ScheduledToken {
                     token_details: token_status.payment_processor_token_details.clone(),
@@ -985,7 +984,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
         None => {
             // Flag to track if we found a force-scheduled token
             let mut force_scheduled_found = false;
-            
+
             for token_with_retry_info in processor_tokens.values() {
                 let result = process_token_for_retry(
                     state,
@@ -994,12 +993,12 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                     connector_customer_id,
                 )
                 .await?;
-                
+
                 // Add the scheduled token if it exists
                 if let Some(scheduled_token) = result.scheduled_token {
                     tokens_with_schedule_time.push(scheduled_token);
                 }
-                
+
                 // Check if this was force-scheduled due to missed slots
                 if result.force_scheduled {
                     force_scheduled_found = true;
