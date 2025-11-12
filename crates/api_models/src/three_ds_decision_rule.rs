@@ -98,25 +98,25 @@ impl common_utils::events::ApiEventMetric for ThreeDsDecisionRuleExecuteResponse
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExternalThreeDsData {
     /// Contains the authentication cryptogram data (CAVV or TAVV).
-    #[schema(value_type = Option<Cryptogram>)]
+    #[schema(value_type = Cryptogram)]
     pub authentication_cryptogram: Cryptogram,
     /// Directory Server Transaction ID generated during the 3DS process.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = String)]
     pub ds_trans_id: String,
     /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = String)]
     pub version: String,
     /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
-    #[schema(value_type = Option<Eci>)]
+    #[schema(value_type = Eci)]
     pub eci: Eci,
     /// Indicates the transaction status from the 3DS authentication flow.
-    #[schema(value_type = Option<TransactionStatus>)]
+    #[schema(value_type = TransactionStatus)]
     pub transaction_status: TransactionStatus,
     /// Optional exemption indicator specifying the exemption type, if any, used in this transaction.
     #[schema(value_type = Option<ExemptionIndicator>)]
     pub exemption_indicator: Option<ExemptionIndicator>,
     /// Optional network-specific parameters that may be required by certain card networks.
-    #[schema(value_type = NetworkParams)]
+    #[schema(value_type = Option<NetworkParams>)]
     pub network_params: Option<NetworkParams>,
 }
 

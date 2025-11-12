@@ -436,9 +436,58 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
+                exemption_indicator: None,
+                cb_network_params: None,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
         }
+    }
+}
+
+impl ForeignTryFrom<&api_models::three_ds_decision_rule::ExternalThreeDsData>
+    for AuthenticationData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        external_auth_data: &api_models::three_ds_decision_rule::ExternalThreeDsData,
+    ) -> Result<Self, Self::Error> {
+        let cavv = match &external_auth_data.authentication_cryptogram {
+            api_models::three_ds_decision_rule::Cryptogram::Cavv {
+                authentication_cryptogram,
+            } => authentication_cryptogram.clone(),
+            api_models::three_ds_decision_rule::Cryptogram::Tavv {
+                token_authentication_cryptogram,
+            } => token_authentication_cryptogram.clone(),
+        };
+
+        let authentication_type = match external_auth_data.transaction_status {
+            common_enums::TransactionStatus::ChallengeRequired
+            | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                Some(common_enums::DecoupledAuthenticationType::Challenge)
+            }
+            _ => Some(common_enums::DecoupledAuthenticationType::Frictionless),
+        };
+
+        Ok(Self {
+            eci: Some(external_auth_data.eci.clone()),
+            cavv,
+            threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
+            message_version: None,
+            ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
+            created_at: time::PrimitiveDateTime::new(
+                time::OffsetDateTime::now_utc().date(),
+                time::OffsetDateTime::now_utc().time(),
+            ),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            acs_trans_id: None,
+            authentication_type,
+            exemption_indicator: external_auth_data.exemption_indicator.clone(),
+            cb_network_params: external_auth_data.network_params.clone(),
+        })
     }
 }
