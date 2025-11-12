@@ -336,18 +336,15 @@ pub mod core {
         let start_time = std::time::Instant::now();
         logger::info!("Starting injector_core processing");
 
-        // Track total number of invocations with vault connector dimension
-        metrics::INJECTOR_INVOCATIONS_COUNT.add(
-            1,
-            router_env::metric_attributes!((
-                "vault_connector",
-                format!("{:?}", request.token_data.vault_connector)
-            )),
-        );
-
         // Extract values for metrics before moving request
         let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
         let http_method_str = format!("{:?}", request.connection_config.http_method);
+
+        // Track total number of invocations with vault connector dimension
+        metrics::INJECTOR_INVOCATIONS_COUNT.add(
+            1,
+            router_env::metric_attributes!(("vault_connector", vault_connector_str.clone())),
+        );
 
         // Extract endpoint host for dimension (privacy-friendly)
         let endpoint_host = request
@@ -504,12 +501,10 @@ pub mod core {
 
             // Record token replacement time with vault connector dimension
             let token_replacement_duration = token_replacement_start.elapsed();
+            let vault_connector_str = format!("{:?}", vault_connector);
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
                 token_replacement_duration.as_secs_f64(),
-                router_env::metric_attributes!((
-                    "vault_connector",
-                    format!("{:?}", vault_connector)
-                )),
+                router_env::metric_attributes!(("vault_connector", vault_connector_str)),
             );
 
             Ok(result)
@@ -851,18 +846,15 @@ pub mod core {
                 .map(|url| url.host_str().unwrap_or("unknown").to_string())
                 .unwrap_or_else(|_| "invalid_url".to_string());
 
+            let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
+            let http_method_str = format!("{:?}", request.connection_config.http_method);
+            
             metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
                     ("status_code", response.status_code.to_string()),
-                    (
-                        "vault_connector",
-                        format!("{:?}", request.token_data.vault_connector)
-                    ),
-                    (
-                        "http_method",
-                        format!("{:?}", request.connection_config.http_method)
-                    ),
+                    ("vault_connector", vault_connector_str),
+                    ("http_method", http_method_str),
                     ("endpoint_host", endpoint_host)
                 ),
             );
