@@ -848,7 +848,7 @@ pub mod core {
 
             let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
             let http_method_str = format!("{:?}", request.connection_config.http_method);
-            
+
             metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
