@@ -298,8 +298,14 @@ pub struct ExternalVaultConnectorDetails {
     pub vault_sdk: Option<common_enums::VaultSdk>,
 
     /// Fields to tokenization in vault
-    #[schema(value_type = Option<Vec<VaultSdk>>)]
-    pub vault_token_selector: Option<Vec<common_enums::VaultTokenField>>,
+    #[schema(value_type = Option<Vec<VaultTokenField>>)]
+    pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct VaultTokenField {
+    /// Type of field to be tokenized in
+    pub token_type: common_enums::VaultTokenType,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
