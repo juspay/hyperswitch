@@ -836,9 +836,13 @@ impl webhooks::IncomingWebhook for Payload {
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 )
-            },
-        responses::PayloadWebhooksTrigger::Refund => Err(errors::ConnectorError::NotSupported{  message: "Refund Webhook".to_string(),
-        connector: "Payload"})
+            }
+            responses::PayloadWebhooksTrigger::Refund => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Refund Webhook".to_string(),
+                    connector: "Payload",
+                })
+            }
         };
 
         Ok(reference_id)
@@ -886,8 +890,10 @@ impl webhooks::IncomingWebhook for Payload {
                 Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?)
             }
             responses::PayloadWebhooksTrigger::Refund => {
-                Err(errors::ConnectorError::NotSupported{  message: "Refund Webhook".to_string(),
-        connector: "Payload"})
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Refund Webhook".to_string(),
+                    connector: "Payload",
+                })
             }
         })
     }

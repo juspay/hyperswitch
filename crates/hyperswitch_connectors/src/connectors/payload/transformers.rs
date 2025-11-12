@@ -494,10 +494,12 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             | responses::PayloadWebhooksTrigger::BankAccountReject => Ok(Self::Declined),
             responses::PayloadWebhooksTrigger::Void => Ok(Self::Voided),
             responses::PayloadWebhooksTrigger::Refund => {
-                Err(errors::ConnectorError::NotSupported{  message: "Refund Webhook".to_string(),
-        connector: "Payload"})
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Refund Webhook".to_string(),
+                    connector: "Payload",
+                })
             }
-            responses::PayloadWebhooksTrigger::Chargeback 
+            responses::PayloadWebhooksTrigger::Chargeback
             | responses::PayloadWebhooksTrigger::ChargebackReversal
             | responses::PayloadWebhooksTrigger::PaymentActivationStatus
             | responses::PayloadWebhooksTrigger::Credit
