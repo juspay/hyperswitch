@@ -3236,7 +3236,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                     .request
                     .authentication_data
                     .as_ref()
-                    .and_then(|auth| Some(auth.cavv.clone()))
+                    .map(|auth| auth.cavv.clone())
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "authentication_data.cavv",
                     })?;
@@ -3249,7 +3249,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                     .request
                     .authentication_data
                     .as_ref()
-                    .and_then(|auth| Some(auth.cavv.clone()))
+                    .map(|auth| auth.cavv.clone())
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "authentication_data.cavv",
                     })?;

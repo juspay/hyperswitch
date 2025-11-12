@@ -1013,7 +1013,6 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
-            external_authentication_three_ds_data: None,
         };
         Self(data)
     }
