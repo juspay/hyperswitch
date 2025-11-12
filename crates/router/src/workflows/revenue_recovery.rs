@@ -836,7 +836,6 @@ pub async fn calculate_smart_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
-    connector_customer_id: &str,
 ) -> Result<(Option<time::PrimitiveDateTime>, bool), errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
     let current_time = time::OffsetDateTime::now_utc();
@@ -876,8 +875,7 @@ pub async fn calculate_smart_retry_time(
         let scheduled_time =
             time::OffsetDateTime::now_utc() + time::Duration::seconds(schedule_offset);
         logger::info!(
-            "Skipping Decider call, forcing a schedule for customer:- {} with the token:- '{:?}' to time:- {}",
-            connector_customer_id,
+            "Skipping Decider call, forcing a schedule for the token:- '{:?}' to time:- {}",
             masked_token,
             scheduled_time
         );
@@ -907,7 +905,6 @@ async fn process_token_for_retry(
     state: &SessionState,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
     payment_intent: &PaymentIntent,
-    connector_customer_id: &str,
 ) -> Result<TokenProcessResult, errors::ProcessTrackerError> {
     let token_status: &PaymentProcessorTokenStatus = &token_with_retry_info.token_status;
     let inserted_by_attempt_id = &token_status.inserted_by_attempt_id;
@@ -930,7 +927,6 @@ async fn process_token_for_retry(
                 state,
                 payment_intent,
                 token_with_retry_info,
-                connector_customer_id,
             )
             .await?;
 
@@ -990,7 +986,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                     state,
                     token_with_retry_info,
                     payment_intent,
-                    connector_customer_id,
                 )
                 .await?;
 
