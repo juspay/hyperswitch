@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.05.0-hotfix3
+
+### Bug Fixes
+
+- **connectors:** [Adyen] Revert adyen fix mit ([#10217](https://github.com/juspay/hyperswitch/pull/10217)) ([`7aad69f`](https://github.com/juspay/hyperswitch/commit/7aad69f0fa051f799b69cb10513447c01bd07053))
+
+**Full Changelog:** [`2025.11.05.0-hotfix2...2025.11.05.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.11.05.0-hotfix2...2025.11.05.0-hotfix3)
+
+- - -
+
 ## 2025.11.05.0-hotfix2
 
 ### Bug Fixes
