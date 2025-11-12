@@ -1680,7 +1680,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             match (
                                 connector_status,
                                 attempt_status,
-                                payment_data.frm_message.as_ref().map(|fraud_check| fraud_check.frm_status),
+                                payment_data
+                                    .frm_message
+                                    .as_ref()
+                                    .map(|fraud_check| fraud_check.frm_status),
                             ) {
                                 (
                                     enums::AttemptStatus::Authorized,
