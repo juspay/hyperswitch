@@ -448,6 +448,14 @@ async fn should_force_schedule_due_to_missed_slots(
     card_network: Option<CardNetwork>,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> CustomResult<bool, StorageError> {
+    // Check monthly retry remaining first
+    let has_monthly_retries = token_with_retry_info.monthly_retry_remaining >= 1;
+    
+    // If no monthly retries available, don't force schedule
+    if !has_monthly_retries {
+        return Ok(false);
+    }
+
     Ok(RedisTokenManager::find_nearest_date_from_current(
         &token_with_retry_info.token_status.daily_retry_history,
     )
