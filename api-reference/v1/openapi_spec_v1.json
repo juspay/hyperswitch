@@ -18006,42 +18006,29 @@
         "type": "object",
         "description": "Represents external 3DS authentication data used in the payment flow.",
         "required": [
-          "network_params"
+          "authentication_cryptogram",
+          "ds_trans_id",
+          "version",
+          "eci",
+          "transaction_status"
         ],
         "properties": {
           "authentication_cryptogram": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Cryptogram"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/Cryptogram"
           },
           "ds_trans_id": {
             "type": "string",
-            "description": "Directory Server Transaction ID generated during the 3DS process.",
-            "nullable": true
+            "description": "Directory Server Transaction ID generated during the 3DS process."
           },
           "version": {
             "type": "string",
-            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\").",
-            "nullable": true
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
           },
           "eci": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Eci"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/Eci"
           },
           "transaction_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TransactionStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/TransactionStatus"
           },
           "exemption_indicator": {
             "allOf": [
@@ -18052,7 +18039,12 @@
             "nullable": true
           },
           "network_params": {
-            "$ref": "#/components/schemas/NetworkParams"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkParams"
+              }
+            ],
+            "nullable": true
           }
         }
       },
