@@ -52,6 +52,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
 
+[trace_header]
+header_name = "x-request-id"
+id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or "use_incoming"
 
 [server]
 # HTTP Request body limit. Defaults to 32kB
