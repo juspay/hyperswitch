@@ -863,6 +863,7 @@ pub fn mk_crud_locker_request(
     Ok(request)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn mk_card_value1(
     card_number: cards::CardNumber,
     exp_year: String,
