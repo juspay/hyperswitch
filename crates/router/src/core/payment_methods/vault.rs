@@ -486,6 +486,7 @@ impl Vaultable for api::CardPayout {
             nickname: None,
             card_last_four: None,
             card_token: None,
+            card_network: self.card_network.clone(),
         };
 
         value1
@@ -534,7 +535,7 @@ impl Vaultable for api::CardPayout {
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.map(masking::Secret::new),
-            card_network: None,
+            card_network: value1.card_network,
         };
 
         let supp_data = SupplementaryVaultData {
