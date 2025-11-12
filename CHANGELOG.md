@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0
+
+### Features
+
+- **connector:** [WorldpayWPG] Implement Payouts - Cards and Apple Pay Predecrypt ([#10200](https://github.com/juspay/hyperswitch/pull/10200)) ([`b5d75fd`](https://github.com/juspay/hyperswitch/commit/b5d75fd64218c86bb9692812f8127b513a3b06c4))
+- **payment:** Add Noon connector details and update payment methods … ([#10111](https://github.com/juspay/hyperswitch/pull/10111)) ([`8267d9f`](https://github.com/juspay/hyperswitch/commit/8267d9fda521bd8a419d2d1a971cc41b1994b12d))
+
+### Bug Fixes
+
+- **connector:**
+  - Disable connector decryption flow for APPLEPAY nuvei ([#10194](https://github.com/juspay/hyperswitch/pull/10194)) ([`0238da0`](https://github.com/juspay/hyperswitch/commit/0238da0d8ce10e61c54db4bb9c0c43ed22e9626e))
+  - [Zift] Fix Connector Void Flow ([#10205](https://github.com/juspay/hyperswitch/pull/10205)) ([`15d2e01`](https://github.com/juspay/hyperswitch/commit/15d2e01d48e0dd322ba21dc55ccdc450250b6fa9))
+- **connectors:** [Adyen] Revert adyen fix mit ([#10211](https://github.com/juspay/hyperswitch/pull/10211)) ([`a80f259`](https://github.com/juspay/hyperswitch/commit/a80f25975666a1c03b6f841d3490cc2439dc1c66))
+
+### Refactors
+
+- **payouts:** Add support for IP address getting from HTTP request in payout browser info ([#10208](https://github.com/juspay/hyperswitch/pull/10208)) ([`2df9e7d`](https://github.com/juspay/hyperswitch/commit/2df9e7d3e6a7d60178a7341204c2946830774850))
+- Add support to trigger payout sync if source verification is false ([#10199](https://github.com/juspay/hyperswitch/pull/10199)) ([`250a693`](https://github.com/juspay/hyperswitch/commit/250a693709207e67114d2de427a883b41ce45e85))
+
+**Full Changelog:** [`2025.11.11.1...2025.11.12.0`](https://github.com/juspay/hyperswitch/compare/2025.11.11.1...2025.11.12.0)
+
+- - -
+
 ## 2025.11.11.1
 
 ### Features
