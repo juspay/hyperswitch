@@ -832,9 +832,7 @@ impl webhooks::IncomingWebhook for Payload {
                     .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        reference_id
-                    ),
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(reference_id),
                 ))
             }
             // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
@@ -845,7 +843,6 @@ impl webhooks::IncomingWebhook for Payload {
                 Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
         }
-
     }
 
     fn get_webhook_event_type(
@@ -869,7 +866,9 @@ impl webhooks::IncomingWebhook for Payload {
             .parse_struct("PayloadWebhookEvent")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        Ok(Box::new(responses::PayloadPaymentsResponse::try_from(webhook_body)?))
+        Ok(Box::new(responses::PayloadPaymentsResponse::try_from(
+            webhook_body,
+        )?))
     }
 }
 
