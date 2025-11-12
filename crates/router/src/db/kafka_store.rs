@@ -3905,35 +3905,32 @@ impl GenericLinkInterface for KafkaStore {
 impl UserKeyStoreInterface for KafkaStore {
     async fn insert_user_key_store(
         &self,
-        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
-            .insert_user_key_store(state, user_key_store, key)
+            .insert_user_key_store( user_key_store, key)
             .await
     }
 
     async fn get_user_key_store_by_user_id(
         &self,
-        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
-            .get_user_key_store_by_user_id(state, user_id, key)
+            .get_user_key_store_by_user_id( user_id, key)
             .await
     }
 
     async fn get_all_user_key_store(
         &self,
-        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         self.diesel_store
-            .get_all_user_key_store(state, key, from, limit)
+            .get_all_user_key_store( key, from, limit)
             .await
     }
 }
@@ -4086,7 +4083,6 @@ impl ThemeInterface for KafkaStore {
 impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
     async fn insert_payment_methods_session(
         &self,
-        state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
@@ -4098,7 +4094,6 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
 
     async fn get_payment_methods_session(
         &self,
-        state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
@@ -4112,7 +4107,6 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
 
     async fn update_payment_method_session(
         &self,
-        state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,

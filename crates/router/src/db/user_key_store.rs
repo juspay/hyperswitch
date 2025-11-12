@@ -1,6 +1,6 @@
 use common_utils::{
     errors::CustomResult,
-    types::keymanager::{self, KeyManagerState},
+    types::keymanager,
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
@@ -21,21 +21,18 @@ use crate::{
 pub trait UserKeyStoreInterface {
     async fn insert_user_key_store(
         &self,
-        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError>;
 
     async fn get_user_key_store_by_user_id(
         &self,
-        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError>;
 
     async fn get_all_user_key_store(
         &self,
-        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         limit: u32,
@@ -47,7 +44,6 @@ impl UserKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_key_store(
         &self,
-        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -60,7 +56,7 @@ impl UserKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key, keymanager::Identifier::User(user_id))
+            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -68,7 +64,6 @@ impl UserKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn get_user_key_store_by_user_id(
         &self,
-        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -77,14 +72,13 @@ impl UserKeyStoreInterface for Store {
         diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key, keymanager::Identifier::User(user_id.to_owned()))
+            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id.to_owned()))
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn get_all_user_key_store(
         &self,
-        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         limit: u32,
@@ -99,7 +93,7 @@ impl UserKeyStoreInterface for Store {
         futures::future::try_join_all(key_stores.into_iter().map(|key_store| async {
             let user_id = key_store.user_id.clone();
             key_store
-                .convert(state, key, keymanager::Identifier::User(user_id))
+                .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -112,7 +106,6 @@ impl UserKeyStoreInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_user_key_store(
         &self,
-        state: &KeyManagerState,
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -134,14 +127,13 @@ impl UserKeyStoreInterface for MockDb {
         locked_user_key_store.push(user_key_store.clone());
         let user_id = user_key_store.user_id.clone();
         user_key_store
-            .convert(state, key, keymanager::Identifier::User(user_id))
+            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn get_all_user_key_store(
         &self,
-        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         _from: u32,
         _limit: u32,
@@ -152,7 +144,7 @@ impl UserKeyStoreInterface for MockDb {
             let user_id = user_key.user_id.clone();
             user_key
                 .to_owned()
-                .convert(state, key, keymanager::Identifier::User(user_id))
+                .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -162,7 +154,6 @@ impl UserKeyStoreInterface for MockDb {
     #[instrument(skip_all)]
     async fn get_user_key_store_by_user_id(
         &self,
-        state: &KeyManagerState,
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
@@ -175,7 +166,7 @@ impl UserKeyStoreInterface for MockDb {
             .ok_or(errors::StorageError::ValueNotFound(format!(
                 "No user_key_store is found for user_id={user_id}",
             )))?
-            .convert(state, key, keymanager::Identifier::User(user_id.to_owned()))
+            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id.to_owned()))
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

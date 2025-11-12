@@ -498,7 +498,6 @@ pub async fn get_mca_from_payout_attempt(
                 let _id = merchant_connector_id;
                 let _ = merchant_context.get_merchant_key_store();
                 let _ = connector_name;
-                let _ = key_manager_state;
                 todo!()
             }
         }

@@ -2169,7 +2169,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         self,
         merchant_context: &domain::MerchantContext,
         db: &dyn StorageInterface,
-        key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::Profile> {
         let profile_id = self.profile_id;
         // Check whether this profile belongs to the merchant
