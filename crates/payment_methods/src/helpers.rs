@@ -6,18 +6,38 @@ pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods 
 use router_env::logger;
 
 use crate::state;
+
+/// Helper: transform DB card info into API CardDetail while preserving provided fields
+fn build_card_detail_from_info(
+    card_details: &api_models::payment_methods::CardDetail,
+    card_info: &crate::state::CardInfo, // adjust type if different
+) -> api_models::payment_methods::CardDetail {
+    api::CardDetail {
+        card_issuer: card_info.card_issuer.clone(),
+        card_network: card_info.card_network.clone(),
+        card_type: card_info.card_type.clone(),
+        card_issuing_country: card_info.card_issuing_country.clone(),
+        card_exp_month: card_details.card_exp_month.clone(),
+        card_exp_year: card_details.card_exp_year.clone(),
+        card_holder_name: card_details.card_holder_name.clone(),
+        card_number: card_details.card_number.clone(),
+        nick_name: card_details.nick_name.clone(),
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
     db: Box<dyn state::PaymentMethodsStorageInterface>,
 ) -> api_models::payment_methods::CardDetail {
-    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
-    if card_details.card_issuer.is_some()
+    // If all BIN-derived fields are already present, return input as-is
+    let has_all_bin_fields = card_details.card_issuer.is_some()
         && card_details.card_network.is_some()
         && card_details.card_type.is_some()
-        && card_details.card_issuing_country.is_some()
-    {
-        api::CardDetail {
+        && card_details.card_issuing_country.is_some();
+
+    if has_all_bin_fields {
+        return api::CardDetail {
             card_issuer: card_details.card_issuer.to_owned(),
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.to_owned(),
@@ -27,30 +47,48 @@ pub async fn populate_bin_details_for_payment_method_create(
             card_holder_name: card_details.card_holder_name.clone(),
             card_number: card_details.card_number.clone(),
             nick_name: card_details.nick_name.clone(),
+        };
+    }
+
+    // Try to fetch BIN info from DB
+    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+
+    let fetched_card_info = if let Some(isin) = card_isin {
+        // Use AsyncExt style if available; fallback to manual await and logging
+        #[cfg(feature = "v1")]
+        {
+            // original style using async_and_then was:
+            // card_isin.clone().async_and_then(|card_isin| async move {
+            //    db.get_card_info(&card_isin).await.map_err(|error| logger::error!(card_info_error=?error)).ok()
+            // }).await.flatten()
+            match db.get_card_info(&isin).await {
+                Ok(ci) => Some(ci),
+                Err(e) => {
+                    logger::error!(card_info_error=?e);
+                    None
+                }
+            }
+        }
+        #[cfg(not(feature = "v1"))]
+        {
+            match db.get_card_info(&isin).await {
+                Ok(ci) => Some(ci),
+                Err(e) => {
+                    // if router_env::logger isn't available, use standard log
+                    log::error!("card_info lookup failed: {:?}", e);
+                    None
+                }
+            }
         }
     } else {
-        let card_info = card_isin
-            .clone()
-            .async_and_then(|card_isin| async move {
-                db.get_card_info(&card_isin)
-                    .await
-                    .map_err(|error| logger::error!(card_info_error=?error))
-                    .ok()
-            })
-            .await
-            .flatten()
-            .map(|card_info| api::CardDetail {
-                card_issuer: card_info.card_issuer,
-                card_network: card_info.card_network.clone(),
-                card_type: card_info.card_type,
-                card_issuing_country: card_info.card_issuing_country,
-                card_exp_month: card_details.card_exp_month.clone(),
-                card_exp_year: card_details.card_exp_year.clone(),
-                card_holder_name: card_details.card_holder_name.clone(),
-                card_number: card_details.card_number.clone(),
-                nick_name: card_details.nick_name.clone(),
-            });
-        card_info.unwrap_or_else(|| api::CardDetail {
+        None
+    };
+
+    if let Some(card_info) = fetched_card_info {
+        build_card_detail_from_info(&card_details, &card_info)
+    } else {
+        // Fallback: fill only the fields already present, keep others None
+        api::CardDetail {
             card_issuer: None,
             card_network: None,
             card_type: None,
@@ -60,16 +98,73 @@ pub async fn populate_bin_details_for_payment_method_create(
             card_holder_name: card_details.card_holder_name.clone(),
             card_number: card_details.card_number.clone(),
             nick_name: card_details.nick_name.clone(),
-        })
+        }
     }
 }
 
 #[cfg(feature = "v2")]
 pub async fn populate_bin_details_for_payment_method_create(
-    _card_details: api_models::payment_methods::CardDetail,
-    _db: &dyn state::PaymentMethodsStorageInterface,
+    card_details: api_models::payment_methods::CardDetail,
+    db: &dyn state::PaymentMethodsStorageInterface,
 ) -> api_models::payment_methods::CardDetail {
-    todo!()
+    // Behavior mirrors v1: if BIN-derived fields exist, return them,
+    // otherwise attempt DB lookup using card_isin and fill from DB.
+    let has_all_bin_fields = card_details.card_issuer.is_some()
+        && card_details.card_network.is_some()
+        && card_details.card_type.is_some()
+        && card_details.card_issuing_country.is_some();
+
+    if has_all_bin_fields {
+        return api::CardDetail {
+            card_issuer: card_details.card_issuer.to_owned(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.to_owned(),
+            card_issuing_country: card_details.card_issuing_country.to_owned(),
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        };
+    }
+
+    let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
+
+    let fetched_card_info = if let Some(isin) = card_isin {
+        match db.get_card_info(&isin).await {
+            Ok(ci) => Some(ci),
+            Err(e) => {
+                // Use router_env::logger if available, otherwise use log
+                #[cfg(feature = "v1")]
+                {
+                    router_env::logger::error!(card_info_error=?e);
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    log::error!("card_info lookup failed: {:?}", e);
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    if let Some(card_info) = fetched_card_info {
+        build_card_detail_from_info(&card_details, &card_info)
+    } else {
+        api::CardDetail {
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            card_exp_month: card_details.card_exp_month.clone(),
+            card_exp_year: card_details.card_exp_year.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            card_number: card_details.card_number.clone(),
+            nick_name: card_details.nick_name.clone(),
+        }
+    }
 }
 
 pub fn validate_payment_method_type_against_payment_method(
@@ -289,9 +384,26 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse
 {
     fn foreign_from(
-        (_card_details, _item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
+        (card_details, item): (Option<api::CardDetailFromLocker>, domain::PaymentMethod),
     ) -> Self {
-        todo!()
+        // For v2, preserve semantics from v1; expand/adjust fields here
+        Self {
+            merchant_id: item.merchant_id.to_owned(),
+            customer_id: Some(item.customer_id.to_owned()),
+            payment_method_id: item.get_id().clone(),
+            payment_method: item.get_payment_method_type(),
+            payment_method_type: item.get_payment_method_subtype(),
+            card: card_details,
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: None,
+            metadata: item.metadata,
+            created: Some(item.created_at),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
+        }
     }
 }
 
