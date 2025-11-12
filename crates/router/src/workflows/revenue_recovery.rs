@@ -450,7 +450,7 @@ async fn should_force_schedule_due_to_missed_slots(
 ) -> CustomResult<bool, StorageError> {
     // Check monthly retry remaining first
     let has_monthly_retries = token_with_retry_info.monthly_retry_remaining >= 1;
-    
+
     // If no monthly retries available, don't force schedule
     if !has_monthly_retries {
         return Ok(false);
