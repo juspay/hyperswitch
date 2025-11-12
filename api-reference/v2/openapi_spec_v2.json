@@ -4903,6 +4903,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6802,6 +6810,14 @@
                   }
                 ],
                 "nullable": true
+              },
+              "interac": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InteracPaymentMethod"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -8526,6 +8542,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9053,6 +9077,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -9089,6 +9114,7 @@
           "riskified",
           "xendit",
           "zen",
+          "zift",
           "zsl"
         ]
       },
@@ -9151,6 +9177,11 @@
           "description": {
             "type": "string",
             "description": "The description of the connector"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "The base url of the connector",
+            "nullable": true
           },
           "category": {
             "$ref": "#/components/schemas/HyperswitchConnectorCategory"
@@ -13670,6 +13701,15 @@
           }
         }
       },
+      "InteracPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "customer_info": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
       "JCSVoucherData": {
         "type": "object",
         "properties": {
@@ -15823,6 +15863,13 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform eligibility check",
+            "enum": [
+              "eligibility_check"
+            ]
           }
         ]
       },
@@ -16928,6 +16975,17 @@
             ],
             "properties": {
               "breadpay_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payjustnow_redirect"
+            ],
+            "properties": {
+              "payjustnow_redirect": {
                 "type": "object"
               }
             }
@@ -19287,6 +19345,7 @@
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
+          "payjustnow",
           "paypal",
           "paze",
           "pix",
@@ -20297,7 +20356,8 @@
           "amount",
           "created",
           "attempt_count",
-          "return_url"
+          "return_url",
+          "is_split_payment"
         ],
         "properties": {
           "id": {
@@ -20495,6 +20555,10 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "is_split_payment": {
+            "type": "boolean",
+            "description": "Indicates if the payment amount is split across multiple payment methods"
           }
         }
       },
@@ -21353,7 +21417,8 @@
           "paypal",
           "stripe",
           "wise",
-          "worldpay"
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -24719,6 +24784,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -24750,6 +24816,7 @@
           "worldpayxml",
           "xendit",
           "zen",
+          "zift",
           "plaid",
           "zsl"
         ]

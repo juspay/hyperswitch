@@ -314,7 +314,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_network_str = card_network.map(|network| network.to_string());
 
-    let card_issuer_str = card_info.card_issuer.clone();
+    let card_issuer_str = card_info
+        .card_issuer
+        .clone()
+        .filter(|card_issuer| !card_issuer.is_empty());
 
     let card_funding_str = match card_info.card_type.as_deref() {
         Some("card") => None,
@@ -702,7 +705,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     payment_intent: &PaymentIntent,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
-    let locked = RedisTokenManager::lock_connector_customer_status(
+    let locked_acquired = RedisTokenManager::lock_connector_customer_status(
         state,
         connector_customer_id,
         &payment_intent.id,
@@ -712,7 +715,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match locked {
+    match locked_acquired {
         false => {
             let token_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -765,7 +768,12 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
+            let active_tokens: HashMap<_, _> = existing_tokens
+                .into_iter()
+                .filter(|(_, token_status)| token_status.is_active != Some(false))
+                .collect();
+
+            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
 
             let payment_processor_token_response =
                 call_decider_for_payment_processor_tokens_select_closest_time(
@@ -897,7 +905,8 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             // Check if all tokens are hard declined
             let hard_decline_status = processor_tokens
                 .values()
-                .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+                .all(|token| token.token_status.is_hard_decline.unwrap_or(false))
+                && !processor_tokens.is_empty();
 
             RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
                 .await
@@ -914,6 +923,13 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
 
         Some(token) => {
             tracing::debug!("Found payment processor token with least schedule time");
+
+            RedisTokenManager::update_payment_processor_tokens_schedule_time_to_none(
+                state,
+                connector_customer_id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,

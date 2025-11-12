@@ -405,8 +405,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         off_session: None,
         setup_mandate_details: None,
         confirm: true,
-        statement_descriptor_suffix: None,
-        statement_descriptor: None,
         capture_method: Some(payment_data.payment_intent.capture_method),
         amount: payment_data
             .payment_attempt
@@ -459,6 +457,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
+        billing_descriptor: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1164,6 +1163,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         minor_amount: Some(attempt.amount_details.get_net_amount()),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
+        split_payments: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -1502,7 +1502,6 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
                 .get_amount_as_i64(),
         ),
         confirm: true,
-        statement_descriptor_suffix: None,
         customer_acceptance: None,
         mandate_id: None,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
@@ -1533,6 +1532,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         is_stored_credential: None,
+        billing_descriptor: None,
+        split_payments: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1774,42 +1775,58 @@ where
                 .get_merchant_tax_registration_id();
 
             Box::new(types::L2L3Data {
-                order_date: payment_data.payment_intent.order_date,
-                tax_status: payment_data.payment_intent.tax_status,
-                customer_tax_registration_id: customer.as_ref().and_then(|c| {
-                    c.tax_registration_id
-                        .as_ref()
-                        .map(|e| e.clone().into_inner())
+                order_info: Some(types::OrderInfo {
+                    order_date: payment_data.payment_intent.order_date,
+                    order_details: order_details.clone(),
+                    merchant_order_reference_id: payment_data
+                        .payment_intent
+                        .merchant_order_reference_id
+                        .clone(),
+                    discount_amount: payment_data.payment_intent.discount_amount,
+                    shipping_cost: payment_data.payment_intent.shipping_cost,
+                    duty_amount: payment_data.payment_intent.duty_amount,
                 }),
-                order_details: order_details.clone(),
-                discount_amount: payment_data.payment_intent.discount_amount,
-                shipping_cost: payment_data.payment_intent.shipping_cost,
-                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-                duty_amount: payment_data.payment_intent.duty_amount,
-                order_tax_amount: payment_data
-                    .payment_attempt
-                    .net_amount
-                    .get_order_tax_amount(),
-                merchant_order_reference_id: payment_data
-                    .payment_intent
-                    .merchant_order_reference_id
-                    .clone(),
-                customer_id: payment_data.payment_intent.customer_id.clone(),
-                billing_address_city: billing_address
+                tax_info: Some(types::TaxInfo {
+                    tax_status: payment_data.payment_intent.tax_status,
+                    customer_tax_registration_id: customer.as_ref().and_then(|customer| {
+                        customer
+                            .tax_registration_id
+                            .as_ref()
+                            .map(|tax_registration_id| tax_registration_id.clone().into_inner())
+                    }),
+                    merchant_tax_registration_id,
+                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    order_tax_amount: payment_data
+                        .payment_attempt
+                        .net_amount
+                        .get_order_tax_amount(),
+                }),
+                customer_info: Some(types::CustomerInfo {
+                    customer_id: payment_data.payment_intent.customer_id.clone(),
+                    customer_email: payment_data.email,
+                    customer_name: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .name
+                            .as_ref()
+                            .map(|name| name.clone().into_inner())
+                    }),
+                    customer_phone_number: customer.as_ref().and_then(|customer_data| {
+                        customer_data
+                            .phone
+                            .as_ref()
+                            .map(|phone| phone.clone().into_inner())
+                    }),
+                    customer_phone_country_code: customer
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone_country_code.clone()),
+                }),
+                billing_details: billing_address
                     .as_ref()
                     .and_then(|addr| addr.address.as_ref())
-                    .and_then(|details| details.city.clone()),
-                merchant_tax_registration_id,
-                customer_name: customer
-                    .as_ref()
-                    .and_then(|c| c.name.as_ref().map(|e| e.clone().into_inner())),
-                customer_email: payment_data.email,
-                customer_phone_number: customer
-                    .as_ref()
-                    .and_then(|c| c.phone.as_ref().map(|e| e.clone().into_inner())),
-                customer_phone_country_code: customer
-                    .as_ref()
-                    .and_then(|c| c.phone_country_code.clone()),
+                    .and_then(|details| details.city.clone())
+                    .map(|city| types::BillingDetails {
+                        address_city: Some(city),
+                    }),
                 shipping_details: shipping_address
                     .and_then(|address| address.address.as_ref())
                     .cloned(),
@@ -3724,6 +3741,8 @@ where
             shipping_cost: payment_intent.shipping_cost,
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_last_applied_at: payment_attempt
+                .extended_authorization_last_applied_at,
             card_discovery: payment_attempt.card_discovery,
             force_3ds_challenge: payment_intent.force_3ds_challenge,
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
@@ -3740,6 +3759,7 @@ where
                 .map(NetworkDetails::foreign_from),
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
+            billing_descriptor: payment_intent.billing_descriptor,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4036,6 +4056,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
+            extended_authorization_last_applied_at: pa.extended_authorization_last_applied_at,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
@@ -4055,6 +4076,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
+            billing_descriptor: pi.billing_descriptor,
         }
     }
 }
@@ -4064,6 +4086,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
     for api_models::payments::PaymentsListResponseItem
 {
     fn foreign_from((pi, pa): (storage::PaymentIntent, Option<storage::PaymentAttempt>)) -> Self {
+        let is_split_payment = pi.is_split_payment();
         Self {
             id: pi.id,
             merchant_id: pi.merchant_id,
@@ -4103,6 +4126,7 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             allowed_payment_method_types: pi.allowed_payment_method_types,
             authorization_count: pi.authorization_count,
             modified_at: pa.as_ref().map(|p| p.modified_at),
+            is_split_payment,
         }
     }
 }
@@ -4344,8 +4368,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             customer_name,
             currency: payment_data.currency,
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             capture_method: Some(payment_data.payment_intent.capture_method),
             router_return_url,
             webhook_url,
@@ -4389,6 +4411,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            billing_descriptor: None,
         })
     }
 }
@@ -4564,6 +4587,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.payment_intent.off_session,
         );
 
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
@@ -4571,8 +4596,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
-            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
-            statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
             order_tax_amount: payment_data
@@ -4625,6 +4648,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            billing_descriptor,
         })
     }
 }
@@ -4966,6 +4990,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata.expose_option(),
             webhook_url,
             capture_method: Some(capture_method),
+            split_payments: None,
         })
     }
 }
@@ -5022,6 +5047,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+            split_payments: payment_data.payment_intent.split_payments.clone(),
         })
     }
 }
@@ -5602,6 +5628,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_data.payment_intent.off_session,
         );
 
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -5610,7 +5638,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_method_data: (payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?),
-            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
             off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),
@@ -5640,6 +5667,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             related_transaction_id: None,
             enrolled_for_3ds: true,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            billing_descriptor,
+            split_payments: payment_data.payment_intent.split_payments.clone(),
         })
     }
 }
@@ -5784,6 +5813,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(router_request_types::UcsAuthenticationData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -6382,6 +6417,7 @@ impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenc
             None,
             value.mandate_metadata,
             value.connector_mandate_request_reference_id,
+            None,
         )
     }
 }

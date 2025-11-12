@@ -120,7 +120,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-           Response: {
+      Response: {
         status: 400,
         body: {
           error: threeDsValidationData,
@@ -140,7 +140,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-            Response: {
+      Response: {
         status: 400,
         body: {
           error: threeDsValidationData,
@@ -531,7 +531,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
-     Response: {
+      Response: {
         status: 400,
         body: {
           error: threeDsValidationData,

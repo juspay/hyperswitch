@@ -293,7 +293,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       //Skipping the partial refund test as Stax does not support multiple partial refunds at same time
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -325,7 +325,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     manualPaymentPartialRefund: {
       Configs: {
         TRIGGER_SKIP: true,

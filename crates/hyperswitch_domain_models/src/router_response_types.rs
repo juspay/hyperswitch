@@ -18,7 +18,7 @@ use crate::{
     vault::PaymentMethodVaultingData,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
@@ -124,7 +124,7 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -277,6 +277,17 @@ impl PaymentsResponseData {
                     connector_token_request_reference_id: connector_mandate_request_reference_id,
                 }
             })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mandate_reference(&self) -> Option<MandateReference> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.as_ref().clone()
         } else {
             None
         }
@@ -643,12 +654,6 @@ pub enum AuthenticationResponseData {
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct CompleteAuthorizeRedirectResponse {
-    pub params: Option<masking::Secret<String>>,
-    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 /// Represents details of a payment method.

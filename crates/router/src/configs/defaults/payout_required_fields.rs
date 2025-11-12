@@ -414,9 +414,9 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
 
 fn get_interac_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([(
-        "payout_method_data.bank_redirect.interac.email".to_string(),
+        "payout_method_data.bank_redirect.email".to_string(),
         RequiredFieldInfo {
-            required_field: "payout_method_data.bank_redirect.interac.email".to_string(),
+            required_field: "payout_method_data.bank_redirect.email".to_string(),
             display_name: "email".to_string(),
             field_type: FieldType::Text,
             value: None,
@@ -630,7 +630,7 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
             (
                 "billing.phone.number".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                    required_field: "billing.phone.number".to_string(),
                     display_name: "phone".to_string(),
                     field_type: FieldType::UserPhoneNumber,
                     value: None,
@@ -639,7 +639,7 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
             (
                 "billing.phone.country_code".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                    required_field: "billing.phone.country_code".to_string(),
                     display_name: "dialing_code".to_string(),
                     field_type: FieldType::UserPhoneNumberCountryCode,
                     value: None,

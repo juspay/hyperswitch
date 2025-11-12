@@ -1,9 +1,4 @@
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::print_stdout
-)]
+#![allow(clippy::unwrap_in_result)]
 
 mod utils;
 
@@ -456,6 +451,7 @@ async fn payments_create_core() {
         merchant_order_reference_id: None,
         capture_before: None,
         extended_authorization_applied: None,
+        extended_authorization_last_applied_at: None,
         order_tax_amount: None,
         connector_mandate_id: None,
         shipping_cost: None,
@@ -474,6 +470,7 @@ async fn payments_create_core() {
         network_details: None,
         is_stored_credential: None,
         request_extended_authorization: None,
+        billing_descriptor: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -493,6 +490,7 @@ async fn payments_create_core() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
@@ -743,6 +741,7 @@ async fn payments_create_core_adyen_no_redirect() {
             merchant_order_reference_id: None,
             capture_before: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
@@ -761,6 +760,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_details: None,
             is_stored_credential: None,
             request_extended_authorization: None,
+            billing_descriptor: None,
         },
         vec![],
     ));
@@ -780,6 +780,7 @@ async fn payments_create_core_adyen_no_redirect() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
