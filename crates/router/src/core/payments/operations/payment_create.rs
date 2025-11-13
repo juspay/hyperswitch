@@ -1429,6 +1429,7 @@ impl PaymentCreate {
                 network_details:None,
                 is_stored_credential,
                 authorized_amount: None,
+                tokenization:request.tokenization
             },
             additional_pm_data,
 
@@ -1675,6 +1676,7 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            tokenization: request.tokenization,
         })
     }
 

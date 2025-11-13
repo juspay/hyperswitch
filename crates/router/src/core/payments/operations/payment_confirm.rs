@@ -1951,9 +1951,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
-        let payment_attempt_fut = tokio::spawn(
-            async move {
-                m_db.update_payment_attempt_with_attempt_id(
+        let payment_attempt_fut =
+            tokio::spawn(
+                async move {
+                    m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
                         currency: payment_data.currency,
@@ -1996,7 +1997,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
                         connector_mandate_detail: payment_data
                             .payment_attempt
-                            .connector_mandate_detail,
+                            .connector_mandate_detail
+                            .clone(),
                         card_discovery,
                         routing_approach: payment_data.payment_attempt.routing_approach,
                         connector_request_reference_id,
@@ -2008,14 +2010,23 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         request_extended_authorization: payment_data
                             .payment_attempt
                             .request_extended_authorization,
+                        tokenization: core_utils::determine_tokenization_value(
+                            payment_data
+                                .payment_attempt
+                                .connector_mandate_detail
+                                .clone()
+                                .as_ref(),
+                                payment_data
+                                .payment_attempt.setup_future_usage_applied.clone()
+                        ),
                     },
                     storage_scheme,
                 )
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
-            }
-            .in_current_span(),
-        );
+                }
+                .in_current_span(),
+            );
 
         let billing_address = payment_data.address.get_payment_billing();
         let key_manager_state = state.into();

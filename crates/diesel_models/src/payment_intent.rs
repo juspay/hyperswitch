@@ -82,6 +82,7 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -188,6 +189,7 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -395,6 +397,7 @@ pub struct PaymentIntentNew {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[cfg(feature = "v1")]
@@ -481,6 +484,7 @@ pub struct PaymentIntentNew {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[cfg(feature = "v2")]
@@ -825,6 +829,7 @@ impl PaymentIntentUpdateInternal {
             active_attempts_group_id: source.active_attempts_group_id,
             mit_category: None,
             billing_descriptor: source.billing_descriptor,
+            tokenization: None,
         }
     }
 }
