@@ -14,6 +14,7 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -2026,9 +2027,21 @@ pub struct ToggleAllKVResponse {
 }
 
 /// Merchant connector details used to make payments.
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    ToSchema,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info, like encoded_data in this field. And do not send the string "null".
+    #[smithy(value_type = "String")]
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
@@ -2041,16 +2054,20 @@ pub struct MerchantConnectorDetailsWrap {
             "user_defined_field_2": "sample_2",
         },
     }"#)]
+    #[smithy(value_type = "Option<MerchantConnectorDetails>")]
     pub encoded_data: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, SmithyModel, ToSchema)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MerchantConnectorDetails {
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    #[smithy(value_type = "Option<Object>")]
     pub connector_account_details: pii::SecretSerdeValue,
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 

@@ -52,6 +52,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
 
+[trace_header]
+header_name = "x-request-id"
+id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or "use_incoming"
 
 [server]
 # HTTP Request body limit. Defaults to 32kB
@@ -359,7 +362,7 @@ worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
-zift.base_url = "https://sandbox-secure.zift.io/gates/xurl?"
+zift.base_url = "https://sandbox-secure.zift.io/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
 tsys.base_url = "https://stagegw.transnox.com/"
@@ -1117,10 +1120,10 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro"
+card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro"
+card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix"
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi"
 wallet.samsung_pay.connector_list = "cybersource"
 wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
@@ -1203,6 +1206,11 @@ interac = { currency = "CAD" }
 
 [payout_method_filters.gigadat]
 interac = { currency = "CAD" }
+
+[payout_method_filters.worldpayxml]
+debit = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
+credit = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
+apple_pay = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
 
 [payment_link]
 sdk_url = "http://localhost:9050/HyperLoader.js"
@@ -1296,6 +1304,7 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+payouts = "hyperswitch-payout-events"
 sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
 sessionizer_payment_intents = "sessionizer-payment-intent-events"
 sessionizer_refunds = "sessionizer-refund-events"
@@ -1383,6 +1392,7 @@ job_schedule_buffer_time_in_seconds = 3600
 reopen_workflow_buffer_time_in_seconds = 3600
 max_random_schedule_delay_in_seconds = 300
 redis_ttl_buffer_in_seconds= 300
+unretried_invoice_schedule_time_offset_seconds = 60
 
 [revenue_recovery.card_config.amex]
 max_retries_per_day = 20

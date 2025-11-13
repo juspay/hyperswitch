@@ -162,7 +162,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     credential_stored_on_file: Some(true),
                     stored_credential_used: None,
                 }),
-                merchant_intitiated_transaction: None,
+                merchant_initiated_transaction: None,
                 ignore_avs_result: connector_merchant_config.disable_avs,
                 ignore_cv_result: connector_merchant_config.disable_cvn,
             }),
@@ -474,7 +474,7 @@ pub enum CybersourceActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceAuthorizationOptions {
     initiator: Option<CybersourcePaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
     ignore_avs_result: Option<bool>,
     ignore_cv_result: Option<bool>,
 }
@@ -830,7 +830,7 @@ impl
                     }),
                     ignore_avs_result: connector_merchant_config.disable_avs,
                     ignore_cv_result: connector_merchant_config.disable_cvn,
-                    merchant_intitiated_transaction: None,
+                    merchant_initiated_transaction: None,
                 }),
             )
         } else if item.router_data.request.mandate_id.is_some() {
@@ -873,7 +873,7 @@ impl
                         None,
                         Some(CybersourceAuthorizationOptions {
                             initiator: None,
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: None,
                                 original_authorized_amount,
                                 previous_transaction_id: None,
@@ -941,7 +941,7 @@ impl
                                 credential_stored_on_file: None,
                                 stored_credential_used: Some(true),
                             }),
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
@@ -1009,7 +1009,7 @@ impl
                                 credential_stored_on_file: None,
                                 stored_credential_used: Some(true),
                             }),
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()), // 7 is for MIT using NTI
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
@@ -1029,7 +1029,7 @@ impl
                 None,
                 Some(CybersourceAuthorizationOptions {
                     initiator: None,
-                    merchant_intitiated_transaction: None,
+                    merchant_initiated_transaction: None,
                     ignore_avs_result: connector_merchant_config.disable_avs,
                     ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
@@ -1148,7 +1148,7 @@ impl
                             credential_stored_on_file: Some(true),
                             stored_credential_used: None,
                         }),
-                        merchant_intitiated_transaction: None,
+                        merchant_initiated_transaction: None,
                         ignore_avs_result: connector_merchant_config.disable_avs,
                         ignore_cv_result: connector_merchant_config.disable_cvn,
                     }),
@@ -2844,7 +2844,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsIncrementalAuthorizationRouterData>
                         credential_stored_on_file: None,
                         stored_credential_used: Some(true),
                     }),
-                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                    merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                         reason: Some("5".to_owned()),
                         previous_transaction_id: None,
                         original_authorized_amount: None,

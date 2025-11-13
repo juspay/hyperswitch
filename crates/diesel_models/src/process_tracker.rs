@@ -198,7 +198,6 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use common_utils::ext_traits::StringExt;
 
     use super::ProcessTrackerRunner;

@@ -243,20 +243,6 @@ impl PaymentMethod {
         }
     }
 
-    #[cfg(feature = "v1")]
-    pub fn is_migrated_card(&self) -> bool {
-        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
-            && self.locker_id.is_none()
-            && self.connector_mandate_details.is_some()
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn is_migrated_card(&self) -> bool {
-        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
-            && self.locker_id.is_none()
-            && self.connector_mandate_details.is_some()
-    }
-
     #[cfg(feature = "v2")]
     pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
         self.payment_method_type = Some(payment_method_type);
@@ -814,6 +800,17 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_payment_method_by_locker_id_customer_id_merchant_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        locker_id: &str,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &keymanager::KeyManagerState,
@@ -1260,7 +1257,6 @@ impl<'a> PaymentMethodBalanceData<'a> {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use id_type::MerchantConnectorAccountId;
 
     use super::*;

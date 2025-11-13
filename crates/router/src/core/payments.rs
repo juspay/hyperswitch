@@ -80,7 +80,6 @@ use scheduler::utils as pt_utils;
 pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
-use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
@@ -9455,6 +9454,7 @@ where
                     mandate_reference_record
                         .connector_mandate_request_reference_id
                         .clone(),
+                    None,
                 ),
             ))
         }
@@ -9526,6 +9526,7 @@ where
                                     None,
                                     mandate_reference_record.mandate_metadata.clone(),
                                     mandate_reference_record.connector_mandate_request_reference_id.clone(),
+                                    None
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
