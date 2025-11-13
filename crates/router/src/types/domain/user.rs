@@ -1194,10 +1194,7 @@ impl UserFromStorage {
         let key_manager_state = &state.into();
         let key_store_result = state
             .global_store
-            .get_user_key_store_by_user_id(
-                self.get_user_id(),
-                &master_key.to_vec().into(),
-            )
+            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
         if let Ok(key_store) = key_store_result {
@@ -1242,7 +1239,7 @@ impl UserFromStorage {
 
             state
                 .global_store
-                .insert_user_key_store( key_store, &master_key.to_vec().into())
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
         } else {

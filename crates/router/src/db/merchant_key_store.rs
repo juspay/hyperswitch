@@ -40,9 +40,12 @@ mod tests {
                 || {},
             )
             .unwrap();
-        let mock_db = MockDb::new(&redis_interface::RedisSettings::default(),KeyManagerState::new())
-            .await
-            .expect("Failed to create mock DB");
+        let mock_db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();

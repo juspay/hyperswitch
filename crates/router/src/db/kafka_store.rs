@@ -3929,7 +3929,7 @@ impl UserKeyStoreInterface for KafkaStore {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
-            .insert_user_key_store( user_key_store, key)
+            .insert_user_key_store(user_key_store, key)
             .await
     }
 
@@ -3939,7 +3939,7 @@ impl UserKeyStoreInterface for KafkaStore {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
         self.diesel_store
-            .get_user_key_store_by_user_id( user_id, key)
+            .get_user_key_store_by_user_id(user_id, key)
             .await
     }
 
@@ -3950,7 +3950,7 @@ impl UserKeyStoreInterface for KafkaStore {
         limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
         self.diesel_store
-            .get_all_user_key_store( key, from, limit)
+            .get_all_user_key_store(key, from, limit)
             .await
     }
 }

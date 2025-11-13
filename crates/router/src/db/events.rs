@@ -861,7 +861,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "v1")]
-    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>>{
+    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
             KeyManagerState::new(),
