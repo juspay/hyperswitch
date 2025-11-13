@@ -861,6 +861,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "v1")]
+    #[allow(clippy::panic_in_result_fn)]
     async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
@@ -974,6 +975,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "v2")]
+    #[allow(clippy::panic_in_result_fn)]
     async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),

@@ -1599,13 +1599,10 @@ pub async fn list_payment_methods_for_session(
     profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodListResponseForSession> {
-    let key_manager_state = &(&state).into();
-
     let db = &*state.store;
 
     let payment_method_session = db
         .get_payment_methods_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
         )
@@ -3167,7 +3164,6 @@ pub async fn payment_methods_session_create(
         };
 
     db.insert_payment_methods_session(
-        key_manager_state,
         merchant_context.get_merchant_key_store(),
         payment_method_session_domain_model.clone(),
         expires_in,
@@ -3198,7 +3194,6 @@ pub async fn payment_methods_session_update(
 
     let existing_payment_method_session_state = db
         .get_payment_methods_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
         )
@@ -3235,7 +3230,6 @@ pub async fn payment_methods_session_update(
 
     let update_state_change = db
         .update_payment_method_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
             payment_method_session_domain_model,
@@ -3261,11 +3255,9 @@ pub async fn payment_methods_session_retrieve(
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let payment_method_session_domain_model = db
         .get_payment_methods_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
         )
@@ -3294,11 +3286,9 @@ pub async fn payment_methods_session_update_payment_method(
     request: payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
 ) -> RouterResponse<payment_methods::PaymentMethodResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     // Validate if the session still exists
     db.get_payment_methods_session(
-        key_manager_state,
         merchant_context.get_merchant_key_store(),
         &payment_method_session_id,
     )
@@ -3332,11 +3322,9 @@ pub async fn payment_methods_session_delete_payment_method(
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     // Validate if the session still exists
     db.get_payment_methods_session(
-        key_manager_state,
         merchant_context.get_merchant_key_store(),
         &payment_method_session_id,
     )
@@ -3441,12 +3429,10 @@ pub async fn payment_methods_session_confirm(
     request: payment_methods::PaymentMethodSessionConfirmRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     // Validate if the session still exists
     let payment_method_session = db
         .get_payment_methods_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
         )
@@ -3529,7 +3515,6 @@ pub async fn payment_methods_session_confirm(
 
     let payment_method_session = db
         .update_payment_method_session(
-            key_manager_state,
             merchant_context.get_merchant_key_store(),
             &payment_method_session_id,
             update_payment_method_session,
