@@ -379,7 +379,11 @@ fn get_card_request_data(
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),
-            descriptor: item.request.statement_descriptor.clone(),
+            descriptor: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
         },
     )))
 }

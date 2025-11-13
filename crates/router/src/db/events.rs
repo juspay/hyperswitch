@@ -859,17 +859,12 @@ mod tests {
         },
     };
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
-        let mockdb = MockDb::new(
-            &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
-        )
-        .await
-        .expect("Failed to create Mock store");
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
+            .await
+            .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
@@ -972,17 +967,12 @@ mod tests {
         assert_eq!(updated_event.event_id, event_id);
     }
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v2")]
     async fn test_mockdb_event_interface() {
-        #[allow(clippy::expect_used)]
-        let mockdb = MockDb::new(
-            &redis_interface::RedisSettings::default(),
-            common_utils::types::keymanager::KeyManagerState::new(),
-        )
-        .await
-        .expect("Failed to create Mock store");
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
+            .await
+            .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
@@ -1384,6 +1374,7 @@ mod tests {
             network_details: None,
             is_stored_credential: None,
             request_extended_authorization: None,
+            billing_descriptor: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

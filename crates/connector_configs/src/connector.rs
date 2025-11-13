@@ -9,7 +9,6 @@ use api_models::{
     payments,
 };
 use serde::{Deserialize, Serialize};
-use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
 
@@ -185,10 +184,9 @@ pub struct ConfigMetadata {
     pub account_id: Option<AccountIDSupportedMethods>,
     pub name: Option<InputData>,
     pub client_merchant_reference_id: Option<InputData>,
-    pub route: Option<InputData>,
-    pub mid: Option<InputData>,
-    pub tid: Option<InputData>,
+    pub merchant_payment_method_route_id: Option<InputData>,
     pub site: Option<InputData>,
+    pub purpose_of_payment: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -369,6 +367,8 @@ pub struct ConnectorConfig {
     pub worldpay_payout: Option<ConnectorTomlConfig>,
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
     pub worldpayxml: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub worldpayxml_payout: Option<ConnectorTomlConfig>,
     pub xendit: Option<ConnectorTomlConfig>,
     pub zift: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
@@ -419,6 +419,7 @@ impl ConnectorConfig {
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
+            PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
         }
     }
 
@@ -617,6 +618,7 @@ impl ConnectorConfig {
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
             Connector::Paytm => Ok(connector_data.paytm),
+            Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
         }

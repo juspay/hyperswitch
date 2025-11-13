@@ -28,7 +28,7 @@ use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
@@ -160,7 +160,7 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
     pub fn get_grpc_headers_ucs(
@@ -168,7 +168,7 @@ impl SessionState {
         unified_connector_service_execution_mode: ExecutionMode,
     ) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        let request_id = self.request_id.clone();
         let shadow_mode = match unified_connector_service_execution_mode {
             ExecutionMode::Primary => false,
             ExecutionMode::Shadow => true,
@@ -181,7 +181,7 @@ impl SessionState {
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
         GrpcRecoveryHeaders {
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
 }
@@ -212,7 +212,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.get_request_id_str()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
@@ -265,11 +265,10 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
         self.conf.proxy.clone()
     }
     fn get_request_id(&self) -> Option<RequestId> {
-        self.request_id
+        self.request_id.clone()
     }
     fn get_request_id_str(&self) -> Option<String> {
-        self.request_id
-            .map(|req_id| req_id.as_hyphenated().to_string())
+        self.request_id.as_ref().map(|req_id| req_id.to_string())
     }
     fn get_tenant(&self) -> Tenant {
         self.tenant.clone()
@@ -340,7 +339,7 @@ impl AppStateInfo for AppState {
         self.event_handler.clone()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.request_id.replace(request_id);
     }
 
@@ -622,7 +621,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
-            request_id: self.request_id,
+            request_id: self.request_id.clone(),
             base_url: tenant_conf.base_url.clone(),
             tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
@@ -3135,6 +3134,13 @@ impl Authentication {
             .service(
                 web::resource("/{authentication_id}/authenticate")
                     .route(web::post().to(authentication::authentication_authenticate)),
+            )
+            .service(
+                web::resource("/{authentication_id}/eligibility-check")
+                    .route(web::post().to(authentication::authentication_eligibility_check))
+                    .route(
+                        web::get().to(authentication::authentication_retrieve_eligibility_check),
+                    ),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")

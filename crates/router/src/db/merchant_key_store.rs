@@ -22,7 +22,6 @@ mod tests {
         types::domain,
     };
 
-    #[allow(clippy::unwrap_used, clippy::expect_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
         let conf = Settings::new().expect("invalid settings");
@@ -41,13 +40,9 @@ mod tests {
                 || {},
             )
             .unwrap();
-        #[allow(clippy::expect_used)]
-        let mock_db = MockDb::new(
-            &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
-        )
-        .await
-        .expect("Failed to create mock DB");
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default(),KeyManagerState::new())
+            .await
+            .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();

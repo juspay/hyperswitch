@@ -408,6 +408,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                     None,
                                     None,
                                     connector_id.get_connector_mandate_request_reference_id(),
+                                    None
                                 )
                                 ))
                             }
@@ -442,6 +443,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 api_models::payments::MandateReferenceId::ConnectorMandateId(
                                     api_models::payments::ConnectorMandateReferenceId::new(
                                         Some(token.processor_payment_token.clone()),
+                                        None,
                                         None,
                                         None,
                                         None,
@@ -550,6 +552,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     Some(common_utils::generate_id_with_len(
                         consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
+                    None,
                 ),
             ));
 
@@ -1653,6 +1656,7 @@ impl PaymentCreate {
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
+            billing_descriptor: request.billing_descriptor.clone(),
         })
     }
 

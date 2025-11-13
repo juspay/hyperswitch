@@ -439,7 +439,7 @@ pub async fn create_routing_algorithm_under_profile(
         if let Some(static_algorithm) = maybe_static_algorithm {
             let routing_rule = RoutingRule {
                 rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
-                name: name.clone(),
+                name: name.to_string(),
                 description: Some(description.clone()),
                 created_by: profile_id.get_string_repr().to_string(),
                 algorithm: static_algorithm,
@@ -491,7 +491,7 @@ pub async fn create_routing_algorithm_under_profile(
         algorithm_id: algorithm_id.clone(),
         profile_id,
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        name: name.clone(),
+        name: name.to_string(),
         description: Some(description.clone()),
         kind: algorithm.get_kind().foreign_into(),
         algorithm_data: serde_json::json!(algorithm),
@@ -724,8 +724,15 @@ pub async fn link_routing_config(
                             Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        .map_err(|err| match err.current_context() {
+                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
+                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                .attach_printable("Decision engine config not found")
+                            }
+                            _ => err
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to setup decision engine dynamic routing"),
+                        })?;
                         }
                     }
                 }

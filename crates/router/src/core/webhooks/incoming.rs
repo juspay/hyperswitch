@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, RequestId};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{types, utils, MERCHANT_ID};
@@ -1475,44 +1475,57 @@ async fn payouts_incoming_webhook_flow(
     connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
+    let db = &*state.store;
+    //find payout_attempt by object_reference_id
+    let payout_attempt = match webhook_details.object_reference_id {
+        webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
+            webhooks::PayoutIdType::PayoutAttemptId(id) => db
+                .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                    merchant_context.get_merchant_account().get_id(),
+                    &id,
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable("Failed to fetch the payout attempt")?,
+            webhooks::PayoutIdType::ConnectorPayoutId(id) => db
+                .find_payout_attempt_by_merchant_id_connector_payout_id(
+                    merchant_context.get_merchant_account().get_id(),
+                    &id,
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable("Failed to fetch the payout attempt")?,
+        },
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("received a non-payout id when processing payout webhooks")?,
+    };
+
+    let payouts = db
+        .find_payout_by_merchant_id_payout_id(
+            merchant_context.get_merchant_account().get_id(),
+            &payout_attempt.payout_id,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .attach_printable("Failed to fetch the payout")?;
+    let action_req =
+        payout_models::PayoutRequest::PayoutActionRequest(payout_models::PayoutActionRequest {
+            payout_id: payouts.payout_id.clone(),
+        });
+
+    let mut payout_data = Box::pin(payouts::make_payout_data(
+        &state,
+        &merchant_context,
+        None,
+        &action_req,
+        common_utils::consts::DEFAULT_LOCALE,
+    ))
+    .await?;
+
     if source_verified {
-        let db = &*state.store;
-        //find payout_attempt by object_reference_id
-        let payout_attempt = match webhook_details.object_reference_id {
-            webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
-                webhooks::PayoutIdType::PayoutAttemptId(id) => db
-                    .find_payout_attempt_by_merchant_id_payout_attempt_id(
-                        merchant_context.get_merchant_account().get_id(),
-                        &id,
-                        merchant_context.get_merchant_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout attempt")?,
-                webhooks::PayoutIdType::ConnectorPayoutId(id) => db
-                    .find_payout_attempt_by_merchant_id_connector_payout_id(
-                        merchant_context.get_merchant_account().get_id(),
-                        &id,
-                        merchant_context.get_merchant_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout attempt")?,
-            },
-            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("received a non-payout id when processing payout webhooks")?,
-        };
-
-        let payouts = db
-            .find_payout_by_merchant_id_payout_id(
-                merchant_context.get_merchant_account().get_id(),
-                &payout_attempt.payout_id,
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-            .attach_printable("Failed to fetch the payout")?;
-
         let status = common_enums::PayoutStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("failed payout status mapping from event type")?;
@@ -1546,20 +1559,6 @@ async fn payouts_incoming_webhook_flow(
                 payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
             }
         };
-
-        let action_req =
-            payout_models::PayoutRequest::PayoutActionRequest(payout_models::PayoutActionRequest {
-                payout_id: payouts.payout_id.clone(),
-            });
-
-        let mut payout_data = Box::pin(payouts::make_payout_data(
-            &state,
-            &merchant_context,
-            None,
-            &action_req,
-            common_utils::consts::DEFAULT_LOCALE,
-        ))
-        .await?;
 
         let updated_payout_attempt = db
             .update_payout_attempt(
@@ -1609,9 +1608,38 @@ async fn payouts_incoming_webhook_flow(
         })
     } else {
         metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
-        Err(report!(
-            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        // Form connector data
+        let connector_data = match &payout_attempt.connector {
+            Some(connector) => ConnectorData::get_payout_connector_by_name(
+                &state.conf.connectors,
+                connector,
+                GetToken::Connector,
+                payout_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get the connector data")?,
+            _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
+                "Connector not found in payout_attempt - should not reach here.".to_string(),
+            ))
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "connector",
+            })
+            .attach_printable("Connector not found for payout fulfillment")?,
+        };
+
+        Box::pin(payouts::create_payout_retrieve(
+            &state,
+            &merchant_context,
+            &connector_data,
+            &mut payout_data,
         ))
+        .await
+        .attach_printable("Payout retrieval failed for given Payout request")?;
+
+        Ok(WebhookResponseTracker::Payout {
+            payout_id: payout_data.payout_attempt.payout_id,
+            status: payout_data.payout_attempt.status,
+        })
     }
 }
 

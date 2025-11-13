@@ -1,8 +1,6 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use api_models;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_enums::enums;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{
@@ -14,8 +12,6 @@ use common_utils::{
 };
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]

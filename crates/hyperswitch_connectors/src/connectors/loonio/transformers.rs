@@ -413,7 +413,6 @@ pub struct LoonioWebhookBody {
     pub api_transaction_id: String,
     pub signature: Option<String>,
     pub event_code: LoonioWebhookEventCode,
-    pub id: i32,
     #[serde(rename = "type")]
     pub transaction_type: LoonioWebhookTransactionType,
     pub customer_info: Option<pii::SecretSerdeValue>,
@@ -441,6 +440,61 @@ impl From<&LoonioWebhookEventCode> for webhooks::IncomingWebhookEvent {
             | LoonioWebhookEventCode::TransactionNsf => Self::PaymentIntentFailure,
             _ => Self::EventNotSupported,
         }
+    }
+}
+
+pub(crate) fn get_loonio_webhook_event(
+    transaction_type: &LoonioWebhookTransactionType,
+    event_code: &LoonioWebhookEventCode,
+) -> webhooks::IncomingWebhookEvent {
+    match transaction_type {
+        LoonioWebhookTransactionType::OutgoingNotVerified => {
+            #[cfg(feature = "payouts")]
+            {
+                match event_code {
+                    LoonioWebhookEventCode::TransactionPrepared => {
+                        webhooks::IncomingWebhookEvent::PayoutCreated
+                    }
+                    LoonioWebhookEventCode::TransactionPending => {
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                    LoonioWebhookEventCode::TransactionAvailable
+                    | LoonioWebhookEventCode::TransactionSettled => {
+                        webhooks::IncomingWebhookEvent::PayoutSuccess
+                    }
+                    LoonioWebhookEventCode::TransactionFailed
+                    | LoonioWebhookEventCode::TransactionRejected => {
+                        webhooks::IncomingWebhookEvent::PayoutFailure
+                    }
+                    _ => webhooks::IncomingWebhookEvent::EventNotSupported,
+                }
+            }
+
+            #[cfg(not(feature = "payouts"))]
+            {
+                webhooks::IncomingWebhookEvent::EventNotSupported
+            }
+        }
+
+        _ => match event_code {
+            LoonioWebhookEventCode::TransactionSettled
+            | LoonioWebhookEventCode::TransactionAvailable => {
+                webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            LoonioWebhookEventCode::TransactionPending
+            | LoonioWebhookEventCode::TransactionPrepared => {
+                webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            LoonioWebhookEventCode::TransactionFailed
+            | LoonioWebhookEventCode::TransactionRejected
+            | LoonioWebhookEventCode::TransactionStatusFileFailed
+            | LoonioWebhookEventCode::TransactionReturned
+            | LoonioWebhookEventCode::TransactionWrongDestination
+            | LoonioWebhookEventCode::TransactionNsf => {
+                webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            _ => webhooks::IncomingWebhookEvent::EventNotSupported,
+        },
     }
 }
 

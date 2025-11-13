@@ -566,7 +566,6 @@ impl From<storage::HashedApiKey> for HashedApiKey {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
     #[tokio::test]

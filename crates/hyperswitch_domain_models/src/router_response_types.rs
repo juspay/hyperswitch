@@ -124,7 +124,7 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -277,6 +277,17 @@ impl PaymentsResponseData {
                     connector_token_request_reference_id: connector_mandate_request_reference_id,
                 }
             })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mandate_reference(&self) -> Option<MandateReference> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.as_ref().clone()
         } else {
             None
         }

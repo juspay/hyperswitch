@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_enums;
 use common_utils::{ext_traits::AsyncExt, id_type::GlobalPaymentId};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};

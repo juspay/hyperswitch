@@ -5,7 +5,6 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
 };
 use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
-use hex;
 pub mod helpers;
 pub mod transformers;
 

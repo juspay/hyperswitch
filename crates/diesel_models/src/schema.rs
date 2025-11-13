@@ -1196,6 +1196,7 @@ diesel::table! {
         enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
+        billing_descriptor -> Nullable<Jsonb>,
     }
 }
 

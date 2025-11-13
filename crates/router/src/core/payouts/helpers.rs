@@ -153,6 +153,7 @@ pub async fn make_payout_method_data(
                         expiry_month: resp.card_exp_month,
                         expiry_year: resp.card_exp_year,
                         card_holder_name: resp.name_on_card,
+                        card_network: None,
                     })
                 }))
             }
@@ -1504,7 +1505,7 @@ pub async fn get_additional_payout_data(
                 payout_additional::AdditionalPayoutMethodData::Card(Box::new(
                     payout_additional::CardAdditionalData {
                         card_issuer: None,
-                        card_network: None,
+                        card_network: card_data.card_network.clone(),
                         bank_code: None,
                         card_type: None,
                         card_issuing_country: None,

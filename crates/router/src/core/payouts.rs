@@ -35,7 +35,6 @@ use masking::{PeekInterface, Secret};
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
-use serde_json;
 use time::Duration;
 
 #[cfg(feature = "olap")]

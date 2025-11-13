@@ -2198,8 +2198,16 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
-            statement_descriptor: item.request.statement_descriptor.clone(),
+            statement_descriptor_suffix: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            statement_descriptor: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
             meta_data,
             return_url: item
                 .request
@@ -2979,6 +2987,7 @@ fn extract_payment_method_connector_response_from_latest_charge(
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_data,
+            None,
         ))
     } else {
         None
@@ -3438,6 +3447,8 @@ where
 
 impl<F, T> TryFrom<ResponseRouterData<F, SetupIntentResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
+where
+    T: SplitPaymentData,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -3454,10 +3465,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, SetupIntentResponse, T, PaymentsRespons
             // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
             let connector_mandate_id = Some(payment_method_id.clone());
             let payment_method_id = Some(payment_method_id);
+
+            let mandate_metadata: Option<Secret<Value>> =
+                match item.data.request.get_split_payment_data() {
+                    Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_data)) => {
+                        Some(Secret::new(serde_json::json!({
+                            "transfer_account_id": stripe_split_data.transfer_account_id,
+                            "charge_type": stripe_split_data.charge_type,
+                            "application_fees": stripe_split_data.application_fees,
+                        })))
+                    }
+                    _ => None,
+                };
+
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
-                mandate_metadata: None,
+                mandate_metadata,
                 connector_mandate_request_reference_id: None,
             }
         });
@@ -4881,7 +4905,6 @@ where
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
-    #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
     use masking::Secret;
