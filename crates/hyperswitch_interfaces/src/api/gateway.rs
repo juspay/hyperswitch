@@ -239,7 +239,8 @@ where
                                 ucs_router_data,
                                 comparison_service_config,
                                 request_id,
-                            ).await;
+                            )
+                            .await;
                         };
                     }
                     Err(e) => {
