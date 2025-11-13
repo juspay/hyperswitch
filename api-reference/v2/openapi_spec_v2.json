@@ -10301,8 +10301,7 @@
         "type": "object",
         "description": "Custom T&C Message to be shown per payment method type",
         "additionalProperties": {
-          "type": "string",
-          "nullable": true
+          "type": "string"
         },
         "nullable": true
       },
@@ -17532,7 +17531,6 @@
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
           "show_card_form_by_default",
-          "custom_message_for_payment_method_types",
           "enable_button_only_on_form_ready"
         ],
         "properties": {
@@ -17617,7 +17615,12 @@
             "nullable": true
           },
           "custom_message_for_payment_method_types": {
-            "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
           },
           "payment_button_colour": {
             "type": "string",
@@ -17700,9 +17703,6 @@
       },
       "PaymentLinkConfigRequest": {
         "type": "object",
-        "required": [
-          "custom_message_for_payment_method_types"
-        ],
         "properties": {
           "theme": {
             "type": "string",
@@ -17795,7 +17795,12 @@
             "nullable": true
           },
           "custom_message_for_payment_method_types": {
-            "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
           },
           "payment_button_colour": {
             "type": "string",
