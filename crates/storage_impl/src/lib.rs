@@ -63,7 +63,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub fn set_key_manager_state(&mut self, state: KeyManagerState) {
         self.key_manager_state = state;
     }
-    fn get_key_manager_state(&self) -> &KeyManagerState {
+    fn get_keymanager_state(&self) -> &KeyManagerState {
         &self.key_manager_state
     }
 }

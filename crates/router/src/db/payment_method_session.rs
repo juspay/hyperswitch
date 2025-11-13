@@ -7,7 +7,6 @@ use crate::db::MockDb;
 pub trait PaymentMethodsSessionInterface {
     async fn insert_payment_methods_session(
         &self,
-        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
@@ -15,7 +14,6 @@ pub trait PaymentMethodsSessionInterface {
 
     async fn update_payment_method_session(
         &self,
-        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
@@ -27,7 +25,6 @@ pub trait PaymentMethodsSessionInterface {
 
     async fn get_payment_methods_session(
         &self,
-        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
@@ -107,7 +104,7 @@ mod storage {
             );
 
             db_model
-                .convert(state, &key_store.key, key_manager_identifier)
+                .convert(self.get_keymanager_state(), &key_store.key, key_manager_identifier)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")
@@ -150,7 +147,7 @@ mod storage {
             );
 
             db_model
-                .convert(state, &key_store.key, key_manager_identifier)
+                .convert(self.get_keymanager_state(), &key_store.key, key_manager_identifier)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")

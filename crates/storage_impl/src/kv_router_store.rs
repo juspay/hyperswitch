@@ -45,7 +45,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
 }
 
 impl<T: DatabaseStore> KVRouterStore<T> {
-    pub fn get_key_manager_state(&self) -> &KeyManagerState {
+    pub fn get_keymanager_state(&self) -> &KeyManagerState {
         &self.key_manager_state
     }
 }

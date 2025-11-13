@@ -243,7 +243,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     merchant_id.clone().into(),
                 )
@@ -262,7 +262,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .await
             .async_and_then(|item| async {
                 item.convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -297,7 +297,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -316,7 +316,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .await
             .async_and_then(|item| async {
                 item.convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -348,7 +348,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             for item in items.into_iter() {
                 output.push(
                     item.convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -385,7 +385,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -407,7 +407,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             )
             .await?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -435,7 +435,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone(),
                 )
@@ -453,7 +453,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             )
             .await?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 common_utils::types::keymanager::Identifier::Merchant(
                     key_store.merchant_id.clone(),
@@ -479,7 +479,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .map_err(|error| report!(Self::Error::from(error)))
             .async_and_then(|item| async {
                 item.convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -509,7 +509,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             for item in items.into_iter() {
                 output.push(
                     item.convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -543,7 +543,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 for item in items.into_iter() {
                     output.push(
                         item.convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -575,7 +575,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 for item in items.into_iter() {
                     output.push(
                         item.convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -722,7 +722,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
                     item.convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -801,7 +801,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
                     item.convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),
@@ -1029,7 +1029,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1079,7 +1079,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1112,7 +1112,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             Some(mca) => mca
                 .to_owned()
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -1145,7 +1145,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1180,7 +1180,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),
@@ -1239,7 +1239,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         accounts.push(account.clone());
         account
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -1280,7 +1280,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         accounts.push(account.clone());
         account
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 common_utils::types::keymanager::Identifier::Merchant(
                     key_store.merchant_id.clone(),
@@ -1316,7 +1316,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1349,7 +1349,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1382,7 +1382,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1424,7 +1424,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),

@@ -146,7 +146,7 @@ impl PaymentIntentInterface for MockDb {
             .change_context(StorageError::EncryptionError)?;
 
         *payment_intent = PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),

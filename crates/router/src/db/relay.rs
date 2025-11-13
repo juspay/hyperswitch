@@ -55,7 +55,7 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -80,7 +80,7 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -98,7 +98,7 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -121,7 +121,7 @@ impl RelayInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?
         .convert(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
         )

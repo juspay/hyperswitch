@@ -309,7 +309,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .change_context(StorageError::KVError)?;
 
                 let payment_intent = PaymentIntent::convert_back(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     diesel_intent,
                     merchant_key_store.key.get_inner(),
                     merchant_id.into(),
@@ -387,7 +387,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .change_context(StorageError::KVError)?;
 
                 let payment_intent = PaymentIntent::convert_back(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     diesel_intent,
                     merchant_key_store.key.get_inner(),
                     merchant_id.into(),
@@ -450,7 +450,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }?;
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_id.to_owned().into(),
@@ -513,7 +513,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         let merchant_id = diesel_payment_intent.merchant_id.clone();
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_id.into(),
@@ -694,7 +694,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let merchant_id = diesel_payment_intent.merchant_id.clone();
 
                 PaymentIntent::convert_back(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     diesel_payment_intent,
                     merchant_key_store.key.get_inner(),
                     merchant_id.into(),
@@ -729,7 +729,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })?;
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
@@ -762,7 +762,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })?;
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
@@ -795,7 +795,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })?;
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
@@ -823,7 +823,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })
             .async_and_then(|diesel_payment_intent| async {
                 PaymentIntent::convert_back(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     diesel_payment_intent,
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
@@ -853,7 +853,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let merchant_id = diesel_payment_intent.merchant_id.clone();
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_id.to_owned().into(),
@@ -885,7 +885,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let merchant_id = diesel_payment_intent.merchant_id.clone();
 
         PaymentIntent::convert_back(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             diesel_payment_intent,
             merchant_key_store.key.get_inner(),
             merchant_id.to_owned().into(),
@@ -998,7 +998,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .map(|payment_intents| {
             try_join_all(payment_intents.into_iter().map(|diesel_payment_intent| {
                 PaymentIntent::convert_back(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     diesel_payment_intent,
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
@@ -1266,7 +1266,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(|results| {
                 try_join_all(results.into_iter().map(|(pi, pa)| {
                     PaymentIntent::convert_back(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         pi,
                         merchant_key_store.key.get_inner(),
                         merchant_id.to_owned().into(),
@@ -1468,7 +1468,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 try_join_all(output.into_iter().map(
                     |(pi, pa): (_, Option<diesel_models::payment_attempt::PaymentAttempt>)| async {
                         let payment_intent = PaymentIntent::convert_back(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             pi,
                             merchant_key_store.key.get_inner(),
                             merchant_id.to_owned().into(),
@@ -1476,7 +1476,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         let payment_attempt = pa
                             .async_map(|val| {
                                 PaymentAttempt::convert_back(
-                                    self.get_key_manager_state(),
+                                    self.get_keymanager_state(),
                                     val,
                                     merchant_key_store.key.get_inner(),
                                     merchant_id.to_owned().into(),

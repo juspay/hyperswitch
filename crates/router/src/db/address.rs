@@ -108,7 +108,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -159,7 +159,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -189,7 +189,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -218,7 +218,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -245,7 +245,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -329,7 +329,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -390,7 +390,7 @@ mod storage {
             }?;
             address
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     common_utils::types::keymanager::Identifier::Merchant(
                         key_store.merchant_id.clone(),
@@ -414,7 +414,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -458,7 +458,7 @@ mod storage {
                         .async_and_then(|address| async {
                             address
                                 .convert(
-                                    self.get_key_manager_state(),
+                                    self.get_keymanager_state(),
                                     key_store.key.get_inner(),
                                     key_store.merchant_id.clone().into(),
                                 )
@@ -499,7 +499,7 @@ mod storage {
 
                     updated_address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -539,7 +539,7 @@ mod storage {
                         .async_and_then(|address| async {
                             address
                                 .convert(
-                                    self.get_key_manager_state(),
+                                    self.get_keymanager_state(),
                                     key_store.key.get_inner(),
                                     key_store.merchant_id.clone().into(),
                                 )
@@ -603,7 +603,7 @@ mod storage {
                         .into()),
                         Ok(HsetnxReply::KeySet) => Ok(created_address
                             .convert(
-                                self.get_key_manager_state(),
+                                self.get_keymanager_state(),
                                 key_store.key.get_inner(),
                                 key_store.merchant_id.clone().into(),
                             )
@@ -632,7 +632,7 @@ mod storage {
                 .async_and_then(|address| async {
                     address
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -665,7 +665,7 @@ mod storage {
                     output.push(
                         address
                             .convert(
-                                self.get_key_manager_state(),
+                                self.get_keymanager_state(),
                                 key_store.key.get_inner(),
                                 key_store.merchant_id.clone().into(),
                             )
@@ -697,7 +697,7 @@ impl AddressInterface for MockDb {
             Some(address) => address
                 .clone()
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -729,7 +729,7 @@ impl AddressInterface for MockDb {
             Some(address) => address
                 .clone()
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -764,7 +764,7 @@ impl AddressInterface for MockDb {
         match updated_addr {
             Some(address_updated) => address_updated
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -800,7 +800,7 @@ impl AddressInterface for MockDb {
         match updated_addr {
             Some(address_updated) => address_updated
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -830,7 +830,7 @@ impl AddressInterface for MockDb {
 
         address
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -853,7 +853,7 @@ impl AddressInterface for MockDb {
 
         address
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -887,7 +887,7 @@ impl AddressInterface for MockDb {
             Some(address) => {
                 let address: domain::Address = address
                     .convert(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )

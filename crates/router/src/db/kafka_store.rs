@@ -1793,7 +1793,7 @@ impl PaymentIntentInterface for KafkaStore {
                 storage_scheme,
             )
             .await?;
-        let state = self.diesel_store.get_key_manager_state();
+        let state = self.diesel_store.get_keymanager_state();
         if let Err(er) = self
             .kafka_producer
             .log_payment_intent(
@@ -1817,7 +1817,7 @@ impl PaymentIntentInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         logger::debug!("Inserting PaymentIntent Via KafkaStore");
-        let state = self.diesel_store.get_key_manager_state();
+        let state = self.diesel_store.get_keymanager_state();
         let intent = self
             .diesel_store
             .insert_payment_intent(new, key_store, storage_scheme)
@@ -4108,7 +4108,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         validity: i64,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
-            .insert_payment_methods_session(state, key_store, payment_methods_session, validity)
+            .insert_payment_methods_session(key_store, payment_methods_session, validity)
             .await
     }
 
@@ -4121,7 +4121,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .get_payment_methods_session(state, key_store, id)
+            .get_payment_methods_session(key_store, id)
             .await
     }
 
@@ -4137,7 +4137,6 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
     > {
         self.diesel_store
             .update_payment_method_session(
-                state,
                 key_store,
                 id,
                 payment_methods_session,

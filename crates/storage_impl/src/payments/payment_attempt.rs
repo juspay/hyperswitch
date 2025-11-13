@@ -90,7 +90,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 error.change_context(new_error)
             })?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -141,7 +141,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 error.change_context(new_error)
             })?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -235,7 +235,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })?
         .convert(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
         )
@@ -286,7 +286,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })?
         .convert(
-            self.get_key_manager_state(),
+            self.get_keymanager_state(),
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
         )
@@ -443,7 +443,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 er.change_context(new_err)
             })?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -474,7 +474,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                     domain_payment_attempts.push(
                         attempt
                             .convert(
-                                self.get_key_manager_state(),
+                                self.get_keymanager_state(),
                                 merchant_key_store.key.get_inner(),
                                 merchant_key_store.merchant_id.clone().into(),
                             )
@@ -1253,7 +1253,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     })?;
                     let merchant_id = payment_attempt.merchant_id.clone();
                     PaymentAttempt::convert_back(
-                        self.get_key_manager_state(),
+                        self.get_keymanager_state(),
                         payment_attempt,
                         merchant_key_store.key.get_inner(),
                         merchant_id.into(),

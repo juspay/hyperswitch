@@ -54,7 +54,7 @@ impl UserKeyStoreInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key,
                 keymanager::Identifier::User(user_id),
             )
@@ -74,7 +74,7 @@ impl UserKeyStoreInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key,
                 keymanager::Identifier::User(user_id.to_owned()),
             )
@@ -99,7 +99,7 @@ impl UserKeyStoreInterface for Store {
             let user_id = key_store.user_id.clone();
             key_store
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key,
                     keymanager::Identifier::User(user_id),
                 )
@@ -137,7 +137,7 @@ impl UserKeyStoreInterface for MockDb {
         let user_id = user_key_store.user_id.clone();
         user_key_store
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key,
                 keymanager::Identifier::User(user_id),
             )
@@ -158,7 +158,7 @@ impl UserKeyStoreInterface for MockDb {
             user_key
                 .to_owned()
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key,
                     keymanager::Identifier::User(user_id),
                 )
@@ -184,7 +184,7 @@ impl UserKeyStoreInterface for MockDb {
                 "No user_key_store is found for user_id={user_id}",
             )))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key,
                 keymanager::Identifier::User(user_id.to_owned()),
             )

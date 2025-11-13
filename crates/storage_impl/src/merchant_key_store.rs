@@ -93,7 +93,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|error| report!(Self::Error::from(error)))?
-            .convert(self.get_key_manager_state(), key, merchant_id.into())
+            .convert(self.get_keymanager_state(), key, merchant_id.into())
             .await
             .change_context(Self::Error::DecryptionError)
     }
@@ -114,7 +114,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(Self::Error::from(error)))
         };
-        let state = self.get_key_manager_state();
+        let state = self.get_keymanager_state();
 
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -196,7 +196,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(self.get_key_manager_state(), key, merchant_id.into())
+                .convert(self.get_keymanager_state(), key, merchant_id.into())
                 .await
                 .change_context(Self::Error::DecryptionError)
         }))
@@ -219,7 +219,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         futures::future::try_join_all(stores.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(self.get_key_manager_state(), key, merchant_id.into())
+                .convert(self.get_keymanager_state(), key, merchant_id.into())
                 .await
                 .change_context(Self::Error::DecryptionError)
         }))
@@ -253,7 +253,7 @@ impl MerchantKeyStoreInterface for MockDb {
         locked_merchant_key_store.push(merchant_key.clone());
         let merchant_id = merchant_key.merchant_id.clone();
         merchant_key
-            .convert(self.get_key_manager_state(), key, merchant_id.into())
+            .convert(self.get_keymanager_state(), key, merchant_id.into())
             .await
             .change_context(StorageError::DecryptionError)
     }
@@ -273,7 +273,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 "merchant_key_store",
             )))?
             .convert(
-                self.get_key_manager_state(),
+                self.get_keymanager_state(),
                 key,
                 merchant_id.clone().into(),
             )
@@ -311,7 +311,7 @@ impl MerchantKeyStoreInterface for MockDb {
                     merchant_key
                         .to_owned()
                         .convert(
-                            self.get_key_manager_state(),
+                            self.get_keymanager_state(),
                             key,
                             merchant_key.merchant_id.clone().into(),
                         )
@@ -333,7 +333,7 @@ impl MerchantKeyStoreInterface for MockDb {
             merchant_key
                 .to_owned()
                 .convert(
-                    self.get_key_manager_state(),
+                    self.get_keymanager_state(),
                     key,
                     merchant_key.merchant_id.clone().into(),
                 )
