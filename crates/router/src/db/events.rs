@@ -882,12 +882,9 @@ mod tests {
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 None,
-                || {println!("Failed to get session state -> ")},
+                || {},
             )
-            .inspect_err(|err| {
-                println!("Failed to get session state: {:?}", err);
-            })
-            .expect("Failed to get session state");
+            .unwrap();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
                 .unwrap();
