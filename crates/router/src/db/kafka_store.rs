@@ -4136,12 +4136,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .update_payment_method_session(
-                key_store,
-                id,
-                payment_methods_session,
-                current_session,
-            )
+            .update_payment_method_session(key_store, id, payment_methods_session, current_session)
             .await
     }
 }
