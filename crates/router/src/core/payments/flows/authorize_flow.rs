@@ -204,7 +204,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        _gateway_context: Option<gateway_context::RouterGatewayContext>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -252,6 +252,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             call_connector_action.clone(),
                             business_profile,
                             header_payload,
+                            gateway_context,
                         ))
                         .await?;
                     }
@@ -887,6 +888,7 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: domain_payments::HeaderPayload,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 > {
@@ -905,6 +907,7 @@ async fn process_capture_flow(
         call_connector_action,
         business_profile,
         header_payload,
+        context,
     )
     .await;
 

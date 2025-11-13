@@ -114,7 +114,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        gateway_context: Option<payments::flows::gateway_context::RouterGatewayContext>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -154,30 +154,17 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut new_router_data = if let Some(gateway_context) = gateway_context {
-                    gateway::execute_payment_gateway(
-                        state,
-                        connector_integration,
-                        &self,
-                        call_connector_action,
-                        connector_request,
-                        return_raw_connector_response,
-                        gateway_context,
-                    )
-                    .await
-                    .to_payment_failed_response()?
-                } else {
-                    services::execute_connector_processing_step(
-                        state,
-                        connector_integration,
-                        &self,
-                        call_connector_action,
-                        connector_request,
-                        return_raw_connector_response,
-                    )
-                    .await
-                    .to_payment_failed_response()?
-                };
+                let mut new_router_data = gateway::execute_payment_gateway(
+                    state,
+                    connector_integration,
+                    &self,
+                    call_connector_action,
+                    connector_request,
+                    return_raw_connector_response,
+                    gateway_context,
+                )
+                .await
+                .to_payment_failed_response()?;
 
                 // Initiating Integrity checks
                 let integrity_result = helpers::check_integrity_based_on_flow(
@@ -470,7 +457,7 @@ where
             types::PaymentsResponseData,
         >,
         return_raw_connector_response: Option<bool>,
-        gateway_context: Option<payments::flows::gateway_context::RouterGatewayContext>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -489,7 +476,7 @@ impl RouterDataPSync
             types::PaymentsResponseData,
         >,
         return_raw_connector_response: Option<bool>,
-        gateway_context: Option<payments::flows::gateway_context::RouterGatewayContext>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -513,28 +500,16 @@ impl RouterDataPSync
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
-                let resp = if let Some(ref gateway_context) = gateway_context {
-                    gateway::execute_payment_gateway(
-                        state,
-                        connector_integration.clone_box(),
-                        &cloned_router_data,
-                        call_connector_action.clone(),
-                        None,
-                        return_raw_connector_response,
-                        gateway_context.clone(),
-                    )
-                    .await
-                } else {
-                    services::execute_connector_processing_step(
-                        state,
-                        connector_integration.clone_box(),
-                        &cloned_router_data,
-                        call_connector_action.clone(),
-                        None,
-                        return_raw_connector_response,
-                    )
-                    .await
-                }
+                let resp = gateway::execute_payment_gateway(
+                    state,
+                    connector_integration.clone_box(),
+                    &cloned_router_data,
+                    call_connector_action.clone(),
+                    None,
+                    return_raw_connector_response,
+                    gateway_context.clone(),
+                )
+                .await
                 .to_payment_failed_response()?;
                 match resp.response {
                     Err(err) => {

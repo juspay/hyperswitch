@@ -3925,7 +3925,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
-    context: Option<gateway_context::RouterGatewayContext>,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4375,7 +4375,7 @@ where
             merchant_connector_account,
             router_data,
             tokenization_action,
-            Some(gateway_context),
+            gateway_context,
         )
         .await
     } else {
@@ -5413,6 +5413,26 @@ where
         )
         .await?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    // TODO: determine execution path for proxy call connector service
+    let execution_path = ExecutionPath::Direct;
+    // Execution mode is irrelevant for Direct execution path
+    let execution_mode = ExecutionMode::Shadow;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -5428,7 +5448,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                None,
+                gateway_context,
             )
             .await
     } else {
@@ -6330,6 +6350,26 @@ where
             )
             .await?;
 
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+
+        // TODO: determine execution path for SDK session token call.
+        let execution_path = ExecutionPath::Direct;
+        // Execution mode is irrelevant for Direct execution path
+        let execution_mode = ExecutionMode::Shadow;
+
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path,
+            execution_mode,
+        };
+
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
@@ -6338,7 +6378,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
-            None,
+            gateway_context,
         );
 
         join_handlers.push(res);

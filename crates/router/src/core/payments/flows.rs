@@ -83,6 +83,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
+    #[cfg(feature = "v1")]
     async fn decide_flows<'a>(
         self,
         state: &SessionState,
@@ -92,7 +93,23 @@ pub trait Feature<F, T> {
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        gateway_context: Option<gateway_context::RouterGatewayContext>,
+        gateway_context: gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized,
+        F: Clone,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    #[cfg(feature = "v2")]
+    async fn decide_flows<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+        connector_request: Option<services::Request>,
+        business_profile: &domain::Profile,
+        header_payload: domain_payments::HeaderPayload,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -325,6 +342,7 @@ pub async fn call_capture_request(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: domain_payments::HeaderPayload,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::RouterData<api::Capture, PaymentsCaptureData, types::PaymentsResponseData>>
 {
     // Build capture-specific connector request
@@ -342,7 +360,7 @@ pub async fn call_capture_request(
             business_profile,
             header_payload.clone(),
             None,
-            None, // gateway_context
+            context, // gateway_context
         )
         .await
 }
