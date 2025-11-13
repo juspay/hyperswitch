@@ -205,7 +205,7 @@ impl ConnectorCommon for Cybersource {
                         });
                         (
                             error_info.reason.clone(),
-                            error_info.reason.clone(),
+                            error_info.message.clone(),
                             transformers::get_error_reason(
                                 Some(error_info.message.clone()),
                                 detailed_error_info,
@@ -227,8 +227,9 @@ impl ConnectorCommon for Cybersource {
                                 |reason| reason.to_string(),
                             ),
                             response
-                                .reason
-                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                                .message
+                                .clone()
+                                .map_or(error_message.to_string(), |msg| msg.to_string()),
                             transformers::get_error_reason(
                                 response.message,
                                 detailed_error_info,

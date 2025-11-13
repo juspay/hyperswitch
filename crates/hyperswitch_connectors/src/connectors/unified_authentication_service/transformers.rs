@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
         authentication::{AuthNFlowType, ChallengeParams},
         unified_authentication_service::{
             AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
-            TokenDetails, UasAuthenticationResponseData,
+            RawCardDetails, TokenDetails, UasAuthenticationResponseData,
         },
     },
     types::{
@@ -412,6 +412,7 @@ pub struct AuthenticationDetails {
     pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
     pub trans_status: Option<common_enums::TransactionStatus>,
+    pub raw_card_details: Option<UasRawCardDetails>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -420,6 +421,15 @@ pub struct UasTokenDetails {
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasRawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -475,6 +485,15 @@ impl<F, T>
                             payment_account_reference: token_details.payment_account_reference,
                             token_expiration_month: token_details.token_expiration_month,
                             token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
+                    raw_card_details: item.response.authentication_details.raw_card_details.map(
+                        |raw_card_details| RawCardDetails {
+                            pan: raw_card_details.pan,
+                            expiration_month: raw_card_details.expiration_month,
+                            expiration_year: raw_card_details.expiration_year,
+                            card_security_code: raw_card_details.card_security_code,
+                            payment_account_reference: raw_card_details.payment_account_reference,
                         },
                     ),
                     dynamic_data_details: item

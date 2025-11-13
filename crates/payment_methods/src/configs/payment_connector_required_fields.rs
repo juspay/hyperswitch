@@ -1288,7 +1288,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
         (Connector::Authipay, fields(vec![], vec![], card_basic())),
-        (Connector::Adyen, fields(vec![], vec![], card_with_name())),
+        (Connector::Adyen, fields(vec![], vec![], card_basic())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
             Connector::Authorizedotnet,
@@ -1513,6 +1513,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 ]
                 .concat(),
             ),
+        ),
+        (
+            Connector::Zift,
+            fields(vec![], vec![], [card_with_name()].concat()),
         ),
         (
             Connector::Nuvei,
@@ -2350,6 +2354,7 @@ fn get_bank_redirect_required_fields(
                             RequiredField::BillingUserFirstName,
                             RequiredField::BillingUserLastName,
                             RequiredField::BillingPhone,
+                            RequiredField::BillingPhoneCountryCode,
                         ],
                         vec![],
                     ),

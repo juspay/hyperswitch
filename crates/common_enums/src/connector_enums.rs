@@ -180,6 +180,7 @@ pub enum RoutableConnectors {
     Worldpayxml,
     Xendit,
     Zen,
+    Zift,
     Plaid,
     Zsl,
 }
@@ -371,6 +372,7 @@ pub enum Connector {
     Riskified,
     Xendit,
     Zen,
+    Zift,
     Zsl,
 }
 
@@ -385,6 +387,7 @@ impl Connector {
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
+                | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
@@ -402,6 +405,10 @@ impl Connector {
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_external_vault(self) -> bool {
+        matches!(self, Self::Vgs)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
@@ -482,6 +489,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
+            | Self::Zift
             | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -693,6 +701,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
             RoutableConnectors::Loonio => Self::Loonio,
+            RoutableConnectors::Zift => Self::Zift,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -884,6 +893,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
+            Connector::Zift => Ok(Self::Zift),
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
