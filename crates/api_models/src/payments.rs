@@ -3523,10 +3523,24 @@ pub struct PMBalanceCheckSuccessResponse {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PMBalanceCheckFailureResponse {
+    pub error: String,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PMBalanceCheckEligibilityResponse {
     Success(PMBalanceCheckSuccessResponse),
-    Failure(String),
+    Failure(PMBalanceCheckFailureResponse),
+}
+
+impl PMBalanceCheckEligibilityResponse {
+    pub fn get_balance(&self) -> MinorUnit {
+        match self {
+            PMBalanceCheckEligibilityResponse::Success(resp) => resp.balance,
+            PMBalanceCheckEligibilityResponse::Failure(_) => MinorUnit::zero(),
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]

@@ -384,6 +384,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::EligibilityBalanceCheckResponseItem,
         api_models::payments::PMBalanceCheckEligibilityResponse,
         api_models::payments::PMBalanceCheckSuccessResponse,
+        api_models::payments::PMBalanceCheckFailureResponse,
         api_models::payments::BankDebitData,
         api_models::payments::AliPayQr,
         api_models::payments::PaymentAttemptFeatureMetadata,

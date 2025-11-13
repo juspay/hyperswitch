@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::payments::{
     ApplyPaymentMethodDataRequest, CheckAndApplyPaymentMethodDataResponse, GetPaymentMethodType,
-    PMBalanceCheckSuccessResponse,
+    PMBalanceCheckFailureResponse, PMBalanceCheckSuccessResponse,
 };
 use common_enums::CallConnectorAction;
 use common_utils::{
@@ -241,8 +241,11 @@ pub async fn payments_check_and_apply_pm_data_core(
                     .expose(),
             };
 
-            let eligibility = match payment_method_balances.get(&pm_balance_key) {
-                Some(Some(balance)) => {
+            let eligibility = match payment_method_balances
+                .get(&pm_balance_key)
+                .and_then(|inner| inner.as_ref())
+            {
+                Some(balance) => {
                     api_models::payments::PMBalanceCheckEligibilityResponse::Success(
                         PMBalanceCheckSuccessResponse {
                             balance: balance.balance,
@@ -251,7 +254,7 @@ pub async fn payments_check_and_apply_pm_data_core(
                         },
                     )
                 }
-                Some(None) | None => {
+                None => {
                     match payments_check_gift_card_balance_core(
                         &state,
                         &merchant_context,
@@ -273,7 +276,9 @@ pub async fn payments_check_and_apply_pm_data_core(
                         }
                         Err(err) => {
                             api_models::payments::PMBalanceCheckEligibilityResponse::Failure(
-                                err.to_string(),
+                                PMBalanceCheckFailureResponse {
+                                    error: err.to_string(),
+                                },
                             )
                         }
                     }
@@ -294,23 +299,9 @@ pub async fn payments_check_and_apply_pm_data_core(
     // Sort balance_values by balance in ascending order (smallest first)
     // This ensures smaller gift cards are fully utilized before larger ones
     balance_values.sort_by(|a, b| {
-        let balance_a = match &a.eligibility {
-            api_models::payments::PMBalanceCheckEligibilityResponse::Success(balance_api) => {
-                balance_api.balance
-            }
-            api_models::payments::PMBalanceCheckEligibilityResponse::Failure(_) => {
-                MinorUnit::zero()
-            }
-        };
-        let balance_b = match &b.eligibility {
-            api_models::payments::PMBalanceCheckEligibilityResponse::Success(balance_api) => {
-                balance_api.balance
-            }
-            api_models::payments::PMBalanceCheckEligibilityResponse::Failure(_) => {
-                MinorUnit::zero()
-            }
-        };
-        balance_a.cmp(&balance_b)
+        a.eligibility
+            .get_balance()
+            .cmp(&b.eligibility.get_balance())
     });
 
     // Calculate applicable amounts with running total
@@ -326,23 +317,12 @@ pub async fn payments_check_and_apply_pm_data_core(
         }
     }
 
-    let total_balance: MinorUnit = balance_values
-        .iter()
-        .filter_map(|value| {
-            if let api_models::payments::PMBalanceCheckEligibilityResponse::Success(balance_api) =
-                &value.eligibility
-            {
-                Some(balance_api.applicable_amount)
-            } else {
-                None
-            }
-        })
-        .sum();
+    let total_applicable_balance = running_total;
 
     // remaining_amount cannot be negative, hence using max with 0. This situation can arise when
     // the gift card balance exceeds the order amount
-    let remaining_amount =
-        (payment_intent.amount_details.order_amount - total_balance).max(MinorUnit::zero());
+    let remaining_amount = (payment_intent.amount_details.order_amount - total_applicable_balance)
+        .max(MinorUnit::zero());
 
     let resp = CheckAndApplyPaymentMethodDataResponse {
         balances: balance_values,
