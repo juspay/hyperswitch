@@ -712,10 +712,15 @@ pub async fn link_routing_config(
                             &mut dynamic_routing_ref,
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to update the success rate routing config in Decision Engine",
-                        )?;
+                        .map_err(|err| match err.current_context() {
+                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
+                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                .attach_printable("Decision engine config not found")
+                            }
+                            _ => err
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to setup decision engine dynamic routing"),
+                        })?;
                         } else {
                             let data: routing_types::SuccessBasedRoutingConfig =
                             routing_algorithm.algorithm_data
@@ -1784,7 +1789,7 @@ pub async fn create_specific_dynamic_routing(
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
-    payload: Option<routing_types::DynamicRoutingPayload>,
+    payload: routing_types::DynamicRoutingPayload,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
@@ -1830,7 +1835,7 @@ pub async fn create_specific_dynamic_routing(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
-                payload,
+                Some(payload),
             ))
             .await
         }

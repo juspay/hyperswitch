@@ -896,20 +896,29 @@ impl DynamicRoutingAlgorithmRef {
     ) {
         match dynamic_routing_type {
             DynamicRoutingType::SuccessRateBasedRouting => {
+                let existing_algorithm_id = self.success_based_algorithm
+                    .as_ref()
+                    .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::EliminationRouting => {
+                let existing_algorithm_id = self.elimination_routing_algorithm
+                    .as_ref()
+                    .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::ContractBasedRouting => {
+                let existing_algorithm_id = self.contract_based_routing
+                    .as_ref()
+                    .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.contract_based_routing = Some(ContractRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
                     enabled_feature,
                 })
             }
@@ -996,7 +1005,7 @@ pub struct ToggleDynamicRoutingPath {
 pub struct CreateDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
-    pub payload: Option<DynamicRoutingPayload>,
+    pub payload: DynamicRoutingPayload,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
