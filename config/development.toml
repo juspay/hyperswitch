@@ -1145,7 +1145,7 @@ bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets,aci"
 bank_redirect.bancontact_card.connector_list = "adyen,stripe"
 bank_redirect.trustly.connector_list = "adyen,aci"
 bank_redirect.open_banking_uk.connector_list = "adyen"
-bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay,trustpayments"
+bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay"
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
