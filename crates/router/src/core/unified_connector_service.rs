@@ -299,6 +299,13 @@ where
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
     let (shadow_key_exists, _shadow_percentage) =
         get_rollout_config_info(state, &shadow_rollout_key).await;
+    
+    // Fetch shadow rollout result if shadow key exists to get proxy configuration
+    let shadow_rollout_result = if shadow_key_exists {
+        Some(should_execute_based_on_rollout(state, &shadow_rollout_key).await?)
+    } else {
+        None
+    };
 
     // Simplified decision logic: Shadow takes priority, then rollout, then direct
     let shadow_rollout_availability = if shadow_key_exists {
@@ -392,18 +399,27 @@ where
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
-            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
-            match &rollout_result.proxy_override {
+            // For shadow UCS, check shadow rollout config first, then fallback to main rollout config
+            let proxy_override = shadow_rollout_result
+                .as_ref()
+                .and_then(|result| result.proxy_override.clone())
+                .or(rollout_result.proxy_override.clone());
+            
+            match &proxy_override {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
                         proxy_override = ?proxy_override,
+                        shadow_key = %shadow_rollout_key,
+                        rollout_key = %rollout_key,
                         "Creating updated session state with proxy configuration for Shadow UCS"
                     );
                     create_updated_session_state_with_proxy(state.clone(), proxy_override)
                 }
                 None => {
                     router_env::logger::debug!(
-                        "No proxy override available for Shadow UCS, using original state"
+                        shadow_key = %shadow_rollout_key,
+                        rollout_key = %rollout_key,
+                        "No proxy override available in shadow or main rollout configs for Shadow UCS, using original state"
                     );
                     state.clone()
                 }
