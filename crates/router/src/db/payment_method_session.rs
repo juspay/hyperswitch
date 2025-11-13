@@ -104,7 +104,11 @@ mod storage {
             );
 
             db_model
-                .convert(self.get_keymanager_state(), &key_store.key, key_manager_identifier)
+                .convert(
+                    self.get_keymanager_state(),
+                    &key_store.key,
+                    key_manager_identifier,
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")
@@ -147,7 +151,11 @@ mod storage {
             );
 
             db_model
-                .convert(self.get_keymanager_state(), &key_store.key, key_manager_identifier)
+                .convert(
+                    self.get_keymanager_state(),
+                    &key_store.key,
+                    key_manager_identifier,
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")

@@ -272,11 +272,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .ok_or(StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
             )))?
-            .convert(
-                self.get_keymanager_state(),
-                key,
-                merchant_id.clone().into(),
-            )
+            .convert(self.get_keymanager_state(), key, merchant_id.clone().into())
             .await
             .change_context(StorageError::DecryptionError)
     }
