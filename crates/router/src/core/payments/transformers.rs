@@ -199,7 +199,6 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -545,7 +544,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -893,7 +891,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1027,7 +1024,6 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1393,7 +1389,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1622,7 +1617,6 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1874,14 +1868,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data
-            .payment_method_info
-            .as_ref()
-            .map(|info| info.status),
-        is_migrated_card: payment_data
-            .payment_method_info
-            .as_ref()
-            .map(|info| info.is_migrated_card()),
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -2079,11 +2066,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data
-            .payment_method_info
-            .as_ref()
-            .map(|info| info.status),
-        is_migrated_card: None,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
@@ -6439,6 +6422,7 @@ impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenc
             None,
             value.mandate_metadata,
             value.connector_mandate_request_reference_id,
+            None,
         )
     }
 }

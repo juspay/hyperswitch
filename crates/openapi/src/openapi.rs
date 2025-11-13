@@ -913,6 +913,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationSessionToken,
         api_models::authentication::AuthenticationPaymentMethodType,
         api_models::authentication::AuthenticationPaymentMethodData,
+        api_models::authentication::AuthenticationVaultTokenData,
         api_models::open_router::OpenRouterDecideGatewayRequest,
         api_models::open_router::DecideGatewayResponse,
         api_models::open_router::UpdateScorePayload,

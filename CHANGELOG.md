@@ -4,6 +4,79 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.2
+
+### Features
+
+- **nmi:** Add support for apple pay mandates ([#10241](https://github.com/juspay/hyperswitch/pull/10241)) ([`b9169ea`](https://github.com/juspay/hyperswitch/commit/b9169ea02207a938de0849fe4181232a6a322e0f))
+
+### Bug Fixes
+
+- **core:** Update setup_future_usage in payment_update_intent flow ([#10243](https://github.com/juspay/hyperswitch/pull/10243)) ([`23bc483`](https://github.com/juspay/hyperswitch/commit/23bc483c379a6e3026568992d04fb606111cbbe2))
+
+**Full Changelog:** [`2025.11.13.1...2025.11.13.2`](https://github.com/juspay/hyperswitch/compare/2025.11.13.1...2025.11.13.2)
+
+- - -
+
+## 2025.11.13.1
+
+### Features
+
+- **revenue_recovery:** Schedule the unretried invoices in immediate next slot ([#10206](https://github.com/juspay/hyperswitch/pull/10206)) ([`12382b4`](https://github.com/juspay/hyperswitch/commit/12382b41bae11d504b4d9b007b318f1fba7ea267))
+
+**Full Changelog:** [`2025.11.13.0...2025.11.13.1`](https://github.com/juspay/hyperswitch/compare/2025.11.13.0...2025.11.13.1)
+
+- - -
+
+## 2025.11.13.0
+
+### Features
+
+- **customer_list:** Add new API tests for customer list with count, pagination, and limit validation ([#10183](https://github.com/juspay/hyperswitch/pull/10183)) ([`5e54cdc`](https://github.com/juspay/hyperswitch/commit/5e54cdc533680a8371ef23ddc4bbf5674faff46a))
+- **framework:** Implement centralized request ID management framework ([#9554](https://github.com/juspay/hyperswitch/pull/9554)) ([`1a7a43a`](https://github.com/juspay/hyperswitch/commit/1a7a43ac116f070498d3dfff9fe6e81ee3fffab4))
+
+### Bug Fixes
+
+- **nmi:** Pass hex encode apple pay payment data ([#10233](https://github.com/juspay/hyperswitch/pull/10233)) ([`e0e3be4`](https://github.com/juspay/hyperswitch/commit/e0e3be403297256d8b7a4af6a2bd5954488b159c))
+
+**Full Changelog:** [`2025.11.12.0...2025.11.13.0`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0...2025.11.13.0)
+
+- - -
+
+## 2025.11.12.0
+
+### Features
+
+- **connector:** [WorldpayWPG] Implement Payouts - Cards and Apple Pay Predecrypt ([#10200](https://github.com/juspay/hyperswitch/pull/10200)) ([`b5d75fd`](https://github.com/juspay/hyperswitch/commit/b5d75fd64218c86bb9692812f8127b513a3b06c4))
+- **payment:** Add Noon connector details and update payment methods … ([#10111](https://github.com/juspay/hyperswitch/pull/10111)) ([`8267d9f`](https://github.com/juspay/hyperswitch/commit/8267d9fda521bd8a419d2d1a971cc41b1994b12d))
+
+### Bug Fixes
+
+- **connector:**
+  - Disable connector decryption flow for APPLEPAY nuvei ([#10194](https://github.com/juspay/hyperswitch/pull/10194)) ([`0238da0`](https://github.com/juspay/hyperswitch/commit/0238da0d8ce10e61c54db4bb9c0c43ed22e9626e))
+  - [Zift] Fix Connector Void Flow ([#10205](https://github.com/juspay/hyperswitch/pull/10205)) ([`15d2e01`](https://github.com/juspay/hyperswitch/commit/15d2e01d48e0dd322ba21dc55ccdc450250b6fa9))
+- **connectors:** [Adyen] Revert adyen fix mit ([#10211](https://github.com/juspay/hyperswitch/pull/10211)) ([`a80f259`](https://github.com/juspay/hyperswitch/commit/a80f25975666a1c03b6f841d3490cc2439dc1c66))
+
+### Refactors
+
+- **payouts:** Add support for IP address getting from HTTP request in payout browser info ([#10208](https://github.com/juspay/hyperswitch/pull/10208)) ([`2df9e7d`](https://github.com/juspay/hyperswitch/commit/2df9e7d3e6a7d60178a7341204c2946830774850))
+- Add support to trigger payout sync if source verification is false ([#10199](https://github.com/juspay/hyperswitch/pull/10199)) ([`250a693`](https://github.com/juspay/hyperswitch/commit/250a693709207e67114d2de427a883b41ce45e85))
+
+**Full Changelog:** [`2025.11.11.1...2025.11.12.0`](https://github.com/juspay/hyperswitch/compare/2025.11.11.1...2025.11.12.0)
+
+- - -
+
+## 2025.11.11.1
+
+### Features
+
+- **revenue_recovery:** Add account updater support in revenue recovery flow for worldpayvantiv connector ([#10112](https://github.com/juspay/hyperswitch/pull/10112)) ([`66ffd8a`](https://github.com/juspay/hyperswitch/commit/66ffd8a26c05ead26bf737029bd1fcadc451fb17))
+- **router:** Add is_split_payment field to payments response (v2) ([#10140](https://github.com/juspay/hyperswitch/pull/10140)) ([`cf6e5a1`](https://github.com/juspay/hyperswitch/commit/cf6e5a10bb481937ecf9ebee57981dc087305f4b))
+
+**Full Changelog:** [`2025.11.11.0...2025.11.11.1`](https://github.com/juspay/hyperswitch/compare/2025.11.11.0...2025.11.11.1)
+
+- - -
+
 ## 2025.11.11.0
 
 ### Features

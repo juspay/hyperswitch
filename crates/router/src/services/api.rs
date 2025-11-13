@@ -49,7 +49,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
 use tera::{Context, Error as TeraError, Tera};
 
@@ -228,10 +228,10 @@ where
             }
             .switch()
         })?;
-    session_state.add_request_id(request_id);
+    session_state.add_request_id(request_id.clone());
     let mut request_state = session_state.get_req_state();
 
-    request_state.event_context.record_info(request_id);
+    request_state.event_context.record_info(request_id.clone());
     request_state
         .event_context
         .record_info(("flow".to_string(), flow.to_string()));

@@ -2972,7 +2972,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector","Hyperswitch"]
+options = ["Hyperswitch"]
 
 [nuvei_payout]
 [[nuvei_payout.credit]]
@@ -5391,6 +5391,57 @@ api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
 
+[worldpayxml_payout]
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Visa"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Interac"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "JCB"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Discover"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "UnionPay"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Interac"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "JCB"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Discover"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "UnionPay"
+[worldpayxml_payout.metadata.purpose_of_payment]
+name="purpose_of_payment"
+label="Purpose of Payment"
+placeholder="Select the purpose of payment"
+required=false
+type="Select"
+options=["Family Support", "Regular Labour Transfers", "Travel and Tourism", "Education", "Hospitalisation and Medical Treatment", "Emergency Need", "Savings", "Gifts", "Other", "Salary", "Crowd Lending", "Crypto Currency","Gaming Repayment", "Stock Market Proceeds","Refund to a original card", "Refund to a new card"]
+
+[worldpayxml_payout.connector_auth.SignatureKey]
+api_secret="Merchant Code"
+api_key="API Username"
+key1="API Password"
 
 [worldpayvantiv]
 [[worldpayvantiv.credit]]
@@ -6328,6 +6379,7 @@ options=["CRYPTOGRAM_3DS"]
 [[zift.debit]]
   payment_method_type = "CartesBancaires"
 [[zift.debit]]
+  payment_method_type = "UnionPay"
 [zift.connector_auth.SignatureKey]
 api_key="Username"
 api_secret="Password"
@@ -6341,3 +6393,7 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
+
+[envoy]
+[envoy.connector_auth.HeaderKey]
+api_key = "API Key"
