@@ -370,6 +370,51 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
+pub async fn mk_generic_locker_request<T>(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    payload: &T,
+    endpoint_path: &str,
+    locker_choice: Option<api_enums::LockerChoice>,
+    tenant_id: id_type::TenantId,
+    request_id: Option<RequestId>,
+) -> CustomResult<services::Request, errors::VaultError>
+where
+    T: for<'a> Encode<'a> + Serialize,
+{
+    let encoded_payload = payload
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+    let jws = encryption::jws_sign_payload(&encoded_payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
+
+    let mut url = match target_locker {
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
+    };
+    url.push_str(endpoint_path);
+
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
+    
+    if let Some(req_id) = request_id {
+        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
+    }
+
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    
+    Ok(request)
+}
+
 pub async fn mk_add_locker_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -378,32 +423,16 @@ pub async fn mk_add_locker_request_hs(
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = payload
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
-    let mut url = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
-    };
-    url.push_str("/cards/add");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    Ok(request)
+    mk_generic_locker_request(
+        jwekey,
+        locker,
+        payload,
+        "/cards/add",
+        Some(locker_choice),
+        tenant_id,
+        request_id,
+    )
+    .await
 }
 
 #[cfg(all(feature = "v1", feature = "payouts"))]
@@ -609,41 +638,22 @@ pub async fn mk_get_card_request_hs(
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id: merchant_id.to_owned(),
-        merchant_customer_id,
+        merchant_customer_id: customer_id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    let payload = card_req_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
-
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
-    let mut url = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
-    };
-    url.push_str("/cards/retrieve");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    Ok(request)
+    
+    mk_generic_locker_request(
+        jwekey,
+        locker,
+        &card_req_body,
+        "/cards/retrieve",
+        locker_choice,
+        tenant_id,
+        request_id,
+    )
+    .await
 }
 
 pub fn mk_get_card_request(
@@ -690,39 +700,22 @@ pub async fn mk_delete_card_request_hs(
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id: merchant_id.to_owned(),
-        merchant_customer_id,
+        merchant_customer_id: customer_id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    let payload = card_req_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let jwe_payload =
-        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
-
-    let mut url = locker.host.to_owned();
-    url.push_str("/cards/delete");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    Ok(request)
+    
+    mk_generic_locker_request(
+        jwekey,
+        locker,
+        &card_req_body,
+        "/cards/delete",
+        Some(api_enums::LockerChoice::HyperswitchCardVault),
+        tenant_id,
+        request_id,
+    )
+    .await
 }
 
 // Need to fix this once we start moving to v2 completion
@@ -736,39 +729,22 @@ pub async fn mk_delete_card_request_hs_by_id(
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = id.to_owned();
     let card_req_body = CardReqBodyV2 {
         merchant_id: merchant_id.to_owned(),
-        merchant_customer_id,
+        merchant_customer_id: id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    let payload = card_req_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let jwe_payload =
-        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
-
-    let mut url = locker.host.to_owned();
-    url.push_str("/cards/delete");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    Ok(request)
+    
+    mk_generic_locker_request(
+        jwekey,
+        locker,
+        &card_req_body,
+        "/cards/delete",
+        Some(api_enums::LockerChoice::HyperswitchCardVault),
+        tenant_id,
+        request_id,
+    )
+    .await
 }
 
 pub fn mk_delete_card_response(

@@ -1,8 +1,5 @@
 use api_models::{blocklist, enums as api_enums};
-use common_utils::{
-    ext_traits::{Encode, StringExt},
-    request::RequestContent,
-};
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use josekit::jwe;
 use masking::{PeekInterface, StrongSecret};
@@ -14,8 +11,8 @@ use crate::{
         errors::{self, CustomResult},
         payment_methods::transformers as payment_methods,
     },
-    headers, routes,
-    services::{api as services, encryption, EncryptionAlgorithm},
+    routes,
+    services::{api as services, encryption},
     types::{storage, transformers::ForeignFrom},
     utils::ConnectorResponseExt,
 };
@@ -32,83 +29,6 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-async fn generate_fingerprint_request(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    payload: &blocklist::GenerateFingerprintRequest,
-    locker_choice: api_enums::LockerChoice,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = payload
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-    let jwe_payload = generate_jwe_payload_for_request(jwekey, &jws, locker_choice).await?;
-    let mut url = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
-    };
-    url.push_str(LOCKER_FINGERPRINT_PATH);
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    Ok(request)
-}
-
-async fn generate_jwe_payload_for_request(
-    jwekey: &settings::Jwekey,
-    jws: &str,
-    locker_choice: api_enums::LockerChoice,
-) -> CustomResult<encryption::JweBody, errors::VaultError> {
-    let jws_payload: Vec<&str> = jws.split('.').collect();
-
-    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
-        Some(encryption::JwsBody {
-            header: payload.first()?.to_string(),
-            payload: payload.get(1)?.to_string(),
-            signature: payload.get(2)?.to_string(),
-        })
-    };
-
-    let jws_body =
-        generate_jws_body(jws_payload).ok_or(errors::VaultError::GenerateFingerprintFailed)?;
-
-    let payload = jws_body
-        .encode_to_vec()
-        .change_context(errors::VaultError::GenerateFingerprintFailed)?;
-
-    let public_key = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.vault_encryption_key.peek().as_bytes()
-        }
-    };
-
-    let jwe_encrypted =
-        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)
-            .attach_printable("Error on jwe encrypt")?;
-    let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
-
-    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
-        Some(encryption::JweBody {
-            header: payload.first()?.to_string(),
-            iv: payload.get(2)?.to_string(),
-            encrypted_payload: payload.get(3)?.to_string(),
-            tag: payload.get(4)?.to_string(),
-            encrypted_key: payload.get(1)?.to_string(),
-        })
-    };
-
-    let jwe_body =
-        generate_jwe_body(jwe_payload).ok_or(errors::VaultError::GenerateFingerprintFailed)?;
-
-    Ok(jwe_body)
-}
 
 #[instrument(skip_all)]
 pub async fn generate_fingerprint(
@@ -118,8 +38,8 @@ pub async fn generate_fingerprint(
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let payload = blocklist::GenerateFingerprintRequest {
-        card: blocklist::Card { card_number },
-        hash_key,
+        data: card_number,
+        key: hash_key,
     };
 
     let generate_fingerprint_resp =
@@ -137,7 +57,16 @@ async fn call_to_locker_for_fingerprint(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
-    let request = generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
+    let request = payment_methods::mk_generic_locker_request(
+        jwekey,
+        locker,
+        payload,
+        LOCKER_FINGERPRINT_PATH,
+        Some(locker_choice),
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+    )
+    .await?;
     let response = services::call_connector_api(state, request, "call_locker_to_get_fingerprint")
         .await
         .change_context(errors::VaultError::GenerateFingerprintFailed);
