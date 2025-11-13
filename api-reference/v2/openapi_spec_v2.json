@@ -11330,19 +11330,6 @@
           "CardBin"
         ]
       },
-      "Eci": {
-        "type": "string",
-        "description": "Represents the Electronic Commerce Indicator (ECI) value returned from a 3DS authentication process.",
-        "enum": [
-          "00",
-          "01",
-          "02",
-          "05",
-          "06",
-          "07",
-          "unknown"
-        ]
-      },
       "ElementPosition": {
         "type": "string",
         "enum": [
@@ -11860,7 +11847,8 @@
             "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
           },
           "eci": {
-            "$ref": "#/components/schemas/Eci"
+            "type": "string",
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
           },
           "transaction_status": {
             "$ref": "#/components/schemas/TransactionStatus"
