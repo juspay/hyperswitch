@@ -727,12 +727,26 @@ where
         )
         .await?;
 
-        <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(
-            &req,
-            &connector_details,
-        );
+        if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
+            let maybe_connector_enum = match &connector_details {
+                ConnectorCallType::PreDetermined(connector_data) => {
+                    Some(connector_data.connector_data.connector_name)
+                }
+                ConnectorCallType::Retryable(connector_list) => connector_list
+                    .first()
+                    .map(|c| c.connector_data.connector_name),
+                ConnectorCallType::SessionMultiple(_) => None,
+            };
 
-        if is_eligible_for_uas {
+            if let Some(connector_enum) = maybe_connector_enum {
+                if connector_enum.is_external_authentication_supported_by_merchant() {
+                    logger::info!(
+                        "Proceeding with external authentication data provided by the merchant for connector: {:?}",
+                        connector_enum
+                    );
+                }
+            }
+        } else if is_eligible_for_uas {
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(

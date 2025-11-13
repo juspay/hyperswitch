@@ -474,7 +474,12 @@ impl ForeignTryFrom<&api_models::three_ds_decision_rule::ExternalThreeDsData>
             eci: Some(external_auth_data.eci.clone()),
             cavv,
             threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
-            message_version: None,
+            message_version: match common_utils::types::SemanticVersion::from_str(
+                &external_auth_data.version,
+            ) {
+                Ok(version) => Some(version),
+                Err(_) => None,
+            },
             ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
             created_at: time::PrimitiveDateTime::new(
                 time::OffsetDateTime::now_utc().date(),

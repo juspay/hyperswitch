@@ -70,7 +70,7 @@ use crate::{
         metrics, AppState, SessionState,
     },
     services::generic_link_response::build_generic_link_html,
-    types::api::{self, ConnectorCallType},
+    types::api,
     utils,
 };
 
@@ -745,7 +745,8 @@ pub trait Authenticate {
         None
     }
 
-    fn is_external_three_ds_data_passed_by_merchant(&self, _connector_details: &ConnectorCallType) {
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        false
     }
 }
 
@@ -773,27 +774,8 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         self.all_keys_required
     }
 
-    fn is_external_three_ds_data_passed_by_merchant(&self, connector_details: &ConnectorCallType) {
-        let maybe_connector_enum = match &connector_details {
-            ConnectorCallType::PreDetermined(connector_data) => {
-                Some(connector_data.connector_data.connector_name)
-            }
-            ConnectorCallType::Retryable(connector_list) => connector_list
-                .first()
-                .map(|c| c.connector_data.connector_name),
-            ConnectorCallType::SessionMultiple(_) => None,
-        };
-
-        if let Some(connector_enum) = maybe_connector_enum {
-            if self.three_ds_data.is_some()
-                && connector_enum.is_external_authentication_supported_by_merchant()
-            {
-                logger::info!(
-                    "Proceeding with external authentication data provided by the merchant for connector: {:?}",
-                    connector_enum
-                );
-            }
-        }
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        self.three_ds_data.is_some()
     }
 }
 
