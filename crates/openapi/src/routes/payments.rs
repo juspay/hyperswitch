@@ -1307,13 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Apply PM Data
+/// Payments - Check Balance and Apply PM Data
 ///
-/// Apply the payment method data and recalculate surcharge
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/payments/{id}/check-and-apply-pm-data",
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1326,7 +1326,7 @@ pub fn payments_list() {}
       content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Apply the Payment Method Data", body = ApplyPaymentMethodDataResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",

@@ -3515,7 +3515,7 @@ pub struct ApplyPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentMethodBalanceApi {
+pub struct PMBalanceCheckSuccessResponse {
     pub balance: MinorUnit,
     pub applicable_amount: MinorUnit,
     #[schema(value_type = Currency)]
@@ -3524,23 +3524,25 @@ pub struct PaymentMethodBalanceApi {
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentMethodBalanceCheckEligibility {
-    Success(PaymentMethodBalanceApi),
+pub enum PMBalanceCheckEligibilityResponse {
+    Success(PMBalanceCheckSuccessResponse),
     Failure(String),
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct BalanceCheckResponseItem {
+pub struct EligibilityBalanceCheckResponseItem {
     pub payment_method_data: BalanceCheckPaymentMethodData,
-    pub eligibility: PaymentMethodBalanceCheckEligibility,
+    pub eligibility: PMBalanceCheckEligibilityResponse,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct ApplyPaymentMethodDataResponse {
-    pub balances: Vec<BalanceCheckResponseItem>,
+pub struct CheckAndApplyPaymentMethodDataResponse {
+    pub balances: Vec<EligibilityBalanceCheckResponseItem>,
+    /// The amount left after subtracting applied payment method balance from order amount
     pub remaining_amount: MinorUnit,
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// Whether the applied payment method balance is enough for the order amount or additional PM is required
     pub requires_additional_pm_data: bool,
     pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
 }

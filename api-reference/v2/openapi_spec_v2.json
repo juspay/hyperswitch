@@ -2593,13 +2593,13 @@
         ]
       }
     },
-    "/v2/payments/{id}/check-and-apply-pm-data": {
+    "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data": {
       "post": {
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Apply PM Data",
-        "description": "Apply the payment method data and recalculate surcharge",
+        "summary": "Payments - Check Balance and Apply PM Data",
+        "description": "Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge",
         "operationId": "Apply Payment Method Data",
         "parameters": [
           {
@@ -2638,7 +2638,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApplyPaymentMethodDataResponse"
+                  "$ref": "#/components/schemas/CheckAndApplyPaymentMethodDataResponse"
                 }
               }
             }
@@ -5287,39 +5287,6 @@
           }
         }
       },
-      "ApplyPaymentMethodDataResponse": {
-        "type": "object",
-        "required": [
-          "balances",
-          "remaining_amount",
-          "currency",
-          "requires_additional_pm_data"
-        ],
-        "properties": {
-          "balances": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BalanceCheckResponseItem"
-            }
-          },
-          "remaining_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "requires_additional_pm_data": {
-            "type": "boolean"
-          },
-          "surcharge_details": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
-            },
-            "nullable": true
-          }
-        }
-      },
       "ApplyPaymentMethodDataSurchargeResponseItem": {
         "type": "object",
         "required": [
@@ -5627,21 +5594,6 @@
             }
           }
         ]
-      },
-      "BalanceCheckResponseItem": {
-        "type": "object",
-        "required": [
-          "payment_method_data",
-          "eligibility"
-        ],
-        "properties": {
-          "payment_method_data": {
-            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
-          },
-          "eligibility": {
-            "$ref": "#/components/schemas/PaymentMethodBalanceCheckEligibility"
-          }
-        }
       },
       "BancontactBankRedirectAdditionalData": {
         "type": "object",
@@ -8771,6 +8723,40 @@
           }
         }
       },
+      "CheckAndApplyPaymentMethodDataResponse": {
+        "type": "object",
+        "required": [
+          "balances",
+          "remaining_amount",
+          "currency",
+          "requires_additional_pm_data"
+        ],
+        "properties": {
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibilityBalanceCheckResponseItem"
+            }
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "requires_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the applied payment method balance is enough for the order amount or additional PM is required"
+          },
+          "surcharge_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
+            },
+            "nullable": true
+          }
+        }
+      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -11266,6 +11252,21 @@
             }
           }
         ]
+      },
+      "EligibilityBalanceCheckResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "eligibility"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PMBalanceCheckEligibilityResponse"
+          }
+        }
       },
       "EliminationAnalyserConfig": {
         "type": "object",
@@ -16736,6 +16737,51 @@
           }
         }
       },
+      "PMBalanceCheckEligibilityResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "success"
+            ],
+            "properties": {
+              "success": {
+                "$ref": "#/components/schemas/PMBalanceCheckSuccessResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure"
+            ],
+            "properties": {
+              "failure": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "PMBalanceCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "balance",
+          "applicable_amount",
+          "currency"
+        ],
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "applicable_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "Passthrough": {
         "type": "object",
         "required": [
@@ -17949,51 +17995,6 @@
           "gift_card",
           "open_banking",
           "mobile_payment"
-        ]
-      },
-      "PaymentMethodBalanceApi": {
-        "type": "object",
-        "required": [
-          "balance",
-          "applicable_amount",
-          "currency"
-        ],
-        "properties": {
-          "balance": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "applicable_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          }
-        }
-      },
-      "PaymentMethodBalanceCheckEligibility": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "success"
-            ],
-            "properties": {
-              "success": {
-                "$ref": "#/components/schemas/PaymentMethodBalanceApi"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "failure"
-            ],
-            "properties": {
-              "failure": {
-                "type": "string"
-              }
-            }
-          }
         ]
       },
       "PaymentMethodCollectLinkRequest": {
