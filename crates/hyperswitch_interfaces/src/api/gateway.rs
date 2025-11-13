@@ -47,6 +47,7 @@ pub trait GatewayContext: Clone + Send + Sync {
 /// * `Resp` - Response data type
 /// * `Context` - Gateway context type (must implement GatewayContext trait)
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context>: Send + Sync
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
@@ -238,7 +239,7 @@ where
                                 ucs_router_data,
                                 comparison_service_config,
                                 request_id,
-                            );
+                            ).await;
                         };
                     }
                     Err(e) => {
