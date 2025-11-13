@@ -483,7 +483,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -572,7 +579,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -656,7 +670,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -667,7 +688,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -757,7 +785,14 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .and_then(|val| val.as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -829,7 +864,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -840,7 +882,14 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -960,7 +1009,14 @@ impl
             .and_then(|val| val.peek().as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -971,7 +1027,14 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default()),
+                        )
+                    })
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -1207,7 +1270,14 @@ impl
                 .and_then(|val| val.as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -1217,7 +1287,14 @@ impl
                 .and_then(|meta| meta.peek().as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -1316,7 +1393,14 @@ impl
                 .and_then(|val| val.as_object()) //secret
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -1347,7 +1431,14 @@ impl
                 .and_then(|meta| meta.peek().as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -1428,7 +1519,14 @@ impl
                 .and_then(|val| val.as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -1438,7 +1536,14 @@ impl
                 .and_then(|meta| meta.peek().as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
@@ -3354,7 +3459,14 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .and_then(|val| val.as_object())
                 .map(|map| {
                     map.iter()
-                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| serde_json::to_string(v).unwrap_or_default())))
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                v.as_str().map(|s| s.to_string()).unwrap_or_else(|| {
+                                    serde_json::to_string(v).unwrap_or_default()
+                                }),
+                            )
+                        })
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
