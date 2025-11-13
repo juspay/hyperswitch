@@ -1418,15 +1418,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
         let connector_metadata = (!response.connector_metadata.is_empty())
             .then(|| {
                 serde_json::to_value(&response.connector_metadata)
-                .map_err(|e| {
-                    tracing::warn!(
-                        serialization_error=?e,
-                        metadata=?response.connector_metadata,
-                        "Failed to serialize connector_metadata from UCS capture response"
-                    );
-                    e
-                })
-                .ok()
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error=?e,
+                            metadata=?response.connector_metadata,
+                            "Failed to serialize connector_metadata from UCS capture response"
+                        );
+                        e
+                    })
+                    .ok()
             })
             .flatten();
 
@@ -2793,15 +2793,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         let connector_metadata = (!response.connector_metadata.is_empty())
             .then(|| {
                 serde_json::to_value(&response.connector_metadata)
-                .map_err(|e| {
-                    tracing::warn!(
-                        serialization_error=?e,
-                        metadata=?response.connector_metadata,
-                        "Failed to serialize connector_metadata from UCS void response"
-                    );
-                    e
-                })
-                .ok()
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error=?e,
+                            metadata=?response.connector_metadata,
+                            "Failed to serialize connector_metadata from UCS void response"
+                        );
+                        e
+                    })
+                    .ok()
             })
             .flatten();
 
