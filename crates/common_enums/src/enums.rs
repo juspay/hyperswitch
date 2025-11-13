@@ -4,7 +4,6 @@ mod ui;
 use std::{
     collections::HashSet,
     num::{ParseFloatError, TryFromIntError},
-    str::FromStr,
 };
 
 pub use accounts::{
@@ -9943,64 +9942,6 @@ pub enum SubscriptionStatus {
     Cancelled,
     /// Subscription has failed.
     Failed,
-}
-
-/// Represents the Electronic Commerce Indicator (ECI) value returned from a 3DS authentication process.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum Eci {
-    /// `00` — Transaction attempted without authentication (invalid or not permitted).
-    #[serde(rename = "00")]
-    Zero,
-    /// `01` — Channel encrypted but authentication not performed.
-    #[serde(rename = "01")]
-    One,
-    /// `02` — Channel encrypted and transaction authenticated by cardholder (e.g., 3DS 2 frictionless flow).
-    #[serde(rename = "02")]
-    Two,
-    /// `05` — Fully authenticated transaction (3DS 1 or 3DS 2 challenge flow).
-    #[serde(rename = "05")]
-    Five,
-    /// `06` — Merchant authentication performed (non-3DS but secure).
-    #[serde(rename = "06")]
-    Six,
-    /// `07` — Transaction attempted without 3DS authentication (merchant liability).
-    #[serde(rename = "07")]
-    Seven,
-    /// Any other or unrecognized ECI value.
-    #[serde(other)]
-    Unknown,
-}
-
-impl std::fmt::Display for Eci {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Zero => "00",
-            Self::One => "01",
-            Self::Two => "02",
-            Self::Five => "05",
-            Self::Six => "06",
-            Self::Seven => "07",
-            Self::Unknown => "unknown",
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl FromStr for Eci {
-    type Err = ApiClientError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "0" | "00" => Ok(Self::Zero),
-            "1" | "01" => Ok(Self::One),
-            "2" | "02" => Ok(Self::Two),
-            "5" | "05" => Ok(Self::Five),
-            "6" | "06" => Ok(Self::Six),
-            "7" | "07" => Ok(Self::Seven),
-            _ => Err(ApiClientError::UnexpectedState),
-        }
-    }
 }
 
 /// This is typically provided by the card network or Access Control Server (ACS)

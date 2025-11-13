@@ -167,7 +167,7 @@ pub struct Archipel3DS {
     three_ds_version: Option<common_utils::types::SemanticVersion>,
     authentication_value: Secret<String>,
     authentication_method: Option<Secret<String>>,
-    eci: Option<common_enums::enums::Eci>,
+    eci: Option<String>,
 }
 
 impl From<AuthenticationData> for Archipel3DS {
@@ -404,7 +404,7 @@ impl
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelWalletInformation {
-    wallet_indicator: Option<common_enums::enums::Eci>,
+    wallet_indicator: Option<String>,
     wallet_provider: ArchipelWalletProvider,
     wallet_cryptogram: Secret<String>,
 }

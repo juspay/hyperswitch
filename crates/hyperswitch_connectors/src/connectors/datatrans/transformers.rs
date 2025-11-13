@@ -193,7 +193,7 @@ pub struct ThreeDSData {
     #[serde(rename = "threeDSTransactionId")]
     pub three_ds_transaction_id: Option<Secret<String>>,
     pub cavv: Secret<String>,
-    pub eci: Option<enums::Eci>,
+    pub eci: Option<String>,
     pub xid: Option<Secret<String>>,
     #[serde(rename = "threeDSVersion")]
     pub three_ds_version: Option<String>,

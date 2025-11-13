@@ -349,7 +349,7 @@ struct AdyenMpiData {
     authentication_response: common_enums::TransactionStatus,
     #[serde(flatten)]
     auth_value: Option<AuthenticationValue>,
-    eci: enums::Eci,
+    eci: String,
     #[serde(rename = "dsTransID")]
     ds_trans_id: Option<String>,
     #[serde(rename = "threeDSVersion")]
@@ -6639,7 +6639,7 @@ impl
                     },
                 )?,
             }),
-            eci: common_enums::enums::Eci::Two,
+            eci: "02".to_string(),
             ds_trans_id: None,
             three_ds_version: None,
             challenge_cancel: None,

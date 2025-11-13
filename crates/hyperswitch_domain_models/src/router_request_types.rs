@@ -1069,7 +1069,7 @@ pub struct UcsAuthenticationData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthenticationData {
-    pub eci: Option<common_enums::enums::Eci>,
+    pub eci: Option<String>,
     pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<SemanticVersion>,

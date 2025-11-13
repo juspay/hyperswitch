@@ -144,7 +144,7 @@ pub struct BarclaycardConsumerAuthInformation {
     /// For external authentication, this field will always be "Y"
     veres_enrolled: Option<String>,
     /// Raw electronic commerce indicator (ECI)
-    eci_raw: Option<enums::Eci>,
+    eci_raw: Option<String>,
     /// This field is supported only on Asia, Middle East, and Africa Gateway
     /// Also needed for Credit Mutuel-CIC in France and Mastercard Identity Check transactions
     /// This field is only applicable for Mastercard and Visa Transactions
@@ -1799,7 +1799,7 @@ pub struct BarclaycardClientReferenceResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConsumerAuthenticationInformation {
-    eci_raw: Option<enums::Eci>,
+    eci_raw: Option<String>,
     eci: Option<String>,
     acs_transaction_id: Option<String>,
     cavv: Option<String>,

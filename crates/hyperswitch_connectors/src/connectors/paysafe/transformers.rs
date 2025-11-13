@@ -305,7 +305,7 @@ pub struct PaysafeApplePayDecryptedData {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayDecryptedPaymentData {
     pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<enums::Eci>,
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]

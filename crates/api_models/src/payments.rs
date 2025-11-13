@@ -11688,8 +11688,8 @@ pub struct ExternalThreeDsData {
     #[schema(value_type = String)]
     pub version: String,
     /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
-    #[schema(value_type = Eci)]
-    pub eci: common_enums::Eci,
+    #[schema(value_type = String)]
+    pub eci: String,
     /// Indicates the transaction status from the 3DS authentication flow.
     #[schema(value_type = TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,

@@ -928,7 +928,7 @@ pub struct ExternalToken {
     pub external_token_provider: ExternalTokenProvider,
     pub mobile_token: Option<Secret<String>>,
     pub cryptogram: Option<Secret<String>>,
-    pub eci_provider: Option<enums::Eci>,
+    pub eci_provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -943,7 +943,7 @@ pub enum ExternalTokenProvider {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalMpi {
-    pub eci: Option<enums::Eci>,
+    pub eci: Option<String>,
     pub cavv: Secret<String>,
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,

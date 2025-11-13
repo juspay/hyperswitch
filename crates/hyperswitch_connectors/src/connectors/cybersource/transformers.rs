@@ -420,7 +420,7 @@ pub struct CybersourceConsumerAuthInformation {
     /// For external authentication, this field will always be "Y"
     veres_enrolled: Option<String>,
     /// Raw electronic commerce indicator (ECI)
-    eci_raw: Option<enums::Eci>,
+    eci_raw: Option<String>,
     /// This field is supported only on Asia, Middle East, and Africa Gateway
     /// Also needed for Credit Mutuel-CIC in France and Mastercard Identity Check transactions
     /// This field is only applicable for Mastercard and Visa Transactions
@@ -1066,13 +1066,13 @@ impl
 
 fn get_commerce_indicator_for_external_authentication(
     card_network: Option<String>,
-    eci: enums::Eci,
+    eci: String,
 ) -> String {
     let card_network_lower_case = card_network
         .as_ref()
         .map(|card_network| card_network.to_lowercase());
-    match eci {
-        enums::Eci::Zero | enums::Eci::One | enums::Eci::Two => {
+    match eci.as_str() {
+        "00" | "01" | "02" => {
             if matches!(
                 card_network_lower_case.as_deref(),
                 Some("mastercard") | Some("maestro")
@@ -1082,7 +1082,7 @@ fn get_commerce_indicator_for_external_authentication(
                 "internet"
             }
         }
-        enums::Eci::Five => match card_network_lower_case.as_deref() {
+        "05" => match card_network_lower_case.as_deref() {
             Some("amex") => "aesk",
             Some("discover") => "dipb",
             Some("mastercard") => "spa",
@@ -1091,7 +1091,7 @@ fn get_commerce_indicator_for_external_authentication(
             Some("upi") => "up3ds",
             _ => "internet",
         },
-        enums::Eci::Six => match card_network_lower_case.as_deref() {
+        "06" => match card_network_lower_case.as_deref() {
             Some("amex") => "aesk_attempted",
             Some("discover") => "dipb_attempted",
             Some("mastercard") => "spa",
@@ -1100,7 +1100,7 @@ fn get_commerce_indicator_for_external_authentication(
             Some("upi") => "up3ds_attempted",
             _ => "internet",
         },
-        enums::Eci::Seven => match card_network_lower_case.as_deref() {
+        "07" => match card_network_lower_case.as_deref() {
             Some("amex") => "internet",
             Some("discover") => "internet",
             Some("mastercard") => "spa",

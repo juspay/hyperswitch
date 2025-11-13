@@ -417,14 +417,7 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("cavv must not be null when authentication_status is success")?;
             Ok(Self {
-                eci: authentication
-                    .eci
-                    .as_ref()
-                    .map(|s| common_enums::enums::Eci::from_str(s))
-                    .transpose()
-                    .map_err(|_| {
-                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    })?,
+                eci: authentication.eci.clone(),
                 created_at: authentication.created_at,
                 cavv,
                 threeds_server_transaction_id,
