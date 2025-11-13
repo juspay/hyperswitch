@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.1
+
+### Features
+
+- **revenue_recovery:** Schedule the unretried invoices in immediate next slot ([#10206](https://github.com/juspay/hyperswitch/pull/10206)) ([`12382b4`](https://github.com/juspay/hyperswitch/commit/12382b41bae11d504b4d9b007b318f1fba7ea267))
+
+**Full Changelog:** [`2025.11.13.0...2025.11.13.1`](https://github.com/juspay/hyperswitch/compare/2025.11.13.0...2025.11.13.1)
+
+- - -
+
 ## 2025.11.13.0
 
 ### Features
