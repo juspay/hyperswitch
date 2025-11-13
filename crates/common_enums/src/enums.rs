@@ -9961,7 +9961,7 @@ pub enum SubscriptionStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
-pub enum VaultTokenField {
+pub enum VaultTokenType {
     /// Card number
     CardNumber,
     /// Card cvc
@@ -9973,9 +9973,9 @@ pub enum VaultTokenField {
     /// Network token
     NetworkToken,
     /// Token expiry year
-    TokenExpiryYear,
+    NetworkTokenExpiryYear,
     /// Token expiry month
-    TokenExpiryMonth,
+    NetworkTokenExpiryMonth,
     /// Token cryptogram
-    TokenCryptogram,
+    NetworkTokenCryptogram,
 }
