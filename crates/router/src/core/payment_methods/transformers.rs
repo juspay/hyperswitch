@@ -387,9 +387,10 @@ where
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let private_key = jwekey.vault_private_key.peek().as_bytes();
-    let jws = encryption::jws_sign_payload(&encoded_payload, &locker.locker_signing_key_id, private_key)
-        .await
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let jws =
+        encryption::jws_sign_payload(&encoded_payload, &locker.locker_signing_key_id, private_key)
+            .await
+            .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
     let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
@@ -405,13 +406,13 @@ where
         headers::X_TENANT_ID,
         tenant_id.get_string_repr().to_owned().into(),
     );
-    
+
     if let Some(req_id) = request_id {
         request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
     }
 
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-    
+
     Ok(request)
 }
 
@@ -643,7 +644,7 @@ pub async fn mk_get_card_request_hs(
         merchant_customer_id: customer_id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    
+
     mk_generic_locker_request(
         jwekey,
         locker,
@@ -705,7 +706,7 @@ pub async fn mk_delete_card_request_hs(
         merchant_customer_id: customer_id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    
+
     mk_generic_locker_request(
         jwekey,
         locker,
@@ -734,7 +735,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         merchant_customer_id: id.to_owned(),
         card_reference: card_reference.to_owned(),
     };
-    
+
     mk_generic_locker_request(
         jwekey,
         locker,

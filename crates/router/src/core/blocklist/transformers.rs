@@ -29,7 +29,6 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-
 #[instrument(skip_all)]
 pub async fn generate_fingerprint(
     state: &routes::SessionState,
