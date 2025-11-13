@@ -2028,7 +2028,7 @@ pub enum SamsungPayCardBrand {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct CustomTermsByPaymentMethodTypes(
     #[schema(value_type = HashMap<String, Option<String>>)]
-    pub Option<std::collections::HashMap<PaymentMethodType, String>>,
+    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
 );
 
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
