@@ -3349,6 +3349,9 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = CustomTermsByPaymentMethodTypes)]
+    pub custom_message_for_payment_method_types: common_enums::CustomTermsByPaymentMethodTypes,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
@@ -3448,6 +3451,9 @@ pub struct PaymentLinkConfig {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = CustomTermsByPaymentMethodTypes)]
+    pub custom_message_for_payment_method_types: common_enums::CustomTermsByPaymentMethodTypes,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion

@@ -16042,6 +16042,15 @@
           }
         }
       },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string",
+          "nullable": true
+        },
+        "nullable": true
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -24034,6 +24043,7 @@
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
           "show_card_form_by_default",
+          "custom_message_for_payment_method_types",
           "enable_button_only_on_form_ready"
         ],
         "properties": {
@@ -24117,6 +24127,9 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -24198,6 +24211,9 @@
       },
       "PaymentLinkConfigRequest": {
         "type": "object",
+        "required": [
+          "custom_message_for_payment_method_types"
+        ],
         "properties": {
           "theme": {
             "type": "string",
@@ -24288,6 +24304,9 @@
             "type": "string",
             "description": "Text for customizing message for card terms",
             "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
           },
           "payment_button_colour": {
             "type": "string",
