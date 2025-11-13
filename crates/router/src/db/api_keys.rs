@@ -388,7 +388,6 @@ mod tests {
         types::storage,
     };
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_api_key_interface() {
         #[allow(clippy::expect_used)]
@@ -484,13 +483,11 @@ mod tests {
         );
     }
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_api_keys_cache() {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(Cow::from("test_merchant")).unwrap();
 
-        #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");

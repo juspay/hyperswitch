@@ -5,8 +5,11 @@ use std::marker::PhantomData;
 use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
-use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
+use common_types::{
+    payments::BillingDescriptor,
+    primitive_wrappers::{
+        AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
+    },
 };
 use common_utils::{
     self,
@@ -126,6 +129,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<BillingDescriptor>,
 }
 
 impl PaymentIntent {
@@ -286,6 +290,25 @@ impl PaymentIntent {
             router_env::logger::error!("Metadata does not contain any key");
             Err(common_utils::errors::ParsingError::UnknownError)
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_billing_descriptor(&self) -> Option<BillingDescriptor> {
+        self.billing_descriptor
+            .as_ref()
+            .map(|descriptor| BillingDescriptor {
+                name: descriptor.name.clone(),
+                city: descriptor.city.clone(),
+                phone: descriptor.phone.clone(),
+                statement_descriptor: descriptor
+                    .statement_descriptor
+                    .clone()
+                    .or_else(|| self.statement_descriptor_name.clone()),
+                statement_descriptor_suffix: descriptor
+                    .statement_descriptor_suffix
+                    .clone()
+                    .or_else(|| self.statement_descriptor_suffix.clone()),
+            })
     }
 }
 
@@ -827,6 +850,11 @@ impl PaymentIntent {
 
     pub fn get_currency(&self) -> storage_enums::Currency {
         self.amount_details.currency
+    }
+
+    pub fn is_split_payment(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
     }
 }
 

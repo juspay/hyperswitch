@@ -1,4 +1,5 @@
 use api_models::webhooks::IncomingWebhookEvent;
+use base64::Engine;
 use cards::CardNumber;
 use common_enums::{AttemptStatus, AuthenticationType, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
@@ -739,8 +740,16 @@ impl TryFrom<&ApplePayWalletData> for PaymentMethod {
                 field_name: "Apple pay encrypted data",
             })?;
 
+        let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
+            .decode(apple_pay_encrypted_data)
+            .change_context(ConnectorError::InvalidDataFormat {
+                field_name: "apple_pay_encrypted_data",
+            })?;
+
+        let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
+
         let apple_pay_data = ApplePayData {
-            applepay_payment_data: Secret::new(apple_pay_encrypted_data.clone()),
+            applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
         };
         Ok(Self::ApplePay(Box::new(apple_pay_data)))
     }
