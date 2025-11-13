@@ -445,19 +445,17 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
     }
 }
 
-impl ForeignTryFrom<&api_models::three_ds_decision_rule::ExternalThreeDsData>
-    for AuthenticationData
-{
+impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for AuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        external_auth_data: &api_models::three_ds_decision_rule::ExternalThreeDsData,
+        external_auth_data: &api_models::payments::ExternalThreeDsData,
     ) -> Result<Self, Self::Error> {
         let cavv = match &external_auth_data.authentication_cryptogram {
-            api_models::three_ds_decision_rule::Cryptogram::Cavv {
+            api_models::payments::Cryptogram::Cavv {
                 authentication_cryptogram,
             } => authentication_cryptogram.clone(),
-            api_models::three_ds_decision_rule::Cryptogram::Tavv {
+            api_models::payments::Cryptogram::Tavv {
                 token_authentication_cryptogram,
             } => token_authentication_cryptogram.clone(),
         };
@@ -474,12 +472,10 @@ impl ForeignTryFrom<&api_models::three_ds_decision_rule::ExternalThreeDsData>
             eci: Some(external_auth_data.eci.clone()),
             cavv,
             threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
-            message_version: match common_utils::types::SemanticVersion::from_str(
+            message_version: common_utils::types::SemanticVersion::from_str(
                 &external_auth_data.version,
-            ) {
-                Ok(version) => Some(version),
-                Err(_) => None,
-            },
+            )
+            .ok(),
             ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
             created_at: time::PrimitiveDateTime::new(
                 time::OffsetDateTime::now_utc().date(),

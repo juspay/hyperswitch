@@ -1081,7 +1081,7 @@ pub struct AuthenticationData {
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub acs_trans_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
-    pub cb_network_params: Option<api_models::three_ds_decision_rule::NetworkParams>,
+    pub cb_network_params: Option<api_models::payments::NetworkParams>,
     pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
 }
 

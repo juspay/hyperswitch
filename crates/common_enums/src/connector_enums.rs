@@ -444,9 +444,6 @@ impl Connector {
     pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)
     }
-    pub fn is_external_authentication_supported_by_merchant(self) -> bool {
-        matches!(self, Self::Adyen)
-    }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]
@@ -462,7 +459,6 @@ impl Connector {
             Self::Aci
             // Add Separate authentication support for connectors
 			| Self::Authipay
-            | Self::Adyen
             | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
@@ -586,7 +582,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
 

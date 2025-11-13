@@ -739,7 +739,7 @@ where
             };
 
             if let Some(connector_enum) = maybe_connector_enum {
-                if connector_enum.is_external_authentication_supported_by_merchant() {
+                if connector_enum.is_separate_authentication_supported() {
                     logger::info!(
                         "Proceeding with external authentication data provided by the merchant for connector: {:?}",
                         connector_enum
@@ -7726,8 +7726,7 @@ where
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
-    pub external_authentication_data:
-        Option<api_models::three_ds_decision_rule::ExternalThreeDsData>,
+    pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
 }
 
 #[cfg(feature = "v1")]
