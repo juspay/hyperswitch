@@ -205,7 +205,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_new.clone().insert(&conn),
             payment_method,
             InsertResourceParams {
-                insertable: kv::Insertable::PaymentMethod(payment_method_new.clone()),
+                insertable: kv::Insertable::PaymentMethod(Box::new(payment_method_new.clone())),
                 reverse_lookups,
                 key,
                 identifier,

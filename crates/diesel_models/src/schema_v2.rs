@@ -395,6 +395,10 @@ diesel::table! {
         status -> Nullable<DeleteStatus>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
     }
 }
 
@@ -1236,6 +1240,10 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         external_vault_token_data -> Nullable<Bytea>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
     }
 }
 
