@@ -21,6 +21,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, CardData, RefundsRequestData, RouterData as RouterDataExt},
 };
+use strum::Display;
 
 const TRUSTPAYMENTS_API_VERSION: &str = "1.00";
 
@@ -308,17 +309,13 @@ impl<T> From<(StringMinorUnit, T)> for TrustpaymentsRouterData<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Display, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum TrustpaymentsRequestType {
-    #[serde(rename = "AUTH")]
     Auth,
-    #[serde(rename = "TRANSACTIONUPDATE")]
     TransactionUpdate,
-    #[serde(rename = "TRANSACTIONQUERY")]
     TransactionQuery,
-    #[serde(rename = "REFUND")]
     Refund,
-    #[serde(rename = "ACCOUNTCHECK")]
     AccountCheck,
 }
 
@@ -334,31 +331,11 @@ impl TrustpaymentsRequestType {
     }
 }
 
-impl std::fmt::Display for TrustpaymentsRequestType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Display, Default, Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum TrustpaymentsAccountType {
     #[default]
-    #[serde(rename = "ECOM")]
     Ecom,
-}
-
-impl TrustpaymentsAccountType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Ecom => "ECOM",
-        }
-    }
-}
-
-impl std::fmt::Display for TrustpaymentsAccountType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone)]
@@ -824,7 +801,7 @@ impl TrustpaymentsPaymentResponseData {
                     self.settlestatus
                         .as_ref()
                         .map(|status| status.to_attempt_status())
-                        .unwrap_or(common_enums::AttemptStatus::Authorized)
+                        .unwrap_or(common_enums::AttemptStatus::Failure)
                 } else {
                     common_enums::AttemptStatus::Failure
                 }
@@ -847,7 +824,7 @@ impl TrustpaymentsPaymentResponseData {
                     self.settlestatus
                         .as_ref()
                         .map(|status| status.to_attempt_status_for_sync())
-                        .unwrap_or(common_enums::AttemptStatus::Authorized)
+                        .unwrap_or(common_enums::AttemptStatus::Failure)
                 } else if self.requesttypedescription
                     == TrustpaymentsRequestType::TransactionQuery.as_str()
                     && self.authcode.is_none()
