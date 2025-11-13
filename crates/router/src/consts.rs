@@ -121,6 +121,12 @@ pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
 // 15 minutes = 900 seconds
 pub const POLL_ID_TTL: i64 = 900;
 
+// 15 minutes = 900 seconds
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// Prefix key for storing authentication eligibility check data in redis
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
+
 // Default Poll Config
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
 pub const DEFAULT_POLL_FREQUENCY: i8 = 5;
@@ -350,8 +356,6 @@ pub mod superposition {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     #[test]
     fn test_profile_id_unavailable_initialization() {
         // Just access the lazy static to ensure it doesn't panic during initialization

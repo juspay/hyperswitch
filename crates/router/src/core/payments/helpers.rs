@@ -4084,8 +4084,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[test]
@@ -4167,6 +4165,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4253,6 +4252,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4337,6 +4337,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4593,7 +4594,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
-        is_migrated_card: router_data.is_migrated_card,
     }
 }
 
@@ -5025,7 +5025,6 @@ pub fn is_manual_retry_allowed(
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     #[test]
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
@@ -8716,5 +8715,84 @@ where
             router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
             Ok(())
         }
+    }
+}
+
+/// A formatted string key in the format "payment_methods_{customer_id}_{locker_id}"
+#[cfg(feature = "v1")]
+pub fn construct_payment_method_key_for_locking(
+    customer_id: &id_type::CustomerId,
+    locker_id: &str,
+) -> String {
+    format!(
+        "payment_methods_{}_{}",
+        customer_id.get_string_repr(),
+        locker_id
+    )
+}
+
+#[cfg(feature = "v1")]
+pub async fn perform_payment_method_duplication_check(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_method_id: &str,
+    customer_id: &id_type::CustomerId,
+    card_detail: &api::CardDetailFromLocker,
+) -> RouterResult<Option<payment_methods::transformers::DataDuplicationCheck>> {
+    let db = &*state.store;
+    let existing_pm_by_locker_id = db
+        .find_payment_method_by_locker_id_customer_id_merchant_id(
+            &(state.into()),
+            merchant_context.get_merchant_key_store(),
+            payment_method_id,
+            customer_id,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await;
+
+    let duplication_check = match &existing_pm_by_locker_id {
+        Ok(pm) => {
+            //check for duplication
+            let card_decrypted = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
+                .and_then(|pmd| match pmd {
+                    api::PaymentMethodsData::Card(card) => {
+                        Some(api::CardDetailFromLocker::from(card))
+                    }
+                    _ => None,
+                })
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to obtain decrypted token object from db")?;
+
+            // Use the duplication check function to compare card details
+            check_for_duplication_of_card_data(card_detail, &card_decrypted)
+        }
+        Err(err) => {
+            logger::error!(
+                "Error fetching existing payment method for locker_id: {}, customer_id: {}: {:?}",
+                payment_method_id,
+                customer_id.get_string_repr(),
+                err
+            );
+            None
+        }
+    };
+
+    Ok(duplication_check)
+}
+
+#[cfg(feature = "v1")]
+pub fn check_for_duplication_of_card_data(
+    card_details: &api::CardDetailFromLocker,
+    card_decrypted: &api::CardDetailFromLocker,
+) -> Option<payment_methods::transformers::DataDuplicationCheck> {
+    if card_details.eq(card_decrypted) {
+        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
+    } else {
+        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
     }
 }

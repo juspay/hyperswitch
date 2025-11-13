@@ -2,7 +2,6 @@
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
 use masking::Secret;
-use router_derive;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;

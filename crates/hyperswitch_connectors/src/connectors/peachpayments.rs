@@ -817,7 +817,7 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
     });
 
 static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Peachpayments",
+    display_name: "Peach Payments",
     description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Beta,

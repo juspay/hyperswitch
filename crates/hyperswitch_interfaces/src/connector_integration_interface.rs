@@ -400,6 +400,19 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_additional_payment_method_data(request),
+            Self::New(connector) => connector.get_additional_payment_method_data(request),
+        }
+    }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,

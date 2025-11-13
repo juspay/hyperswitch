@@ -96,7 +96,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                     credential_stored_on_file: Some(true),
                     stored_credential_used: None,
                 }),
-                merchant_intitiated_transaction: None,
+                merchant_initiated_transaction: None,
             }),
         );
 
@@ -351,7 +351,7 @@ pub enum WellsfargoActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoAuthorizationOptions {
     initiator: Option<WellsfargoPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -634,7 +634,7 @@ impl
                         credential_stored_on_file: Some(true),
                         stored_credential_used: None,
                     }),
-                    merchant_intitiated_transaction: None,
+                    merchant_initiated_transaction: None,
                 }),
             )
         } else if item.router_data.request.mandate_id.is_some() {
@@ -659,7 +659,7 @@ impl
                         None,
                         Some(WellsfargoAuthorizationOptions {
                             initiator: None,
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: None,
                                 original_authorized_amount: Some(utils::get_amount_as_string(
                                     &api::CurrencyUnit::Base,
@@ -729,7 +729,7 @@ impl
                                 credential_stored_on_file: None,
                                 stored_credential_used: Some(true),
                             }),
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
@@ -1492,7 +1492,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsIncrementalAuthorizationRouterData>>
                         credential_stored_on_file: None,
                         stored_credential_used: Some(true),
                     }),
-                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                    merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                         reason: Some("5".to_owned()),
                         previous_transaction_id: None,
                         original_authorized_amount: None,

@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{

@@ -1,5 +1,4 @@
 use serde_json::json;
-use utoipa;
 
 /// Subscription - Create and Confirm
 ///
@@ -362,7 +361,7 @@ pub async fn pause_subscription() {}
             "Resume subscription" = (
                 value = json!({
                     "resume_option": "immediately",
-                    "unpaid_invoices_handling": "schedule_payment_collection"   
+                    "unpaid_invoices_handling": "schedule_payment_collection"
                 })
             )
         ))

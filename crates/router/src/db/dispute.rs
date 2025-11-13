@@ -452,7 +452,6 @@ impl DisputeInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
