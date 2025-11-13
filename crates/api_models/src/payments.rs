@@ -3537,8 +3537,8 @@ pub enum PMBalanceCheckEligibilityResponse {
 impl PMBalanceCheckEligibilityResponse {
     pub fn get_balance(&self) -> MinorUnit {
         match self {
-            PMBalanceCheckEligibilityResponse::Success(resp) => resp.balance,
-            PMBalanceCheckEligibilityResponse::Failure(_) => MinorUnit::zero(),
+            Self::Success(resp) => resp.balance,
+            Self::Failure(_) => MinorUnit::zero(),
         }
     }
 }
