@@ -1264,7 +1264,8 @@ pub async fn accept_invite_from_email_token_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::AcceptInviteFromEmailRequest,
-) -> UserResponse<user_api::TokenResponse> {
+    validate_only: Option<bool>,
+) -> UserResponse<user_api::AcceptInviteResponse> {
     let token = request.token.expose();
 
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
@@ -1301,37 +1302,91 @@ pub async fn accept_invite_from_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .ok_or(UserErrors::InternalServerError)?;
 
-    let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
-        &state,
-        user_from_db.get_user_id(),
+    // First, check current user role status
+    let v2_roles = state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_db.get_user_id(),
+            tenant_id: &state.tenant.tenant_id,
+            org_id: Some(&org_id),
+            merchant_id: merchant_id.as_ref(),
+            profile_id: profile_id.as_ref(),
+            entity_id: None,
+            version: Some(UserRoleVersion::V2),
+            status: None,
+            limit: Some(1),
+        })
+        .await;
+
+    let v1_roles = if v2_roles.as_ref().is_ok_and(|roles| roles.is_empty()) {
+        state
+            .global_store
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_db.get_user_id(),
+                tenant_id: &state.tenant.tenant_id,
+                org_id: Some(&org_id),
+                merchant_id: merchant_id.as_ref(),
+                profile_id: profile_id.as_ref(),
+                entity_id: None,
+                version: Some(UserRoleVersion::V1),
+                status: None,
+                limit: Some(1),
+            })
+            .await
+    } else {
+        Ok(Vec::new())
+    };
+
+    let current_status = v2_roles
+        .ok()
+        .and_then(|roles| roles.first().map(|role| role.status))
+        .or_else(|| v1_roles.ok().and_then(|roles| roles.first().map(|role| role.status)));
+
+    // Determine invitation status based on current status and perform update if needed
+    let invitation_status = match current_status {
+        Some(UserStatus::Active) => user_api::InvitationAcceptanceStatus::AlreadyAccepted,
+        Some(UserStatus::InvitationSent) => {
+
+            let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_from_db.get_user_id(),
         user_token
             .tenant_id
             .as_ref()
             .unwrap_or(&state.tenant.tenant_id),
-        &org_id,
-        merchant_id.as_ref(),
-        profile_id.as_ref(),
-        UserRoleUpdate::UpdateStatus {
-            status: UserStatus::Active,
-            modified_by: user_from_db.get_user_id().to_owned(),
-        },
-    )
-    .await;
+                    &org_id,
+                    merchant_id.as_ref(),
+                    profile_id.as_ref(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_from_db.get_user_id().to_owned(),
+                    },
+                )
+                .await;
 
-    if update_v1_result
-        .as_ref()
-        .is_err_and(|err| !err.current_context().is_db_not_found())
-        || update_v2_result
-            .as_ref()
-            .is_err_and(|err| !err.current_context().is_db_not_found())
-    {
-        return Err(report!(UserErrors::InternalServerError));
-    }
+            if update_v1_result
+                .as_ref()
+                .is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result
+                    .as_ref()
+                    .is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                return Err(report!(UserErrors::InternalServerError));
+            }
 
-    if update_v1_result.is_err() && update_v2_result.is_err() {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User not found in the organization")?;
-    }
+            if update_v1_result.is_err() && update_v2_result.is_err() {
+                return Err(report!(UserErrors::InvalidRoleOperation))
+                    .attach_printable("User not found in the organization")?;
+            }
+
+            user_api::InvitationAcceptanceStatus::SuccessfullyAccepted
+        }
+        _ => {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("User not found in the organization")?;
+        }
+    };
+
 
     if !user_from_db.is_verified() {
         let _ = state
@@ -1348,19 +1403,137 @@ pub async fn accept_invite_from_email_token_only_flow(
         .await
         .map_err(|error| logger::error!(?error));
 
-    let current_flow = domain::CurrentFlow::new(
-        user_token,
-        domain::SPTFlow::AcceptInvitationFromEmail.into(),
-    )?;
-    let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+    // Decide response format based on validate_only parameter
+    if validate_only.unwrap_or(false) {
+        // New response format with status
+        Ok(ApplicationResponse::Json(user_api::AcceptInviteResponse::Status(
+            invitation_status,
+        )))
+    } else {
+        let current_flow = domain::CurrentFlow::new(
+            user_token,
+            domain::SPTFlow::AcceptInvitationFromEmail.into(),
+        )?;
+        let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let token = next_flow.get_token(&state).await?;
+        let token = next_flow.get_token(&state).await?;
 
-    let response = user_api::TokenResponse {
-        token: token.clone(),
-        token_type: next_flow.get_flow().into(),
+        let response = user_api::TokenResponse {
+            token: token.clone(),
+            token_type: next_flow.get_flow().into(),
+        };
+        Ok(ApplicationResponse::Json(user_api::AcceptInviteResponse::Token(response)))
+    }
+}
+
+pub async fn generate_token_force_set_password_only_flow(
+    state: SessionState,
+    user_token: auth::UserFromSinglePurposeToken,
+    request: user_api::AcceptInviteFromEmailRequest,
+)->UserResponse<user_api::TokenResponse> {
+
+    let token = request.token.expose();
+
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    let user_from_db: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_email(&email_token.get_email()?)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    if user_from_db.get_user_id() != user_token.user_id {
+        return Err(UserErrors::LinkInvalid.into());
+    }
+
+    let entity = email_token.get_entity().ok_or(UserErrors::LinkInvalid)?;
+
+    let (org_id, merchant_id, profile_id) =
+        utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
+            &state,
+            &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
+            entity.entity_id.clone(),
+            entity.entity_type,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .ok_or(UserErrors::InternalServerError)?;
+
+    // Check current user role status to prevent unauthorized access
+    let v2_roles = state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_db.get_user_id(),
+            tenant_id: &state.tenant.tenant_id,
+            org_id: Some(&org_id),
+            merchant_id: merchant_id.as_ref(),
+            profile_id: profile_id.as_ref(),
+            entity_id: None,
+            version: Some(UserRoleVersion::V2),
+            status: None,
+            limit: Some(1),
+        })
+        .await;
+
+    let v1_roles = if v2_roles.as_ref().is_ok_and(|roles| roles.is_empty()) {
+        state
+            .global_store
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_db.get_user_id(),
+                tenant_id: &state.tenant.tenant_id,
+                org_id: Some(&org_id),
+                merchant_id: merchant_id.as_ref(),
+                profile_id: profile_id.as_ref(),
+                entity_id: None,
+                version: Some(UserRoleVersion::V1),
+                status: None,
+                limit: Some(1),
+            })
+            .await
+    } else {
+        Ok(Vec::new())
     };
-    auth::cookies::set_cookie_response(response, token)
+
+    let current_status = v2_roles
+        .ok()
+        .and_then(|roles| roles.first().map(|role| role.status))
+        .or_else(|| v1_roles.ok().and_then(|roles| roles.first().map(|role| role.status)));
+
+    // Security check: Only allow if user status is Active
+    match current_status {
+        Some(UserStatus::Active) => {
+            let current_flow = domain::CurrentFlow::new(
+                user_token,
+                domain::SPTFlow::AcceptInvitationFromEmail.into(),
+            )?;
+            let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+
+            let token = next_flow.get_token(&state).await?;         
+
+            let response = user_api::TokenResponse {
+                token: token.clone(),
+                token_type: next_flow.get_flow().into(),
+            };
+            auth::cookies::set_cookie_response(response, token)
+        }
+        Some(UserStatus::InvitationSent) => {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("User invitation is pending. Please accept the invitation first.");
+        }
+        _ => {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("User not found in the organization");
+        }
+    }
+    
+    
 }
 
 pub async fn create_internal_user(

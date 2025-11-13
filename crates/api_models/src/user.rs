@@ -95,6 +95,24 @@ pub struct AcceptInviteFromEmailRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ValidateOnlyQueryParam {
+    pub validate_only: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum InvitationAcceptanceStatus {
+    AlreadyAccepted,
+    SuccessfullyAccepted,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum AcceptInviteResponse {
+    Token(TokenResponse),
+    Status(InvitationAcceptanceStatus),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchOrganizationRequest {
     pub org_id: id_type::OrganizationId,
 }
@@ -240,7 +258,7 @@ pub struct SkipTwoFactorAuthQueryParam {
     pub skip_two_factor_auth: Option<bool>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,
