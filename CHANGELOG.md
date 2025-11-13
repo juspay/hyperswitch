@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.2
+
+### Features
+
+- **nmi:** Add support for apple pay mandates ([#10241](https://github.com/juspay/hyperswitch/pull/10241)) ([`b9169ea`](https://github.com/juspay/hyperswitch/commit/b9169ea02207a938de0849fe4181232a6a322e0f))
+
+### Bug Fixes
+
+- **core:** Update setup_future_usage in payment_update_intent flow ([#10243](https://github.com/juspay/hyperswitch/pull/10243)) ([`23bc483`](https://github.com/juspay/hyperswitch/commit/23bc483c379a6e3026568992d04fb606111cbbe2))
+
+**Full Changelog:** [`2025.11.13.1...2025.11.13.2`](https://github.com/juspay/hyperswitch/compare/2025.11.13.1...2025.11.13.2)
+
+- - -
+
 ## 2025.11.13.1
 
 ### Features
