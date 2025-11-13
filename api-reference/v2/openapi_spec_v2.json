@@ -16757,11 +16757,22 @@
             ],
             "properties": {
               "failure": {
-                "type": "string"
+                "$ref": "#/components/schemas/PMBalanceCheckFailureResponse"
               }
             }
           }
         ]
+      },
+      "PMBalanceCheckFailureResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
       },
       "PMBalanceCheckSuccessResponse": {
         "type": "object",
