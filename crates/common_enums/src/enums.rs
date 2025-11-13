@@ -10051,12 +10051,3 @@ pub enum ExemptionIndicator {
     /// Recurring transaction exemption (subsequent payment in a series).
     RecurringOperation,
 }
-
-impl From<DecoupledAuthenticationType> for TransactionStatus {
-    fn from(auth_type: DecoupledAuthenticationType) -> Self {
-        match auth_type {
-            DecoupledAuthenticationType::Challenge => Self::ChallengeRequired,
-            DecoupledAuthenticationType::Frictionless => Self::Success,
-        }
-    }
-}

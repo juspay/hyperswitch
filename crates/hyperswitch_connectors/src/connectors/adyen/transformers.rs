@@ -3258,21 +3258,25 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             _ => None,
         };
 
-        let authtype = item
+        let mpi_data = AdyenMpiData {
+            directory_response: item
             .router_data
             .request
             .authentication_data
             .as_ref()
-            .and_then(|d| d.authentication_type)
+            .and_then(|d| d.transaction_status.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "three_ds_data.authentication_type",
-            })?;
-
-        let trans_status = common_enums::TransactionStatus::from(authtype);
-
-        let mpi_data = AdyenMpiData {
-            directory_response: trans_status.clone(),
-            authentication_response: trans_status.clone(),
+                field_name: "three_ds_data.transction_status",
+            })?,
+            authentication_response: item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .and_then(|d| d.transaction_status.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "three_ds_data.transction_status",
+            })?,
             eci: item
                 .router_data
                 .request

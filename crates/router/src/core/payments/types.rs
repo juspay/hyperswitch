@@ -436,6 +436,7 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
+                transaction_status: None,
                 exemption_indicator: None,
                 cb_network_params: None,
             })
@@ -460,14 +461,6 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
             } => token_authentication_cryptogram.clone(),
         };
 
-        let authentication_type = match external_auth_data.transaction_status {
-            common_enums::TransactionStatus::ChallengeRequired
-            | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
-                Some(common_enums::DecoupledAuthenticationType::Challenge)
-            }
-            _ => Some(common_enums::DecoupledAuthenticationType::Frictionless),
-        };
-
         Ok(Self {
             eci: Some(external_auth_data.eci.clone()),
             cavv,
@@ -486,7 +479,8 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
             challenge_code_reason: None,
             message_extension: None,
             acs_trans_id: None,
-            authentication_type,
+            authentication_type: None,
+            transaction_status: Some(external_auth_data.transaction_status.clone()),
             exemption_indicator: external_auth_data.exemption_indicator.clone(),
             cb_network_params: external_auth_data.network_params.clone(),
         })
