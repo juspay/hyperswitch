@@ -156,8 +156,10 @@ impl ConnectorValidation for Nmi {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([utils::PaymentMethodDataType::Card, utils::PaymentMethodDataType::ApplePay]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::Card,
+            utils::PaymentMethodDataType::ApplePay,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
