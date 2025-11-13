@@ -55,26 +55,12 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
             Some(PaymentMethodVaultingData::Card(req_card)) => {
-                let mut data = vec![
-                    VgsTokenRequestItem {
-                        value: Secret::new(req_card.card_number.get_card_no()),
-                        classifiers: vec!["card_number".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: req_card.card_exp_month,
-                        classifiers: vec!["card_expiry_month".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: req_card.card_exp_year,
-                        classifiers: vec!["card_expiry_year".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                ];
+                let mut data = vec![VgsTokenRequestItem {
+                    value: Secret::new(req_card.card_number.get_card_no()),
+                    classifiers: vec!["card_number".to_string()],
+                    format: VGS_FORMAT.to_string(),
+                    storage: VgsStorageType::Volatile,
+                }];
 
                 if let Some(card_cvc) = req_card.card_cvc {
                     data.push(VgsTokenRequestItem {
@@ -88,26 +74,12 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
                 Ok(Self { data })
             }
             Some(PaymentMethodVaultingData::NetworkToken(network_token_data)) => {
-                let mut data = vec![
-                    VgsTokenRequestItem {
-                        value: Secret::new(network_token_data.network_token.get_card_no()),
-                        classifiers: vec!["payment_token".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: network_token_data.network_token_exp_month,
-                        classifiers: vec!["token_expiry_month".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                    VgsTokenRequestItem {
-                        value: network_token_data.network_token_exp_year,
-                        classifiers: vec!["token_expiry_year".to_string()],
-                        format: VGS_FORMAT.to_string(),
-                        storage: VgsStorageType::Volatile,
-                    },
-                ];
+                let mut data = vec![VgsTokenRequestItem {
+                    value: Secret::new(network_token_data.network_token.get_card_no()),
+                    classifiers: vec!["payment_token".to_string()],
+                    format: VGS_FORMAT.to_string(),
+                    storage: VgsStorageType::Volatile,
+                }];
 
                 if let Some(cryptogram) = network_token_data.cryptogram {
                     data.push(VgsTokenRequestItem {
@@ -227,20 +199,8 @@ impl
                     token_cryptogram: network_details
                         .cryptogram
                         .and_then(|crypto| get_token_from_response(&item.response.data, crypto)),
-                    token_expiration_month: get_token_from_response(
-                        &item.response.data,
-                        network_details.network_token_exp_month,
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "alias",
-                    })?,
-                    token_expiration_year: get_token_from_response(
-                        &item.response.data,
-                        network_details.network_token_exp_year,
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "alias",
-                    })?,
+                    token_expiration_month: network_details.network_token_exp_month,
+                    token_expiration_year: network_details.network_token_exp_year,
                 }),
                 ..item.data
             }),
@@ -257,20 +217,8 @@ impl
                     card_cvc: req_card.card_cvc.and_then(|card_cvc| {
                         get_token_from_response(&item.response.data, card_cvc)
                     }),
-                    card_expiry_month: get_token_from_response(
-                        &item.response.data,
-                        req_card.card_exp_month,
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "alias",
-                    })?,
-                    card_expiry_year: get_token_from_response(
-                        &item.response.data,
-                        req_card.card_exp_year,
-                    )
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "alias",
-                    })?,
+                    card_expiry_month: req_card.card_exp_month,
+                    card_expiry_year: req_card.card_exp_year,
                 }),
                 ..item.data
             }),
