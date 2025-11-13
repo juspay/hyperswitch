@@ -5636,14 +5636,6 @@ key1 = "Client secret"
 payment_method_type = "flexiti"
 payment_experience = "redirect_to_url"
 
-[payjustnow]
-[payjustnow.connector_auth.BodyKey]
-api_key = "Signing Key"
-key1 = "Merchant Account Id"
-
-[[payjustnow.pay_later]]
-  payment_method_type = "payjustnow"
-
 [breadpay]
 [breadpay.connector_auth.BodyKey]
 api_key = "API Key"
