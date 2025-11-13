@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.0
+
+### Features
+
+- **customer_list:** Add new API tests for customer list with count, pagination, and limit validation ([#10183](https://github.com/juspay/hyperswitch/pull/10183)) ([`5e54cdc`](https://github.com/juspay/hyperswitch/commit/5e54cdc533680a8371ef23ddc4bbf5674faff46a))
+- **framework:** Implement centralized request ID management framework ([#9554](https://github.com/juspay/hyperswitch/pull/9554)) ([`1a7a43a`](https://github.com/juspay/hyperswitch/commit/1a7a43ac116f070498d3dfff9fe6e81ee3fffab4))
+
+### Bug Fixes
+
+- **nmi:** Pass hex encode apple pay payment data ([#10233](https://github.com/juspay/hyperswitch/pull/10233)) ([`e0e3be4`](https://github.com/juspay/hyperswitch/commit/e0e3be403297256d8b7a4af6a2bd5954488b159c))
+
+**Full Changelog:** [`2025.11.12.0...2025.11.13.0`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0...2025.11.13.0)
+
+- - -
+
 ## 2025.11.12.0
 
 ### Features
