@@ -26653,6 +26653,14 @@
           "payment_method_id"
         ]
       },
+      "Tokenization": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "skip_psp",
+          "via_psp"
+        ]
+      },
       "TokenizationType": {
         "type": "string",
         "description": "The type of tokenization to use for the payment method",
