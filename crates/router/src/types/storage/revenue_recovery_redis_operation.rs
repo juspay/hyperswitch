@@ -276,6 +276,19 @@ impl RedisTokenManager {
         Ok(payment_processor_token_info_map)
     }
 
+    /// Find the most recent date from retry history
+    pub fn find_nearest_date_from_current(
+        retry_history: &HashMap<Date, i32>,
+    ) -> Option<(Date, i32)> {
+        let today = OffsetDateTime::now_utc().date();
+
+        retry_history
+            .iter()
+            .filter(|(date, _)| **date <= today) // Only past dates + today
+            .max_by_key(|(date, _)| *date) // Get the most recent
+            .map(|(date, retry_count)| (*date, *retry_count))
+    }
+
     /// Update connector customer payment processor tokens or add if doesn't exist
     #[instrument(skip_all)]
     pub async fn update_or_add_connector_customer_payment_processor_tokens(
