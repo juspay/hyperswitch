@@ -165,9 +165,12 @@ mod tests {
 
         #[tokio::test]
         async fn find_locker_by_card_id() {
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -195,9 +198,12 @@ mod tests {
 
         #[tokio::test]
         async fn insert_locker_mock_up() {
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -224,9 +230,12 @@ mod tests {
 
         #[tokio::test]
         async fn delete_locker_mock_up() {
-            let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-                .await
-                .expect("Failed to create Mock store");
+            let mockdb = MockDb::new(
+                &redis_interface::RedisSettings::default(),
+                KeyManagerState::new(),
+            )
+            .await
+            .expect("Failed to create Mock store");
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {

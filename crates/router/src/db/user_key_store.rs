@@ -1,7 +1,4 @@
-use common_utils::{
-    errors::CustomResult,
-    types::keymanager,
-};
+use common_utils::{errors::CustomResult, types::keymanager};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -56,7 +53,11 @@ impl UserKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
+            .convert(
+                self.get_key_manager_state(),
+                key,
+                keymanager::Identifier::User(user_id),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -72,7 +73,11 @@ impl UserKeyStoreInterface for Store {
         diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id.to_owned()))
+            .convert(
+                self.get_key_manager_state(),
+                key,
+                keymanager::Identifier::User(user_id.to_owned()),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -93,7 +98,11 @@ impl UserKeyStoreInterface for Store {
         futures::future::try_join_all(key_stores.into_iter().map(|key_store| async {
             let user_id = key_store.user_id.clone();
             key_store
-                .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
+                .convert(
+                    self.get_key_manager_state(),
+                    key,
+                    keymanager::Identifier::User(user_id),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -127,7 +136,11 @@ impl UserKeyStoreInterface for MockDb {
         locked_user_key_store.push(user_key_store.clone());
         let user_id = user_key_store.user_id.clone();
         user_key_store
-            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
+            .convert(
+                self.get_key_manager_state(),
+                key,
+                keymanager::Identifier::User(user_id),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -144,7 +157,11 @@ impl UserKeyStoreInterface for MockDb {
             let user_id = user_key.user_id.clone();
             user_key
                 .to_owned()
-                .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id))
+                .convert(
+                    self.get_key_manager_state(),
+                    key,
+                    keymanager::Identifier::User(user_id),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -166,7 +183,11 @@ impl UserKeyStoreInterface for MockDb {
             .ok_or(errors::StorageError::ValueNotFound(format!(
                 "No user_key_store is found for user_id={user_id}",
             )))?
-            .convert(self.get_key_manager_state(), key, keymanager::Identifier::User(user_id.to_owned()))
+            .convert(
+                self.get_key_manager_state(),
+                key,
+                keymanager::Identifier::User(user_id.to_owned()),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

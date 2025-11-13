@@ -492,9 +492,12 @@ mod tests {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(Cow::from("test_merchant")).unwrap();
 
-        let db = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         redis_conn

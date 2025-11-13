@@ -861,7 +861,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "v1")]
-    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>>{
+    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
         let mockdb = MockDb::new(
             &redis_interface::RedisSettings::default(),
             KeyManagerState::new(),
@@ -882,7 +882,7 @@ mod tests {
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 None,
-                || {println!("Failed to get session state -> ")},
+                || println!("Failed to get session state -> "),
             )
             .inspect_err(|err| {
                 println!("Failed to get session state: {:?}", err);

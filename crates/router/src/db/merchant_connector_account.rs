@@ -107,7 +107,10 @@ mod merchant_connector_account_cache_tests {
 
     #[cfg(feature = "v1")]
     use api_models::enums::CountryAlpha2;
-    use common_utils::{date_time, type_name, types::keymanager::{Identifier, KeyManagerState}};
+    use common_utils::{
+        date_time, type_name,
+        types::keymanager::{Identifier, KeyManagerState},
+    };
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use hyperswitch_domain_models::master_key::MasterKeyInterface;
@@ -158,9 +161,12 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        let db = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
@@ -336,9 +342,12 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        let db = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
