@@ -259,6 +259,7 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
+                last_modified_by: None,
             }
         }
         _ => {
@@ -271,6 +272,7 @@ pub async fn update_payment_method_record(
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     status,
+                    last_modified_by: None,
                 }
             }
         }

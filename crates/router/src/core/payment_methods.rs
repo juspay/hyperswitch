@@ -1074,6 +1074,7 @@ pub async fn create_payment_method_card_core(
         Err(e) => {
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(enums::PaymentMethodStatus::Inactive),
+                last_modified_by: None,
             };
 
             db.update_payment_method(
@@ -2799,6 +2800,7 @@ pub async fn update_payment_method_status_internal(
 
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(status),
+        last_modified_by: None,
     };
 
     let updated_pm = db
@@ -3000,6 +3002,7 @@ pub async fn delete_payment_method_core(
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
+        last_modified_by: None,
     };
 
     db.update_payment_method(

@@ -418,6 +418,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_locker_id: Some(token_pm_resp.payment_method_id),
                     network_token_payment_method_data: pm_network_token_data_encrypted
                         .map(Into::into),
+                    last_modified_by: None,
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -1511,6 +1512,7 @@ pub async fn add_payment_method_data(
                     if duplication_check.is_some() {
                         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                             status: Some(enums::PaymentMethodStatus::Inactive),
+                            last_modified_by: None,
                         };
 
                         db.update_payment_method(
@@ -1619,6 +1621,7 @@ pub async fn add_payment_method_data(
                 Err(e) => {
                     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                         status: Some(enums::PaymentMethodStatus::Inactive),
+                        last_modified_by: None,
                     };
 
                     db.update_payment_method(
@@ -2298,6 +2301,7 @@ pub async fn update_payment_method_connector_mandate_details(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
+        last_modified_by: None,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -2326,6 +2330,7 @@ pub async fn update_payment_method_connector_mandate_details(
 
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
+        last_modified_by: None,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
