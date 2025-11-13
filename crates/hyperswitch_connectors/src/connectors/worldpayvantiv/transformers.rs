@@ -1,5 +1,6 @@
 use common_utils::{
     ext_traits::Encode,
+    pii,
     types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
@@ -29,6 +30,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -121,11 +123,9 @@ pub struct WorldpayvantivMetadataObject {
     pub merchant_config_currency: common_enums::Currency,
 }
 
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
+impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata = connector_utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "metadata",
@@ -213,7 +213,7 @@ pub struct VantivAddressData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<common_utils::pii::Email>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<common_enums::CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -408,7 +408,7 @@ pub struct WorldpayvantivCardData {
     pub card_validation_num: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub enum WorldpayvativCardType {
     #[serde(rename = "VI")]
@@ -1302,6 +1302,41 @@ pub struct PaymentResponse {
     pub network_transaction_id: Option<Secret<String>>,
     pub approved_amount: Option<MinorUnit>,
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
+    pub account_updater: Option<AccountUpdater>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdater {
+    pub original_card_token_info: Option<AccountUpdaterCardTokenInfo>,
+    pub new_card_token_info: Option<AccountUpdaterCardTokenInfo>,
+    pub extended_card_response: ExtendedCardResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtendedCardResponse {
+    pub message: Option<String>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdaterCardTokenInfo {
+    pub cnp_token: Secret<String>,
+    pub exp_date: Option<Secret<String>>,
+    #[serde(rename = "type")]
+    pub card_type: Option<WorldpayvativCardType>,
+    pub bin: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUpdaterCardTokenInfoMetadata {
+    pub exp_date: Option<Secret<String>>,
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
+    pub bin: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1877,6 +1912,30 @@ impl<F>
         match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
+
+                // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
+                // We are extracting that new card token info here to be sent back in mandate_id in router_data.
+                let mandate_reference_data = match item.data.request.is_mandate_payment() {
+                    true => {
+                        if let Some(account_updater) = sale_response.account_updater.as_ref() {
+                            account_updater
+                                .new_card_token_info
+                                .clone()
+                                .map(MandateReference::from)
+                        } else {
+                            sale_response
+                                .token_response
+                                .clone()
+                                .map(MandateReference::from)
+                        }
+                    }
+                    false => sale_response
+                        .token_response
+                        .clone()
+                        .map(MandateReference::from)
+                };
+
+
                 if connector_utils::is_payment_failure(status) {
                     let network_decline_code = item
                     .response
@@ -1894,7 +1953,10 @@ impl<F>
                 let network_error_message = network_decline_code
                     .as_ref()
                     .map(|_| sale_response.message.clone());
+
+
                     Ok(Self {
+                        connector_response: Some(ConnectorResponseData::new(None, None,None, mandate_reference_data.clone())),
                         status,
                         response: Err(ErrorResponse {
                             code: sale_response.response.to_string(),
@@ -1916,8 +1978,13 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                let mandate_reference_data = sale_response.token_response.clone().map(MandateReference::from);
-                let connector_response = sale_response.fraud_result.as_ref().map(get_connector_response);
+                    let additional_payment_method_connector_response = sale_response.fraud_result.as_ref().map(get_additional_payment_method_connector_response);
+                    let connector_response = Some(ConnectorResponseData::new(
+                        additional_payment_method_connector_response,
+                        None,
+                        None,
+                        mandate_reference_data.clone(),
+                    ));
 
                     Ok(Self {
                         status,
@@ -2163,6 +2230,69 @@ impl From<TokenResponse> for MandateReference {
             connector_mandate_id: Some(token_data.cnp_token.expose()),
             payment_method_id: None,
             mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        }
+    }
+}
+
+impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
+    fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
+        let card_exp_month = token_data
+            .exp_date
+            .as_ref()
+            .and_then(|exp_date| exp_date.peek().as_str().get(0..2).map(|s| s.to_string()))
+            .map(Secret::new);
+
+        let card_exp_year = token_data
+            .exp_date
+            .as_ref()
+            .and_then(|exp_date| exp_date.peek().as_str().get(2..4).map(|s| s.to_string()))
+            .map(Secret::new);
+
+        Self {
+            card_network: token_data
+                .card_type
+                .clone()
+                .map(common_enums::CardNetwork::from),
+            card_isin: token_data.bin.clone(),
+            card_exp_month,
+            card_exp_year,
+        }
+    }
+}
+
+impl From<WorldpayvativCardType> for common_enums::CardNetwork {
+    fn from(card_type: WorldpayvativCardType) -> Self {
+        match card_type {
+            WorldpayvativCardType::Visa => Self::Visa,
+            WorldpayvativCardType::MasterCard => Self::Mastercard,
+            WorldpayvativCardType::AmericanExpress => Self::AmericanExpress,
+            WorldpayvativCardType::Discover => Self::Discover,
+            WorldpayvativCardType::JCB => Self::JCB,
+            WorldpayvativCardType::DinersClub => Self::DinersClub,
+            WorldpayvativCardType::UnionPay => Self::UnionPay,
+        }
+    }
+}
+
+impl From<AccountUpdaterCardTokenInfo> for MandateReference {
+    fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
+        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
+
+        let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
+            .inspect_err(|_| {
+                logger::error!(
+                    "Failed to construct Mandate Reference from the UpdatedMandateDetails"
+                )
+            })
+            .ok();
+
+        let mandate_metadata_secret_json = mandate_metadata_json.map(pii::SecretSerdeValue::new);
+
+        Self {
+            connector_mandate_id: Some(token_data.cnp_token.expose()),
+            payment_method_id: None,
+            mandate_metadata: mandate_metadata_secret_json,
             connector_mandate_request_reference_id: None,
         }
     }
@@ -3980,18 +4110,18 @@ fn get_vantiv_card_data(
                     };
 
                     let apple_pay_network = apple_pay_data
-    .payment_method
-    .network
-    .parse::<WorldPayVativApplePayNetwork>()
-    .map_err(|_| {
-        error_stack::Report::new(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
-                apple_pay_data.payment_method.network
-            ),
-            connector: "worldpay_vativ"
-        })
-    })?;
+                    .payment_method
+                    .network
+                    .parse::<WorldPayVativApplePayNetwork>()
+                    .map_err(|_| {
+                        error_stack::Report::new(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
+                                apple_pay_data.payment_method.network
+                            ),
+                            connector: "worldpay_vativ"
+                        })
+                    })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
@@ -4034,18 +4164,18 @@ fn get_vantiv_card_data(
                             })?,
                     };
                     let google_pay_network = google_pay_data
-    .info
-    .card_network
-    .parse::<WorldPayVativGooglePayNetwork>()
-    .map_err(|_| {
-        error_stack::Report::new(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
-                google_pay_data.info.card_network
-            ),
-            connector: "worldpay_vativ"
-        })
-    })?;
+                        .info
+                        .card_network
+                        .parse::<WorldPayVativGooglePayNetwork>()
+                        .map_err(|_| {
+                            error_stack::Report::new(errors::ConnectorError::NotSupported {
+                                message: format!(
+                                    "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
+                                    google_pay_data.info.card_network
+                                ),
+                                connector: "worldpay_vativ"
+                            })
+                        })?;
 
                     Ok((
                         (Some(WorldpayvantivCardData {
@@ -4083,6 +4213,24 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             domestic_network: None,
         },
     )
+}
+
+fn get_additional_payment_method_connector_response(
+    payment_response: &FraudResult,
+) -> AdditionalPaymentMethodConnectorResponse {
+    let payment_checks = Some(serde_json::json!({
+        "avs_result": payment_response.avs_result,
+        "card_validation_result": payment_response.card_validation_result,
+        "authentication_result": payment_response.authentication_result,
+        "advanced_a_v_s_result": payment_response.advanced_a_v_s_result,
+    }));
+
+    AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks,
+        card_network: None,
+        domestic_network: None,
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
