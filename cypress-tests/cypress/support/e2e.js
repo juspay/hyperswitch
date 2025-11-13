@@ -15,7 +15,7 @@
 
 // Import commands.js using ES2015 syntax:
 import "cypress-mochawesome-reporter/register";
-import "./commands";
+require('./commands');
 import "./redirectionHandler";
 
 Cypress.on("window:before:load", (win) => {
@@ -37,4 +37,30 @@ Cypress.on("uncaught:exception", (err, runnable) => {
 
   // Return false to prevent the error from failing the test
   return false;
+});
+
+// Overwrite cy.request to add X-Merchant-Id header to all HTTP requests
+Cypress.Commands.overwrite('request', (originalFn, ...args) => {
+  const options = typeof args[0] === 'string' ? args[1] || {} : args[0] || {};
+
+  const headers = {
+    'x-feature': 'router-new'
+  };
+
+  const mergedOptions = {
+    ...options,
+    headers: {
+      ...((options && options.headers) || {}),
+      ...headers
+    }
+  };
+
+  // Handle different argument patterns for cy.request
+  if (typeof args[0] === 'string') {
+    // cy.request(url, options)
+    return originalFn(args[0], mergedOptions);
+  } else {
+    // cy.request(options)
+    return originalFn(mergedOptions);
+  }
 });
