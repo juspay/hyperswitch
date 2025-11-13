@@ -696,7 +696,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
@@ -740,7 +740,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }

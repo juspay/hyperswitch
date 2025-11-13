@@ -2152,7 +2152,6 @@ impl PaymentMethodInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,
@@ -2161,7 +2160,6 @@ impl PaymentMethodInterface for KafkaStore {
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_locker_id_customer_id_merchant_id(
-                state,
                 key_store,
                 locker_id,
                 customer_id,

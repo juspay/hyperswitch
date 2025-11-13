@@ -861,33 +861,40 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "v1")]
-    async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>>{
+        let mockdb = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
-            Settings::default(),
+            Settings::new()?,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
         ))
         .await;
-        let state = &Arc::new(app_state)
+        let app_state_arc = Arc::new(app_state);
+        let state = app_state_arc
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 None,
-                || {},
+                || {println!("Failed to get session state -> ")},
             )
-            .unwrap();
+            .inspect_err(|err| {
+                println!("Failed to get session state: {:?}", err);
+            })
+            .expect("Failed to get session state");
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
                 .unwrap();
         let business_profile_id =
             common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1")).unwrap();
         let payment_id = "test_payment_id";
-        let key_manager_state = &state.into();
+        let key_manager_state = &(&state).into();
         let master_key = mockdb.get_master_key();
         mockdb
             .insert_merchant_key_store(
@@ -965,18 +972,22 @@ mod tests {
         assert!(updated_event.is_webhook_notified);
         assert_eq!(updated_event.primary_object_id, payment_id);
         assert_eq!(updated_event.event_id, event_id);
+        Ok(())
     }
 
     #[tokio::test]
     #[cfg(feature = "v2")]
-    async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new(&redis_interface::RedisSettings::default(), KeyManagerState::new())
-            .await
-            .expect("Failed to create Mock store");
+    async fn test_mockdb_event_interface() -> Result<(), Box<dyn std::error::Error>> {
+        let mockdb = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
-            Settings::default(),
+            Settings::new()?,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
@@ -1073,6 +1084,7 @@ mod tests {
         assert!(updated_event.is_webhook_notified);
         assert_eq!(updated_event.primary_object_id, payment_id);
         assert_eq!(updated_event.event_id, event_id);
+        Ok(())
     }
 
     #[cfg(feature = "v1")]

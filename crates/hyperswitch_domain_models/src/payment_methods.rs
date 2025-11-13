@@ -799,7 +799,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,

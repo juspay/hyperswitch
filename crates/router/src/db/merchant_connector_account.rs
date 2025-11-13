@@ -107,7 +107,7 @@ mod merchant_connector_account_cache_tests {
 
     #[cfg(feature = "v1")]
     use api_models::enums::CountryAlpha2;
-    use common_utils::{date_time, type_name, types::keymanager::Identifier};
+    use common_utils::{date_time, type_name, types::keymanager::{Identifier, KeyManagerState}};
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use hyperswitch_domain_models::master_key::MasterKeyInterface;

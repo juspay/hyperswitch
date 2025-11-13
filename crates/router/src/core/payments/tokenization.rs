@@ -541,7 +541,6 @@ pub async fn create_or_fetch_payment_method_helper(
                 let payment_method = {
                     let existing_pm_by_pmid = db
                         .find_payment_method(
-                            &(state.into()),
                             merchant_context.get_merchant_key_store(),
                             &payment_method_id,
                             merchant_context.get_merchant_account().storage_scheme,
@@ -553,7 +552,6 @@ pub async fn create_or_fetch_payment_method_helper(
                             locker_id = Some(payment_method_id.clone());
                             let existing_pm_by_locker_id = db
                                 .find_payment_method_by_locker_id(
-                                    &(state.into()),
                                     merchant_context.get_merchant_key_store(),
                                     &payment_method_id,
                                     merchant_context.get_merchant_account().storage_scheme,
@@ -582,7 +580,6 @@ pub async fn create_or_fetch_payment_method_helper(
                         let pm_metadata =
                             create_payment_method_metadata(pm.metadata.as_ref(), connector_token)?;
                         payment_methods::cards::update_payment_method_metadata_and_last_used(
-                            state,
                             merchant_context.get_merchant_key_store(),
                             db,
                             pm.clone(),
@@ -634,7 +631,6 @@ pub async fn create_or_fetch_payment_method_helper(
                     let payment_method = {
                         let existing_pm_by_pmid = db
                             .find_payment_method(
-                                &(state.into()),
                                 merchant_context.get_merchant_key_store(),
                                 &payment_method_id,
                                 merchant_context.get_merchant_account().storage_scheme,
@@ -646,7 +642,6 @@ pub async fn create_or_fetch_payment_method_helper(
                                 locker_id = Some(payment_method_id.clone());
                                 let existing_pm_by_locker_id = db
                                     .find_payment_method_by_locker_id(
-                                        &(state.into()),
                                         merchant_context.get_merchant_key_store(),
                                         &payment_method_id,
                                         merchant_context.get_merchant_account().storage_scheme,
@@ -697,7 +692,6 @@ pub async fn create_or_fetch_payment_method_helper(
                                         ConnectorMandateStatus::Inactive,
                                     )?;
                                 payment_methods::cards::update_payment_method_connector_mandate_details(
-                                            state,
                                             merchant_context.get_merchant_key_store(),
                                             db,
                                             pm.clone(),
@@ -774,7 +768,6 @@ pub async fn create_or_fetch_payment_method_helper(
                     if let Err(err) = add_card_resp {
                         logger::error!(vault_err=?err);
                         db.delete_payment_method_by_merchant_id_payment_method_id(
-                            &(state.into()),
                             merchant_context.get_merchant_key_store(),
                             merchant_id,
                             &card_response.payment_method_id,
@@ -840,7 +833,6 @@ pub async fn create_or_fetch_payment_method_helper(
                             .attach_printable("Unable to encrypt payment method data")?;
 
                     payment_methods::cards::update_payment_method_and_last_used(
-                        state,
                         merchant_context.get_merchant_key_store(),
                         db,
                         existing_pm,
@@ -864,7 +856,6 @@ pub async fn create_or_fetch_payment_method_helper(
                 match state
                     .store
                     .find_payment_method_by_customer_id_merchant_id_list(
-                        &(state.into()),
                         merchant_context.get_merchant_key_store(),
                         &customer_id,
                         merchant_id,

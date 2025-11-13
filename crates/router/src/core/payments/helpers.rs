@@ -8685,7 +8685,6 @@ pub async fn perform_payment_method_duplication_check(
     let db = &*state.store;
     let existing_pm_by_locker_id = db
         .find_payment_method_by_locker_id_customer_id_merchant_id(
-            &(state.into()),
             merchant_context.get_merchant_key_store(),
             payment_method_id,
             customer_id,

@@ -95,7 +95,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,
@@ -104,7 +103,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     ) -> CustomResult<DomainPaymentMethod, Self::Error> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
-            state,
             key_store,
             storage_scheme,
             PaymentMethod::find_by_locker_id_customer_id_merchant_id(
@@ -457,7 +455,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,
@@ -466,7 +463,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
     ) -> CustomResult<DomainPaymentMethod, Self::Error> {
         let conn = pg_connection_read(self).await?;
         self.call_database(
-            state,
             key_store,
             PaymentMethod::find_by_locker_id_customer_id_merchant_id(
                 &conn,
@@ -768,7 +764,6 @@ impl PaymentMethodInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,
@@ -777,7 +772,6 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<DomainPaymentMethod, Self::Error> {
         let payment_methods = self.payment_methods.lock().await;
         self.get_resource::<PaymentMethod, _>(
-            state,
             key_store,
             payment_methods,
             |pm| {
