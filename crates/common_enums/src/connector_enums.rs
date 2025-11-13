@@ -407,6 +407,10 @@ impl Connector {
         matches!((self, payout_method), (Self::Paypal, _))
     }
     #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_external_vault(self) -> bool {
+        matches!(self, Self::Vgs)
+    }
+    #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
     }

@@ -2671,6 +2671,10 @@ pub async fn fetch_card_details_from_external_vault(
                     .attach_printable("Failed to generate card data")?,
             )
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Network Token not supproted")
+        }
     }
 }
 #[cfg(feature = "v1")]
