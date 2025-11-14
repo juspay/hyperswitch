@@ -294,21 +294,37 @@ impl PaymentIntent {
 
     #[cfg(feature = "v1")]
     pub fn get_billing_descriptor(&self) -> Option<BillingDescriptor> {
-        self.billing_descriptor
-            .as_ref()
-            .map(|descriptor| BillingDescriptor {
-                name: descriptor.name.clone(),
-                city: descriptor.city.clone(),
-                phone: descriptor.phone.clone(),
-                statement_descriptor: descriptor
-                    .statement_descriptor
-                    .clone()
-                    .or_else(|| self.statement_descriptor_name.clone()),
-                statement_descriptor_suffix: descriptor
-                    .statement_descriptor_suffix
-                    .clone()
-                    .or_else(|| self.statement_descriptor_suffix.clone()),
-            })
+       self.billing_descriptor
+        .as_ref()
+        .map(|descriptor| BillingDescriptor {
+            name: descriptor.name.clone(),
+            city: descriptor.city.clone(),
+            phone: descriptor.phone.clone(),
+            statement_descriptor: descriptor
+                .statement_descriptor
+                .clone()
+                .or_else(|| self.statement_descriptor_name.clone()),
+            statement_descriptor_suffix: descriptor
+                .statement_descriptor_suffix
+                .clone()
+                .or_else(|| self.statement_descriptor_suffix.clone()),
+        })
+        .or_else(|| {
+            // Only build a fallback if at least one descriptor exists
+            if self.statement_descriptor_name.is_some()
+                || self.statement_descriptor_suffix.is_some()
+            {
+                Some(BillingDescriptor {
+                    name: None,
+                    city: None,
+                    phone: None,
+                    statement_descriptor: self.statement_descriptor_name.clone(),
+                    statement_descriptor_suffix: self.statement_descriptor_suffix.clone(),
+                })
+            } else {
+                None
+            }
+        })
     }
 }
 
