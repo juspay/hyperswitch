@@ -44,7 +44,7 @@ use hyperswitch_domain_models::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
-    router_data::KlarnaSdkResponse,
+    router_data::{InteracCustomerInfo, KlarnaSdkResponse},
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -2671,6 +2671,10 @@ pub async fn fetch_card_details_from_external_vault(
                     .attach_printable("Failed to generate card data")?,
             )
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Network Token not supproted")
+        }
     }
 }
 #[cfg(feature = "v1")]
@@ -4084,8 +4088,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[test]
@@ -4167,6 +4169,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4253,6 +4256,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4337,6 +4341,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4843,6 +4848,7 @@ impl AttemptType {
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
@@ -5023,7 +5029,6 @@ pub fn is_manual_retry_allowed(
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     #[test]
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
@@ -5200,24 +5205,28 @@ pub async fn get_additional_payment_data(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Eft { .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: Some(issuer.to_owned()),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::BancontactCard {
@@ -5238,6 +5247,7 @@ pub async fn get_additional_payment_data(
                             },
                         )),
                     ),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Blik { blik_code } => Ok(Some(
@@ -5250,6 +5260,7 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     }),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Giropay {
@@ -5272,12 +5283,14 @@ pub async fn get_additional_payment_data(
                             },
                         ),
                     )),
+                    interac: None,
                 },
             )),
             _ => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
         },
@@ -7017,6 +7030,16 @@ pub fn add_connector_response_to_additional_payment_data(
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
         },
+        (
+            api_models::payments::AdditionalPaymentData::BankRedirect { .. },
+            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                interac: Some(InteracCustomerInfo { customer_info }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::BankRedirect {
+            bank_name: None,
+            details: None,
+            interac: Some(api_models::payments::InteracPaymentMethod { customer_info }),
+        },
 
         _ => additional_payment_data,
     }
@@ -8335,7 +8358,7 @@ where
             header_payload.clone(),
         )
         .await?;
-
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
     // Calculate connector label once for reuse
     let connector_label =
         get_connector_label_for_customer(&merchant_connector_account, payment_data);
@@ -8375,6 +8398,7 @@ where
                 ExecutionMode::Primary, // UCS is called in primary mode
                 merchant_order_reference_id,
                 call_connector_action,
+                creds_identifier,
             )
             .await?;
     }
@@ -8536,6 +8560,8 @@ where
     let unified_connector_service_connector_label =
         get_connector_label_for_customer(&merchant_connector_account, payment_data);
 
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
@@ -8543,6 +8569,7 @@ where
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
     let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
+    let unified_connector_service_creds_identifier = creds_identifier.clone();
     let unified_connector_service_customer = customer.clone();
     let unified_connector_service_payment_attempt_data = payment_data.get_payment_attempt().clone();
     let unified_connector_service_connector_payment_id = payment_data
@@ -8597,6 +8624,7 @@ where
             unified_connector_service_merchant_order_reference_id,
             call_connector_action,
             shadow_ucs_call_connector_action,
+            unified_connector_service_creds_identifier,
             unified_connector_service_customer,
             unified_connector_service_payment_attempt_data,
             unified_connector_service_connector_label,
@@ -8631,6 +8659,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     merchant_order_reference_id: Option<String>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    creds_identifier: Option<String>,
     customer: Option<domain::Customer>,
     payment_attempt_data: PaymentAttempt,
     unified_connector_service_connector_label: Option<String>,
@@ -8669,6 +8698,7 @@ where
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
             shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
+            creds_identifier,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
@@ -8689,5 +8719,84 @@ where
             router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
             Ok(())
         }
+    }
+}
+
+/// A formatted string key in the format "payment_methods_{customer_id}_{locker_id}"
+#[cfg(feature = "v1")]
+pub fn construct_payment_method_key_for_locking(
+    customer_id: &id_type::CustomerId,
+    locker_id: &str,
+) -> String {
+    format!(
+        "payment_methods_{}_{}",
+        customer_id.get_string_repr(),
+        locker_id
+    )
+}
+
+#[cfg(feature = "v1")]
+pub async fn perform_payment_method_duplication_check(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_method_id: &str,
+    customer_id: &id_type::CustomerId,
+    card_detail: &api::CardDetailFromLocker,
+) -> RouterResult<Option<payment_methods::transformers::DataDuplicationCheck>> {
+    let db = &*state.store;
+    let existing_pm_by_locker_id = db
+        .find_payment_method_by_locker_id_customer_id_merchant_id(
+            &(state.into()),
+            merchant_context.get_merchant_key_store(),
+            payment_method_id,
+            customer_id,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await;
+
+    let duplication_check = match &existing_pm_by_locker_id {
+        Ok(pm) => {
+            //check for duplication
+            let card_decrypted = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
+                .and_then(|pmd| match pmd {
+                    api::PaymentMethodsData::Card(card) => {
+                        Some(api::CardDetailFromLocker::from(card))
+                    }
+                    _ => None,
+                })
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to obtain decrypted token object from db")?;
+
+            // Use the duplication check function to compare card details
+            check_for_duplication_of_card_data(card_detail, &card_decrypted)
+        }
+        Err(err) => {
+            logger::error!(
+                "Error fetching existing payment method for locker_id: {}, customer_id: {}: {:?}",
+                payment_method_id,
+                customer_id.get_string_repr(),
+                err
+            );
+            None
+        }
+    };
+
+    Ok(duplication_check)
+}
+
+#[cfg(feature = "v1")]
+pub fn check_for_duplication_of_card_data(
+    card_details: &api::CardDetailFromLocker,
+    card_decrypted: &api::CardDetailFromLocker,
+) -> Option<payment_methods::transformers::DataDuplicationCheck> {
+    if card_details.eq(card_decrypted) {
+        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
+    } else {
+        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
     }
 }
