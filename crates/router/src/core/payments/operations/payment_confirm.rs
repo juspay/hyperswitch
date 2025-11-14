@@ -744,6 +744,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                     None, // update_history
                                     None, // mandate_metadata
                                     None, // connector_mandate_request_reference_id
+                                    None,
                                 ),
                             ),
                         ),
@@ -781,6 +782,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 Some(common_utils::generate_id_with_len(
                     consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )), // connector_mandate_request_reference_id
+                None,
             )),
         );
 
@@ -1379,6 +1381,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
+                            None,
                             None
                         )
                         .await?;
@@ -1430,6 +1433,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
+                    None
                 )
                 .await?;
             let acquirer_configs = authentication

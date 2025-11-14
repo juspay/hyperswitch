@@ -153,6 +153,7 @@ pub async fn make_payout_method_data(
                         expiry_month: resp.card_exp_month,
                         expiry_year: resp.card_exp_year,
                         card_holder_name: resp.name_on_card,
+                        card_network: None,
                     })
                 }))
             }
@@ -286,6 +287,7 @@ pub async fn save_payout_data_to_locker(
                     card_holder_name: card.card_holder_name.to_owned(),
                     card_exp_month: card.expiry_month.to_owned(),
                     card_exp_year: card.expiry_year.to_owned(),
+                    card_cvc: None,
                     nick_name: None,
                     card_issuing_country: None,
                     card_network: None,
@@ -379,7 +381,8 @@ pub async fn save_payout_data_to_locker(
                         api_enums::PaymentMethodType::foreign_from(wallet),
                     ),
                     payouts::PayoutMethodData::Card(_)
-                    | payouts::PayoutMethodData::BankRedirect(_) => {
+                    | payouts::PayoutMethodData::BankRedirect(_)
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -1511,7 +1514,7 @@ pub async fn get_additional_payout_data(
                 payout_additional::AdditionalPayoutMethodData::Card(Box::new(
                     payout_additional::CardAdditionalData {
                         card_issuer: None,
-                        card_network: None,
+                        card_network: card_data.card_network.clone(),
                         bank_code: None,
                         card_type: None,
                         card_issuing_country: None,
@@ -1538,6 +1541,11 @@ pub async fn get_additional_payout_data(
         api::PayoutMethodData::BankRedirect(bank_redirect_data) => {
             Some(payout_additional::AdditionalPayoutMethodData::BankRedirect(
                 Box::new(bank_redirect_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
             ))
         }
     }

@@ -1,4 +1,3 @@
-use common_enums;
 use common_utils::consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH;
 
 pub const MAX_NAME_LENGTH: usize = 70;

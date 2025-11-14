@@ -93,7 +93,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetSubscription
             | Flow::UpdateSubscription
             | Flow::GetSubscriptionEstimate
-            | Flow::GetPlansForSubscription => Self::Subscription,
+            | Flow::GetPlansForSubscription
+            | Flow::PauseSubscription
+            | Flow::ResumeSubscription
+            | Flow::CancelSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
@@ -164,6 +167,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
             | Flow::PaymentMethodBalanceCheck
+            | Flow::ApplyPaymentMethodData
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
@@ -351,7 +355,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthenticationEligibility
             | Flow::AuthenticationSync
             | Flow::AuthenticationSyncPostUpdate
-            | Flow::AuthenticationAuthenticate => Self::Authentication,
+            | Flow::AuthenticationAuthenticate
+            | Flow::AuthenticationSessionToken
+            | Flow::AuthenticationEligibilityCheck
+            | Flow::AuthenticationRetrieveEligibilityCheck => Self::Authentication,
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
