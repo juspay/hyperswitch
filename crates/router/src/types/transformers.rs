@@ -1964,6 +1964,12 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
         }
     }
 }
@@ -1975,6 +1981,32 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::VaultTokenField>
+    for diesel_models::business_profile::VaultTokenField
+{
+    fn foreign_from(item: api_models::admin::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
+    for api_models::admin::VaultTokenField
+{
+    fn foreign_from(item: diesel_models::business_profile::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
         }
     }
 }

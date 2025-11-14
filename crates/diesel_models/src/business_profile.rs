@@ -768,6 +768,13 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub vault_sdk: Option<VaultSdk>,
+    pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct VaultTokenField {
+    pub token_type: common_enums::VaultTokenType,
 }
 
 common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
