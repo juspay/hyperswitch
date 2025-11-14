@@ -11780,12 +11780,6 @@ pub enum Cryptogram {
         #[schema(value_type = Option<String>)]
         authentication_cryptogram: Secret<String>,
     },
-    /// Token Authentication Verification Value (TAVV) cryptogram for network token transactions.
-    Tavv {
-        /// The token authentication cryptogram used for tokenized cards.
-        #[schema(value_type = Option<String>)]
-        token_authentication_cryptogram: Secret<String>,
-    },
 }
 
 /// Represents additional network-level parameters for 3DS processing.

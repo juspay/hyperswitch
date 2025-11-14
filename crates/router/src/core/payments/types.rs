@@ -449,9 +449,6 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
             api_models::payments::Cryptogram::Cavv {
                 authentication_cryptogram,
             } => authentication_cryptogram.clone(),
-            api_models::payments::Cryptogram::Tavv {
-                token_authentication_cryptogram,
-            } => token_authentication_cryptogram.clone(),
         };
 
         Ok(Self {

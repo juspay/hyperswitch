@@ -347,8 +347,8 @@ struct AdyenSplitData {
 struct AdyenMpiData {
     directory_response: common_enums::TransactionStatus,
     authentication_response: common_enums::TransactionStatus,
-    #[serde(flatten)]
-    auth_value: Option<AuthenticationValue>,
+    cavv: Option<Secret<String>>,
+    token_authentication_verification_value: Option<Secret<String>>,
     eci: Option<String>,
     #[serde(rename = "dsTransID")]
     ds_trans_id: Option<String>,
@@ -357,18 +357,6 @@ struct AdyenMpiData {
     challenge_cancel: Option<String>,
     risk_score: Option<String>,
     cavv_algorithm: Option<enums::CavvAlgorithm>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum AuthenticationValue {
-    Cavv {
-        cavv: Secret<String>,
-    },
-    Tavv {
-        #[serde(rename = "token_authentication_verification_value")]
-        tavv: Secret<String>,
-    },
 }
 
 #[derive(Debug, Serialize)]
@@ -3230,18 +3218,6 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                         _ => (None, None, None),
                     };
 
-                let auth_value = match value.0.router_data.request.payment_method_data {
-                    PaymentMethodData::Card(_) => {
-                        let cavv = auth_data.cavv.clone();
-                        Some(AuthenticationValue::Cavv { cavv })
-                    }
-                    PaymentMethodData::NetworkToken(_) => {
-                        let tavv = auth_data.cavv.clone();
-                        Some(AuthenticationValue::Tavv { tavv })
-                    }
-                    _ => None,
-                };
-
                 Some(AdyenMpiData {
                     directory_response: auth_data.transaction_status.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
@@ -3253,14 +3229,11 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                             field_name: "three_ds_data.transaction_status",
                         },
                     )?,
+                    cavv: Some(auth_data.cavv.clone()),
+                    token_authentication_verification_value: None,
                     eci: auth_data.eci.clone(),
                     ds_trans_id: auth_data.ds_trans_id.clone(),
                     three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
-                    auth_value: Some(auth_value.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.auth_value",
-                        },
-                    )?),
                     cavv_algorithm,
                     challenge_cancel,
                     risk_score,
@@ -3834,9 +3807,10 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 Some(PaymentMethodToken::PazeDecrypt(paze_data)) => Some(AdyenMpiData {
                     directory_response: common_enums::TransactionStatus::Success,
                     authentication_response: common_enums::TransactionStatus::Success,
-                    auth_value: Some(AuthenticationValue::Tavv {
-                        tavv: paze_data.token.payment_account_reference,
-                    }),
+                    cavv: None,
+                    token_authentication_verification_value: Some(
+                        paze_data.token.payment_account_reference,
+                    ),
                     eci: paze_data.eci.clone(),
                     ds_trans_id: None,
                     three_ds_version: None,
@@ -3847,9 +3821,8 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 Some(PaymentMethodToken::ApplePayDecrypt(apple_data)) => Some(AdyenMpiData {
                     directory_response: common_enums::TransactionStatus::Success,
                     authentication_response: common_enums::TransactionStatus::Success,
-                    auth_value: Some(AuthenticationValue::Cavv {
-                        cavv: apple_data.payment_data.online_payment_cryptogram,
-                    }),
+                    cavv: Some(apple_data.payment_data.online_payment_cryptogram),
+                    token_authentication_verification_value: None,
                     eci: apple_data.payment_data.eci_indicator.clone(),
                     ds_trans_id: None,
                     three_ds_version: None,
@@ -6586,13 +6559,14 @@ impl
         let mpi_data = AdyenMpiData {
             directory_response: common_enums::TransactionStatus::Success,
             authentication_response: common_enums::TransactionStatus::Success,
-            auth_value: Some(AuthenticationValue::Tavv {
-                tavv: token_data.get_cryptogram().clone().ok_or(
+            cavv: None,
+            token_authentication_verification_value: Some(
+                token_data.get_cryptogram().clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "network_token_data.token_cryptogram",
                     },
                 )?,
-            }),
+            ),
             eci: Some("02".to_string()),
             ds_trans_id: None,
             three_ds_version: None,
