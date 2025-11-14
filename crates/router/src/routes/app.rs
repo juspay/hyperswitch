@@ -2804,8 +2804,8 @@ impl User {
                     web::resource("/user/resend_invite").route(web::post().to(user::resend_invite)),
                 )
                 .service(
-                    web::resource("/generate_token_force_set_password")
-                        .route(web::post().to(user::generate_token_force_set_password)),
+                    web::resource("/terminate_accept_invite")
+                        .route(web::post().to(user::terminate_accept_invite)),
                 )
                 .service(
                     web::resource("/accept_invite_from_email")

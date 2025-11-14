@@ -96,7 +96,7 @@ pub struct AcceptInviteFromEmailRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ValidateOnlyQueryParam {
-    pub validate_only: Option<bool>,
+    pub status_check: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
