@@ -19,7 +19,17 @@ pub mod vars {
 
 /// Current environment.
 #[derive(
-    Debug, Default, Deserialize, Serialize, Clone, Copy, strum::Display, strum::EnumString,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::Display,
+    strum::EnumString,
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
