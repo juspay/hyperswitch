@@ -1,5 +1,4 @@
 use api_models::{admin::PaymentLinkConfig, payments::PaymentLinkData};
-use wasm_bindgen::prelude::*;
 
 use crate::{
     build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html, PaymentLinkFormData,
@@ -7,12 +6,12 @@ use crate::{
 
 const SDK_URL: &str = env!("SDK_URL");
 
-#[wasm_bindgen]
-pub fn generate_payment_link_preview(config_json: &str) -> Result<String, JsValue> {
+/// Implementation function for generating payment link preview
+/// Called by the wasm_bindgen wrapper in lib.rs
+pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, String> {
     let payment_link_details: api_models::payments::PaymentLinkDetails =
-        serde_json::from_str(config_json).map_err(|e| {
-            JsValue::from_str(&format!("Failed to deserialize PaymentLinkDetails: {}", e))
-        })?;
+        serde_json::from_str(config_json)
+            .map_err(|e| format!("Failed to deserialize PaymentLinkDetails: {}", e))?;
 
     let mut payment_link_config = PaymentLinkConfig {
         theme: payment_link_details.theme.clone(),
@@ -52,15 +51,15 @@ pub fn generate_payment_link_preview(config_json: &str) -> Result<String, JsValu
     }
 
     let sdk_url = url::Url::parse(SDK_URL)
-        .map_err(|e| JsValue::from_str(&format!("Invalid SDK URL: {}", e)))?;
+        .map_err(|e| format!("Invalid SDK URL: {}", e))?;
 
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkDetails(Box::new(
         payment_link_details.clone(),
     )))
-    .map_err(|e| JsValue::from_str(&format!("Failed to generate JS script: {:?}", e)))?;
+    .map_err(|e| format!("Failed to generate JS script: {:?}", e))?;
 
     let css_script = get_css_script(&payment_link_config)
-        .map_err(|e| JsValue::from_str(&format!("Failed to generate CSS script: {:?}", e)))?;
+        .map_err(|e| format!("Failed to generate CSS script: {:?}", e))?;
 
     let html_meta_tags = get_meta_tags_html(&payment_link_details);
 
@@ -72,13 +71,14 @@ pub fn generate_payment_link_preview(config_json: &str) -> Result<String, JsValu
     };
 
     build_payment_link_html(payment_link_form_data)
-        .map_err(|e| JsValue::from_str(&format!("Failed to build payment link HTML: {:?}", e)))
+        .map_err(|e| format!("Failed to build payment link HTML: {:?}", e))
 }
 
-#[wasm_bindgen]
-pub fn validate_payment_link_config(config_json: &str) -> Result<String, JsValue> {
+/// Implementation function for validating payment link config
+/// Called by the wasm_bindgen wrapper in lib.rs
+pub fn validate_payment_link_config_impl(config_json: &str) -> Result<String, String> {
     let config: api_models::payments::PaymentLinkDetails = serde_json::from_str(config_json)
-        .map_err(|e| JsValue::from_str(&format!("Failed to parse config: {}", e)))?;
+        .map_err(|e| format!("Failed to parse config: {}", e))?;
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
