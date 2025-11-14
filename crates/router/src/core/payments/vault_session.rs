@@ -102,7 +102,6 @@ where
 
             let _updated_customer = db
                 .update_customer_by_global_id(
-                    &state.into(),
                     &customer_id,
                     customer,
                     updated_customer,

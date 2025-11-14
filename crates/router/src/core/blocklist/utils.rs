@@ -397,7 +397,6 @@ where
     if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
-            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::RejectUpdate {
                 status: common_enums::IntentStatus::Failed,

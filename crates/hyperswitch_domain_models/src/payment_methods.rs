@@ -775,7 +775,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -784,7 +783,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
@@ -793,7 +791,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -802,7 +799,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id_customer_id_merchant_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         customer_id: &id_type::CustomerId,
@@ -813,7 +809,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
@@ -824,7 +819,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
@@ -834,7 +828,6 @@ pub trait PaymentMethodInterface {
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
@@ -847,7 +840,6 @@ pub trait PaymentMethodInterface {
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
@@ -872,7 +864,6 @@ pub trait PaymentMethodInterface {
 
     async fn insert_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         storage_scheme: MerchantStorageScheme,
@@ -880,7 +871,6 @@ pub trait PaymentMethodInterface {
 
     async fn update_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         payment_method_update: PaymentMethodUpdate,
@@ -890,7 +880,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
     ) -> CustomResult<PaymentMethod, Self::Error>;
@@ -898,7 +887,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
@@ -906,7 +894,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,

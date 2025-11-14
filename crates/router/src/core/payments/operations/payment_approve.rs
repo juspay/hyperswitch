@@ -48,7 +48,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
     > {
         let db = &*state.store;
-        let key_manager_state = &state.into();
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let (mut payment_intent, payment_attempt, currency, amount);
@@ -59,7 +58,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                key_manager_state,
                 &payment_id,
                 merchant_id,
                 merchant_context.get_merchant_key_store(),
@@ -84,7 +82,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 profile_id,
             )
@@ -252,7 +249,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent,
                 intent_status_update,
                 key_store,

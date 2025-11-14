@@ -47,12 +47,9 @@ pub async fn payments_check_gift_card_balance_core(
 ) -> RouterResponse<PaymentMethodBalanceCheckResponse> {
     let db = state.store.as_ref();
 
-    let key_manager_state = &(&state).into();
-
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
             merchant_context.get_merchant_key_store(),
             storage_scheme,
@@ -211,11 +208,9 @@ pub async fn payments_apply_pm_data_core(
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<ApplyPaymentMethodDataResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
             merchant_context.get_merchant_key_store(),
             storage_scheme,

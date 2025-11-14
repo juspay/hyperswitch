@@ -148,7 +148,6 @@ pub async fn validate_create_request(
 
     #[cfg(feature = "v1")]
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &state.into(),
         req.business_country,
         req.business_label.as_ref(),
         merchant_context,
@@ -178,7 +177,6 @@ pub async fn validate_create_request(
                 Some(customer) => {
                     let payment_method = db
                         .find_payment_method(
-                            &state.into(),
                             merchant_context.get_merchant_key_store(),
                             &payment_method_id,
                             merchant_context.get_merchant_account().storage_scheme,

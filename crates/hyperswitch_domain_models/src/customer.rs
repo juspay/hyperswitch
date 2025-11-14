@@ -591,7 +591,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -601,7 +600,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -611,7 +609,6 @@ where
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -622,7 +619,6 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
         customer: Customer,
@@ -634,7 +630,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -644,7 +639,6 @@ where
     #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -653,7 +647,6 @@ where
 
     async fn list_customers_by_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: CustomerListConstraints,
@@ -661,7 +654,6 @@ where
 
     async fn list_customers_by_merchant_id_with_count(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: CustomerListConstraints,
@@ -670,7 +662,6 @@ where
     async fn insert_customer(
         &self,
         customer_data: Customer,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
@@ -679,7 +670,6 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: Customer,
         customer_update: CustomerUpdate,
@@ -690,7 +680,6 @@ where
     #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,

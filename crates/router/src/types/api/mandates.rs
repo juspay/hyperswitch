@@ -45,7 +45,6 @@ impl MandateResponseExt for MandateResponse {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(
-                &(state.into()),
                 &key_store,
                 &mandate.payment_method_id,
                 merchant_account.storage_scheme,

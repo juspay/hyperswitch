@@ -894,14 +894,12 @@ where
     type Error;
     async fn insert_merchant(
         &self,
-        state: &keymanager::KeyManagerState,
         merchant_account: MerchantAccount,
         merchant_key_store: &merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<MerchantAccount, Self::Error>;
 
     async fn find_merchant_account_by_merchant_id(
         &self,
-        state: &keymanager::KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<MerchantAccount, Self::Error>;
@@ -913,7 +911,6 @@ where
 
     async fn update_merchant(
         &self,
-        state: &keymanager::KeyManagerState,
         this: MerchantAccount,
         merchant_account: MerchantAccountUpdate,
         merchant_key_store: &merchant_key_store::MerchantKeyStore,
@@ -921,7 +918,6 @@ where
 
     async fn update_specific_fields_in_merchant(
         &self,
-        state: &keymanager::KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: MerchantAccountUpdate,
         merchant_key_store: &merchant_key_store::MerchantKeyStore,
@@ -929,14 +925,12 @@ where
 
     async fn find_merchant_account_by_publishable_key(
         &self,
-        state: &keymanager::KeyManagerState,
         publishable_key: &str,
     ) -> CustomResult<(MerchantAccount, merchant_key_store::MerchantKeyStore), Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        state: &keymanager::KeyManagerState,
         organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<MerchantAccount>, Self::Error>;
 
@@ -948,14 +942,12 @@ where
     #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
-        state: &keymanager::KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<MerchantAccount>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn list_merchant_and_org_ids(
         &self,
-        state: &keymanager::KeyManagerState,
         limit: u32,
         offset: Option<u32>,
     ) -> CustomResult<

@@ -8,7 +8,7 @@ use common_utils::{
     ext_traits::{Encode, StringExt},
     request::RequestContent,
     type_name,
-    types::keymanager::{Identifier, KeyManagerState},
+    types::keymanager::Identifier,
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
@@ -158,7 +158,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     if (state
         .store
         .find_event_by_merchant_id_idempotent_event_id(
-            key_manager_state,
             &merchant_id,
             &idempotent_event_id,
             merchant_context.get_merchant_key_store(),
@@ -181,11 +180,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(
-            key_manager_state,
-            new_event,
-            merchant_context.get_merchant_key_store(),
-        )
+        .insert_event(new_event, merchant_context.get_merchant_key_store())
         .await;
 
     let event = match event_insert_result {
@@ -512,7 +507,6 @@ async fn raise_webhooks_analytics_event(
     event: domain::Event,
     merchant_key_store: &domain::MerchantKeyStore,
 ) {
-    let key_manager_state: &KeyManagerState = &(&state).into();
     let event_id = event.event_id;
 
     let error = if let Err(error) = trigger_webhook_result {
@@ -536,12 +530,7 @@ async fn raise_webhooks_analytics_event(
     // Fetch updated_event from db
     let updated_event = state
         .store
-        .find_event_by_merchant_id_event_id(
-            key_manager_state,
-            &merchant_id,
-            &event_id,
-            merchant_key_store,
-        )
+        .find_event_by_merchant_id_event_id(&merchant_id, &event_id, merchant_key_store)
         .await
         .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
         .map_err(|error| {
@@ -776,7 +765,6 @@ async fn update_event_if_client_error(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            key_manager_state,
             merchant_id,
             event_id,
             event_update,
@@ -897,7 +885,6 @@ async fn update_event_in_storage(
     state
         .store
         .update_event_by_merchant_id_event_id(
-            key_manager_state,
             merchant_id,
             event_id,
             event_update,
@@ -913,8 +900,6 @@ async fn update_overall_delivery_status_in_storage(
     merchant_id: &common_utils::id_type::MerchantId,
     updated_event: domain::Event,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let key_manager_state = &(&state).into();
-
     let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
         is_overall_delivery_successful: true,
     };
@@ -931,7 +916,6 @@ async fn update_overall_delivery_status_in_storage(
         state
             .store
             .update_event_by_merchant_id_event_id(
-                key_manager_state,
                 merchant_id,
                 initial_attempt_id.as_str(),
                 update_overall_delivery_status,

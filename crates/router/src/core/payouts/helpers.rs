@@ -410,7 +410,6 @@ pub async fn save_payout_data_to_locker(
             // Use locker ref as payment_method_id
             let existing_pm_by_pmid = db
                 .find_payment_method(
-                    &(state.into()),
                     merchant_context.get_merchant_key_store(),
                     &locker_ref,
                     merchant_context.get_merchant_account().storage_scheme,
@@ -436,7 +435,6 @@ pub async fn save_payout_data_to_locker(
                     if err.current_context().is_db_not_found() {
                         match db
                             .find_payment_method_by_locker_id(
-                                &(state.into()),
                                 merchant_context.get_merchant_key_store(),
                                 &locker_ref,
                                 merchant_context.get_merchant_account().storage_scheme,
@@ -696,7 +694,6 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
-                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().get_id(),
                 &existing_pm.payment_method_id,
@@ -715,7 +712,6 @@ pub async fn save_payout_data_to_locker(
         };
         payout_data.payment_method = Some(
             db.update_payment_method(
-                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 existing_pm,
                 pm_update,
@@ -796,11 +792,9 @@ pub(super) async fn get_or_create_customer_details(
         .key
         .get_inner()
         .peek();
-    let key_manager_state = &state.into();
 
     match db
         .find_customer_optional_by_customer_id_merchant_id(
-            key_manager_state,
             &customer_id,
             merchant_id,
             merchant_context.get_merchant_key_store(),
@@ -882,7 +876,6 @@ pub(super) async fn get_or_create_customer_details(
                 Ok(Some(
                     db.insert_customer(
                         customer,
-                        key_manager_state,
                         merchant_context.get_merchant_key_store(),
                         merchant_context.get_merchant_account().storage_scheme,
                     )
@@ -932,7 +925,6 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        &(state).into(),
         merchant_context.get_merchant_key_store(),
         Some(&payout_attempt.profile_id),
         merchant_context.get_merchant_account().get_id(),

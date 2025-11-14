@@ -50,11 +50,9 @@ impl PaymentMethodsState {
         payment_method_id: String,
     ) -> CustomResult<pm_domain::PaymentMethod, errors::StorageError> {
         let db = &*self.store;
-        let key_manager_state = &(self.key_manager_state).clone();
 
         match db
             .find_payment_method(
-                key_manager_state,
                 key_store,
                 &payment_method_id,
                 merchant_account.storage_scheme,
@@ -63,7 +61,6 @@ impl PaymentMethodsState {
         {
             Err(err) if err.current_context().is_db_not_found() => {
                 db.find_payment_method_by_locker_id(
-                    key_manager_state,
                     key_store,
                     &payment_method_id,
                     merchant_account.storage_scheme,

@@ -45,12 +45,7 @@ pub async fn upsert_conditional_config(
         three_ds_decision_manager_config: decision_manager_record,
     };
     let updated_profile = db
-        .update_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            profile,
-            business_profile_update,
-        )
+        .update_profile_by_profile_id(&key_store, profile, business_profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update decision manager record in business profile")?;

@@ -48,7 +48,6 @@ pub trait PaymentIntentInterface {
     type Error;
     async fn update_payment_intent(
         &self,
-        state: &KeyManagerState,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
@@ -57,7 +56,6 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
-        state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -66,7 +64,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
@@ -75,7 +72,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::PaymentReferenceId,
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
@@ -85,7 +81,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -94,7 +89,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -104,7 +98,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
@@ -122,7 +115,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -132,7 +124,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,

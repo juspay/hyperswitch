@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -90,7 +90,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _attempt_id: &id_type::GlobalAttemptId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -102,7 +101,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _id: &id_type::GlobalPaymentId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: common_enums::MerchantStorageScheme,
@@ -136,7 +134,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _profile_id: &id_type::ProfileId,
         _connector_transaction_id: &str,
@@ -254,7 +251,6 @@ impl PaymentAttemptInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _payment_attempt: PaymentAttempt,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -291,7 +287,6 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         _this: PaymentAttempt,
         _payment_attempt: PaymentAttemptUpdate,
@@ -360,7 +355,6 @@ impl PaymentAttemptInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         _storage_scheme: storage_enums::MerchantStorageScheme,

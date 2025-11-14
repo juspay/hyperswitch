@@ -70,7 +70,6 @@ pub async fn update_payment_method_record(
 
     let payment_method = db
         .find_payment_method(
-            &state.into(),
             merchant_context.get_merchant_key_store(),
             &payment_method_id,
             merchant_context.get_merchant_account().storage_scheme,
@@ -131,7 +130,6 @@ pub async fn update_payment_method_record(
         for merchant_connector_id in parsed_mca_ids {
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    &state.into(),
                     merchant_context.get_merchant_account().get_id(),
                     &merchant_connector_id,
                     merchant_context.get_merchant_key_store(),
@@ -154,7 +152,6 @@ pub async fn update_payment_method_record(
         (Some(connector_customer_id), Some(cache)) => {
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &state.into(),
                     &payment_method.customer_id,
                     merchant_id,
                     merchant_context.get_merchant_key_store(),
@@ -277,7 +274,6 @@ pub async fn update_payment_method_record(
 
     let response = db
         .update_payment_method(
-            &state.into(),
             merchant_context.get_merchant_key_store(),
             payment_method,
             pm_update,
@@ -293,7 +289,6 @@ pub async fn update_payment_method_record(
         if let (Some(customer_data), Some(customer_update)) = (customer, updated_customer) {
             let updated_customer = db
                 .update_customer_by_customer_id_merchant_id(
-                    &state.into(),
                     response.customer_id.clone(),
                     merchant_id.clone(),
                     customer_data,

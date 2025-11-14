@@ -74,14 +74,12 @@ pub trait MerchantKeyStoreInterface {
     type Error;
     async fn insert_merchant_key_store(
         &self,
-        state: &KeyManagerState,
         merchant_key_store: MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<MerchantKeyStore, Self::Error>;
 
     async fn get_merchant_key_store_by_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<MerchantKeyStore, Self::Error>;
@@ -94,14 +92,12 @@ pub trait MerchantKeyStoreInterface {
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
-        state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<MerchantKeyStore>, Self::Error>;
 
     async fn get_all_key_stores(
         &self,
-        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         to: u32,

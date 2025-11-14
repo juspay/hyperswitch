@@ -92,11 +92,9 @@ pub async fn send_recon_request(
                     recon_status: enums::ReconStatus::Requested,
                 };
                 let db = &*state.store;
-                let key_manager_state = &(&state).into();
 
                 let response = db
                     .update_merchant(
-                        key_manager_state,
                         auth_data.merchant_account,
                         updated_merchant_account,
                         &auth_data.key_store,
@@ -153,7 +151,6 @@ pub async fn recon_merchant_account_update(
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
         recon_status: req.recon_status,
@@ -162,7 +159,6 @@ pub async fn recon_merchant_account_update(
 
     let updated_merchant_account = db
         .update_merchant(
-            key_manager_state,
             auth.merchant_account.clone(),
             updated_merchant_account,
             &auth.key_store,

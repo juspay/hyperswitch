@@ -701,7 +701,6 @@ pub async fn backfill_metadata(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &state.into(),
             &user.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -815,7 +814,6 @@ pub async fn get_merchant_connector_account_by_name(
         state
             .store
             .find_merchant_connector_account_by_merchant_id_connector_name(
-                &state.into(),
                 merchant_id,
                 connector_name,
                 key_store,
