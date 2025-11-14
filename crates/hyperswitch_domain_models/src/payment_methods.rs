@@ -667,7 +667,7 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodToken>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
@@ -922,7 +922,7 @@ pub enum PaymentMethodsSessionUpdateEnum {
         tokenization_data: Option<pii::SecretSerdeValue>,
     },
     UpdateAssociatedPaymentMethods {
-        associated_payment_methods: Option<Vec<String>>,
+        associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodToken>>,
     },
 }
 
@@ -995,7 +995,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodToken>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
