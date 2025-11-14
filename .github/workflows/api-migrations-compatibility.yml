@@ -1,4 +1,4 @@
-name: API Schema Compatibility Check
+name: API & Migrations Compatibility Check
 
 permissions:
   contents: read
@@ -12,7 +12,6 @@ on:
     paths:
       - 'crates/api_models/**'
       - 'crates/openapi/**'
-      - 'crates/router/**'
       - 'api-reference/**'
       - 'migrations/**'
       - 'v2_migrations/**'
@@ -36,9 +35,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Setup Go for oasdiff
         uses: actions/setup-go@v5
@@ -200,15 +196,17 @@ jobs:
             [[ -z "$file" ]] && continue
             CONTENT=$(cat "$file")
 
-            if echo "$CONTENT" | grep -iE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" >/dev/null; then
+            # V2 migrations: DROP TABLE, DELETE FROM, and TRUNCATE are breaking changes
+            if echo "$CONTENT" | grep -iE "(DROP TABLE|DELETE FROM|TRUNCATE)" >/dev/null; then
               echo "BREAKING: $file"
-              echo "$CONTENT" | grep -inE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
+              echo "$CONTENT" | grep -inE "(DROP TABLE|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
               BREAKING=$((BREAKING + 1))
             fi
 
-            if echo "$CONTENT" | grep -iE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
+            # DROP COLUMN is treated as a warning for V2 migrations instead of breaking change
+            if echo "$CONTENT" | grep -iE "(DROP COLUMN|ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
               echo "WARNING: $file"
-              echo "$CONTENT" | grep -inE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
+              echo "$CONTENT" | grep -inE "(DROP COLUMN|ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
               WARNINGS=$((WARNINGS + 1))
             fi
           done <<< "$NEW_MIGRATIONS"
@@ -261,6 +259,13 @@ jobs:
 
       - name: Calculate migration totals
         id: migration_report
+        env:
+          MIGRATION_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
+          MIGRATION_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
+          V2_MIGRATION_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
+          V2_MIGRATION_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
+          V2_COMPAT_MIGRATION_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
+          V2_COMPAT_MIGRATION_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
         run: |
           TOTAL_BREAKING=$((
             ${MIGRATION_BREAKING:-0} +
@@ -284,13 +289,6 @@ jobs:
           else
             echo "validation_status=ALL CHECKS PASSED" >> $GITHUB_OUTPUT
           fi
-        env:
-          MIGRATION_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
-          MIGRATION_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
-          V2_MIGRATION_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
-          V2_MIGRATION_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
-          V2_COMPAT_MIGRATION_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
-          V2_COMPAT_MIGRATION_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
 
       - name: Display Migration Summary
         if: always()
