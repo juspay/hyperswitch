@@ -32,7 +32,6 @@
     "express": "^5.1.0"
   },
   "devDependencies": {
-    "fsevents": "2.3.2",
     "@eslint/js": "^9.33.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
