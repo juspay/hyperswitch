@@ -87,6 +87,13 @@ pub enum DirKeyKind {
     #[serde(rename = "card_bin")]
     CardBin,
     #[strum(
+        serialize = "card_bins",
+        detailed_message = "First 4 to 6 digits of a payment card number",
+        props(Category = "Payment Methods")
+    )]
+    #[serde(rename = "card_bins")]
+    CardBins,
+    #[strum(
         serialize = "card_type",
         detailed_message = "Type of the payment card - eg. credit, debit",
         props(Category = "Payment Methods")
@@ -355,6 +362,7 @@ impl DirKeyKind {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
             Self::CardBin => types::DataType::Number,
+            Self::CardBins => types::DataType::Number,
             Self::CardType => types::DataType::EnumVariant,
             Self::CardNetwork => types::DataType::EnumVariant,
             Self::MetaData => types::DataType::MetadataValue,
@@ -401,6 +409,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::CardBin => None,
+            Self::CardBins => None,
             Self::CardType => Some(enums::CardType::iter().map(DirValue::CardType).collect()),
             Self::MandateAcceptanceType => Some(
                 euclid_enums::MandateAcceptanceType::iter()
@@ -568,6 +577,8 @@ pub enum DirValue {
     PaymentMethod(enums::PaymentMethod),
     #[serde(rename = "card_bin")]
     CardBin(types::NumValue),
+    #[serde(rename = "card_bins")]
+    CardBins(types::NumValue),
     #[serde(rename = "card_type")]
     CardType(enums::CardType),
     #[serde(rename = "card_network")]
@@ -647,6 +658,7 @@ impl DirValue {
         let (kind, data) = match self {
             Self::PaymentMethod(_) => (DirKeyKind::PaymentMethod, None),
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
+            Self::CardBins(_) => (DirKeyKind::CardBins, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
             Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
@@ -692,6 +704,7 @@ impl DirValue {
             Self::MetaData(val) => Some(val.clone()),
             Self::PaymentMethod(_) => None,
             Self::CardBin(_) => None,
+            Self::CardBins(_) => None,
             Self::CardType(_) => None,
             Self::CardNetwork(_) => None,
             Self::PayLaterType(_) => None,
@@ -741,6 +754,7 @@ impl DirValue {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
             Self::CardBin(val) => Some(val.clone()),
+            Self::CardBins(val) => Some(val.clone()),
             Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }

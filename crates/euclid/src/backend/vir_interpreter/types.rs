@@ -151,6 +151,18 @@ impl Context {
         if let Some(card_bin_str) = payment.card_bin.as_deref() {
             if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin_str) {
                 numeric_values.insert(
+                    EuclidKey::CardBins,
+                    EuclidValue::CardBins(types::NumValue {
+                        number: card_bin_minor,
+                        refinement: None,
+                    }),
+                );
+            }
+        }
+
+        if let Some(card_bin_str) = payment.card_bin.as_deref() {
+            if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin_str) {
+                numeric_values.insert(
                     EuclidKey::CardBin,
                     EuclidValue::CardBin(types::NumValue {
                         number: card_bin_minor,
