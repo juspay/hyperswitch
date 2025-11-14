@@ -3739,9 +3739,9 @@ pub enum AdditionalPaymentData {
         interac: Option<InteracPaymentMethod>,
     },
     Wallet {
-        apple_pay: Option<ApplepayPaymentMethod>,
-        google_pay: Option<WalletAdditionalDataForCard>,
-        samsung_pay: Option<WalletAdditionalDataForCard>,
+        apple_pay: Option<Box<ApplepayPaymentMethod>>,
+        google_pay: Option<Box<WalletAdditionalDataForCard>>,
+        samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -5267,6 +5267,12 @@ pub struct ApplepayPaymentMethod {
     #[serde(rename = "type")]
     #[smithy(value_type = "String")]
     pub pm_type: String,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "12")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "25")]
+    pub card_exp_year: Option<Secret<String>>,
 }
 
 #[derive(
@@ -8443,14 +8449,16 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
+                            card_exp_month: apple_pay_pm.card_exp_month,
+                            card_exp_year: apple_pay_pm.card_exp_year,
                         },
                     ))),
                 })),
                 (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                    details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
                 (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
+                    details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },

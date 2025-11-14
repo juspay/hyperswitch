@@ -1193,6 +1193,12 @@ pub struct PaymentMethodDataWalletInfo {
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1201,6 +1207,8 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1211,6 +1219,8 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1229,18 +1239,22 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.network,
             card_type: Some(item.pm_type),
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
 
-impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4,
             network: item.card_network,
             pm_type: item.card_type.get_required_value("card_type")?,
-        })
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
+        }))
     }
 }
 
