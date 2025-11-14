@@ -181,7 +181,7 @@ mod tests {
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
         let config = AwsKmsConfig {
-            key_id: "YOUR AWS KMS KEY ID".to_string(),
+            key_id: Some("YOUR AWS KMS KEY ID".to_string()),
             region: "AWS REGION".to_string(),
         };
 
@@ -202,7 +202,7 @@ mod tests {
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
         let config = AwsKmsConfig {
-            key_id: "YOUR AWS KMS KEY ID".to_string(),
+            key_id: Some("YOUR AWS KMS KEY ID".to_string()),
             region: "AWS REGION".to_string(),
         };
 

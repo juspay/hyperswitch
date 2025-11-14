@@ -34,7 +34,7 @@ impl EncryptionManagementConfig {
         match self {
             #[cfg(feature = "aws_kms")]
             Self::AwsKms { aws_kms } => {
-                use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+                use common_utils::fp_utils::when;
 
                 aws_kms.validate()?;
 
