@@ -406,35 +406,46 @@ pub struct RefundErrorDetails {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundListRequest {
     /// The identifier for the payment
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The identifier for the refund
+    #[smithy(value_type = "Option<String>")]
     pub refund_id: Option<String>,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
+    #[smithy(value_type = "Option<i64>")]
     pub limit: Option<i64>,
     /// The starting point within a list of objects
+    #[smithy(value_type = "Option<i64>")]
     pub offset: Option<i64>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
     /// The amount to filter reufnds list. Amount takes two option fields start_amount and end_amount from which objects can be filtered as per required scenarios (less_than, greater_than, equal_to and range)
+    #[smithy(value_type = "Option<AmountFilter>")]
     pub amount_filter: Option<AmountFilter>,
     /// The list of connectors to filter refunds list
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub connector: Option<Vec<String>>,
     /// The list of merchant connector ids to filter the refunds list for selected label
     #[schema(value_type = Option<Vec<String>>)]
+    #[smithy(value_type = "Option<Vec<String>>")]
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
     #[schema(value_type = Option<Vec<Currency>>)]
+    #[smithy(value_type = "Option<Vec<Currency>>")]
     pub currency: Option<Vec<enums::Currency>>,
     /// The list of refund statuses to filter refunds list
     #[schema(value_type = Option<Vec<RefundStatus>>)]
+    #[smithy(value_type = "Option<Vec<RefundStatus>>")]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 #[cfg(feature = "v2")]
@@ -467,13 +478,17 @@ pub struct RefundListRequest {
     #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
+    #[smithy(value_type = "usize")]
     pub count: usize,
     /// The total number of refunds in the list
+    #[smithy(value_type = "i64")]
     pub total_count: i64,
     /// The List of refund response object
+    #[smithy(value_type = "Vec<RefundResponse>")]
     pub data: Vec<RefundResponse>,
 }
 
