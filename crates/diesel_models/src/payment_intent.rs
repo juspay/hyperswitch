@@ -101,7 +101,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
@@ -697,6 +697,8 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
 }
 
 #[cfg(feature = "v2")]
@@ -741,6 +743,8 @@ impl PaymentIntentUpdateInternal {
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             enable_partial_authorization,
+            active_attempt_id_type,
+            active_attempts_group_id,
         } = self;
 
         PaymentIntent {

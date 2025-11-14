@@ -818,30 +818,78 @@ impl
                 });
 
         match self.response {
-            Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: common_enums::IntentStatus::from(
+            Ok(ref _response) => {
+                // Calculate base status from attempt
+                let base_status = common_enums::IntentStatus::from(
                     self.get_attempt_status_for_db_update(payment_data),
-                ),
-                amount_captured,
-                updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
-            },
-            Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: {
-                    let attempt_status = match error.attempt_status {
-                        // Use the status sent by connector in error_response if it's present
-                        Some(status) => status,
-                        None => match error.status_code {
-                            500..=511 => common_enums::enums::AttemptStatus::Pending,
-                            _ => common_enums::enums::AttemptStatus::Failure,
-                        },
-                    };
+                );
+
+                // Check for special processing case with partial authorization and split payments
+                let status = if self.status == common_enums::enums::AttemptStatus::Pending
+                    && payment_data
+                        .payment_intent
+                        .active_attempts_group_id
+                        .is_some()
+                    && payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .map(|val| *val)
+                        .unwrap_or(false)
+                {
+                    common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                } else {
+                    base_status
+                };
+
+                PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                    status,
+                    amount_captured,
+                    updated_by: storage_scheme.to_string(),
+                    feature_metadata: updated_feature_metadata,
+                }
+            }
+            Err(ref error) => {
+                // Step 1: Determine attempt_status using existing logic
+                let attempt_status = match error.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    },
+                };
+
+                // Step 2: Check if amount was captured
+                let has_captured_amount = amount_captured
+                    .map(|amt| amt > MinorUnit::zero())
+                    .unwrap_or(false);
+
+                // Step 3: Map to intent status based on both attempt_status and amount_captured
+                let status = if has_captured_amount {
+                    match attempt_status {
+                        common_enums::enums::AttemptStatus::Pending => {
+                            // 5xx errors with captured amount
+                            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                        }
+                        common_enums::enums::AttemptStatus::Failure => {
+                            // 4xx or other failures with captured amount
+                            common_enums::IntentStatus::PartiallyCaptured
+                        }
+                        // For any other attempt status, use default conversion
+                        _ => common_enums::IntentStatus::from(attempt_status),
+                    }
+                } else {
+                    // No amount captured - use default conversion
                     common_enums::IntentStatus::from(attempt_status)
-                },
-                amount_captured,
-                updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
-            },
+                };
+
+                PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                    status,
+                    amount_captured,
+                    updated_by: storage_scheme.to_string(),
+                    feature_metadata: updated_feature_metadata,
+                }
+            }
         }
     }
 
@@ -1022,7 +1070,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_capturable
             .or(amount_capturable_from_intent_status)
@@ -1061,11 +1110,11 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
-            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 #[cfg(feature = "v2")]
@@ -1243,7 +1292,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1285,7 +1335,8 @@ impl
             | common_enums::IntentStatus::RequiresConfirmation => None,
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => {
                 todo!()
             }
         }
@@ -1312,28 +1363,76 @@ impl
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
         match self.response {
-            Ok(ref _response) => PaymentIntentUpdate::SyncUpdate {
-                status: common_enums::IntentStatus::from(
+            Ok(ref _response) => {
+                // Calculate base status from attempt
+                let base_status = common_enums::IntentStatus::from(
                     self.get_attempt_status_for_db_update(payment_data),
-                ),
-                amount_captured,
-                updated_by: storage_scheme.to_string(),
-            },
-            Err(ref error) => PaymentIntentUpdate::SyncUpdate {
-                status: {
-                    let attempt_status = match error.attempt_status {
-                        // Use the status sent by connector in error_response if it's present
-                        Some(status) => status,
-                        None => match error.status_code {
-                            200..=299 => common_enums::enums::AttemptStatus::Failure,
-                            _ => self.status,
-                        },
-                    };
+                );
+
+                // Check for special processing case with partial authorization and split payments
+                let status = if self.status == common_enums::enums::AttemptStatus::Pending
+                    && payment_data
+                        .payment_intent
+                        .active_attempts_group_id
+                        .is_some()
+                    && payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .map(|val| *val)
+                        .unwrap_or(false)
+                {
+                    common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                } else {
+                    base_status
+                };
+
+                PaymentIntentUpdate::SyncUpdate {
+                    status,
+                    amount_captured,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
+            Err(ref error) => {
+                // Step 1: Determine attempt_status using existing logic
+                let attempt_status = match error.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error.status_code {
+                        200..=299 => common_enums::enums::AttemptStatus::Failure,
+                        _ => self.status,
+                    },
+                };
+
+                // Step 2: Check if amount was captured
+                let has_captured_amount = amount_captured
+                    .map(|amt| amt > MinorUnit::zero())
+                    .unwrap_or(false);
+
+                // Step 3: Map to intent status based on both attempt_status and amount_captured
+                let status = if has_captured_amount {
+                    match attempt_status {
+                        common_enums::enums::AttemptStatus::Pending => {
+                            // 5xx errors with captured amount
+                            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                        }
+                        common_enums::enums::AttemptStatus::Failure => {
+                            // 4xx or other failures with captured amount
+                            common_enums::IntentStatus::PartiallyCaptured
+                        }
+                        // For any other attempt status, use default conversion
+                        _ => common_enums::IntentStatus::from(attempt_status),
+                    }
+                } else {
+                    // No amount captured - use default conversion
                     common_enums::IntentStatus::from(attempt_status)
-                },
-                amount_captured,
-                updated_by: storage_scheme.to_string(),
-            },
+                };
+
+                PaymentIntentUpdate::SyncUpdate {
+                    status,
+                    amount_captured,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
         }
     }
 
@@ -1485,7 +1584,8 @@ impl
                 Some(total_amount)
             }
             // Invalid statues for this flow
-            common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_capturable
             .or(amount_capturable_from_intent_status)
@@ -1528,7 +1628,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
@@ -1740,7 +1841,8 @@ impl
                 Some(total_amount)
             }
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1767,7 +1869,8 @@ impl
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::CancelledPostCapture => Some(MinorUnit::zero()),
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
@@ -1968,7 +2071,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -2004,7 +2108,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
