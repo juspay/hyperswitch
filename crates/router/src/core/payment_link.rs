@@ -1,6 +1,4 @@
 pub mod validator;
-use std::collections::HashMap;
-
 use actix_web::http::header;
 use api_models::{
     admin::PaymentLinkConfig,

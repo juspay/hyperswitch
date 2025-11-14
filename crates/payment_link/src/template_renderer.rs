@@ -1,6 +1,7 @@
 use error_stack::{Result, ResultExt};
-use hyperswitch_domain_models::api::{PaymentLinkFormData, PaymentLinkStatusData};
 use tera::{Context, Tera};
+
+use crate::types::{PaymentLinkFormData, PaymentLinkStatusData};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PaymentLinkError {

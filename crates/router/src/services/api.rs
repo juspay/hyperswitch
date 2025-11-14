@@ -23,17 +23,17 @@ use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
-        RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
 };
+pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
@@ -51,7 +51,6 @@ pub use hyperswitch_interfaces::{
 use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
-use tera::{Context, Error as TeraError, Tera};
 
 use super::{
     authentication::AuthenticateAndFetch,

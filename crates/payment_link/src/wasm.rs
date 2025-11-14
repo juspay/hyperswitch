@@ -1,10 +1,10 @@
-use api_models::{
-    admin::PaymentLinkConfig,
-    payments::{PaymentLinkData, PaymentLinkFormData},
-};
+use api_models::{admin::PaymentLinkConfig, payments::PaymentLinkData};
 use wasm_bindgen::prelude::*;
 
-use crate::{build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html};
+use crate::{
+    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
+    PaymentLinkFormData,
+};
 
 const SDK_URL: &str = env!("SDK_URL");
 

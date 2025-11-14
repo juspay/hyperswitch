@@ -27,6 +27,8 @@ pub enum Env {
     /// Development environment.
     #[default]
     Development,
+    /// Integration environment.
+    Integ,
     /// Sandbox environment.
     Sandbox,
     /// Production environment.
@@ -44,10 +46,11 @@ pub fn which() -> Env {
 }
 
 /// Three letter (lowercase) prefix corresponding to the current environment.
-/// Either `dev`, `snd` or `prd`.
+/// Either `dev`, `integ`, `snd` or `prd`.
 pub fn prefix_for_env() -> &'static str {
     match which() {
         Env::Development => "dev",
+        Env::Integ => "integ",
         Env::Sandbox => "snd",
         Env::Production => "prd",
     }
