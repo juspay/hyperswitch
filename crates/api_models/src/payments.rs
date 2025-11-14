@@ -24,7 +24,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -11755,7 +11755,7 @@ pub struct ExternalThreeDsData {
     pub ds_trans_id: String,
     /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
     #[schema(value_type = String)]
-    pub version: String,
+    pub version: SemanticVersion,
     /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
     #[schema(value_type = String)]
     pub eci: String,

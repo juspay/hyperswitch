@@ -15,7 +15,7 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
     pii::Email,
     request::Method,
-    types::MinorUnit,
+    types::{MinorUnit, SemanticVersion},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -353,7 +353,7 @@ struct AdyenMpiData {
     #[serde(rename = "dsTransID")]
     ds_trans_id: Option<String>,
     #[serde(rename = "threeDSVersion")]
-    three_ds_version: Option<String>,
+    three_ds_version: Option<SemanticVersion>,
     challenge_cancel: Option<String>,
     risk_score: Option<String>,
     cavv_algorithm: Option<enums::CavvAlgorithm>,
@@ -3233,7 +3233,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                     token_authentication_verification_value: None,
                     eci: auth_data.eci.clone(),
                     ds_trans_id: auth_data.ds_trans_id.clone(),
-                    three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
+                    three_ds_version: auth_data.message_version.clone(),
                     cavv_algorithm,
                     challenge_cancel,
                     risk_score,

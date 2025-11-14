@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::TryFromIntError, str::FromStr};
+use std::{collections::HashMap, num::TryFromIntError};
 
 use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
@@ -455,10 +455,7 @@ impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for Authenticati
             eci: Some(external_auth_data.eci.clone()),
             cavv,
             threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
-            message_version: common_utils::types::SemanticVersion::from_str(
-                &external_auth_data.version,
-            )
-            .ok(),
+            message_version: Some(external_auth_data.version.clone()),
             ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
             created_at: time::PrimitiveDateTime::new(
                 time::OffsetDateTime::now_utc().date(),
