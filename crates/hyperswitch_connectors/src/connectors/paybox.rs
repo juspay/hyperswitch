@@ -51,7 +51,7 @@ use transformers as paybox;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, is_mandate_supported, PaymentMethodDataType, RouterData as _},
+    utils::{self, convert_amount, is_mandate_supported, PaymentMethodDataType, RouterData as _},
 };
 
 #[derive(Clone)]
@@ -252,12 +252,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: paybox::PayboxResponse =
             paybox::parse_paybox_response(res.response, data.is_three_ds())?;
+            
+        let response_integrity_object = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -323,12 +336,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: paybox::PayboxSyncResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
+            
+        let response_integrity_object = utils::get_sync_integrity_object(
+            self.amount_converter,
+            data.request.amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -403,13 +429,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: paybox::PayboxCaptureResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
+        let response_integrity_object = utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(data.request.minor_amount_to_capture),
+            data.request.currency.to_string(),
+        )?;
+
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -483,12 +520,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paybox 
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: paybox::TransactionResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -556,12 +604,23 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paybox {
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: paybox::PayboxSyncResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
+        let response_integrity_object = utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
