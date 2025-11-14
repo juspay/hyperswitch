@@ -33,6 +33,7 @@ getrandom = { version = "0.2.16", optional = true }
 [build-dependencies]
 router_env = { path = "../router_env" }
 toml = "0.8"
+serde = { version = "1.0.219", features = ["derive"] }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
