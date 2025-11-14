@@ -1503,7 +1503,6 @@ pub async fn terminate_accept_invite_only_flow(
         }
     };
 
-
     match user_role.status {
         UserStatus::Active => {
             let current_flow = domain::CurrentFlow::new(
@@ -1520,11 +1519,8 @@ pub async fn terminate_accept_invite_only_flow(
             };
             auth::cookies::set_cookie_response(response, token)
         }
-        UserStatus::InvitationSent => {
-            Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(
-                "User invitation is pending. Please accept the invitation first.",
-            )
-        }
+        UserStatus::InvitationSent => Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("User invitation is pending. Please accept the invitation first."),
     }
 }
 

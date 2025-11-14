@@ -7,7 +7,7 @@ use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
-    enums::{UserRoleVersion},
+    enums::UserRoleVersion,
     role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
