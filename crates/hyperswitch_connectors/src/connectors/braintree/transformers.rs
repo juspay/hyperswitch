@@ -912,14 +912,14 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(txn.id.clone()),
                         redirection_data: Box::new(None),
-                        mandate_reference: Box::new(txn.payment_method.as_ref().map(
-                            |pm| MandateReference {
+                        mandate_reference: Box::new(txn.payment_method.as_ref().map(|pm| {
+                            MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
                                 connector_mandate_request_reference_id: None,
-                            },
-                        )),
+                            }
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
