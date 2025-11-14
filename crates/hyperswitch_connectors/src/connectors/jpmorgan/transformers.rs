@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_enums::enums::CaptureMethod;
+use common_enums::enums::{CaptureMethod, Currency};
 use common_utils::types::MinorUnit;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -84,7 +84,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessTo
 pub struct JpmorganPaymentsRequest {
     capture_method: CapMethod,
     amount: MinorUnit,
-    currency: common_enums::Currency,
+    currency: Currency,
     merchant: JpmorganMerchant,
     payment_method_type: JpmorganPaymentMethodType,
 }
@@ -266,6 +266,8 @@ pub struct JpmorganPaymentsResponse {
     response_message: String,
     payment_method_type: PaymentMethodType,
     capture_method: Option<CapMethod>,
+    pub amount: MinorUnit,
+    pub currency: Currency,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -375,7 +377,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 pub struct JpmorganCaptureRequest {
     capture_method: Option<CapMethod>,
     amount: MinorUnit,
-    currency: Option<common_enums::Currency>,
+    currency: Option<Currency>,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -514,7 +516,7 @@ pub struct TransactionData {
 pub struct JpmorganRefundRequest {
     pub merchant: MerchantRefundReq,
     pub amount: MinorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -549,7 +551,7 @@ pub struct JpmorganRefundResponse {
     pub request_id: String,
     pub transaction_state: JpmorganTransactionState,
     pub amount: MinorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub response_status: JpmorganResponseStatus,
     pub response_code: String,
     pub response_message: String,
@@ -627,8 +629,8 @@ pub struct JpmorganRefundSyncResponse {
     transaction_id: String,
     request_id: String,
     transaction_state: JpmorganTransactionState,
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    pub amount: MinorUnit,
+    pub currency: Currency,
     response_status: JpmorganResponseStatus,
     response_code: String,
 }
