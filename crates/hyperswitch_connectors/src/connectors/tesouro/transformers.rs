@@ -389,18 +389,35 @@ impl TesouroPaymentMethodDetails {
         connector_mandate_id: String,
         additional_payment_data: AdditionalPaymentData,
     ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
-        let (expiration_month, expiration_year) = match additional_payment_data {
+        let (expiration_month, expiration_year, wallet_type) = match additional_payment_data {
             AdditionalPaymentData::Card(additional_card_info) => Ok((
                 additional_card_info.card_exp_month.clone(),
                 Some(additional_card_info.get_card_expiry_year_4_digit()?),
+                None,
             )),
             AdditionalPaymentData::Wallet {
-                apple_pay: _,
-                google_pay: _,
+                apple_pay,
+                google_pay,
                 samsung_pay: _,
-            } => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "expiration date and expiration year",
-            }),
+            } => {
+                if let Some(google_pay_token) = google_pay {
+                    Ok((
+                        google_pay_token.card_exp_month.clone(),
+                        Some(google_pay_token.get_card_expiry_year_4_digit()?),
+                        Some(TesouroWalletType::GooglePay),
+                    ))
+                } else if let Some(apple_pay_token) = apple_pay {
+                    Ok((
+                        apple_pay_token.card_exp_month.clone(),
+                        Some(apple_pay_token.get_card_expiry_year_4_digit()?),
+                        Some(TesouroWalletType::ApplePay),
+                    ))
+                } else {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "expiration date and expiration year",
+                    })
+                }
+            }
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "expiration date and expiration year",
             }),
@@ -413,7 +430,7 @@ impl TesouroPaymentMethodDetails {
                 security_code: TesouroSecurityCode::OmissionReason {
                     omission_reason: TesouroOmissionReason::VerificationNotRequested,
                 },
-                wallet_type: None,
+                wallet_type,
             },
         ))
     }

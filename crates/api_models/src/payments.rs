@@ -705,19 +705,6 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaymentMethodBalanceCheckResponse {
-    /// Global Payment Id for the payment
-    #[schema(value_type = String)]
-    pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the payment method
-    pub balance: MinorUnit,
-    /// The currency of the payment method
-    #[schema(value_type = Currency)]
-    pub currency: common_enums::Currency,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -3600,10 +3587,48 @@ pub struct ApplyPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct ApplyPaymentMethodDataResponse {
+pub struct PMBalanceCheckSuccessResponse {
+    pub balance: MinorUnit,
+    pub applicable_amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PMBalanceCheckFailureResponse {
+    pub error: String,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PMBalanceCheckEligibilityResponse {
+    Success(PMBalanceCheckSuccessResponse),
+    Failure(PMBalanceCheckFailureResponse),
+}
+
+impl PMBalanceCheckEligibilityResponse {
+    pub fn get_balance(&self) -> MinorUnit {
+        match self {
+            Self::Success(resp) => resp.balance,
+            Self::Failure(_) => MinorUnit::zero(),
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct EligibilityBalanceCheckResponseItem {
+    pub payment_method_data: BalanceCheckPaymentMethodData,
+    pub eligibility: PMBalanceCheckEligibilityResponse,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct CheckAndApplyPaymentMethodDataResponse {
+    pub balances: Vec<EligibilityBalanceCheckResponseItem>,
+    /// The amount left after subtracting applied payment method balance from order amount
     pub remaining_amount: MinorUnit,
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// Whether the applied payment method balance is enough for the order amount or additional PM is required
     pub requires_additional_pm_data: bool,
     pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
 }
@@ -3717,9 +3742,9 @@ pub enum AdditionalPaymentData {
         interac: Option<InteracPaymentMethod>,
     },
     Wallet {
-        apple_pay: Option<ApplepayPaymentMethod>,
-        google_pay: Option<WalletAdditionalDataForCard>,
-        samsung_pay: Option<WalletAdditionalDataForCard>,
+        apple_pay: Option<Box<ApplepayPaymentMethod>>,
+        google_pay: Option<Box<WalletAdditionalDataForCard>>,
+        samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -5245,6 +5270,12 @@ pub struct ApplepayPaymentMethod {
     #[serde(rename = "type")]
     #[smithy(value_type = "String")]
     pub pm_type: String,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "12")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "25")]
+    pub card_exp_year: Option<Secret<String>>,
 }
 
 #[derive(
@@ -7286,19 +7317,6 @@ pub struct PaymentsConfirmIntentRequest {
     pub webhook_url: Option<common_utils::types::Url>,
 }
 
-// Serialize is implemented because, this will be serialized in the api events.
-// Usually request types should not have serialize implemented.
-//
-/// Request for Payment method balance check
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentMethodBalanceCheckRequest {
-    /// The payment method data to be used for the balance check request. It can
-    /// only be a payment method that supports checking balance e.g. gift card
-    pub payment_method_data: BalanceCheckPaymentMethodData,
-}
-
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -8434,14 +8452,16 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
+                            card_exp_month: apple_pay_pm.card_exp_month,
+                            card_exp_year: apple_pay_pm.card_exp_year,
                         },
                     ))),
                 })),
                 (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                    details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
                 (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
+                    details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },

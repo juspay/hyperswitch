@@ -1216,7 +1216,7 @@ impl PaymentCreate {
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
                             Some(enums::PaymentMethodType::ApplePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
-                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                    apple_pay: Box::<api_models::payments::ApplepayPaymentMethod>::try_from(
                                         wallet,
                                     )
                                     .inspect_err(|err| {
@@ -1233,7 +1233,7 @@ impl PaymentCreate {
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
-                                    google_pay: Some(wallet.into()),
+                                    google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
                                 })
                             }
@@ -1241,7 +1241,7 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: None,
-                                    samsung_pay: Some(wallet.into()),
+                                    samsung_pay: Some(Box::new(wallet.into())),
                                 })
                             }
                             _ => None,

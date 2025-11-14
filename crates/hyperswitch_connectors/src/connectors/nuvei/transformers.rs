@@ -1214,9 +1214,11 @@ fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
     is_rebilling: Option<IsRebilling>,
     brand: Option<String>,
+    user_token_id: Option<CustomerId>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
         is_rebilling,
+        user_token_id,
         payment_option: PaymentOption {
             card: Some(Card {
                 brand,
@@ -1255,12 +1257,17 @@ where
     } else {
         None
     };
-
+    let user_token_id = if item.request.is_customer_initiated_mandate_payment() {
+        item.request.get_customer_id_optional()
+    } else {
+        None
+    };
     if let Ok(PaymentMethodToken::GooglePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_google_pay_decrypt_data(
             token,
             is_rebilling,
             Some(gpay_data.info.card_network.clone()),
+            user_token_id,
         );
     }
 
@@ -1269,9 +1276,11 @@ where
             gpay_predecrypt_data,
             is_rebilling,
             Some(gpay_data.info.card_network.clone()),
+            user_token_id,
         ),
         GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
+            user_token_id,
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
@@ -1327,9 +1336,11 @@ fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
     is_rebilling: Option<IsRebilling>,
     network: String,
+    user_token_id: Option<CustomerId>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
         is_rebilling,
+        user_token_id,
         payment_option: PaymentOption {
             card: Some(Card {
                 brand: Some(network),
@@ -1383,11 +1394,17 @@ where
     } else {
         None
     };
+    let user_token_id = if item.request.is_customer_initiated_mandate_payment() {
+        item.request.get_customer_id_optional()
+    } else {
+        None
+    };
     if let Ok(PaymentMethodToken::ApplePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_apple_pay_decrypt_data(
             token,
             is_rebilling,
             apple_pay_data.payment_method.network.clone(),
+            user_token_id,
         );
     }
     match apple_pay_data.payment_data {
@@ -1396,11 +1413,13 @@ where
                 apple_pay_predecrypt_data,
                 is_rebilling,
                 apple_pay_data.payment_method.network.clone(),
+                user_token_id,
             )
         }
 
         ApplePayPaymentData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
+            user_token_id,
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
