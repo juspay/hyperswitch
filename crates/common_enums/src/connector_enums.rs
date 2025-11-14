@@ -387,6 +387,7 @@ impl Connector {
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
+                | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
@@ -404,6 +405,10 @@ impl Connector {
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_external_vault(self) -> bool {
+        matches!(self, Self::Vgs)
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {

@@ -102,6 +102,10 @@ impl CardNumber {
         }
         Ok(no_of_supported_card_networks > 1)
     }
+
+    pub fn to_network_token(&self) -> NetworkToken {
+        NetworkToken(self.0.clone())
+    }
 }
 
 impl NetworkToken {
