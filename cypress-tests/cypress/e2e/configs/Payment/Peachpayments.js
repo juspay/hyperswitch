@@ -173,9 +173,6 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      // config: {
-      //   TRIGGER_SKIP: true,
-      // },
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -188,15 +185,6 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        // status: 400,
-        // body: {
-        //   error: {
-        //     code: "IR_19",
-        //     message: "Payment method type not supported",
-        //     reason: "automatic is not supported by peachpayments",
-        //     type: "invalid_request",
-        //   },
-        // },
         status: 200,
         body: {
           status: "succeeded",
