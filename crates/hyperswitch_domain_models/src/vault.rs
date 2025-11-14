@@ -1,6 +1,4 @@
 use api_models::payment_methods;
-#[cfg(feature = "v2")]
-use error_stack;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
@@ -10,7 +8,6 @@ use crate::payment_method_data;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
-    #[cfg(feature = "v2")]
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
 }
@@ -19,7 +16,6 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            #[cfg(feature = "v2")]
             Self::NetworkToken(_) => None,
             Self::CardNumber(_) => None,
         }
@@ -29,7 +25,6 @@ impl PaymentMethodVaultingData {
             Self::Card(card) => payment_method_data::PaymentMethodsData::Card(
                 payment_method_data::CardDetailsPaymentMethod::from(card.clone()),
             ),
-            #[cfg(feature = "v2")]
             Self::NetworkToken(network_token) => {
                 payment_method_data::PaymentMethodsData::NetworkToken(
                     payment_method_data::NetworkTokenDetailsPaymentMethod::from(
@@ -66,7 +61,6 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
             Self::Card(card) => card.card_number.to_string(),
-            #[cfg(feature = "v2")]
             Self::NetworkToken(network_token) => network_token.network_token.to_string(),
             Self::CardNumber(card_number) => card_number.to_string(),
         }

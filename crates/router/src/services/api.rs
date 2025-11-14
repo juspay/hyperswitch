@@ -49,7 +49,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
 use tera::{Context, Error as TeraError, Tera};
 
@@ -228,10 +228,10 @@ where
             }
             .switch()
         })?;
-    session_state.add_request_id(request_id);
+    session_state.add_request_id(request_id.clone());
     let mut request_state = session_state.get_req_state();
 
-    request_state.event_context.record_info(request_id);
+    request_state.event_context.record_info(request_id.clone());
     request_state
         .event_context
         .record_info(("flow".to_string(), flow.to_string()));
@@ -318,8 +318,13 @@ where
         }
     };
 
+    let values: Vec<&serde_json::Value> = [Some(&serialized_request), serialized_response.as_ref()]
+        .into_iter()
+        .flatten()
+        .collect();
+
     let infra = extract_mapped_fields(
-        &serialized_request,
+        &values,
         state.enhancement.as_ref(),
         state.infra_components.as_ref(),
     );
@@ -1854,7 +1859,7 @@ pub fn get_payment_link_status(
 }
 
 pub fn extract_mapped_fields(
-    value: &serde_json::Value,
+    values: &[&serde_json::Value],
     mapping: Option<&HashMap<String, String>>,
     existing_enhancement: Option<&serde_json::Value>,
 ) -> Option<serde_json::Value> {
@@ -1870,9 +1875,19 @@ pub fn extract_mapped_fields(
     };
 
     for (dot_path, output_key) in mapping {
-        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+        let mut extracted_value = None;
+
+        // Try to extract from values in order of priority
+        for value in values {
+            if let Some(found_value) = extract_field_by_dot_path(value, dot_path) {
+                extracted_value = Some(found_value);
+                break;
+            }
+        }
+
+        if let Some(value) = extracted_value {
             if let Some(obj) = enhancement.as_object_mut() {
-                obj.insert(output_key.clone(), extracted_value);
+                obj.insert(output_key.clone(), value);
             }
         }
     }

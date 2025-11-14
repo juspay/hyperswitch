@@ -89,8 +89,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "2f8b321665485d4ccf12a4ab06f4b8f36ece5135", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "2f8b321665485d4ccf12a4ab06f4b8f36ece5135", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "77eaaa6344de9657c83a65ed0d619f48dff0c4a5", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "77eaaa6344de9657c83a65ed0d619f48dff0c4a5", package = "ucs_cards" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.09.24.0", package = "masking" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
@@ -105,7 +105,7 @@ strum = { version = "0.26", features = ["derive"] }
 tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.12.0"
@@ -155,7 +155,7 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
-tokio = "1.45.1"
+tokio = "1.48.0"
 wiremock = "0.6.3"
 
 # First party dev-dependencies

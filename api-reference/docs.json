@@ -18,7 +18,9 @@
             "groups": [
               {
                 "group": "Get Started",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials",
@@ -104,6 +106,14 @@
                     ]
                   },
                   {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
+                    ]
+                  },
+                  {
                     "group": "Payouts",
                     "pages": [
                       "v1/payouts/payouts--create",
@@ -152,7 +162,9 @@
                   },
                   {
                     "group": "Platform Account",
-                    "pages": ["v1/platform/platform--create"]
+                    "pages": [
+                      "v1/platform/platform--create"
+                    ]
                   },
                   {
                     "group": "API Key",
@@ -198,7 +210,9 @@
                   },
                   {
                     "group": "Poll",
-                    "pages": ["v1/poll/poll--retrieve-poll-status"]
+                    "pages": [
+                      "v1/poll/poll--retrieve-poll-status"
+                    ]
                   },
                   {
                     "group": "Blocklist",
@@ -214,6 +228,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
@@ -229,11 +245,16 @@
                   },
                   {
                     "group": "Relay",
-                    "pages": ["v1/relay/relay", "v1/relay/relay--retrieve"]
+                    "pages": [
+                      "v1/relay/relay",
+                      "v1/relay/relay--retrieve"
+                    ]
                   },
                   {
                     "group": "Schemas",
-                    "pages": ["v1/schemas/outgoing--webhook"]
+                    "pages": [
+                      "v1/schemas/outgoing--webhook"
+                    ]
                   },
                   {
                     "group": "Subscriptions",
@@ -260,7 +281,9 @@
             "groups": [
               {
                 "group": "Get Started [BETA]",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials [BETA]",
@@ -285,9 +308,7 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check",
-                      "v2/payments/payments--apply-pm-data"
-
+                      "v2/payments/payments--check-balance-and-apply-pm-data"
                     ]
                   },
                   {
@@ -408,15 +429,21 @@
                 "pages": [
                   {
                     "group": "Proxy",
-                    "pages": ["v2/proxy/proxy"]
+                    "pages": [
+                      "v2/proxy/proxy"
+                    ]
                   },
                   {
                     "group": "Tokenization",
-                    "pages": ["v2/tokenization/tokenization--create"]
+                    "pages": [
+                      "v2/tokenization/tokenization--create"
+                    ]
                   },
                   {
                     "group": "Revenue Recovery",
-                    "pages": ["v2/revenue-recovery/revenue-recovery--retrieve"]
+                    "pages": [
+                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                    ]
                   }
                 ]
               }
@@ -429,14 +456,18 @@
         "groups": [
           {
             "group": "Hyperswitch Card Vault",
-            "pages": ["locker-api-reference/overview"]
+            "pages": [
+              "locker-api-reference/overview"
+            ]
           },
           {
             "group": "API Reference",
             "pages": [
               {
                 "group": "Locker - Health",
-                "pages": ["locker-api-reference/locker-health/get-health"]
+                "pages": [
+                  "locker-api-reference/locker-health/get-health"
+                ]
               },
               {
                 "group": "Locker - Key Custodian",
@@ -454,6 +485,15 @@
                   "locker-api-reference/cards/retrieve-data-from-locker",
                   "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
                 ]
+              },
+              {
+                "group": "Locker - General Purpose Storage",
+                "pages": [
+                  "locker-api-reference/locker-general-purpose-storage/add-data-in-locker",
+                  "locker-api-reference/locker-general-purpose-storage/retrieve-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/delete-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/get-or-insert-the-card-fingerprint"
+                ]
               }
             ]
           }
@@ -464,7 +504,9 @@
         "groups": [
           {
             "group": "Hyperswitch Intelligent Router",
-            "pages": ["intelligent-router-api-reference/overview"]
+            "pages": [
+              "intelligent-router-api-reference/overview"
+            ]
           },
           {
             "group": "API Reference",
@@ -556,6 +598,11 @@
     }
   },
   "contextual": {
-    "options": ["copy", "claude", "chatgpt", "view"]
+    "options": [
+      "copy",
+      "claude",
+      "chatgpt",
+      "view"
+    ]
   }
 }

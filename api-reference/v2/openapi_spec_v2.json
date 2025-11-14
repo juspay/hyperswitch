@@ -2593,71 +2593,13 @@
         ]
       }
     },
-    "/v2/payments/{id}/payment-methods/check-balance": {
+    "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data": {
       "post": {
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Payment Method Balance Check",
-        "description": "Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency",
-        "operationId": "Retrieve Payment Method Balance",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The global payment id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "pro_abcdefghijklmnop"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodBalanceCheckRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Get the Payment Method Balance",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodBalanceCheckResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
-    "/v2/payments/{id}/apply-payment-method-data": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments - Apply PM Data",
-        "description": "Apply the payment method data and recalculate surcharge",
+        "summary": "Payments - Check Balance and Apply PM Data",
+        "description": "Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge",
         "operationId": "Apply Payment Method Data",
         "parameters": [
           {
@@ -2696,7 +2638,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApplyPaymentMethodDataResponse"
+                  "$ref": "#/components/schemas/CheckAndApplyPaymentMethodDataResponse"
                 }
               }
             }
@@ -4903,6 +4845,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5342,32 +5292,6 @@
             "items": {
               "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
             }
-          }
-        }
-      },
-      "ApplyPaymentMethodDataResponse": {
-        "type": "object",
-        "required": [
-          "remaining_amount",
-          "currency",
-          "requires_additional_pm_data"
-        ],
-        "properties": {
-          "remaining_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "requires_additional_pm_data": {
-            "type": "boolean"
-          },
-          "surcharge_details": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
-            },
-            "nullable": true
           }
         }
       },
@@ -6799,6 +6723,14 @@
                 "allOf": [
                   {
                     "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              },
+              "interac": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InteracPaymentMethod"
                   }
                 ],
                 "nullable": true
@@ -8526,6 +8458,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8799,6 +8739,40 @@
           }
         }
       },
+      "CheckAndApplyPaymentMethodDataResponse": {
+        "type": "object",
+        "required": [
+          "balances",
+          "remaining_amount",
+          "currency",
+          "requires_additional_pm_data"
+        ],
+        "properties": {
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibilityBalanceCheckResponseItem"
+            }
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "requires_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the applied payment method balance is enough for the order amount or additional PM is required"
+          },
+          "surcharge_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplyPaymentMethodDataSurchargeResponseItem"
+            },
+            "nullable": true
+          }
+        }
+      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -9053,6 +9027,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -9089,6 +9064,7 @@
           "riskified",
           "xendit",
           "zen",
+          "zift",
           "zsl"
         ]
       },
@@ -11292,6 +11268,21 @@
             }
           }
         ]
+      },
+      "EligibilityBalanceCheckResponseItem": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "eligibility"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PMBalanceCheckEligibilityResponse"
+          }
+        }
       },
       "EliminationAnalyserConfig": {
         "type": "object",
@@ -13671,6 +13662,15 @@
             "type": "string",
             "description": "Email linked with interac account",
             "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
+      },
+      "InteracPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "customer_info": {
+            "type": "object",
             "nullable": true
           }
         }
@@ -16753,6 +16753,62 @@
           }
         }
       },
+      "PMBalanceCheckEligibilityResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "success"
+            ],
+            "properties": {
+              "success": {
+                "$ref": "#/components/schemas/PMBalanceCheckSuccessResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure"
+            ],
+            "properties": {
+              "failure": {
+                "$ref": "#/components/schemas/PMBalanceCheckFailureResponse"
+              }
+            }
+          }
+        ]
+      },
+      "PMBalanceCheckFailureResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "PMBalanceCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "balance",
+          "applicable_amount",
+          "currency"
+        ],
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "applicable_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "Passthrough": {
         "type": "object",
         "required": [
@@ -16940,6 +16996,17 @@
             ],
             "properties": {
               "breadpay_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payjustnow_redirect"
+            ],
+            "properties": {
+              "payjustnow_redirect": {
                 "type": "object"
               }
             }
@@ -17956,39 +18023,6 @@
           "open_banking",
           "mobile_payment"
         ]
-      },
-      "PaymentMethodBalanceCheckRequest": {
-        "type": "object",
-        "description": "Request for Payment method balance check",
-        "required": [
-          "payment_method_data"
-        ],
-        "properties": {
-          "payment_method_data": {
-            "$ref": "#/components/schemas/BalanceCheckPaymentMethodData"
-          }
-        },
-        "additionalProperties": false
-      },
-      "PaymentMethodBalanceCheckResponse": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "balance",
-          "currency"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
-          "balance": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          }
-        }
       },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
@@ -19299,6 +19333,7 @@
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
+          "payjustnow",
           "paypal",
           "paze",
           "pix",
@@ -20309,7 +20344,8 @@
           "amount",
           "created",
           "attempt_count",
-          "return_url"
+          "return_url",
+          "is_split_payment"
         ],
         "properties": {
           "id": {
@@ -20507,6 +20543,10 @@
             "description": "Date time at which payment was updated",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
+          },
+          "is_split_payment": {
+            "type": "boolean",
+            "description": "Indicates if the payment amount is split across multiple payment methods"
           }
         }
       },
@@ -21365,7 +21405,8 @@
           "paypal",
           "stripe",
           "wise",
-          "worldpay"
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -24731,6 +24772,7 @@
           "paytm",
           "payu",
           "peachpayments",
+          "payjustnow",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -24762,6 +24804,7 @@
           "worldpayxml",
           "xendit",
           "zen",
+          "zift",
           "plaid",
           "zsl"
         ]

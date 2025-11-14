@@ -1888,6 +1888,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
             PaymentMethodType::Atome => Self::PayLater,
+            PaymentMethodType::Payjustnow => Self::PayLater,
             PaymentMethodType::Boleto => Self::Voucher,
             PaymentMethodType::Efecty => Self::Voucher,
             PaymentMethodType::PagoEfectivo => Self::Voucher,
@@ -2225,8 +2226,6 @@ impl From<SubscriptionStatus> for Option<EventType> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[derive(serde::Serialize)]

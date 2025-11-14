@@ -80,7 +80,6 @@ use scheduler::utils as pt_utils;
 pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
-use time;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
@@ -4271,7 +4270,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4299,6 +4298,25 @@ where
         shadow_ucs_call_connector_action.clone(),
     )
     .await?;
+
+    if matches!(
+        execution_path,
+        ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
+    ) {
+        let cached_access_token = access_token::get_cached_access_token_for_ucs(
+            state,
+            &connector,
+            merchant_context,
+            router_data.payment_method,
+            payment_data.get_creds_identifier(),
+        )
+        .await?;
+
+        // Set cached access token in router_data if available
+        if let Some(access_token) = cached_access_token {
+            router_data.access_token = Some(access_token);
+        }
+    }
 
     record_time_taken_with(|| async {
         match execution_path {
@@ -4905,6 +4923,7 @@ where
             let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
 
             router_data
                 .call_unified_connector_service(
@@ -4917,6 +4936,7 @@ where
                     ExecutionMode::Primary, // UCS is called in primary mode
                     merchant_order_reference_id,
                     call_connector_action,
+                    creds_identifier,
                 )
                 .await?;
 
@@ -5020,6 +5040,22 @@ where
             let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string());
+            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
+
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
 
             router_data
                 .call_unified_connector_service(
@@ -5032,6 +5068,7 @@ where
                     ExecutionMode::Primary, //UCS is called in primary mode
                     merchant_order_reference_id,
                     call_connector_action,
+                    creds_identifier
                 )
                 .await?;
 
@@ -6443,7 +6480,9 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     Ok(card_brands)
 }
 
-fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+pub fn validate_customer_details_for_click_to_pay(
+    customer_details: &CustomerData,
+) -> RouterResult<()> {
     match (
         customer_details.phone.as_ref(),
         customer_details.phone_country_code.as_ref(),
@@ -9410,6 +9449,7 @@ where
                     mandate_reference_record
                         .connector_mandate_request_reference_id
                         .clone(),
+                    None,
                 ),
             ))
         }
@@ -9481,6 +9521,7 @@ where
                                     None,
                                     mandate_reference_record.mandate_metadata.clone(),
                                     mandate_reference_record.connector_mandate_request_reference_id.clone(),
+                                    None
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
