@@ -349,7 +349,7 @@ struct AdyenMpiData {
     authentication_response: common_enums::TransactionStatus,
     #[serde(flatten)]
     auth_value: Option<AuthenticationValue>,
-    eci: String,
+    eci: Option<String>,
     #[serde(rename = "dsTransID")]
     ds_trans_id: Option<String>,
     #[serde(rename = "threeDSVersion")]
@@ -3206,113 +3206,68 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
 
-        let (cavv_algorithm, challenge_cancel, risk_score) =
-            match &value.0.router_data.request.payment_method_data {
-                PaymentMethodData::Card(card)
-                    if matches!(
-                        card.card_network,
-                        Some(common_enums::CardNetwork::CartesBancaires)
-                    ) =>
-                {
-                    let cartes_params = value
-                        .0
-                        .router_data
-                        .request
-                        .authentication_data
-                        .as_ref()
-                        .and_then(|data| data.cb_network_params.as_ref())
-                        .and_then(|net| net.cartes_bancaires.as_ref());
+        let mpi_data =
+            if let Some(auth_data) = value.0.router_data.request.authentication_data.as_ref() {
+                let (cavv_algorithm, challenge_cancel, risk_score) =
+                    match &value.0.router_data.request.payment_method_data {
+                        PaymentMethodData::Card(card)
+                            if matches!(
+                                card.card_network,
+                                Some(common_enums::CardNetwork::CartesBancaires)
+                            ) =>
+                        {
+                            let cartes_params = auth_data
+                                .cb_network_params
+                                .as_ref()
+                                .and_then(|net| net.cartes_bancaires.as_ref());
 
-                    (
-                        cartes_params.as_ref().map(|cb| cb.cavv_algorithm.clone()),
-                        cartes_params.as_ref().map(|cb| cb.cb_exemption.clone()),
-                        cartes_params.as_ref().map(|cb| cb.cb_score.to_string()),
-                    )
-                }
-                _ => (None, None, None),
+                            (
+                                cartes_params.as_ref().map(|cb| cb.cavv_algorithm.clone()),
+                                cartes_params.as_ref().map(|cb| cb.cb_exemption.clone()),
+                                cartes_params.as_ref().map(|cb| cb.cb_score.to_string()),
+                            )
+                        }
+                        _ => (None, None, None),
+                    };
+
+                let auth_value = match value.0.router_data.request.payment_method_data {
+                    PaymentMethodData::Card(_) => {
+                        let cavv = auth_data.cavv.clone();
+                        Some(AuthenticationValue::Cavv { cavv })
+                    }
+                    PaymentMethodData::NetworkToken(_) => {
+                        let tavv = auth_data.cavv.clone();
+                        Some(AuthenticationValue::Tavv { tavv })
+                    }
+                    _ => None,
+                };
+
+                Some(AdyenMpiData {
+                    directory_response: auth_data.transaction_status.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "three_ds_data.transaction_status",
+                        },
+                    )?,
+                    authentication_response: auth_data.transaction_status.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "three_ds_data.transaction_status",
+                        },
+                    )?,
+                    eci: auth_data.eci.clone(),
+                    ds_trans_id: auth_data.ds_trans_id.clone(),
+                    three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
+                    auth_value: Some(auth_value.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "three_ds_data.auth_value",
+                        },
+                    )?),
+                    cavv_algorithm,
+                    challenge_cancel,
+                    risk_score,
+                })
+            } else {
+                None
             };
-
-        let auth_value = match value.0.router_data.request.payment_method_data {
-            PaymentMethodData::Card(_) => {
-                let cavv = value
-                    .0
-                    .router_data
-                    .request
-                    .authentication_data
-                    .as_ref()
-                    .map(|auth| auth.cavv.clone())
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "authentication_data.cavv",
-                    })?;
-                Some(AuthenticationValue::Cavv { cavv })
-            }
-            PaymentMethodData::NetworkToken(_) => {
-                let tavv = value
-                    .0
-                    .router_data
-                    .request
-                    .authentication_data
-                    .as_ref()
-                    .map(|auth| auth.cavv.clone())
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "authentication_data.cavv",
-                    })?;
-                Some(AuthenticationValue::Tavv { tavv })
-            }
-            _ => None,
-        };
-
-        let mpi_data = AdyenMpiData {
-            directory_response: item
-                .router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .and_then(|d| d.transaction_status.clone())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "three_ds_data.transction_status",
-                })?,
-            authentication_response: item
-                .router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .and_then(|d| d.transaction_status.clone())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "three_ds_data.transction_status",
-                })?,
-            eci: item
-                .router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .and_then(|d| d.eci.clone())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "three_ds_data.eci",
-                })?,
-            ds_trans_id: item
-                .router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .and_then(|d| d.ds_trans_id.clone()),
-            three_ds_version: value
-                .0
-                .router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .and_then(|d| d.message_version.as_ref())
-                .map(|v| v.to_string()),
-            auth_value: Some(
-                auth_value.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "three_ds_data.auth_value",
-                })?,
-            ),
-            cavv_algorithm,
-            challenge_cancel,
-            risk_score,
-        };
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3324,7 +3279,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             recurring_processing_model,
             browser_info,
             additional_data,
-            mpi_data: Some(mpi_data),
+            mpi_data,
             telephone_number,
             shopper_name,
             shopper_email,
@@ -3882,11 +3837,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                     auth_value: Some(AuthenticationValue::Tavv {
                         tavv: paze_data.token.payment_account_reference,
                     }),
-                    eci: paze_data
-                        .eci
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.eci",
-                        })?,
+                    eci: paze_data.eci.clone(),
                     ds_trans_id: None,
                     three_ds_version: None,
                     challenge_cancel: None,
@@ -3899,11 +3850,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                     auth_value: Some(AuthenticationValue::Cavv {
                         cavv: apple_data.payment_data.online_payment_cryptogram,
                     }),
-                    eci: apple_data.payment_data.eci_indicator.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "eci_indicator",
-                        },
-                    )?,
+                    eci: apple_data.payment_data.eci_indicator.clone(),
                     ds_trans_id: None,
                     three_ds_version: None,
                     challenge_cancel: None,
@@ -6646,7 +6593,7 @@ impl
                     },
                 )?,
             }),
-            eci: "02".to_string(),
+            eci: Some("02".to_string()),
             ds_trans_id: None,
             three_ds_version: None,
             challenge_cancel: None,
