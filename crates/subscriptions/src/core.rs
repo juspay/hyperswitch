@@ -745,7 +745,11 @@ pub async fn list_subscriptions(
     let handler = SubscriptionHandler::new(&state, &merchant_context);
 
     let subscriptions = handler
-        .list_subscriptions_by_profile_id(&profile_id, query.limit, query.offset)
+        .list_subscriptions_by_profile_id(
+            &profile_id,
+            Some(query.limit.unwrap_or(10)),
+            Some(query.offset.unwrap_or(0)),
+        )
         .await
         .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
 
