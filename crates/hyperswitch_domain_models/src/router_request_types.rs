@@ -1073,6 +1073,7 @@ pub struct AuthenticationData {
     pub challenge_code: Option<String>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub acs_trans_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,

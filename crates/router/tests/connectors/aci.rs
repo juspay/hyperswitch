@@ -109,6 +109,7 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             message_extension: None,
             acs_trans_id: None,
             authentication_type: None,
+            trans_status: None,
         }),
         ..utils::PaymentAuthorizeType::default().0
     })

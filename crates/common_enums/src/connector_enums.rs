@@ -489,7 +489,6 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
-            | Self::Zift
             | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -588,7 +587,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource |Self::Zift| Self::Archipel | Self::Nuvei            => true,
         }
     }
 
