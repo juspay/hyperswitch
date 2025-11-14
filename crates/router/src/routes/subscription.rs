@@ -472,3 +472,47 @@ pub async fn update_subscription(
     ))
     .await
 }
+
+#[instrument(skip_all)]
+pub async fn list_subscriptions(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<subscription_types::ListSubscriptionQuery>,
+) -> impl Responder {
+    let flow = Flow::GetSubscription;
+    let query = query.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscriptions::list_subscriptions(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                query.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

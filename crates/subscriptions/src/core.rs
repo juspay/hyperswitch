@@ -16,6 +16,7 @@ use crate::{
         billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
         subscription_handler::SubscriptionHandler,
     },
+    helpers::ForeignTryFrom,
     state::SubscriptionState as SessionState,
 };
 
@@ -729,4 +730,31 @@ pub async fn update_subscription(
         subscription.id,
     ))
     .await
+}
+
+pub async fn list_subscriptions(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    query: subscription_types::ListSubscriptionQuery,
+) -> RouterResponse<Vec<SubscriptionResponse>> {
+    SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+        .await
+        .attach_printable("subscriptions: failed to find business profile in list_subscriptions")?;
+
+    let handler = SubscriptionHandler::new(&state, &merchant_context);
+
+    let subscriptions = handler
+        .list_subscriptions_by_profile_id(&profile_id, query.limit, query.offset)
+        .await
+        .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
+
+    let mut subscriptions_resonse = Vec::new();
+    for subscription in subscriptions {
+        let response = SubscriptionResponse::foreign_try_from(&subscription)
+            .attach_printable("subscriptions: failed to convert subscription entry to response")?;
+        subscriptions_resonse.push(response);
+    }
+
+    Ok(ApplicationResponse::Json(subscriptions_resonse))
 }
