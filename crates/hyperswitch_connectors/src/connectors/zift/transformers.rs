@@ -248,19 +248,18 @@ impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationDat
     fn try_from(
         auth_data: &hyperswitch_domain_models::router_request_types::AuthenticationData,
     ) -> Result<Self, Self::Error> {
-        // Map authentication status based on ECI (Electronic Commerce Indicator)
-        // For external 3DS, we determine status from the presence and values of authentication data
-        let authentication_status = if !auth_data.cavv.clone().expose().is_empty() {
-            // If CAVV is present, authentication was successful
-            AuthenticationStatus::Success
-        } else if auth_data.eci.is_some() {
-            // If ECI is present but no CAVV, authentication was attempted
-            AuthenticationStatus::Attempted
-        } else {
-            // No authentication data available
-            AuthenticationStatus::Unavailable
+        // Map authentication status based on trans_status field
+        let authentication_status = match auth_data.trans_status {
+            Some(common_enums::TransactionStatus::Success) => AuthenticationStatus::Success,
+            Some(common_enums::TransactionStatus::NotVerified) => AuthenticationStatus::Attempted,
+            Some(common_enums::TransactionStatus::VerificationNotPerformed)
+            | Some(common_enums::TransactionStatus::Rejected)
+            | Some(common_enums::TransactionStatus::InformationOnly)
+            | Some(common_enums::TransactionStatus::Failure)
+            | Some(common_enums::TransactionStatus::ChallengeRequired)
+            | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | None => AuthenticationStatus::Unavailable,
         };
-
         Ok(authentication_status)
     }
 }
