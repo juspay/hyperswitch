@@ -896,29 +896,38 @@ impl DynamicRoutingAlgorithmRef {
     ) {
         match dynamic_routing_type {
             DynamicRoutingType::SuccessRateBasedRouting => {
-                let existing_algorithm_id = self.success_based_algorithm
+                let existing_algorithm_id = self
+                    .success_based_algorithm
                     .as_ref()
                     .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(
+                        existing_algorithm_id,
+                    ),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::EliminationRouting => {
-                let existing_algorithm_id = self.elimination_routing_algorithm
+                let existing_algorithm_id = self
+                    .elimination_routing_algorithm
                     .as_ref()
                     .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(
+                        existing_algorithm_id,
+                    ),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::ContractBasedRouting => {
-                let existing_algorithm_id = self.contract_based_routing
+                let existing_algorithm_id = self
+                    .contract_based_routing
                     .as_ref()
                     .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
                 self.contract_based_routing = Some(ContractRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(existing_algorithm_id),
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(
+                        existing_algorithm_id,
+                    ),
                     enabled_feature,
                 })
             }

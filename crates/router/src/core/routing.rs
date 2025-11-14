@@ -705,22 +705,27 @@ pub async fn link_routing_config(
 
                         if let Ok(Some(_config)) = existing_config {
                             update_decision_engine_dynamic_routing_setup(
-                            &state,
-                            business_profile.get_id(),
-                            routing_algorithm.algorithm_data.clone(),
-                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
-                            &mut dynamic_routing_ref,
-                        )
-                        .await
-                        .map_err(|err| match err.current_context() {
-                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
-                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
-                                .attach_printable("Decision engine config not found")
-                            }
-                            _ => err
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Unable to setup decision engine dynamic routing"),
-                        })?;
+                                &state,
+                                business_profile.get_id(),
+                                routing_algorithm.algorithm_data.clone(),
+                                routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                                &mut dynamic_routing_ref,
+                            )
+                            .await
+                            .map_err(|err| {
+                                match err.current_context() {
+                                    errors::ApiErrorResponse::GenericNotFoundError { .. } => err
+                                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                        .attach_printable("Decision engine config not found"),
+                                    _ => err
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable(
+                                            "Unable to setup decision engine dynamic routing",
+                                        ),
+                                }
+                            })?;
                         } else {
                             let data: routing_types::SuccessBasedRoutingConfig =
                             routing_algorithm.algorithm_data
