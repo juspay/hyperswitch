@@ -1415,6 +1415,7 @@ pub async fn accept_invite_from_email_token_only_flow(
     }
 }
 
+#[cfg(feature = "email")]
 pub async fn terminate_accept_invite_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
