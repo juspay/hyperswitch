@@ -7,6 +7,7 @@ package.license = "Apache-2.0"
 
 [workspace.dependencies]
 tracing = { version = "0.1.41" }
+smithy = { version = "0.1.0", features = ["derive"] }
 
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 [workspace.lints.rust]
