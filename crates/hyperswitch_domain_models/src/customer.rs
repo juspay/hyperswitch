@@ -246,8 +246,6 @@ impl behaviour::Conversion for Customer {
                 last_modified_by
                     .parse::<CreatedBy>()
                     .inspect_err(|err| {
-                        use router_env::logger;
-
                         logger::error!(
                             "Failed to parse last_modified_by in customer: value='{}', error={:?}",
                             last_modified_by,
