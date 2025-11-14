@@ -890,7 +890,7 @@ pub fn build_redirection_form(
                     var frm = document.getElementById("payment_form");
                     var formFields = frm.querySelectorAll("input");
 
-                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                    if (((frm.getAttribute("method") || "GET").toUpperCase()) === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
                         }}, 300);
