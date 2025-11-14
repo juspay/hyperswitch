@@ -811,6 +811,7 @@ pub struct MultipleWebhookDetail {
     pub webhook_url: Secret<String>,
     pub events: HashSet<common_enums::EventType>,
     pub status: common_enums::OutgoingWebhookEndpointStatus,
+    pub is_legacy_url: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
