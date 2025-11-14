@@ -27,6 +27,9 @@
   },
   "author": "Hyperswitch",
   "license": "ISC",
+  "overrides": {
+    "fsevents": "2.3.2"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0"
