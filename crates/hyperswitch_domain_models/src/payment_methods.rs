@@ -38,6 +38,7 @@ use crate::{
     payment_method_data as domain_payment_method_data,
     transformers::ForeignTryFrom,
     type_encryption::{crypto_operation, CryptoOperation},
+    utils::parse_enum_with_logging,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -427,30 +428,12 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_locker_id: item.network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
-            created_by: item.created_by.and_then(|created_by| {
-                created_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse created_by in payment_method: value='{}', error={:?}",
-                            created_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
-            last_modified_by: item.last_modified_by.and_then(|last_modified_by| {
-                last_modified_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse last_modified_by in payment_method: value='{}', error={:?}",
-                            last_modified_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
+            created_by: item
+                .created_by
+                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+            last_modified_by: item
+                .last_modified_by
+                .map(|last_modified_by| parse_enum_with_logging::<CreatedBy>(&last_modified_by)),
         })
     }
 
@@ -647,32 +630,12 @@ impl super::behaviour::Conversion for PaymentMethod {
                 external_vault_source: storage_model.external_vault_source,
                 external_vault_token_data,
                 vault_type: storage_model.vault_type,
-                created_by: storage_model.created_by.and_then(|created_by| {
-                    created_by
-                        .parse::<CreatedBy>()
-                        .inspect_err(|err| {
-                            logger::error!(
-                                "Failed to parse created_by in payment_method: value='{}', error={:?}",
-                                created_by,
-                                err
-                            );
-                        })
-                        .ok()
+                created_by: storage_model
+                    .created_by
+                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                last_modified_by: storage_model.last_modified_by.map(|last_modified_by| {
+                    parse_enum_with_logging::<CreatedBy>(&last_modified_by)
                 }),
-                last_modified_by: storage_model.last_modified_by.and_then(
-                    |last_modified_by| {
-                        last_modified_by
-                            .parse::<CreatedBy>()
-                            .inspect_err(|err| {
-                                logger::error!(
-                                    "Failed to parse last_modified_by in payment_method: value='{}', error={:?}",
-                                    last_modified_by,
-                                    err
-                                );
-                            })
-                            .ok()
-                    },
-                ),
             })
         }
         .await

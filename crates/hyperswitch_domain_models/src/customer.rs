@@ -18,13 +18,16 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeOptionInterface, PeekInterface, Secret, SwitchStrategy};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
 use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
-use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{
+    behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types,
+    utils::parse_enum_with_logging,
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -230,30 +233,12 @@ impl behaviour::Conversion for Customer {
             updated_by: item.updated_by,
             version: item.version,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            created_by: item.created_by.and_then(|created_by| {
-                created_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse created_by in customer: value='{}', error={:?}",
-                            created_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
-            last_modified_by: item.last_modified_by.and_then(|last_modified_by| {
-                last_modified_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse last_modified_by in customer: value='{}', error={:?}",
-                            last_modified_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
+            created_by: item
+                .created_by
+                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+            last_modified_by: item
+                .last_modified_by
+                .map(|last_modified_by| parse_enum_with_logging::<CreatedBy>(&last_modified_by)),
         })
     }
 
@@ -372,30 +357,12 @@ impl behaviour::Conversion for Customer {
             version: item.version,
             status: item.status,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            created_by: item.created_by.and_then(|created_by| {
-                created_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse created_by in customer: value='{}', error={:?}",
-                            created_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
-            last_modified_by: item.last_modified_by.and_then(|last_modified_by| {
-                last_modified_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse last_modified_by in customer: value='{}', error={:?}",
-                            last_modified_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
+            created_by: item
+                .created_by
+                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+            last_modified_by: item
+                .last_modified_by
+                .map(|last_modified_by| parse_enum_with_logging::<CreatedBy>(&last_modified_by)),
         })
     }
 

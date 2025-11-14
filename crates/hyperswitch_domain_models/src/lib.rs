@@ -46,6 +46,7 @@ pub mod tokenization;
 pub mod transformers;
 pub mod type_encryption;
 pub mod types;
+pub mod utils;
 pub mod vault;
 
 #[cfg(not(feature = "payouts"))]

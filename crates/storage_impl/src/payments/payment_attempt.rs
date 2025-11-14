@@ -28,6 +28,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
+    utils::parse_enum_with_logging,
 };
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
@@ -36,7 +37,7 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v2")]
 use label::*;
 use redis_interface::HsetnxReply;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
@@ -2001,18 +2002,9 @@ impl DataModelExt for PaymentAttempt {
             processor_merchant_id: storage_model
                 .processor_merchant_id
                 .unwrap_or(storage_model.merchant_id),
-            created_by: storage_model.created_by.and_then(|created_by| {
-                created_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse created_by in payment_attempt: value='{}', error={:?}",
-                            created_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
+            created_by: storage_model
+                .created_by
+                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2198,18 +2190,9 @@ impl DataModelExt for PaymentAttemptNew {
             processor_merchant_id: storage_model
                 .processor_merchant_id
                 .unwrap_or(storage_model.merchant_id),
-            created_by: storage_model.created_by.and_then(|created_by| {
-                created_by
-                    .parse::<CreatedBy>()
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse created_by in payment_attempt: value='{}', error={:?}",
-                            created_by,
-                            err
-                        );
-                    })
-                    .ok()
-            }),
+            created_by: storage_model
+                .created_by
+                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
