@@ -2303,9 +2303,18 @@ impl behaviour::Conversion for PaymentAttempt {
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                created_by: storage_model.created_by.and_then(|created_by| {
+                    created_by
+                        .parse::<CreatedBy>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Failed to parse created_by in payment_attempt: value='{}', error={:?}",
+                                created_by,
+                                err
+                            );
+                        })
+                        .ok()
+                }),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 routing_approach: storage_model.routing_approach,
                 connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2707,9 +2716,18 @@ impl behaviour::Conversion for PaymentAttempt {
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                created_by: storage_model.created_by.and_then(|created_by| {
+                    created_by
+                        .parse::<CreatedBy>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Failed to parse created_by in payment_attempt: value='{}', error={:?}",
+                                created_by,
+                                err
+                            );
+                        })
+                        .ok()
+                }),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
                 authorized_amount: storage_model.authorized_amount,

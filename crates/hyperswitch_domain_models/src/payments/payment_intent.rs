@@ -25,6 +25,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{Deserialize, PeekInterface, Secret};
+use router_env::logger;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -2005,9 +2006,18 @@ impl behaviour::Conversion for PaymentIntent {
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                created_by: storage_model.created_by.and_then(|created_by| {
+                    created_by
+                        .parse::<CreatedBy>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Failed to parse created_by in payment_intent: value='{}', error={:?}",
+                                created_by,
+                                err
+                            );
+                        })
+                        .ok()
+                }),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
@@ -2296,9 +2306,18 @@ impl behaviour::Conversion for PaymentIntent {
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                created_by: storage_model.created_by.and_then(|created_by| {
+                    created_by
+                        .parse::<CreatedBy>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Failed to parse created_by in payment_intent: value='{}', error={:?}",
+                                created_by,
+                                err
+                            );
+                        })
+                        .ok()
+                }),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
