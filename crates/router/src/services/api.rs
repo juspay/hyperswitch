@@ -33,7 +33,6 @@ pub use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
 };
-pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
@@ -49,6 +48,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
+pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 

@@ -18,8 +18,10 @@ pub fn build_payment_link_html(
         .change_context(PaymentLinkError::TemplateBuildError)
         .attach_printable("Failed to build payment link's HTML template")?;
 
-    let payment_link_initiator =
-        include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link_initiator.js").to_string();
+    let payment_link_initiator = include_str!(
+        "../../router/src/core/payment_link/payment_link_initiate/payment_link_initiator.js"
+    )
+    .to_string();
     context.insert("payment_link_initiator", &payment_link_initiator);
 
     tera.render("payment_link", &context)
@@ -34,8 +36,10 @@ pub fn build_secure_payment_link_html(
         .change_context(PaymentLinkError::TemplateBuildError)
         .attach_printable("Failed to build payment link's HTML template")?;
 
-    let payment_link_initiator =
-        include_str!("../../router/src/core/payment_link/payment_link_initiate/secure_payment_link_initiator.js").to_string();
+    let payment_link_initiator = include_str!(
+        "../../router/src/core/payment_link/payment_link_initiate/secure_payment_link_initiator.js"
+    )
+    .to_string();
     context.insert("payment_link_initiator", &payment_link_initiator);
 
     tera.render("payment_link", &context)
@@ -48,7 +52,9 @@ fn build_payment_link_template(
 ) -> Result<(Tera, Context), PaymentLinkError> {
     let mut tera = Tera::default();
 
-    let css_template = include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.css").to_string();
+    let css_template =
+        include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.css")
+            .to_string();
     let _ = tera.add_raw_template("payment_link_css", &css_template);
     let mut context = Context::new();
     context.insert("css_color_scheme", &payment_link_data.css_script);
@@ -57,7 +63,9 @@ fn build_payment_link_template(
         .render("payment_link_css", &context)
         .change_context(PaymentLinkError::TemplateRenderError)?;
 
-    let js_template = include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.js").to_string();
+    let js_template =
+        include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.js")
+            .to_string();
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
@@ -80,11 +88,7 @@ fn build_payment_link_template(
                     port
                 ))
             } else {
-                Ok(format!(
-                    "{}://{}",
-                    payment_link_data.sdk_url.scheme(),
-                    host
-                ))
+                Ok(format!("{}://{}", payment_link_data.sdk_url.scheme(), host))
             }
         })?;
     context.insert("sdk_origin", &sdk_origin);
@@ -93,10 +97,14 @@ fn build_payment_link_template(
         .render("payment_link_js", &context)
         .change_context(PaymentLinkError::TemplateRenderError)?;
 
-    let logging_template = include_str!("../../router/src/services/redirection/assets/redirect_error_logs_push.js").to_string();
+    let logging_template =
+        include_str!("../../router/src/services/redirection/assets/redirect_error_logs_push.js")
+            .to_string();
     let locale_template = include_str!("../../router/src/core/payment_link/locale.js").to_string();
 
-    let html_template = include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.html").to_string();
+    let html_template =
+        include_str!("../../router/src/core/payment_link/payment_link_initiate/payment_link.html")
+            .to_string();
     let _ = tera.add_raw_template("payment_link", &html_template);
 
     context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);

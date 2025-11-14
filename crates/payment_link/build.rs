@@ -15,7 +15,10 @@ fn main() {
     // Read and parse SDK URLs TOML file
     #[allow(clippy::panic)]
     let config_content = fs::read_to_string(sdk_config_path).unwrap_or_else(|e| {
-        panic!("Failed to read SDK config file '{}': {}", sdk_config_path, e);
+        panic!(
+            "Failed to read SDK config file '{}': {}",
+            sdk_config_path, e
+        );
     });
 
     #[allow(clippy::panic)]

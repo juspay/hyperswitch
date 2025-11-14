@@ -2,8 +2,7 @@ use api_models::{admin::PaymentLinkConfig, payments::PaymentLinkData};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
-    PaymentLinkFormData,
+    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html, PaymentLinkFormData,
 };
 
 const SDK_URL: &str = env!("SDK_URL");
@@ -28,9 +27,7 @@ pub fn generate_payment_link_preview(config_json: &str) -> Result<String, JsValu
         details_layout: payment_link_details.details_layout,
         branding_visibility: payment_link_details.branding_visibility,
         payment_button_text: payment_link_details.payment_button_text.clone(),
-        custom_message_for_card_terms: payment_link_details
-            .custom_message_for_card_terms
-            .clone(),
+        custom_message_for_card_terms: payment_link_details.custom_message_for_card_terms.clone(),
         payment_button_colour: payment_link_details.payment_button_colour.clone(),
         skip_status_screen: payment_link_details.skip_status_screen,
         background_colour: payment_link_details.background_colour.clone(),

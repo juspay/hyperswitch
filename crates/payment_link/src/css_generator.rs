@@ -9,9 +9,7 @@ pub enum PaymentLinkError {
     InvalidCssSelector(String),
 }
 
-pub fn get_css_script(
-    payment_link_config: &PaymentLinkConfig,
-) -> Result<String, PaymentLinkError> {
+pub fn get_css_script(payment_link_config: &PaymentLinkConfig) -> Result<String, PaymentLinkError> {
     let custom_rules_css_option = payment_link_config
         .payment_link_ui_rules
         .as_ref()
