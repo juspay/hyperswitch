@@ -209,19 +209,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.request.capture_method.unwrap_or_default() {
-            CaptureMethod::Automatic => {
-                return Ok(format!(
-                    "{}/transactions/create-and-confirm",
-                    self.base_url(connectors)
-                ))
-            }
-            CaptureMethod::Manual => {
-                return Ok(format!("{}/transactions", self.base_url(connectors)))
-            }
+            CaptureMethod::Automatic => Ok(format!(
+                "{}/transactions/create-and-confirm",
+                self.base_url(connectors)
+            )),
+            CaptureMethod::Manual => Ok(format!("{}/transactions", self.base_url(connectors))),
             CaptureMethod::ManualMultiple
             | CaptureMethod::Scheduled
             | CaptureMethod::SequentialAutomatic => {
-                return Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
             }
         }
     }
