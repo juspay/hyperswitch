@@ -104,6 +104,8 @@ impl UnifiedAuthenticationService for ClickToPay {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
 
         let authentication_info = Some(AuthenticationInfo {
@@ -331,6 +333,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
@@ -408,6 +412,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
             browser_details,
@@ -416,6 +422,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 currency,
                 device_channel: Some(device_channel),
                 message_category: Some(message_category),
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             },
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
@@ -460,6 +468,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -474,6 +484,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -1391,6 +1403,8 @@ pub async fn authentication_authenticate_core(
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
+        authentication.force_3ds_challenge,
+        authentication.psd2_sca_exemption_type,
     )
     .await?;
 
@@ -1824,6 +1838,8 @@ pub async fn authentication_sync_core(
             currency: authentication.currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
 
         let authentication_info = Some(AuthenticationInfo {
