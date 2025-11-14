@@ -4,6 +4,41 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.14.0
+
+### Features
+
+- **connector:** [Envoy] template code for connector ([#10220](https://github.com/juspay/hyperswitch/pull/10220)) ([`1b5f4ac`](https://github.com/juspay/hyperswitch/commit/1b5f4acacd257dc93374e773eef1402c6ac78479))
+- **payment_method:** Auth token details vaulting through external vault ([#10020](https://github.com/juspay/hyperswitch/pull/10020)) ([`4179a80`](https://github.com/juspay/hyperswitch/commit/4179a803bbd26802d372eca8177e6f6da5397ac1))
+
+### Bug Fixes
+
+- **cybersource:** Update error handling to use message instead of reason in response ([#10224](https://github.com/juspay/hyperswitch/pull/10224)) ([`6d7349e`](https://github.com/juspay/hyperswitch/commit/6d7349ed4f9743a56553cc65936adbb8ffba75f8))
+- **noon:** Update error message handling to use the correct field in error responses ([#10219](https://github.com/juspay/hyperswitch/pull/10219)) ([`1d12229`](https://github.com/juspay/hyperswitch/commit/1d12229986996b5c0588a08eb20e9766d9ea60f4))
+- Resolved Diff checks of Hyperswitch<>UCS tunnel ([#10229](https://github.com/juspay/hyperswitch/pull/10229)) ([`8bf452a`](https://github.com/juspay/hyperswitch/commit/8bf452a4d3369af2dcef9c4bcfaa796223ece9d7))
+
+### Refactors
+
+- **connector:** [Gigadat] add phone country code in interac required fields ([#10255](https://github.com/juspay/hyperswitch/pull/10255)) ([`c01f698`](https://github.com/juspay/hyperswitch/commit/c01f6980e9417eac6dc8a4183d078776cbdeedb7))
+
+**Full Changelog:** [`2025.11.13.2...2025.11.14.0`](https://github.com/juspay/hyperswitch/compare/2025.11.13.2...2025.11.14.0)
+
+- - -
+
+## 2025.11.13.2
+
+### Features
+
+- **nmi:** Add support for apple pay mandates ([#10241](https://github.com/juspay/hyperswitch/pull/10241)) ([`b9169ea`](https://github.com/juspay/hyperswitch/commit/b9169ea02207a938de0849fe4181232a6a322e0f))
+
+### Bug Fixes
+
+- **core:** Update setup_future_usage in payment_update_intent flow ([#10243](https://github.com/juspay/hyperswitch/pull/10243)) ([`23bc483`](https://github.com/juspay/hyperswitch/commit/23bc483c379a6e3026568992d04fb606111cbbe2))
+
+**Full Changelog:** [`2025.11.13.1...2025.11.13.2`](https://github.com/juspay/hyperswitch/compare/2025.11.13.1...2025.11.13.2)
+
+- - -
+
 ## 2025.11.13.1
 
 ### Features
