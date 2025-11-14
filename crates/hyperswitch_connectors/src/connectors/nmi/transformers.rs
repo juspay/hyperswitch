@@ -424,11 +424,16 @@ pub struct NmiValidateRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
-    ccnumber: CardNumber,
-    ccexp: Secret<String>,
-    cvv: Secret<String>,
+    #[serde(flatten)]
+    payment_data: NmiValidatePaymentData,
     orderid: String,
     customer_vault: CustomerAction,
+}
+
+#[derive(Debug, Serialize)]
+pub enum NmiValidatePaymentData {
+    ApplePay(Box<ApplePayData>),
+    Card(Box<CardData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -767,13 +772,49 @@ impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
             _ => {
                 if let PaymentMethodData::Card(card_details) = &item.request.payment_method_data {
                     let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-                    Ok(Self {
-                        transaction_type: TransactionType::Validate,
-                        security_key: auth_type.api_key,
+
+                    let card_data = CardData {
                         ccnumber: card_details.card_number.clone(),
                         ccexp: card_details
                             .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                         cvv: card_details.card_cvc.clone(),
+                    };
+                    Ok(Self {
+                        transaction_type: TransactionType::Validate,
+                        security_key: auth_type.api_key,
+                        payment_data: NmiValidatePaymentData::Card(Box::new(card_data)),
+                        orderid: item.connector_request_reference_id.clone(),
+                        customer_vault: CustomerAction::AddCustomer,
+                    })
+                } else if let PaymentMethodData::Wallet(WalletData::ApplePay(
+                    apple_pay_wallet_data,
+                )) = &item.request.payment_method_data
+                {
+                    let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+
+                    let apple_pay_encrypted_data = apple_pay_wallet_data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(ConnectorError::MissingRequiredField {
+                            field_name: "Apple pay encrypted data",
+                        })?;
+
+                    let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
+                        .decode(apple_pay_encrypted_data)
+                        .change_context(ConnectorError::InvalidDataFormat {
+                            field_name: "apple_pay_encrypted_data",
+                        })?;
+
+                    let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
+
+                    let apple_pay_data = ApplePayData {
+                        applepay_payment_data: Secret::new(hex_encoded_apple_pay_data),
+                    };
+
+                    Ok(Self {
+                        transaction_type: TransactionType::Validate,
+                        security_key: auth_type.api_key,
+                        payment_data: NmiValidatePaymentData::ApplePay(Box::new(apple_pay_data)),
                         orderid: item.connector_request_reference_id.clone(),
                         customer_vault: CustomerAction::AddCustomer,
                     })

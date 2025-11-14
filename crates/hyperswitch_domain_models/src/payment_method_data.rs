@@ -876,12 +876,12 @@ pub struct NetworkTokenData {
     pub eci: Option<String>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenDetails {
     pub network_token: cards::NetworkToken,
     pub network_token_exp_month: Secret<String>,
     pub network_token_exp_year: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
@@ -2529,7 +2529,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-#[cfg(feature = "v2")]
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
@@ -2609,6 +2608,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_number: card_data.card_number.clone(),
             card_exp_month: card_data.card_exp_month.clone(),
             card_exp_year: card_data.card_exp_year.clone(),
+            card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2626,6 +2626,7 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_number: network_token_data.token_number.clone(),
             card_exp_month: network_token_data.token_exp_month.clone(),
             card_exp_year: network_token_data.token_exp_year.clone(),
+            card_cvc: None,
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2662,6 +2663,7 @@ impl
                 card_issuer,
                 card_issuing_country,
                 card_type,
+                ..
             },
             card_token_data,
             co_badged_card_data,
