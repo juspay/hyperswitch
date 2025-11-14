@@ -20,8 +20,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
-            set_access_token_for_ucs, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, extract_connector_response_from_ucs,
+            get_access_token_from_ucs_response, set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -269,6 +269,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     self.status = status;
                     response
                 });
+
+                let connector_response = extract_connector_response_from_ucs(
+                    payment_get_response.connector_response.as_ref(),
+                );
+
                 self.response = router_data_response;
                 self.amount_captured = payment_get_response.captured_amount;
                 self.minor_amount_captured = payment_get_response
@@ -279,6 +284,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .clone()
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 self.connector_http_status_code = Some(status_code);
+
+                connector_response.map(|customer_response| {
+                    self.connector_response = Some(customer_response);
+                });
             }
             common_enums::CallConnectorAction::UCSHandleResponse(_)
             | common_enums::CallConnectorAction::Trigger => {
@@ -346,7 +355,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .merchant_reference_id(merchant_reference_id)
                     .lineage_ids(lineage_ids);
                 let connector_name = self.connector.clone();
-                let updated_router_data = Box::pin(ucs_logging_wrapper(
+                let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
                     self.clone(),
                     state,
                     payment_get_request,
@@ -415,7 +424,15 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .map(|raw_connector_response| raw_connector_response.expose().into());
                         router_data.connector_http_status_code = Some(status_code);
 
-                        Ok((router_data, payment_get_response))
+                        let connector_response = extract_connector_response_from_ucs(
+                            payment_get_response.connector_response.as_ref(),
+                        );
+
+                        connector_response.map(|customer_response| {
+                            router_data.connector_response = Some(customer_response);
+                        });
+
+                        Ok((router_data, (), payment_get_response))
                     },
                 ))
                 .await?;

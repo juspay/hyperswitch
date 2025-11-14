@@ -12,14 +12,11 @@ use hyperswitch_domain_models::{
         ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId,
-    },
+    router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -29,7 +26,11 @@ use serde_json::Value;
 
 use crate::{
     constants,
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     unimplemented_payment_method,
     utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
@@ -120,7 +121,7 @@ pub enum BankOfAmericaActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaAuthorizationOptions {
     initiator: Option<BankOfAmericaPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -652,7 +653,7 @@ impl
                     None,
                     Some(BankOfAmericaAuthorizationOptions {
                         initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount: Some(utils::get_amount_as_string(
                                 &api::CurrencyUnit::Base,
@@ -1660,24 +1661,12 @@ fn get_payment_response(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1765,24 +1754,12 @@ fn convert_to_additional_payment_method_connector_response(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1802,24 +1779,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1869,24 +1834,12 @@ pub struct ApplicationInformation {
     status: Option<BankofamericaPaymentStatus>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
+    for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(app_status) => {
@@ -2729,7 +2682,7 @@ fn get_boa_mandate_action_details() -> (
                 credential_stored_on_file: Some(true),
                 stored_credential_used: None,
             }),
-            merchant_intitiated_transaction: None,
+            merchant_initiated_transaction: None,
         }),
     )
 }

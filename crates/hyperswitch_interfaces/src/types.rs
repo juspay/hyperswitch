@@ -416,7 +416,7 @@ pub type ExternalVaultCreateType =
     dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
 /// Proxy configuration structure
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
 pub struct Proxy {
     /// The URL of the HTTP proxy server.
@@ -451,6 +451,12 @@ impl Default for Proxy {
     }
 }
 
+impl Proxy {
+    /// Check if any proxy configuration is present
+    pub fn has_proxy_config(&self) -> bool {
+        self.http_url.is_some() || self.https_url.is_some()
+    }
+}
 /// Proxy override configuration for rollout-based proxy switching
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProxyOverride {
