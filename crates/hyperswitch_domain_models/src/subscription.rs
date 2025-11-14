@@ -73,6 +73,8 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
+    pub addons: Option<Vec<api_models::subscription::AddonsDetails>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -139,6 +141,13 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: self.merchant_reference_id,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            coupon_codes: self.coupon_codes,
+            addons: self.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .map(|addon| serde_json::to_value(addon).unwrap_or_default())
+                    .collect()
+            }),
         })
     }
 
@@ -168,6 +177,13 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: item.merchant_reference_id,
             plan_id: item.plan_id,
             item_price_id: item.item_price_id,
+            coupon_codes: item.coupon_codes,
+            addons: item.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .filter_map(|addon_value| serde_json::from_value(addon_value).ok())
+                    .collect()
+            }),
         })
     }
 
@@ -187,6 +203,13 @@ impl super::behaviour::Conversion for Subscription {
             self.merchant_reference_id,
             self.plan_id,
             self.item_price_id,
+            self.coupon_codes,
+            self.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .map(|addon| serde_json::to_value(addon).unwrap_or_default())
+                    .collect()
+            }),
         ))
     }
 }
@@ -226,6 +249,8 @@ pub struct SubscriptionUpdate {
     pub modified_at: PrimitiveDateTime,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
+    pub addons: Option<Vec<api_models::subscription::AddonsDetails>>,
 }
 
 impl SubscriptionUpdate {
@@ -235,6 +260,8 @@ impl SubscriptionUpdate {
         status: Option<String>,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<api_models::subscription::AddonsDetails>>,
     ) -> Self {
         Self {
             connector_subscription_id,
@@ -243,11 +270,13 @@ impl SubscriptionUpdate {
             modified_at: common_utils::date_time::now(),
             plan_id,
             item_price_id,
+            coupon_codes,
+            addons,
         }
     }
 
     pub fn update_status(status: String) -> Self {
-        Self::new(None, None, Some(status), None, None)
+        Self::new(None, None, Some(status), None, None, None, None)
     }
 }
 
@@ -264,6 +293,13 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: self.modified_at,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            coupon_codes: self.coupon_codes,
+            addons: self.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .map(|addon| serde_json::to_value(addon).unwrap_or_default())
+                    .collect()
+            }),
         })
     }
 
@@ -283,6 +319,13 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: item.modified_at,
             plan_id: item.plan_id,
             item_price_id: item.item_price_id,
+            coupon_codes: item.coupon_codes,
+            addons: item.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .filter_map(|addon_value| serde_json::from_value(addon_value).ok())
+                    .collect()
+            }),
         })
     }
 
@@ -294,6 +337,13 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: self.modified_at,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            coupon_codes: self.coupon_codes,
+            addons: self.addons.map(|addon_list| {
+                addon_list
+                    .into_iter()
+                    .map(|addon| serde_json::to_value(addon).unwrap_or_default())
+                    .collect()
+            }),
         })
     }
 }

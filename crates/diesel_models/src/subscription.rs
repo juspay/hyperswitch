@@ -24,6 +24,8 @@ pub struct SubscriptionNew {
     merchant_reference_id: Option<String>,
     plan_id: Option<String>,
     item_price_id: Option<String>,
+    coupon_codes: Option<Vec<String>>,
+    addons: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(
@@ -47,6 +49,10 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub coupon_codes: Option<Vec<String>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
+    pub addons: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -58,6 +64,8 @@ pub struct SubscriptionUpdate {
     pub modified_at: time::PrimitiveDateTime,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub coupon_codes: Option<Vec<String>>,
+    pub addons: Option<Vec<serde_json::Value>>,
 }
 
 impl SubscriptionNew {
@@ -77,6 +85,8 @@ impl SubscriptionNew {
         merchant_reference_id: Option<String>,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<serde_json::Value>>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
@@ -96,6 +106,8 @@ impl SubscriptionNew {
             merchant_reference_id,
             plan_id,
             item_price_id,
+            coupon_codes,
+            addons,
         }
     }
 
@@ -114,6 +126,8 @@ impl SubscriptionUpdate {
         status: Option<String>,
         plan_id: Option<String>,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<serde_json::Value>>,
     ) -> Self {
         Self {
             connector_subscription_id,
@@ -122,6 +136,8 @@ impl SubscriptionUpdate {
             modified_at: common_utils::date_time::now(),
             plan_id,
             item_price_id,
+            coupon_codes,
+            addons,
         }
     }
 }
