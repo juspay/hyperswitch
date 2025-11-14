@@ -111,9 +111,10 @@ pub enum OperationId {
 
 // Represents the payment metadata for Worldpay Vantiv.
 // The `report_group` field is an Option<String> to account for cases where the report group might not be provided in the metadata.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct WorldpayvantivPaymentMetadata {
     pub report_group: Option<String>,
+    pub fraud_filter_override: Option<bool>,
 }
 
 // Represents the merchant connector account metadata for Worldpay Vantiv
@@ -121,6 +122,7 @@ pub struct WorldpayvantivPaymentMetadata {
 pub struct WorldpayvantivMetadataObject {
     pub report_group: String,
     pub merchant_config_currency: common_enums::Currency,
+    pub fraud_filter_override: Option<bool>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
@@ -256,6 +258,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_filter_override: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
@@ -293,6 +297,8 @@ pub struct Sale {
     pub original_network_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_partial_auth: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_filter_override: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -707,7 +713,8 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             &item.router_data.request.payment_method_data,
             item.router_data.payment_method_token.clone(),
         )?;
-        let report_group = item
+
+        let worldpayvantivmetadata = item
             .router_data
             .request
             .metadata
@@ -717,9 +724,18 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     payment_metadata,
                 ))
             })
-            .transpose()?
+            .transpose()?;
+
+        let report_group = worldpayvantivmetadata
+            .clone()
             .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
             .unwrap_or(worldpayvantiv_metadata.report_group);
+
+        let fraud_filter_override = worldpayvantivmetadata
+            .clone()
+            .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.fraud_filter_override)
+            .or(worldpayvantiv_metadata.fraud_filter_override);
+
         let worldpayvantiv_auth_type =
             WorldpayvantivAuthType::try_from(&item.router_data.connector_auth_type)?;
         let authentication = Authentication {
@@ -748,6 +764,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     Some(Sale {
                         id: format!("{}_{merchant_txn_id}", OperationId::Sale),
                         report_group: report_group.clone(),
+                        fraud_filter_override,
                         customer_id,
                         order_id: item.router_data.connector_request_reference_id.clone(),
                         amount: item.amount,
@@ -782,6 +799,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     Some(Authorization {
                         id: format!("{operation_id}_{merchant_txn_id}"),
                         report_group: report_group.clone(),
+                        fraud_filter_override,
                         customer_id,
                         order_id: item.router_data.connector_request_reference_id.clone(),
                         amount: item.amount,
@@ -846,7 +864,8 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             &item.request.payment_method_data,
             item.payment_method_token.clone(),
         )?;
-        let report_group = item
+
+        let worldpayvativmetadata = item
             .request
             .metadata
             .clone()
@@ -855,9 +874,15 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
                     payment_metadata.expose(),
                 ))
             })
-            .transpose()?
+            .transpose()?;
+        let report_group = worldpayvativmetadata
+            .clone()
             .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
             .unwrap_or(worldpayvantiv_metadata.report_group);
+        let fraud_filter_override = worldpayvativmetadata
+            .clone()
+            .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.fraud_filter_override)
+            .or(worldpayvantiv_metadata.fraud_filter_override);
         let worldpayvantiv_auth_type = WorldpayvantivAuthType::try_from(&item.connector_auth_type)?;
         let authentication = Authentication {
             user: worldpayvantiv_auth_type.user,
@@ -885,6 +910,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
         let authorization_data = Authorization {
             id: format!("{}_{merchant_txn_id}", OperationId::Sale),
             report_group: report_group.clone(),
+            fraud_filter_override,
             customer_id,
             order_id: item.connector_request_reference_id.clone(),
             amount: MinorUnit::zero(),
@@ -1975,6 +2001,18 @@ impl<F>
                 } else {
                     let report_group = WorldpayvantivPaymentMetadata {
                         report_group: Some(sale_response.report_group.clone()),
+                        fraud_filter_override: item
+                        .data
+                        .request
+                        .metadata
+                        .clone()
+                        .map(|payment_metadata| {
+                            connector_utils::to_connector_meta::<WorldpayvantivPaymentMetadata>(Some(
+                                payment_metadata,
+                            ))
+                        })
+                        .transpose()?
+                        .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.fraud_filter_override)
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
@@ -2049,6 +2087,18 @@ impl<F>
                 } else {
                     let report_group = WorldpayvantivPaymentMetadata {
                         report_group: Some(auth_response.report_group.clone()),
+                        fraud_filter_override: item
+                        .data
+                        .request
+                        .metadata
+                        .clone()
+                        .map(|payment_metadata| {
+                            connector_utils::to_connector_meta::<WorldpayvantivPaymentMetadata>(Some(
+                                payment_metadata,
+                            ))
+                        })
+                        .transpose()?
+                        .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.fraud_filter_override)
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
@@ -2167,6 +2217,20 @@ impl<F>
                 } else {
                     let report_group = WorldpayvantivPaymentMetadata {
                         report_group: Some(auth_response.report_group.clone()),
+                        fraud_filter_override: item
+                            .data
+                            .request
+                            .metadata
+                            .clone()
+                            .map(|payment_metadata| {
+                                connector_utils::to_connector_meta::<WorldpayvantivPaymentMetadata>(
+                                    Some(payment_metadata.expose()),
+                                )
+                            })
+                            .transpose()?
+                            .and_then(|worldpayvantiv_metadata| {
+                                worldpayvantiv_metadata.fraud_filter_override
+                            }),
                     };
                     let connector_metadata = Some(
                         report_group
