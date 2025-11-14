@@ -17,7 +17,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -250,15 +250,15 @@ impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationDat
     ) -> Result<Self, Self::Error> {
         // Map authentication status based on trans_status field
         let authentication_status = match auth_data.trans_status {
-            Some(common_enums::TransactionStatus::Success) => AuthenticationStatus::Success,
-            Some(common_enums::TransactionStatus::NotVerified) => AuthenticationStatus::Attempted,
+            Some(common_enums::TransactionStatus::Success) => Self::Success,
+            Some(common_enums::TransactionStatus::NotVerified) => Self::Attempted,
             Some(common_enums::TransactionStatus::VerificationNotPerformed)
             | Some(common_enums::TransactionStatus::Rejected)
             | Some(common_enums::TransactionStatus::InformationOnly)
             | Some(common_enums::TransactionStatus::Failure)
             | Some(common_enums::TransactionStatus::ChallengeRequired)
             | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
-            | None => AuthenticationStatus::Unavailable,
+            | None => Self::Unavailable,
         };
         Ok(authentication_status)
     }
