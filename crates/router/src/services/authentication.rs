@@ -4189,6 +4189,48 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<UserFromToken>, A> for DashboardNoPermissionAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<UserFromToken>, AuthenticationType)> {
+        let payload = match parse_jwt_payload::<A, AuthToken>(request_headers, state).await {
+            Ok(payload) => payload,
+            Err(_) => return Ok((None, AuthenticationType::NoAuth)),
+        };
+
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
+        Ok((
+            Some(UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+                profile_id: payload.profile_id,
+                tenant_id: payload.tenant_id,
+            }),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
