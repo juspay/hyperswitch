@@ -10133,25 +10133,6 @@
                 }
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "tavv"
-            ],
-            "properties": {
-              "tavv": {
-                "type": "object",
-                "description": "Token Authentication Verification Value (TAVV) cryptogram for network token transactions.",
-                "properties": {
-                  "token_authentication_cryptogram": {
-                    "type": "string",
-                    "description": "The token authentication cryptogram used for tokenized cards.",
-                    "nullable": true
-                  }
-                }
-              }
-            }
           }
         ],
         "description": "Represents the 3DS cryptogram data returned after authentication."
