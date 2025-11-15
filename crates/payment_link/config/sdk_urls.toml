@@ -1,0 +1,15 @@
+# SDK URL Configuration for Payment Links
+# This file contains SDK URLs for different environments
+# Environments must match router_env::Env enum variants
+
+[development]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+
+[integ]
+sdk_url = "https://integ-hyperswitch.io/v0/HyperLoader.js"
+
+[sandbox]
+sdk_url = "https://beta.hyperswitch.io/v0/HyperLoader.js"
+
+[production]
+sdk_url = "https://checkout.hyperswitch.io/v1/HyperLoader.js"

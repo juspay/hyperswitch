@@ -681,7 +681,9 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
 impl From<router_env::env::Env> for Environment {
     fn from(item: router_env::env::Env) -> Self {
         match item {
-            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Sandbox,
+            router_env::env::Env::Sandbox
+            | router_env::env::Env::Development
+            | router_env::env::Env::Integ => Self::Sandbox,
             router_env::env::Env::Production => Self::Production,
         }
     }

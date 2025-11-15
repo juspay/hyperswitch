@@ -242,7 +242,7 @@ pub async fn generate_vault_session_details(
             router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
         ) => {
             let sdk_env = match state.conf.env {
-                Env::Sandbox | Env::Development => "sandbox",
+                Env::Sandbox | Env::Development | Env::Integ => "sandbox",
                 Env::Production => "live",
             }
             .to_string();
