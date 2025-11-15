@@ -381,6 +381,8 @@ pub trait ConnectorCommon {
     }
 }
 
+impl ConnectorAccessTokenSuffix for BoxedConnector {}
+
 /// Current flow information passed to the connector specifications trait
 ///
 /// In order to make some desicion about the preprocessing or alternate flow
@@ -879,5 +881,21 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         Ok(payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string))
+    }
+}
+
+/// Trait ConnectorAccessTokenSuffix
+pub trait ConnectorAccessTokenSuffix {
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "access_token_{}_{}",
+            router_data.merchant_id.get_string_repr(),
+            merchant_connector_id_or_connector_name
+        ))
     }
 }

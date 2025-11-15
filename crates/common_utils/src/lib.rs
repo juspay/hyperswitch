@@ -3,7 +3,6 @@
 
 use masking::{PeekInterface, Secret};
 
-pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;

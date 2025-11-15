@@ -92,11 +92,13 @@ pub async fn get_access_token_from_ucs_response(
         .or(creds_identifier.map(|id| id.to_string()))
         .unwrap_or(connector_name.to_string());
 
-    if let Ok(Some(cached_token)) = session_state
-        .store
-        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
-        .await
-    {
+    let key = format!(
+        "access_token_{}_{}",
+        merchant_id.get_string_repr(),
+        merchant_connector_id_or_connector_name
+    );
+
+    if let Ok(Some(cached_token)) = session_state.store.get_access_token(key).await {
         if cached_token.token.peek() == ucs_access_token.token.peek() {
             return None;
         }
@@ -120,6 +122,12 @@ pub async fn set_access_token_for_ucs(
         .or(creds_identifier.map(|id| id.to_string()))
         .unwrap_or(connector_name.to_string());
 
+    let key = format!(
+        "access_token_{}_{}",
+        merchant_id.get_string_repr(),
+        merchant_connector_id_or_connector_name
+    );
+
     let modified_access_token = AccessToken {
         expires: access_token
             .expires
@@ -136,11 +144,7 @@ pub async fn set_access_token_for_ucs(
 
     if let Err(access_token_set_error) = state
         .store
-        .set_access_token(
-            merchant_id,
-            &merchant_connector_id_or_connector_name,
-            modified_access_token,
-        )
+        .set_access_token(key, modified_access_token)
         .await
     {
         // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
