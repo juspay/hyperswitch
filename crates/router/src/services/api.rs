@@ -744,6 +744,10 @@ pub trait Authenticate {
     fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -768,6 +772,10 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         // In v1, this maps to `all_keys_required` to retain backward compatibility.
         // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
+    }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        self.three_ds_data.is_some()
     }
 }
 
