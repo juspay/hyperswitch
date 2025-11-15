@@ -24,7 +24,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -1282,6 +1282,9 @@ pub struct PaymentsRequest {
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Three Ds Data supplied by the Merchant, Merchant have done the external authentication
+    pub three_ds_data: Option<ExternalThreeDsData>,
 
     /// Details required for recurring payment
     #[smithy(value_type = "Option<RecurringDetails>")]
@@ -11739,4 +11742,64 @@ mod null_object_test {
         let serialized = serde_json::to_string(&null_object).unwrap();
         assert_eq!(serialized, "null");
     }
+}
+
+/// Represents external 3DS authentication data used in the payment flow.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    /// Contains the authentication cryptogram data (CAVV or TAVV).
+    #[schema(value_type = Cryptogram)]
+    pub authentication_cryptogram: Cryptogram,
+    /// Directory Server Transaction ID generated during the 3DS process.
+    #[schema(value_type = String)]
+    pub ds_trans_id: String,
+    /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+    #[schema(value_type = String)]
+    pub version: SemanticVersion,
+    /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
+    #[schema(value_type = String)]
+    pub eci: String,
+    /// Indicates the transaction status from the 3DS authentication flow.
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
+    /// Optional exemption indicator specifying the exemption type, if any, used in this transaction.
+    #[schema(value_type = Option<ExemptionIndicator>)]
+    pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
+    /// Optional network-specific parameters that may be required by certain card networks.
+    #[schema(value_type = Option<NetworkParams>)]
+    pub network_params: Option<NetworkParams>,
+}
+
+/// Represents the 3DS cryptogram data returned after authentication.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    /// Cardholder Authentication Verification Value (CAVV) cryptogram.
+    Cavv {
+        /// The authentication cryptogram provided by the issuer or ACS.
+        #[schema(value_type = Option<String>)]
+        authentication_cryptogram: Secret<String>,
+    },
+}
+
+/// Represents additional network-level parameters for 3DS processing.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct NetworkParams {
+    /// Parameters specific to Cartes Bancaires network, if applicable.
+    #[schema(value_type = Option<CartesBancairesParams>)]
+    pub cartes_bancaires: Option<CartesBancairesParams>,
+}
+
+/// Represents network-specific parameters for the Cartes Bancaires 3DS process.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CartesBancairesParams {
+    /// The algorithm used to generate the CAVV value.
+    #[schema(value_type = Option<CavvAlgorithm>)]
+    pub cavv_algorithm: common_enums::CavvAlgorithm,
+    /// Exemption indicator specific to Cartes Bancaires network (e.g., "low_value", "trusted_merchant")
+    #[schema(value_type = String)]
+    pub cb_exemption: String,
+    /// Cartes Bancaires risk score assigned during 3DS authentication.
+    #[schema(value_type = i32)]
+    pub cb_score: i32,
 }
