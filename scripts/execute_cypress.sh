@@ -79,9 +79,42 @@ function execute_test() {
 }
 export -f execute_test
 
+# Function to execute tests with parallel batches
+# Each batch now includes setup tests (00000-00003), so they run independently
+function execute_test_parallel_batches() {
+  if [[ $# -lt 4 ]]; then
+    print_color "red" "ERROR: Insufficient arguments provided to execute_test_parallel_batches."
+    exit 1
+  fi
+
+  local connector="$1"
+  local service="$2"
+  local tmp_file="$3"
+  local parallel_workers="${4:-4}"
+
+  print_color "yellow" "[${connector}] Running ${parallel_workers} test batches in parallel (each includes setup)..."
+
+  # Run batches in parallel - each batch includes setup tests (00000-00003)
+  # Skip mochawesome reporter completely to avoid report merge errors
+  seq 1 "$parallel_workers" | parallel --jobs "$parallel_workers" \
+    "CYPRESS_CONNECTOR=${connector} SKIP_REPORTER=true npm run cypress:${service}:batch{} || echo ${service}-${connector}-batch{} >> ${tmp_file}"
+
+  # Check if any batches failed
+  if grep -q "${service}-${connector}-batch" "${tmp_file}" 2>/dev/null; then
+    print_color "red" "[${connector}] Some test batches failed!"
+    return 1
+  fi
+
+  print_color "green" "[${connector}] All test batches completed successfully!"
+}
+export -f execute_test_parallel_batches
+
 # Function to run tests
 function run_tests() {
   local jobs="${1:-1}"
+  local enable_test_parallelization="${2:-false}"
+  local test_parallel_workers="${3:-4}"
+
   tmp_file=$(mktemp)
 
   # Ensure temporary file is removed on script exit
@@ -102,10 +135,18 @@ function run_tests() {
       fi
     else
       # Connector-specific tests (e.g., payments or payouts)
-      print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
+      if [[ "${enable_test_parallelization}" == "true" ]]; then
+        print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs} (with ${test_parallel_workers} parallel workers per connector)..."
 
-      # Execute tests in parallel
-      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
+        # Execute tests with parallel batches
+        printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" \
+          execute_test_parallel_batches {} "${service}" "${tmp_file}" "${test_parallel_workers}"
+      else
+        print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
+
+        # Execute tests in parallel (original behavior)
+        printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
+      fi
     fi
   done
 
@@ -159,6 +200,8 @@ function main() {
   local command="${1:-}"
   local jobs="${2:-5}"
   local test_dir="${3:-cypress-tests}"
+  local enable_test_parallelization="${4:-false}"
+  local test_parallel_workers="${5:-4}"
 
   # Ensure script runs from the specified test directory (default: cypress-tests)
   if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" ]]; then
@@ -177,10 +220,14 @@ function main() {
       print_color "yellow" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
       # At present, parallel execution is restricted to not run out of memory
       # But can be scaled up by passing the value as an argument
-      run_tests "$jobs"
+      run_tests "$jobs" "$enable_test_parallelization" "$test_parallel_workers"
+      ;;
+    --parallel-all | -pa)
+      print_color "yellow" "Running Cypress tests with FULL parallelization (connectors + test batches)..."
+      run_tests "$jobs" "true" "$test_parallel_workers"
       ;;
     *)
-      run_tests 1
+      run_tests 1 "$enable_test_parallelization" "$test_parallel_workers"
       ;;
   esac
 }
