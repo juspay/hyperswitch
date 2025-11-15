@@ -46,7 +46,11 @@ use masking::{Mask, PeekInterface};
 use transformers as mollie;
 
 // use self::mollie::{webhook_headers, MollieWebhookBodyEventType};
-use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self as connector_utils, convert_amount},
+};
 
 #[derive(Clone)]
 pub struct Mollie {
@@ -318,11 +322,20 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.value.clone(),
+            response.amount.currency.to_string(),
+        )?;
+
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        router_data.request.integrity_object = Some(response_integrity_object);
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -392,11 +405,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mol
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount.value.clone(),
+            response.amount.currency.to_string(),
+        )?;
+
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        router_data.request.integrity_object = Some(response_integrity_object);
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -510,11 +532,20 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mollie 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value.clone(),
+            response.amount.currency.to_string(),
+        )?;
+
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        router_data.request.integrity_object = Some(response_integrity_object);
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -586,11 +617,20 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mollie {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.value.clone(),
+            response.amount.currency.to_string(),
+        )?;
+
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        router_data.request.integrity_object = Some(response_integrity_object);
+        Ok(router_data)
     }
 
     fn get_error_response(
