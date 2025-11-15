@@ -309,6 +309,22 @@ impl PaymentIntent {
                     .clone()
                     .or_else(|| self.statement_descriptor_suffix.clone()),
             })
+            .or_else(|| {
+                // Only build a fallback if at least one descriptor exists
+                if self.statement_descriptor_name.is_some()
+                    || self.statement_descriptor_suffix.is_some()
+                {
+                    Some(BillingDescriptor {
+                        name: None,
+                        city: None,
+                        phone: None,
+                        statement_descriptor: self.statement_descriptor_name.clone(),
+                        statement_descriptor_suffix: self.statement_descriptor_suffix.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
     }
 }
 
