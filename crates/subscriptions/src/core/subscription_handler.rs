@@ -278,6 +278,30 @@ impl<'a> SubscriptionHandler<'a> {
             merchant_account: self.merchant_context.get_merchant_account().clone(),
         })
     }
+
+    pub async fn list_subscriptions_by_profile_id(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> errors::SubscriptionResult<Vec<Subscription>> {
+        let subscriptions = self
+            .state
+            .store
+            .list_by_merchant_id_profile_id(
+                &(self.state).into(),
+                self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_merchant_account().get_id(),
+                profile_id,
+                limit,
+                offset,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to fetch subscriptions from database")?;
+
+        Ok(subscriptions)
+    }
 }
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler<'a>,
@@ -460,5 +484,31 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
         })
+    }
+}
+
+impl ForeignTryFrom<&Subscription> for SubscriptionResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(subscription: &Subscription) -> Result<Self, Self::Error> {
+        Ok(Self::new(
+            subscription.id.to_owned(),
+            subscription.merchant_reference_id.clone(),
+            common_enums::SubscriptionStatus::from_str(&subscription.status)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "status",
+                })
+                .attach_printable(format!(
+                    "unable to parse subscription status {status:?}",
+                    status = subscription.status
+                ))?,
+            subscription.plan_id.clone(),
+            subscription.item_price_id.clone(),
+            subscription.profile_id.to_owned(),
+            subscription.merchant_id.to_owned(),
+            subscription.client_secret.clone().map(Secret::new),
+            subscription.customer_id.to_owned(),
+            None,
+            None,
+        ))
     }
 }
