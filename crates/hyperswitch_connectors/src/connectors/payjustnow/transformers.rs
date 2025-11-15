@@ -40,6 +40,8 @@ impl<T> From<(MinorUnit, T)> for PayjustnowRouterData<T> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayjustnowPaymentsRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_id: Option<String>,
     payjustnow: PayjustnowRequest,
     checkout_total_cents: MinorUnit,
 }
@@ -47,12 +49,15 @@ pub struct PayjustnowPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayjustnowRequest {
-    request_id: Option<String>,
     merchant_order_reference: String,
     order_amount_cents: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     order_items: Option<Vec<OrderItem>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     customer: Option<Customer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     billing_address: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address: Option<Address>,
     confirm_redirect_url: String,
     cancel_redirect_url: String,
@@ -70,20 +75,38 @@ pub struct OrderItem {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Customer {
+    #[serde(skip_serializing_if = "Option::is_none")]
     first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     last_name: Option<Secret<String>>,
     email: pii::Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
     phone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
+    #[serde(skip_serializing_if = "Option::is_none")]
     address_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     address_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     province: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
+}
+
+impl Address {
+    fn is_empty(&self) -> bool {
+        self.address_line1.is_none()
+            && self.address_line2.is_none()
+            && self.city.is_none()
+            && self.province.is_none()
+            && self.postal_code.is_none()
+    }
 }
 
 impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for PayjustnowPaymentsRequest {
@@ -121,26 +144,41 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
                 phone_number: router_data.get_optional_billing_phone_number(),
             });
 
-        let billing_address = Some(Address {
-            address_line1: router_data.get_optional_billing_line1(),
-            address_line2: router_data.get_optional_billing_line2(),
-            city: router_data.get_optional_billing_city(),
-            province: router_data.get_optional_billing_state(),
-            postal_code: item.router_data.get_optional_billing_zip(),
-        });
+        let billing_address = {
+            let addr = Address {
+                address_line1: router_data.get_optional_billing_line1(),
+                address_line2: router_data.get_optional_billing_line2(),
+                city: router_data.get_optional_billing_city(),
+                province: router_data.get_optional_billing_state(),
+                postal_code: item.router_data.get_optional_billing_zip(),
+            };
 
-        let shipping_address = Some(Address {
-            address_line1: item.router_data.get_optional_shipping_line1(),
-            address_line2: item.router_data.get_optional_shipping_line2(),
-            city: item.router_data.get_optional_shipping_city(),
-            province: item.router_data.get_optional_shipping_state(),
-            postal_code: item.router_data.get_optional_shipping_zip(),
-        });
+            if addr.is_empty() {
+                None
+            } else {
+                Some(addr)
+            }
+        };
+
+        let shipping_address = {
+            let addr = Address {
+                address_line1: item.router_data.get_optional_shipping_line1(),
+                address_line2: item.router_data.get_optional_shipping_line2(),
+                city: item.router_data.get_optional_shipping_city(),
+                province: item.router_data.get_optional_shipping_state(),
+                postal_code: item.router_data.get_optional_shipping_zip(),
+            };
+
+            if addr.is_empty() {
+                None
+            } else {
+                Some(addr)
+            }
+        };
 
         let router_return_url = item.router_data.request.get_router_return_url()?;
 
         let payjustnow_request = PayjustnowRequest {
-            request_id: Some(item.router_data.connector_request_reference_id.clone()),
             merchant_order_reference: item
                 .router_data
                 .request
@@ -157,6 +195,7 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
         };
 
         Ok(Self {
+            request_id: Some(item.router_data.connector_request_reference_id.clone()),
             payjustnow: payjustnow_request,
             checkout_total_cents: item.amount,
         })
