@@ -101,7 +101,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
@@ -664,6 +664,8 @@ pub struct PaymentIntentUpdateInternal {
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
@@ -708,6 +710,8 @@ impl PaymentIntentUpdateInternal {
             amount_captured,
             modified_at: _, // This will be ignored from self
             active_attempt_id,
+            active_attempts_group_id,
+            active_attempt_id_type,
             amount,
             currency,
             shipping_cost,
@@ -752,6 +756,8 @@ impl PaymentIntentUpdateInternal {
                 Some(v_option) => v_option,
                 None => source.active_attempt_id,
             },
+            active_attempt_id_type: active_attempt_id_type.or(source.active_attempt_id_type),
+            active_attempts_group_id: active_attempts_group_id.or(source.active_attempts_group_id),
             amount: amount.unwrap_or(source.amount),
             currency: currency.unwrap_or(source.currency),
             shipping_cost: shipping_cost.or(source.shipping_cost),
@@ -821,8 +827,6 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization: source.enable_partial_authorization,
             split_txns_enabled: source.split_txns_enabled,
             enable_overcapture: None,
-            active_attempt_id_type: source.active_attempt_id_type,
-            active_attempts_group_id: source.active_attempts_group_id,
             mit_category: None,
             billing_descriptor: source.billing_descriptor,
         }

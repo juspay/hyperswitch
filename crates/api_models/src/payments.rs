@@ -7265,7 +7265,7 @@ pub struct PaymentsListResponseItem {
 //
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
