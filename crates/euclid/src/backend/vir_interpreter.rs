@@ -80,16 +80,19 @@ where
 
 impl<O> EuclidBackend<O> for VirInterpreterBackend<O>
 where
-    O: Clone + EuclidDirFilter,
+    O: Clone + EuclidDirFilter + std::fmt::Debug,
 {
     type Error = types::VirInterpreterError;
 
     fn with_program(program: ast::Program<O>) -> Result<Self, Self::Error> {
+        println!(">>>>>>>>>>>>>>>>>>>>>>>>>program{:?}", program);
         let dir_program = ast::lowering::lower_program(program)
             .map_err(types::VirInterpreterError::LoweringError)?;
+        println!(">>>>>>>>>>>>>>>>>>>>>>>>>dir_program{:?}", dir_program);
 
         let vir_program = dir::lowering::lower_program(dir_program)
             .map_err(types::VirInterpreterError::LoweringError)?;
+        println!(">>>>>>>>>>>>>>>>>>>>>>>>>vir_program{:?}", vir_program);
 
         Ok(Self {
             program: vir_program,

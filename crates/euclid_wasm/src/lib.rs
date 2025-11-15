@@ -335,6 +335,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
+        | dir::DirKeyKind::CardBins
         | dir::DirKeyKind::BusinessLabel
         | dir::DirKeyKind::MetaData
         | dir::DirKeyKind::IssuerName
@@ -484,7 +485,7 @@ pub fn get_payout_description_category() -> JsResult {
             .or_insert(vec![details]);
     }
 
-    Ok(serde_wasm_bindgen::to_value(&category)?)
+    Ok(serde_wasm_bindgen::to_value(&category)?)s
 }
 
 #[wasm_bindgen(js_name = getValidWebhookStatus)]

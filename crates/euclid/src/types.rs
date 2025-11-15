@@ -35,6 +35,8 @@ pub enum EuclidKey {
     PaymentMethod,
     #[strum(serialize = "card_bin")]
     CardBin,
+    #[strum(serialize = "card_bins")]
+    CardBins,
     #[strum(serialize = "metadata")]
     Metadata,
     #[strum(serialize = "mandate_type")]
@@ -144,7 +146,8 @@ impl EuclidKey {
     pub fn key_type(&self) -> DataType {
         match self {
             Self::PaymentMethod => DataType::EnumVariant,
-            Self::CardBin => DataType::StrValue,
+            Self::CardBin => DataType::Number,
+            Self::CardBins => DataType::Number,
             Self::Metadata => DataType::MetadataValue,
             Self::PaymentMethodType => DataType::EnumVariant,
             Self::CardNetwork => DataType::EnumVariant,
@@ -268,7 +271,8 @@ impl NumValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EuclidValue {
     PaymentMethod(enums::PaymentMethod),
-    CardBin(StrValue),
+    CardBin(NumValue),
+    CardBins(NumValue),
     Metadata(MetadataValue),
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
@@ -298,6 +302,7 @@ impl EuclidValue {
     pub fn get_num_value(&self) -> Option<NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::CardBin(val) => Some(val.clone()),
             _ => None,
         }
     }
@@ -306,6 +311,7 @@ impl EuclidValue {
         match self {
             Self::PaymentMethod(_) => EuclidKey::PaymentMethod,
             Self::CardBin(_) => EuclidKey::CardBin,
+            Self::CardBins(_) => EuclidKey::CardBins,
             Self::Metadata(_) => EuclidKey::Metadata,
             Self::PaymentMethodType(_) => EuclidKey::PaymentMethodType,
             Self::MandateType(_) => EuclidKey::MandateType,

@@ -95,9 +95,6 @@ impl Context {
         if let Some(country) = payment.billing_country {
             enum_values.insert(EuclidValue::BillingCountry(country));
         }
-        if let Some(card_bin) = payment.card_bin {
-            enum_values.insert(EuclidValue::CardBin(StrValue { value: card_bin }));
-        }
         if let Some(business_label) = payment.business_label {
             enum_values.insert(EuclidValue::BusinessLabel(StrValue {
                 value: business_label,
@@ -143,7 +140,7 @@ impl Context {
             }
         }
 
-        let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([(
+        let mut numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([(
             EuclidKey::PaymentAmount,
             EuclidValue::PaymentAmount(types::NumValue {
                 number: payment.amount,
@@ -151,6 +148,29 @@ impl Context {
             }),
         )]);
 
+        if let Some(card_bin_str) = payment.card_bin.as_deref() {
+            if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin_str) {
+                numeric_values.insert(
+                    EuclidKey::CardBins,
+                    EuclidValue::CardBins(types::NumValue {
+                        number: card_bin_minor,
+                        refinement: None,
+                    }),
+                );
+            }
+        }
+
+        if let Some(card_bin_str) = payment.card_bin.as_deref() {
+            if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin_str) {
+                numeric_values.insert(
+                    EuclidKey::CardBin,
+                    EuclidValue::CardBin(types::NumValue {
+                        number: card_bin_minor,
+                        refinement: None,
+                    }),
+                );
+            }
+        }
         Self {
             atomic_values: enum_values,
             numeric_values,
