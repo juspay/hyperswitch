@@ -11,9 +11,10 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
         flow_common_types::{
-            GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-            InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
-            SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
+            GetSubscriptionEntitlementData, GetSubscriptionEstimateData,
+            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, InvoiceRecordBackData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData,
         },
         UasFlowData,
     },
@@ -25,14 +26,15 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
-        CreateConnectorCustomer, InvoiceRecordBack,
+        CreateConnectorCustomer, GetSubscriptionEntitlements, InvoiceRecordBack,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
-            SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCancelRequest, SubscriptionCreateRequest, SubscriptionPauseRequest,
+            SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -44,9 +46,10 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
-            SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCancelResponse, SubscriptionCreateResponse, SubscriptionPauseResponse,
+            SubscriptionResumeResponse,
         },
         PaymentsResponseData,
     },
@@ -168,6 +171,7 @@ impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::GetSubscriptionPlansV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionRecordBackV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionConnectorCustomerV2 for Recurly {}
+impl api::subscriptions_v2::GetSubscriptionEntitlementsV2 for Recurly {}
 
 impl
     ConnectorIntegrationV2<
@@ -195,6 +199,16 @@ impl
         SubscriptionCustomerData,
         ConnectorCustomerData,
         PaymentsResponseData,
+    > for Recurly
+{
+}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionEntitlements,
+        GetSubscriptionEntitlementData,
+        GetSubscriptionEntitlementRequest,
+        GetSubscriptionEntitlementResponse,
     > for Recurly
 {
 }

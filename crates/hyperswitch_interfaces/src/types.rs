@@ -18,8 +18,9 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
+            GetSubscriptionEntitlements, GetSubscriptionEstimate, GetSubscriptionPlanPrices,
+            GetSubscriptionPlans, SubscriptionCancel, SubscriptionCreate, SubscriptionPause,
+            SubscriptionResume,
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -37,9 +38,10 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
-            SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCancelRequest, SubscriptionCreateRequest, SubscriptionPauseRequest,
+            SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -66,9 +68,10 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
-            SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCancelResponse, SubscriptionCreateResponse, SubscriptionPauseResponse,
+            SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
@@ -206,6 +209,13 @@ pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
     GetSubscriptionPlanPrices,
     GetSubscriptionPlanPricesRequest,
     GetSubscriptionPlanPricesResponse,
+>;
+
+/// Type alias for ConnectorIntegration<GetSubscriptionEntitlements, GetSubscriptionEntitlementRequest, GetSubscriptionEntitlementResponse>
+pub type GetSubscriptionEntitlementType = dyn ConnectorIntegration<
+    GetSubscriptionEntitlements,
+    GetSubscriptionEntitlementRequest,
+    GetSubscriptionEntitlementResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`
