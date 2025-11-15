@@ -962,7 +962,24 @@ pub async fn perform_cgraph_filtering(
         let filter_eligible =
             eligible_connectors.is_none_or(|list| list.contains(&routable_connector));
 
-        if cgraph_eligible && filter_eligible {
+        let db_mcas = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state.into(),
+                &key_store.merchant_id,
+                false,
+                key_store,
+            )
+            .await
+            .unwrap_or_else(|_| std::iter::empty().collect());
+
+        let mca_active = choice
+            .merchant_connector_id
+            .as_ref()
+            .map(|id| db_mcas.iter().any(|mca| &mca.get_id() == id))
+            .unwrap_or(true);
+
+        if cgraph_eligible && filter_eligible && mca_active {
             final_selection.push(choice);
         }
     }
