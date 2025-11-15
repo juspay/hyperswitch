@@ -28,10 +28,12 @@ use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "payouts")]
+use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
@@ -136,12 +138,14 @@ pub struct Reply {
     ok: Option<OkResponse>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutResponse {
     pub reply: PayoutReply,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutReply {
@@ -149,6 +153,7 @@ pub struct PayoutReply {
     pub error: Option<WorldpayXmlErrorResponse>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OkPayoutResponse {
@@ -386,6 +391,7 @@ struct Date {
     year: Secret<String>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PayoutOutcome {
@@ -396,6 +402,7 @@ pub enum PayoutOutcome {
     CancelReceived,
 }
 
+#[cfg(feature = "payouts")]
 impl From<PayoutOutcome> for enums::PayoutStatus {
     fn from(item: PayoutOutcome) -> Self {
         match item {
@@ -407,6 +414,7 @@ impl From<PayoutOutcome> for enums::PayoutStatus {
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayxmlPayoutConnectorMetadataObject {
     pub purpose_of_payment: Option<String>,
@@ -1176,6 +1184,7 @@ impl TryFrom<&RefundSyncRouterData> for PaymentService {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1221,6 +1230,7 @@ impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for Payment
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1266,6 +1276,7 @@ impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetai
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayxmlPayoutConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: Option<&pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
@@ -1278,6 +1289,7 @@ impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayxmlPayoutConnectorMetad
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1373,6 +1385,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
     for PayoutsRouterData<PoFulfill>
 {
@@ -1382,28 +1395,8 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
     ) -> Result<Self, Self::Error> {
         let reply = item.response.reply;
 
-        validate_payout_reply(&reply)?;
-
-        if let Some(ok_status) = reply.ok {
-            Ok(Self {
-                response: Ok(PayoutsResponseData {
-                    status: Some(enums::PayoutStatus::from(PayoutOutcome::RefundReceived)),
-                    connector_payout_id: ok_status.refund_received.map(|id| id.order_code),
-                    payout_eligible: None,
-                    should_add_next_step_to_process_tracker: false,
-                    error_code: None,
-                    error_message: None,
-                    payout_connector_metadata: None,
-                }),
-                ..item.data
-            })
-        } else {
-            let error = reply
-                .error
-                .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                    bytes::Bytes::from("Missing reply.error".to_string()),
-                ))?;
-            Ok(Self {
+        match (reply.error, reply.ok) {
+            (Some(error), None) => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Ok(PayoutsResponseData {
                     status: Some(enums::PayoutStatus::from(PayoutOutcome::Error)),
@@ -1415,11 +1408,30 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                     payout_connector_metadata: None,
                 }),
                 ..item.data
-            })
+            }),
+            (None, Some(ok_status)) => Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::RefundReceived)),
+                    connector_payout_id: ok_status.refund_received.map(|id| id.order_code),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: None,
+                    error_message: None,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            }),
+            _ => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                    "Either reply.error or reply.ok must be present in the response",
+                ))
+                .into(),
+            ),
         }
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<&PayoutsRouterData<PoCancel>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<PoCancel>) -> Result<Self, Self::Error> {
@@ -1451,6 +1463,7 @@ impl TryFrom<&PayoutsRouterData<PoCancel>> for PaymentService {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRouterData<PoCancel> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1458,28 +1471,8 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
     ) -> Result<Self, Self::Error> {
         let reply = item.response.reply;
 
-        validate_payout_reply(&reply)?;
-
-        if let Some(ok_status) = reply.ok {
-            Ok(Self {
-                response: Ok(PayoutsResponseData {
-                    status: Some(enums::PayoutStatus::from(PayoutOutcome::CancelReceived)),
-                    connector_payout_id: ok_status.cancel_received.map(|id| id.order_code),
-                    payout_eligible: None,
-                    should_add_next_step_to_process_tracker: false,
-                    error_code: None,
-                    error_message: None,
-                    payout_connector_metadata: None,
-                }),
-                ..item.data
-            })
-        } else {
-            let error = reply
-                .error
-                .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                    bytes::Bytes::from("Missing reply.error".to_string()),
-                ))?;
-            Ok(Self {
+        match (reply.error, reply.ok) {
+            (Some(error), None) => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Ok(PayoutsResponseData {
                     status: Some(enums::PayoutStatus::from(PayoutOutcome::Error)),
@@ -1491,7 +1484,25 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
                     payout_connector_metadata: None,
                 }),
                 ..item.data
-            })
+            }),
+            (None, Some(ok_status)) => Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::from(PayoutOutcome::CancelReceived)),
+                    connector_payout_id: ok_status.refund_received.map(|id| id.order_code),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: None,
+                    error_message: None,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            }),
+            _ => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                    "Either reply.error or reply.ok must be present in the response",
+                ))
+                .into(),
+            ),
         }
     }
 }
@@ -1504,20 +1515,6 @@ fn validate_reply(reply: &Reply) -> Result<(), errors::ConnectorError> {
             bytes::Bytes::from(
                 "Either reply.error_data or reply.order_data must be present in the response"
                     .to_string(),
-            ),
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_payout_reply(reply: &PayoutReply) -> Result<(), errors::ConnectorError> {
-    if (reply.error.is_some() && reply.ok.is_some())
-        || (reply.error.is_none() && reply.ok.is_none())
-    {
-        Err(errors::ConnectorError::UnexpectedResponseError(
-            bytes::Bytes::from(
-                "Either reply.error_data or reply.ok must be present in the response".to_string(),
             ),
         ))
     } else {
@@ -1582,6 +1579,7 @@ fn process_payment_response(
     }
 }
 
+#[cfg(feature = "payouts")]
 pub fn map_purpose_code(value: Option<String>) -> Option<String> {
     let code = match value?.as_str() {
         "Family Support" => "00",
