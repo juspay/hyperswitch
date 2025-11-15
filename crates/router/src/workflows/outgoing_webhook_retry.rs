@@ -457,9 +457,10 @@ async fn get_outgoing_webhook_content_and_event_type(
                 refund_id,
                 force_sync: Some(false),
                 merchant_connector_details: None,
+                all_keys_required: None,
             };
 
-            let refund = Box::pin(refund_retrieve_core_with_refund_id(
+            let (refund, _) = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
                 merchant_context.clone(),
                 None,
