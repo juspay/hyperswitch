@@ -3542,6 +3542,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if bypass_error_for_no_payments_found(item.data.response.err_code) {
+            return Ok(item.data);
+        };
         let txn_id = item
             .response
             .transaction_details
