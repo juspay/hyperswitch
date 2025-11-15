@@ -2823,7 +2823,7 @@ pub async fn list_payment_connectors(
 
 pub async fn update_connector(
     state: SessionState,
-    merchant_id: &id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::admin::MerchantConnectorUpdate,
@@ -2833,14 +2833,14 @@ pub async fn update_connector(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            merchant_id,
+            &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -2848,7 +2848,7 @@ pub async fn update_connector(
         .clone()
         .get_merchant_connector_account_from_id(
             db,
-            merchant_id,
+            &merchant_id,
             merchant_connector_id,
             &key_store,
             key_manager_state,
@@ -2892,7 +2892,7 @@ pub async fn update_connector(
         })?;
 
     // redact cgraph cache on connector updation
-    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+    redact_cgraph_cache(&state, &merchant_id, &profile_id).await?;
 
     // redact routing cache on connector updation
     #[cfg(feature = "v1")]
@@ -2906,7 +2906,7 @@ pub async fn update_connector(
         ),
         merchant_connector_id: &mca.get_id(),
         store: db,
-        merchant_id,
+        merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
     };
@@ -3779,12 +3779,18 @@ pub async fn list_profile(
 pub async fn retrieve_profile(
     state: SessionState,
     profile_id: id_type::ProfileId,
+    merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(&(&state).into(), &key_store, &profile_id)
+        .find_business_profile_by_merchant_id_profile_id(
+            &(&state).into(),
+            &key_store,
+            &merchant_id,
+            &profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4197,6 +4203,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 pub async fn update_profile(
     state: SessionState,
     profile_id: &id_type::ProfileId,
+    merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
     request: api::ProfileUpdate,
 ) -> RouterResponse<api::ProfileResponse> {
@@ -4204,7 +4211,12 @@ pub async fn update_profile(
     let key_manager_state = &(&state).into();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .find_business_profile_by_merchant_id_profile_id(
+            key_manager_state,
+            &key_store,
+            &merchant_id,
+            profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
