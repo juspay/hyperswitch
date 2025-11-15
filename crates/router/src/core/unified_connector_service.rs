@@ -745,7 +745,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
 
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    payment_method_type: PaymentMethodType,
+    payment_method_type: Option<PaymentMethodType>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
@@ -785,18 +785,21 @@ pub fn build_unified_connector_service_payment_method(
             };
 
             let grpc_card_type = match payment_method_type {
-                PaymentMethodType::Credit => {
+                Some(PaymentMethodType::Credit) => {
                     payments_grpc::card_payment_method_type::CardType::Credit(card_details)
                 }
-                PaymentMethodType::Debit => {
+                Some(PaymentMethodType::Debit) => {
                     payments_grpc::card_payment_method_type::CardType::Debit(card_details)
                 }
-                _ => {
+                Some(_) => {
                     return Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "Unimplemented payment method subtype: {payment_method_type:?}"
                     ))
                     .into());
                 }
+                None => payments_grpc::card_payment_method_type::CardType::UnspecifiedCardType(
+                    card_details,
+                ),
             };
 
             Ok(payments_grpc::PaymentMethod {
@@ -858,12 +861,12 @@ pub fn build_unified_connector_service_payment_method(
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
             match payment_method_type {
-                PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
+                Some(PaymentMethodType::ClassicReward) => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
                         reward_type: 1,
                     })),
                 }),
-                PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethod {
+                Some(PaymentMethodType::Evoucher) => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
                         reward_type: 2,
                     })),
