@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.2-hotfix1
+
+### Features
+
+- **core/connector:** [ADYEN] Added Support For External Authentication By Merchant ([#10281](https://github.com/juspay/hyperswitch/pull/10281)) ([`af9021b`](https://github.com/juspay/hyperswitch/commit/af9021b02f1e195f96e97aaf0e562c1f730c3541))
+
+**Full Changelog:** [`2025.11.13.2...2025.11.13.2-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.11.13.2...2025.11.13.2-hotfix1)
+
+- - -
+
 ## 2025.11.13.2
 
 ### Features
