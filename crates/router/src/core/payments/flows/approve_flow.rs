@@ -4,7 +4,9 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, flows::gateway_context, helpers, transformers, PaymentData,
+        },
     },
     routes::SessionState,
     services,
@@ -75,6 +77,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

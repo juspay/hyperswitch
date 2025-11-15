@@ -119,6 +119,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,

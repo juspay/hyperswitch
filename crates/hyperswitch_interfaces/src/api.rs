@@ -12,6 +12,7 @@ pub mod files_v2;
 pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
+pub mod gateway;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
