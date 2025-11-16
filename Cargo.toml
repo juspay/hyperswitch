@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "face_auth_payment/faceid"]
 package.edition = "2021"
 package.rust-version = "1.85.0"
 package.license = "Apache-2.0"
