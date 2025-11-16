@@ -205,7 +205,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_new.clone().insert(&conn),
             payment_method,
             InsertResourceParams {
-                insertable: kv::Insertable::PaymentMethod(payment_method_new.clone()),
+                insertable: kv::Insertable::PaymentMethod(Box::new(payment_method_new.clone())),
                 reverse_lookups,
                 key,
                 identifier,
@@ -734,6 +734,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
+            last_modified_by: None,
         };
         self.call_database(
             state,
@@ -1037,6 +1038,7 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
+            last_modified_by: None,
         };
         let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
             .apply_changeset(

@@ -431,6 +431,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None, // Same as created_by on creation
         };
 
         db.insert_customer(

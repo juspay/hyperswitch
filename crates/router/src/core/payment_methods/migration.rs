@@ -259,17 +259,20 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
+                last_modified_by: None,
             }
         }
         _ => {
             if updated_payment_method_data.is_some() {
                 PaymentMethodUpdate::PaymentMethodDataUpdate {
                     payment_method_data: updated_payment_method_data,
+                    last_modified_by: None,
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     status,
+                    last_modified_by: None,
                 }
             }
         }
@@ -403,6 +406,7 @@ fn build_connector_customer_update(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize connector customer data")?,
             )),
+            last_modified_by: None,
         },
     )
 }

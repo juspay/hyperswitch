@@ -58,7 +58,7 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-use crate::{behaviour, errors, ForeignIDRef};
+use crate::{behaviour, errors, utils::parse_enum_with_logging, ForeignIDRef};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},
@@ -489,7 +489,7 @@ pub struct PaymentAttempt {
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
@@ -1036,7 +1036,7 @@ pub struct PaymentAttempt {
     pub issuer_error_message: Option<String>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
@@ -1340,7 +1340,7 @@ pub struct PaymentAttemptNew {
     pub card_discovery: Option<common_enums::CardDiscovery>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
@@ -2305,7 +2305,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 routing_approach: storage_model.routing_approach,
                 connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2709,7 +2709,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
                 authorized_amount: storage_model.authorized_amount,

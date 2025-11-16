@@ -66,6 +66,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
             status: Some(curr_pm_status),
+            last_modified_by: None,
         };
 
         let res = db

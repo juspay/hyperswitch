@@ -331,7 +331,7 @@ where
                     _ => None,
                 };
 
-                let payment_method_id = create_or_fetch_payment_method_helper(
+                let payment_method_id = Box::pin(create_or_fetch_payment_method_helper(
                     state,
                     merchant_context,
                     optional_pm_details,
@@ -350,7 +350,7 @@ where
                     merchant_connector_id,
                     co_badged_card_data,
                     payment_method_type,
-                )
+                ))
                 .await;
                 //remove the lock aquired earlier
                 if let Some(la) = lock_action {

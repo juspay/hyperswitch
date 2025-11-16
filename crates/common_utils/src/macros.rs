@@ -688,6 +688,13 @@ macro_rules! impl_enum_str {
                 }
             }
         }
+
+        // Implement HasInvalidVariant trait
+        impl $crate::types::HasInvalidVariant for $enum_name {
+            fn is_invalid(&self) -> bool {
+                matches!(self, Self::Invalid)
+            }
+        }
     };
 }
 

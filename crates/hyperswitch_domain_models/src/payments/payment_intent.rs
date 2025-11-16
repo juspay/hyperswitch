@@ -39,6 +39,7 @@ use crate::{
     behaviour,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
+    utils::parse_enum_with_logging,
 };
 #[cfg(feature = "v1")]
 use crate::{errors, RemoteStorageObject};
@@ -2007,7 +2008,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
@@ -2298,7 +2299,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,

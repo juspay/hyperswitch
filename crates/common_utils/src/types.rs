@@ -1442,6 +1442,13 @@ impl_enum_str!(
     }
 );
 
+/// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
+/// This trait allows generic functions to check if a parsed enum value is invalid.
+pub trait HasInvalidVariant {
+    /// Returns true if this instance is the `Invalid` variant
+    fn is_invalid(&self) -> bool;
+}
+
 #[allow(missing_docs)]
 pub trait TenantConfig: Send + Sync {
     fn get_tenant_id(&self) -> &id_type::TenantId;
