@@ -956,10 +956,15 @@ pub async fn perform_cgraph_filtering(
         .unwrap_or_else(|_| hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(vec![]));
 
 
+<<<<<<< HEAD
     let active_mca_ids: std::collections::HashSet<_> = db_mcas
         .iter()
         .map(|mca| mca.get_id().clone())
         .collect();
+=======
+    let active_mca_ids: std::collections::HashSet<_> =
+        db_mcas.iter().map(|mca| mca.get_id().to_string()).collect();
+>>>>>>> bc6c392d697c574ce1091a9d1c52271085ff3547
 
     let mut final_selection = Vec::new();
 
