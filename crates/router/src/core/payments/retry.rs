@@ -550,6 +550,7 @@ where
                     .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
+                tokenization: None,
             };
 
             #[cfg(feature = "v1")]
@@ -754,6 +755,7 @@ pub fn make_new_payment_attempt(
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
+        tokenization: Default::default(),
     }
 }
 

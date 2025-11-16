@@ -6,7 +6,7 @@ use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
-use common_enums::{IntentStatus, RequestIncrementalAuthorization};
+use common_enums::{IntentStatus, RequestIncrementalAuthorization, Tokenization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
@@ -2216,6 +2216,25 @@ pub fn get_incremental_authorization_allowed_value(
         Some(false)
     } else {
         incremental_authorization_allowed
+    }
+}
+
+// Helper function to determine tokenization value based on connector_mandate_id and setup_future_usage
+pub fn determine_tokenization_value(
+    connector_mandate_detail: Option<&diesel_models::ConnectorMandateReferenceId>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+) -> Option<Tokenization> {
+    match setup_future_usage {
+        Some(common_enums::FutureUsage::OnSession) | None => None,
+        Some(common_enums::FutureUsage::OffSession) => connector_mandate_detail
+            .map(|detail| {
+                if detail.connector_mandate_id.is_some() {
+                    Tokenization::ViaPsp
+                } else {
+                    Tokenization::SkipPsp
+                }
+            })
+            .or(Some(Tokenization::SkipPsp)),
     }
 }
 

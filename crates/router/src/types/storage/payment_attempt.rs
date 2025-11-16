@@ -231,6 +231,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: None,
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
 
         let store = state
@@ -328,6 +329,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores
@@ -438,6 +440,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores
