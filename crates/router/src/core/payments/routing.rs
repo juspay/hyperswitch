@@ -940,15 +940,37 @@ pub async fn perform_cgraph_filtering(
             .into_context()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
+
     let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
 
-    let mut final_selection = Vec::<routing_types::RoutableConnectorChoice>::new();
+    let db_mcas = state
+        .store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &state.into(),
+            &key_store.merchant_id,
+            false,
+            key_store,
+        )
+        .await
+        .unwrap_or_else(|_| {
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+                vec![],
+            )
+        });
+
+    let active_mca_ids: std::collections::HashSet<_> =
+        db_mcas.iter().map(|mca| mca.get_id().clone()).collect();
+
+    let mut final_selection = Vec::new();
+
     for choice in chosen {
         let routable_connector = choice.connector;
+
         let euclid_choice: ast::ConnectorChoice = choice.clone().foreign_into();
         let dir_val = euclid_choice
             .into_dir_value()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
+
         let cgraph_eligible = cached_cgraph
             .check_value_validity(
                 dir_val,
@@ -962,7 +984,13 @@ pub async fn perform_cgraph_filtering(
         let filter_eligible =
             eligible_connectors.is_none_or(|list| list.contains(&routable_connector));
 
-        if cgraph_eligible && filter_eligible {
+        let mca_active = choice
+            .merchant_connector_id
+            .as_ref()
+            .map(|id| active_mca_ids.contains(id))
+            .unwrap_or(false);
+
+        if cgraph_eligible && filter_eligible && mca_active {
             final_selection.push(choice);
         }
     }
