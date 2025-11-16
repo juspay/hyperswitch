@@ -988,7 +988,7 @@ pub async fn perform_cgraph_filtering(
             .merchant_connector_id
             .as_ref()
             .map(|id| active_mca_ids.contains(id))
-            .unwrap_or(true);
+            .unwrap_or(false);
 
         if cgraph_eligible && filter_eligible && mca_active {
             final_selection.push(choice);
