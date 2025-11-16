@@ -26628,6 +26628,19 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "preferred_3ds_connector": {
+            "type": "string",
+            "description": "Prefered 3ds Connector",
+            "nullable": true
           }
         }
       },
