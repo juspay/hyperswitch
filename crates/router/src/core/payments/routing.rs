@@ -952,10 +952,8 @@ pub async fn perform_cgraph_filtering(
         .await
         .unwrap_or_else(|_| std::iter::empty().collect::<Vec<_>>());
 
-    let active_mca_ids: std::collections::HashSet<_> = db_mcas
-        .iter()
-        .map(|mca| mca.get_id().to_string())
-        .collect();
+    let active_mca_ids: std::collections::HashSet<_> =
+        db_mcas.iter().map(|mca| mca.get_id().to_string()).collect();
 
     let mut final_selection = Vec::<routing_types::RoutableConnectorChoice>::new();
 
