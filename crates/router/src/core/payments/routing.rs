@@ -301,7 +301,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {
-                    Some(card.card.card_number.peek().chars().take(6).to_string())
+                    Some(card.card.card_number.peek().chars().take(8).to_string())
                 }
                 _ => None,
             }),
