@@ -941,8 +941,7 @@ pub async fn perform_cgraph_filtering(
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
 
-    let cached_cgraph =
-        get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
+    let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
 
     let db_mcas = state
         .store
@@ -953,18 +952,14 @@ pub async fn perform_cgraph_filtering(
             key_store,
         )
         .await
-        .unwrap_or_else(|_| hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(vec![]));
+        .unwrap_or_else(|_| {
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+                vec![],
+            )
+        });
 
-
-<<<<<<< HEAD
-    let active_mca_ids: std::collections::HashSet<_> = db_mcas
-        .iter()
-        .map(|mca| mca.get_id().clone())
-        .collect();
-=======
     let active_mca_ids: std::collections::HashSet<_> =
-        db_mcas.iter().map(|mca| mca.get_id().to_string()).collect();
->>>>>>> bc6c392d697c574ce1091a9d1c52271085ff3547
+        db_mcas.iter().map(|mca| mca.get_id().clone()).collect();
 
     let mut final_selection = Vec::new();
 
