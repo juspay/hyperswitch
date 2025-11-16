@@ -940,7 +940,10 @@ pub async fn perform_cgraph_filtering(
             .into_context()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
-    let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
+
+    let cached_cgraph =
+        get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
+
     let db_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -950,14 +953,15 @@ pub async fn perform_cgraph_filtering(
             key_store,
         )
         .await
-        .unwrap_or_else(|_| std::iter::empty().collect::<Vec<_>>());
+        .unwrap_or_else(|_| hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(vec![]));
+
 
     let active_mca_ids: std::collections::HashSet<_> = db_mcas
         .iter()
-        .map(|mca| mca.get_id().to_string())
+        .map(|mca| mca.get_id().clone())
         .collect();
 
-    let mut final_selection = Vec::<routing_types::RoutableConnectorChoice>::new();
+    let mut final_selection = Vec::new();
 
     for choice in chosen {
         let routable_connector = choice.connector;
