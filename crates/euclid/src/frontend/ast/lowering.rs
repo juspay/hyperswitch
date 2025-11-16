@@ -158,8 +158,6 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
     let key_enum = dir::DirKeyKind::from_str(comp.lhs.as_str())
         .map_err(|_| AnalysisErrorType::InvalidKey(comp.lhs.clone()))?;
 
-    println!(">>>>>>>>>>code reaches here");
-    println!(">>>>>>>>>> {:?}", comp);
     if !O::is_key_allowed(&key_enum) {
         return Err(AnalysisErrorType::InvalidKey(key_enum.to_string()));
     }
@@ -223,7 +221,6 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
     let value = comp.value;
     let comparison = comp.comparison;
 
-    println!(">>>>>>>>>>code reaches here");
     match key_enum {
         dir::DirKeyKind::PaymentMethod => lower_enum!(PaymentMethod, value),
         dir::DirKeyKind::CardType => lower_enum!(CardType, value),
