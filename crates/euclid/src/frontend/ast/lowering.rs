@@ -248,19 +248,49 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
         dir::DirKeyKind::MobilePaymentType => lower_enum!(MobilePaymentType, value),
         dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
-        dir::DirKeyKind::CardBin => {
-            let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
-                if st.len() == 6 && st.chars().all(|x| x.is_ascii_digit()) {
-                    Ok(())
-                } else {
-                    Err(AnalysisErrorType::InvalidValue {
+        dir::DirKeyKind::CardBins => {
+            let num = match &value {
+                ast::ValueType::Number(n) => *n,
+                _ => {
+                    return Err(AnalysisErrorType::InvalidValue {
                         key: dir::DirKeyKind::CardBin,
-                        value: st.clone(),
-                        message: Some("Expected 6 digits".to_string()),
-                    })
+                        value: format!("{value:?}"),
+                        message: Some("CardBin must be a number literal (u64)".to_string()),
+                    });
                 }
             };
-            lower_str!(CardBin, value, validation_closure)
+
+            let num_len = num.to_string().len();
+            if !(4..=6).contains(&num_len) {
+                return Err(AnalysisErrorType::InvalidValue {
+                    key: dir::DirKeyKind::CardBin,
+                    value: num.to_string(),
+                    message: Some("Expected 4 to 6 digits (only digits allowed)".to_string()),
+                });
+            }
+            lower_number!(CardBin, value, comparison)
+        }
+        dir::DirKeyKind::CardBin => {
+            let num = match &value {
+                ast::ValueType::Number(n) => *n,
+                _ => {
+                    return Err(AnalysisErrorType::InvalidValue {
+                        key: dir::DirKeyKind::CardBin,
+                        value: format!("{value:?}"),
+                        message: Some("CardBin must be a number literal (u64)".to_string()),
+                    });
+                }
+            };
+
+            let num_len = num.to_string().len();
+            if !(4..=6).contains(&num_len) {
+                return Err(AnalysisErrorType::InvalidValue {
+                    key: dir::DirKeyKind::CardBin,
+                    value: num.to_string(),
+                    message: Some("Expected 4 to 6 digits (only digits allowed)".to_string()),
+                });
+            }
+            lower_number!(CardBin, value, comparison)
         }
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
