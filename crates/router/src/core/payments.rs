@@ -10489,6 +10489,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),
+                authentication.force_3ds_challenge,
+                authentication.psd2_sca_exemption_type,
             )
             .await?;
         let authentication = external_authentication_update_trackers(
