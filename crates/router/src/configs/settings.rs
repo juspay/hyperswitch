@@ -182,7 +182,35 @@ pub struct Settings<S: SecretState> {
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
 }
+impl Settings {
+    pub fn validate(&self) -> Result<(), ConfigurationError> {
+        if self.server.workers == 0 {
+            return Err(ConfigurationError::InvalidConfigurationValue {
+                key: "server.workers".to_string(),
+                value: "0".to_string(),
+                message: "Number of workers must be at least 1".to_string(),
+            });
+        }
 
+        if self.server.port == 0 {
+            return Err(ConfigurationError::InvalidConfigurationValue {
+                key: "server.port".to_string(),
+                value: "0".to_string(),
+                message: "Server port must be greater than 0".to_string(),
+            });
+        }
+
+        if self.server.port < 1024 && cfg!(not(debug_assertions)) {
+            return Err(ConfigurationError::InvalidConfigurationValue {
+                key: "server.port".to_string(),
+                value: self.server.port.to_string(),
+                message: "Server port must be >= 1024 in production".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DebitRoutingConfig {
     #[serde(deserialize_with = "deserialize_hashmap")]
@@ -758,7 +786,38 @@ pub struct Server {
     #[cfg(feature = "tls")]
     pub tls: Option<ServerTls>,
 }
+impl Server {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        if self.workers == 0 {
+            return Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "server.workers must be at least 1, got 0".into(),
+                ),
+            ));
+        }
 
+        if self.port == 0 {
+            return Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    format!("server.port must be greater than 0, got {}", self.port),
+                ),
+            ));
+        }
+
+        if self.port < 1024 && cfg!(not(debug_assertions)) {
+            return Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    format!(
+                        "server.port must be >= 1024 in production, got {}. Use a non-privileged port.",
+                        self.port
+                    ),
+                ),
+            ));
+        }
+
+        Ok(())
+    }
+}
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Database {
@@ -994,6 +1053,9 @@ impl Settings<SecuredSecret> {
         {
             settings.required_fields = RequiredFields::new(&settings.bank_config);
         }
+        settings.validate()
+            .attach_printable("Configuration validation failed")
+            .change_context(ApplicationError::ConfigurationError)?;
         Ok(settings)
     }
 
