@@ -47,7 +47,11 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as tesouro;
 
-use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self as connector_utils, PaymentMethodDataType},
+};
 
 #[derive(Clone)]
 pub struct Tesouro {
@@ -172,18 +176,15 @@ impl ConnectorCommon for Tesouro {
 impl ConnectorValidation for Tesouro {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_data {
-            PaymentMethodData::Card(_) => Ok(()),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::ApplePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -968,7 +969,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::ApplePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -979,7 +980,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
