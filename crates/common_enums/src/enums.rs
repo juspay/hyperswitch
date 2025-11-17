@@ -2339,6 +2339,28 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
+impl PaymentMethod {
+    pub fn is_gift_card(&self) -> bool {
+        match self {
+            Self::GiftCard => true,
+            Self::Card
+            | Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment => false,
+        }
+    }
+}
+
 /// Indicates the gateway system through which the payment is processed.
 #[derive(
     Clone,
@@ -3161,7 +3183,7 @@ pub enum SplitTxnsEnabled {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ActiveAttemptIDType {
-    AttemptsGroupID,
+    GroupID,
     #[default]
     AttemptID,
 }

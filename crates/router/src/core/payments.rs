@@ -2824,6 +2824,51 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
+pub(crate) async fn payments_execute_wrapper(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    request: payments_api::PaymentsConfirmIntentRequest,
+    header_payload: HeaderPayload,
+    payment_id: id_type::GlobalPaymentId,
+) -> RouterResponse<payments_api::PaymentsResponse> {
+    if request.split_payment_method_data.is_none() {
+        Box::pin(payments_core::<
+            api::Authorize,
+            api_models::payments::PaymentsResponse,
+            _,
+            _,
+            _,
+            PaymentConfirmData<api::Authorize>,
+        >(
+            state,
+            req_state,
+            merchant_context,
+            profile,
+            operations::PaymentIntentConfirm,
+            request,
+            payment_id,
+            CallConnectorAction::Trigger,
+            header_payload,
+        ))
+        .await
+    } else {
+        Box::pin(super::split_payments::split_payments_execute_core(
+            state,
+            req_state,
+            merchant_context,
+            profile,
+            request,
+            header_payload,
+            payment_id,
+        ))
+        .await
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub(crate) async fn payments_create_and_confirm_intent(
     state: SessionState,
     req_state: ReqState,
@@ -6805,25 +6850,23 @@ where
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && ((connector.connector_name == router_types::Connector::Nexixpay
-                    && is_operation_complete_authorize(&operation))
-                    || (((connector.connector_name == router_types::Connector::Nuvei && {
-                        #[cfg(feature = "v1")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true)
-                        }
-                        #[cfg(feature = "v2")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true).into()
-                        }
-                    }) || connector.connector_name == router_types::Connector::Shift4)
-                        && !is_operation_complete_authorize(&operation)))
+                && (((connector.connector_name == router_types::Connector::Nuvei && {
+                    #[cfg(feature = "v1")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true)
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true).into()
+                    }
+                }) || connector.connector_name == router_types::Connector::Shift4)
+                    && !is_operation_complete_authorize(&operation))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
@@ -6862,6 +6905,13 @@ where
                     _ => false,
                 };
                 (router_data, should_continue)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && connector.connector_name == router_types::Connector::Nexixpay
+                && is_operation_complete_authorize(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
