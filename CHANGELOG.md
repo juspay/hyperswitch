@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.13.2-hotfix2
+
+### Features
+
+- **core:** Add all_keys_required in Capture, Refund and RSync Flows ([#10322](https://github.com/juspay/hyperswitch/pull/10322)) ([`3a56bfa`](https://github.com/juspay/hyperswitch/commit/3a56bfad1961ddc03b7754fbd341a45ca5031bc5))
+
+**Full Changelog:** [`2025.11.13.2-hotfix1...2025.11.13.2-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.11.13.2-hotfix1...2025.11.13.2-hotfix2)
+
+- - -
+
 ## 2025.11.13.2-hotfix1
 
 ### Features
