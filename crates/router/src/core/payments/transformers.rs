@@ -2750,13 +2750,6 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
         let intent_amount_details = &payment_intent.amount_details;
         let attempt_amount_details = &payment_attempt.amount_details;
 
-        let secondary_net_amount = self
-            .secondary_payment_response_data
-            .iter()
-            .fold(MinorUnit::zero(), |acc, data| {
-                acc + data.payment_attempt.amount_details.get_net_amount()
-            });
-
         let net_amount = intent_amount_details.calculate_net_amount();
 
         let amount = api_models::payments::PaymentAmountDetailsResponse {

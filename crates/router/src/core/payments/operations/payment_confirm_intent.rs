@@ -347,14 +347,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 .attach_printable("Failed while encrypting payment intent details")?;
 
         let payment_attempt_domain_model =
-            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model_for_split_payment(
+            crate::core::split_payments::create_domain_model_for_split_payment(
                 &payment_intent,
                 cell_id,
                 storage_scheme,
                 request,
                 encrypted_data,
                 split_amount_data.1,
-                attempts_group_id
+                attempts_group_id,
             )
             .await?;
 
