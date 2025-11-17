@@ -7069,7 +7069,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
 
     #[cfg(feature = "v2")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.network_token_exp_year.peek().clone();
+        let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
             year = format!("20{year}");
         }
@@ -7093,7 +7093,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
 
     #[cfg(feature = "v2")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
-        self.network_token_exp_month.clone()
+        self.token_exp_month.clone()
     }
 
     #[cfg(feature = "v1")]
@@ -7103,7 +7103,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
 
     #[cfg(feature = "v2")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
-        self.network_token_exp_year.clone()
+        self.token_exp_year.clone()
     }
 
     #[cfg(feature = "v1")]
@@ -7129,7 +7129,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
 
     #[cfg(feature = "v2")]
     fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let binding = self.network_token_exp_year.clone();
+        let binding = self.token_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
@@ -7160,7 +7160,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
         let year = self.get_token_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
-            self.network_token_exp_month.peek(),
+            self.token_exp_month.peek(),
             delimiter,
             year.peek()
         )))
