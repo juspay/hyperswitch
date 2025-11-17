@@ -8,7 +8,7 @@ pub use ::payment_methods::{
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
     },
-    controller::{PaymentMethodsController,PmController as PmCards},
+    controller::PmCards,
 };
 #[cfg(feature = "v1")]
 use api_models::admin::PaymentMethodsEnabled;

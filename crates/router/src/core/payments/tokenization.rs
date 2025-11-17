@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{

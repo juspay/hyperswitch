@@ -1,4 +1,3 @@
-use ::payment_methods::controller::PaymentMethodsController;
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;

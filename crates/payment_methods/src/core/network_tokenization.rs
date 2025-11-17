@@ -1,4 +1,4 @@
-use crate::{core::errors, types as pm_types, services, state, headers, metrics, controller::{self, DeleteCardResp, PaymentMethodsController}};
+use crate::{core::errors, types as pm_types, services, state, headers, metrics, controller::{self, DeleteCardResp}};
 use hyperswitch_domain_models::{merchant_context};
 use hyperswitch_interfaces::configs as settings;
 use common_utils::id_type;
@@ -20,7 +20,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
     merchant_context: &merchant_context::MerchantContext,
 ) -> errors::PmResult<DeleteCardResp> {
     //deleting network token from locker
-    let resp = controller::PmController {
+    let resp = controller::PmCards {
         state,
         merchant_context,
     }

@@ -1,4 +1,3 @@
-use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::enums as api_enums;
 use api_models::locker_migration::MigrateCardResponse;

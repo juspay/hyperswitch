@@ -1,7 +1,4 @@
-use ::payment_methods::{
-    controller::PaymentMethodsController,
-    core::{migration, migration::payment_methods::migrate_payment_method},
-};
+use ::payment_methods::core::{migration, migration::payment_methods::migrate_payment_method};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};

@@ -1,4 +1,3 @@
-use ::payment_methods::controller::PaymentMethodsController;
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     crypto::Encryptable,

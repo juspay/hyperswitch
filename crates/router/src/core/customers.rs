@@ -12,7 +12,6 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_methods as payment_methods_domain;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
-use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]

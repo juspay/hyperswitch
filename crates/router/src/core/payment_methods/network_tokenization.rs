@@ -3,7 +3,6 @@ use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
-use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};

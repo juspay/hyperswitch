@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use ::payment_methods::controller::PaymentMethodsController;
 use api_models::webhooks::WebhookResponseTracker;
 use async_trait::async_trait;
 use common_utils::{
