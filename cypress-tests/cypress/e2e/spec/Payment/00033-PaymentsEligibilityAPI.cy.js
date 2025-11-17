@@ -1,5 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { connectorDetails } from "../../../e2e/configs/Payment/Commons";
 
 let globalState;
 
@@ -18,18 +20,7 @@ describe("Payments Eligibility API with Blocklist", () => {
     it("payment intent create call", () => {
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        {
-          Request: {
-            currency: "USD",
-            amount: 6500,
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        },
+        connectorDetails.eligibility_api.PaymentIntentForBlocklist,
         "no_three_ds",
         "automatic",
         globalState
@@ -59,50 +50,7 @@ describe("Payments Eligibility API with Blocklist", () => {
     it("should deny payment for blocklisted card_bin 424242", () => {
       cy.paymentsEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        {
-          Request: {
-            payment_method_type: "card",
-            payment_method_data: {
-              card: {
-                card_number: "4242424242424242",
-                card_exp_month: "01",
-                card_exp_year: "2050",
-                card_holder_name: "John Smith",
-                card_cvc: "349",
-                card_network: "Visa",
-              },
-              billing: {
-                address: {
-                  line1: "1467",
-                  line2: "Harrison Street",
-                  line3: "Harrison Street",
-                  city: "San Fransico",
-                  state: "CA",
-                  zip: "94122",
-                  country: "US",
-                  first_name: "John",
-                  last_name: "Doe",
-                },
-                phone: {
-                  number: "8056594427",
-                  country_code: "+91",
-                },
-              },
-            },
-          },
-          Response: {
-            status: 200,
-            body: {
-              sdk_next_action: {
-                next_action: {
-                  deny: {
-                    message: "Card number is blocklisted",
-                  },
-                },
-              },
-            },
-          },
-        },
+        connectorDetails.eligibility_api.BlocklistedCardDenied,
         globalState
       );
     });
@@ -110,45 +58,7 @@ describe("Payments Eligibility API with Blocklist", () => {
     it("should allow payment for non-blocklisted card", () => {
       cy.paymentsEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        {
-          Request: {
-            payment_method_type: "card",
-            payment_method_data: {
-              card: {
-                card_number: "4111111111111111", // Different BIN - not blocklisted
-                card_exp_month: "01",
-                card_exp_year: "2050",
-                card_holder_name: "John Smith",
-                card_cvc: "349",
-                card_network: "Visa",
-              },
-              billing: {
-                address: {
-                  line1: "1467",
-                  line2: "Harrison Street",
-                  line3: "Harrison Street",
-                  city: "San Fransico",
-                  state: "CA",
-                  zip: "94122",
-                  country: "US",
-                  first_name: "John",
-                  last_name: "Doe",
-                },
-                phone: {
-                  number: "8056594427",
-                  country_code: "+91",
-                },
-              },
-            },
-          },
-          Response: {
-            status: 200,
-            body: {
-              // Should not have deny action for non-blocklisted cards
-              // The response structure may vary based on implementation
-            },
-          },
-        },
+        connectorDetails.eligibility_api.NonBlocklistedCardAllowed,
         globalState
       );
     });
