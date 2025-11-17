@@ -4614,12 +4614,16 @@ where
         // and rely on previous status set in router_data
         // TODO: status is already set when constructing payment data, why should this be done again?
         // router_data.status = payment_data.get_payment_attempt().status;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
         let gateway_context = gateway_context::RouterGatewayContext {
             creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
             merchant_context: merchant_context.clone(),
             header_payload: header_payload.clone(),
             lineage_ids,
-            merchant_connector_account: merchant_connector_account.clone(),
+            merchant_connector_account: merchant_connector_account_type_details,
             execution_path: ExecutionPath::Direct,
             execution_mode: ExecutionMode::NotApplicable,
         };
@@ -5588,6 +5592,10 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
@@ -5724,6 +5732,10 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
