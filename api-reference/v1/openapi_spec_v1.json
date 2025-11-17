@@ -37085,11 +37085,11 @@
         "type": "object",
         "properties": {
           "token_type": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VaultTokenType"
-            },
-            "description": "Type of field to be tokenized in",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -37103,9 +37103,9 @@
           "card_expiry_year",
           "card_expiry_month",
           "network_token",
-          "token_expiry_year",
-          "token_expiry_month",
-          "token_cryptogram"
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
         ]
       },
       "Venmo": {
