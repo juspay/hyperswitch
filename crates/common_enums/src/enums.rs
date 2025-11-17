@@ -9992,3 +9992,39 @@ pub enum ExemptionIndicator {
     /// Recurring transaction exemption (subsequent payment in a series).
     RecurringOperation,
 }
+
+/// Fields that can be tokenized with vault
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultTokenType {
+    /// Card number
+    CardNumber,
+    /// Card cvc
+    CardCvc,
+    /// Card expiry year
+    CardExpiryYear,
+    /// Card expiry month
+    CardExpiryMonth,
+    /// Network token
+    NetworkToken,
+    /// Token expiry year
+    NetworkTokenExpiryYear,
+    /// Token expiry month
+    NetworkTokenExpiryMonth,
+    /// Token cryptogram
+    NetworkTokenCryptogram,
+}
