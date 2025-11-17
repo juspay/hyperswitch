@@ -26086,6 +26086,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         }
       },
@@ -33327,6 +33332,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -33437,6 +33447,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
             "nullable": true
           }
         }

@@ -19792,6 +19792,11 @@
             "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540,
             "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         }
       },
@@ -24198,6 +24203,11 @@
             "type": "string",
             "description": "The reference id of the connector for the refund",
             "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains raw connector response",
+            "nullable": true
           }
         }
       },
@@ -24282,6 +24292,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
