@@ -172,7 +172,9 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        let payment_method = router_data.request.payment_method_data
+        let payment_method = router_data
+            .request
+            .payment_method_data
             .clone()
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
@@ -260,8 +262,10 @@ impl
         )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        
-        let payment_method = router_data.request.payment_method_data
+
+        let payment_method = router_data
+            .request
+            .payment_method_data
             .clone()
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
@@ -350,7 +354,7 @@ impl
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-            )?
+            )?,
         );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -497,7 +501,9 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data.request.payment_method_data
+        let payment_method = router_data
+            .request
+            .payment_method_data
             .clone()
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
@@ -630,7 +636,7 @@ impl
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-            )?
+            )?,
         );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -955,7 +961,7 @@ impl
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-            )?
+            )?,
         );
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
