@@ -75,7 +75,7 @@ pub async fn get_store(
             tenant,
             &config.redis,
             master_enc_key,
-            key_manager_state.clone(),
+            Some(key_manager_state.clone()),
         )
         .await?
     } else {
@@ -85,7 +85,7 @@ pub async fn get_store(
             master_enc_key,
             cache_store,
             storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
-            key_manager_state.clone(),
+            Some(key_manager_state.clone()),
         )
         .await?
     };
@@ -97,7 +97,7 @@ pub async fn get_store(
         config.drainer.num_partitions,
         config.kv_config.ttl,
         config.kv_config.soft_kill,
-        key_manager_state,
+        Some(key_manager_state),
     );
 
     Ok(store)

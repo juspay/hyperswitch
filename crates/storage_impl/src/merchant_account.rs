@@ -164,7 +164,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -184,7 +185,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
-        let state = self.get_keymanager_state();
+        let state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -240,7 +243,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         }
         updated_merchant_account
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -270,7 +274,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         }
         updated_merchant_account
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -315,7 +320,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .await?;
         let domain_merchant_account = merchant_account
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -355,7 +361,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 .map(|(merchant_account, key_store)| async {
                     merchant_account
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -445,7 +452,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                     )?;
                     merchant_account
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -538,7 +546,8 @@ impl MerchantAccountInterface for MockDb {
 
         account
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -561,7 +570,8 @@ impl MerchantAccountInterface for MockDb {
                 "Merchant ID: {merchant_id:?} not found",
             )))?
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -590,7 +600,8 @@ impl MerchantAccountInterface for MockDb {
                 *account = update.clone();
                 update
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -621,7 +632,8 @@ impl MerchantAccountInterface for MockDb {
                 *account = update.clone();
                 update
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -661,7 +673,8 @@ impl MerchantAccountInterface for MockDb {
         let merchant_account = account
             .clone()
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -712,7 +725,8 @@ impl MerchantAccountInterface for MockDb {
                     Ok(key) => account
                         .clone()
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key.key.get_inner(),
                             key.merchant_id.clone().into(),
                         )
@@ -747,7 +761,8 @@ impl MerchantAccountInterface for MockDb {
                     Ok(key) => account
                         .clone()
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key.key.get_inner(),
                             key.merchant_id.clone().into(),
                         )

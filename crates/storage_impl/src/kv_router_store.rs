@@ -35,7 +35,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
     pub router_store: RouterStore<T>,
-    pub key_manager_state: KeyManagerState,
+    pub key_manager_state: Option<KeyManagerState>,
     pub merchant_key_store: Option<MerchantKeyStore>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
@@ -45,8 +45,10 @@ pub struct KVRouterStore<T: DatabaseStore> {
 }
 
 impl<T: DatabaseStore> KVRouterStore<T> {
-    pub fn get_keymanager_state(&self) -> &KeyManagerState {
-        &self.key_manager_state
+    pub fn get_keymanager_state(&self) -> Result<&KeyManagerState, errors::StorageError> {
+        self.key_manager_state
+            .as_ref()
+            .ok_or_else(|| errors::StorageError::DecryptionError)
     }
 }
 
@@ -117,7 +119,7 @@ where
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
-        key_manager_state: KeyManagerState,
+        key_manager_state: Option<KeyManagerState>,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
@@ -159,7 +161,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
         soft_kill: Option<bool>,
-        key_manager_state: KeyManagerState,
+        key_manager_state: Option<KeyManagerState>,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -275,7 +277,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         res()
             .await?
             .convert(
-                &self.key_manager_state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -345,7 +348,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        &self.key_manager_state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -426,7 +430,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             }
         }?
         .convert(
-            &self.key_manager_state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -491,7 +496,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             _ => Err(errors::StorageError::KVError.into()),
         }?
         .convert(
-            &self.key_manager_state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -542,7 +548,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .into_iter()
             .map(|pm| async {
                 pm.convert(
-                    &self.key_manager_state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

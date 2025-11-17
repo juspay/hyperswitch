@@ -105,7 +105,8 @@ mod storage {
 
             db_model
                 .convert(
-                    self.get_keymanager_state(),
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     &key_store.key,
                     key_manager_identifier,
                 )
@@ -152,7 +153,8 @@ mod storage {
 
             db_model
                 .convert(
-                    self.get_keymanager_state(),
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     &key_store.key,
                     key_manager_identifier,
                 )

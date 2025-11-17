@@ -920,7 +920,8 @@ impl PaymentMethodInterface for MockDb {
                 let deleted_payment_method = payment_methods.remove(index);
                 Ok(deleted_payment_method
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )

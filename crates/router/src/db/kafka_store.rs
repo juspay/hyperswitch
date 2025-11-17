@@ -16,6 +16,7 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
+use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
@@ -1793,7 +1794,10 @@ impl PaymentIntentInterface for KafkaStore {
                 storage_scheme,
             )
             .await?;
-        let state = self.diesel_store.get_keymanager_state();
+        let state = self
+            .diesel_store
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
         if let Err(er) = self
             .kafka_producer
             .log_payment_intent(
@@ -1817,7 +1821,10 @@ impl PaymentIntentInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         logger::debug!("Inserting PaymentIntent Via KafkaStore");
-        let state = self.diesel_store.get_keymanager_state();
+        let state = self
+            .diesel_store
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
         let intent = self
             .diesel_store
             .insert_payment_intent(new, key_store, storage_scheme)

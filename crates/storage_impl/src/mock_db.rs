@@ -72,8 +72,8 @@ pub struct MockDb {
 }
 
 impl MockDb {
-    pub fn get_keymanager_state(&self) -> &KeyManagerState {
-        &self.key_manager_state
+    pub fn get_keymanager_state(&self) -> Result<&KeyManagerState, StorageError> {
+        Ok(&self.key_manager_state)
     }
     pub async fn new(
         redis: &RedisSettings,
@@ -192,7 +192,8 @@ impl MockDb {
                 .into_iter()
                 .map(|pm| async {
                     pm.convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -223,7 +224,8 @@ impl MockDb {
             *pm = resource_updated.clone();
             let result = resource_updated
                 .convert(
-                    self.get_keymanager_state(),
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

@@ -60,7 +60,8 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -82,7 +83,8 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
 
         let domain = tokenization
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )

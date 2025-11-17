@@ -124,7 +124,8 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -198,7 +199,8 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -252,7 +254,8 @@ impl ProfileInterface for MockDb {
 
         stored_business_profile
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -274,7 +277,8 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -309,7 +313,7 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state().attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -348,7 +352,8 @@ impl ProfileInterface for MockDb {
 
                 profile_updated
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
@@ -403,7 +408,8 @@ impl ProfileInterface for MockDb {
         for business_profile in business_profiles {
             let domain_profile = business_profile
                 .convert(
-                    self.get_keymanager_state(),
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -433,7 +439,7 @@ impl ProfileInterface for MockDb {
             .async_map(|business_profile| async {
                 business_profile
                     .convert(
-                        self.get_keymanager_state(),
+                        self.get_keymanager_state().attach_printable("Missing KeyManagerState")?,
                         merchant_key_store.key.get_inner(),
                         merchant_key_store.merchant_id.clone().into(),
                     )
