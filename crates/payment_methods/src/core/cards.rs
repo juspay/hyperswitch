@@ -6,7 +6,7 @@ use crate::{
     controller,
     core::{errors,transformers},
     headers,
-    helpers::{self, domain, StorageErrorExt},
+    helpers::domain,
     state,
 };
 use masking::ExposeOptionInterface;
@@ -14,11 +14,9 @@ use hyperswitch_domain_models::locker_mock_up;
 use time::Duration;
 use scheduler::workflows::storage as sch_storage;
 use scheduler::errors::ProcessTrackerError;
-#[cfg(feature = "payouts")]
-use api_models::payouts;
 use api_models::{
     enums as api_enums,
-    payment_methods::{self as api, Card, CardDetailsPaymentMethod, PaymentMethodsData},
+    payment_methods::{self as api, Card},
 };
 #[cfg(feature = "v1")]
 use common_enums::enums as common_enums;
@@ -32,27 +30,16 @@ use common_utils::request::Method;
 use common_utils::request::Request;
 use common_utils::request::RequestContent;
 use common_utils::{
-    consts, crypto, encryption,
-    ext_traits::{self, AsyncExt},
+    consts, encryption,
     generate_id, id_type, type_name,
-    types::keymanager,
 };
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
-use hyperswitch_domain_models::{
-    api as domain_api, customer::CustomerUpdate, ext_traits::OptionExt, merchant_context,
-    merchant_key_store, payment_methods, type_encryption,
-};
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use hyperswitch_interfaces::api_client;
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use router_env::logger;
 use router_env::{instrument, tracing, RequestId};
-#[cfg(feature = "v1")]
-use scheduler::errors as sch_errors;
-use serde::{Deserialize, Serialize};
-use storage_impl::{errors as storage_errors, payment_method};
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
@@ -62,7 +49,7 @@ pub struct PaymentMethodStatusTrackingData {
     pub payment_method_id: String,
     pub prev_status: common_enums::PaymentMethodStatus,
     pub curr_status: common_enums::PaymentMethodStatus,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[instrument(skip_all)]
@@ -628,7 +615,7 @@ pub async fn add_card_to_hs_locker(
     payload: &transformers::StoreLockerReq,
     customer_id: &id_type::CustomerId,
     locker_choice: api_enums::LockerChoice,
-) -> errors::CustomResult<transformers::StoreCardRespPayload, errors::VaultError> {
+) -> CustomResult<transformers::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
@@ -670,7 +657,7 @@ pub async fn mock_call_to_locker_hs(
     card_cvc: Option<String>,
     payment_method_id: Option<String>,
     customer_id: Option<&id_type::CustomerId>,
-) -> errors::CustomResult<transformers::StoreCardResp, errors::VaultError> {
+) -> CustomResult<transformers::StoreCardResp, errors::VaultError> {
     let mut locker_mock_up = locker_mock_up::LockerMockUpNew {
         card_id: card_id.to_string(),
         external_id: uuid::Uuid::new_v4().to_string(),

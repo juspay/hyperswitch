@@ -273,18 +273,18 @@ pub trait PaymentMethodsController {
 }
 
 pub async fn create_encrypted_data<T>(
-    key_manager_state: &keymanager::KeyManagerState,
+    key_manager_state: &KeyManagerState,
     key_store: &merchant_key_store::MerchantKeyStore,
     data: T,
 ) -> Result<
-    crypto::Encryptable<Secret<serde_json::Value>>,
+    Encryptable<Secret<serde_json::Value>>,
     error_stack::Report<storage_errors::StorageError>,
 >
 where
     T: Debug + Serialize,
 {
     let key = key_store.key.get_inner().peek();
-    let identifier = keymanager::Identifier::Merchant(key_store.merchant_id.clone());
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
 
     let encoded_data = ext_traits::Encode::encode_to_value(&data)
         .change_context(storage_errors::StorageError::SerializationFailed)

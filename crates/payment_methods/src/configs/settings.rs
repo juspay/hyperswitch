@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::Encode;
 use common_utils::{errors::CustomResult, id_type};
 pub use hyperswitch_interfaces::{
     configs::{DecryptionScheme, Locker, Jwekey},

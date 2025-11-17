@@ -1,56 +1,30 @@
 use std::fmt::Debug;
 
 use crate::{
-    metrics,
     services,
     configs::settings,
-    controller,
     core::{errors, cards::mk_basilisk_req},
     headers,
-    helpers::{self, domain, StorageErrorExt},
-    state,
 };
 #[cfg(all(feature = "v1", feature = "payouts"))]
 use api_models::payouts::Bank as BankPayout;
-#[cfg(feature = "payouts")]
-use api_models::payouts;
 use api_models::{
     enums as api_enums,
-    payment_methods::{self as api, Card, CardDetailsPaymentMethod, PaymentMethodsData},
+    payment_methods::{self as api, Card},
 };
-#[cfg(feature = "v1")]
-use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]
 use common_utils::encryption;
 use common_utils::errors::CustomResult;
-use common_utils::ext_traits::BytesExt;
 use common_utils::ext_traits::Encode;
-use common_utils::ext_traits::StringExt;
-use common_utils::request::Method;
-use common_utils::request::Request;
 use common_utils::request::RequestContent;
 use common_utils::{
-    consts, crypto, encryption,
-    ext_traits::{self, AsyncExt},
-    generate_id, id_type, type_name,
-    types::keymanager,
+    encryption, id_type,
 };
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
-use hyperswitch_domain_models::{
-    api as domain_api, customer::CustomerUpdate, ext_traits::OptionExt, merchant_context,
-    merchant_key_store, payment_methods, type_encryption,
-};
-use hyperswitch_interfaces::api_client;
-use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::logger;
-use router_env::{instrument, tracing, RequestId};
-#[cfg(feature = "v1")]
-use scheduler::errors as sch_errors;
+use hyperswitch_domain_models::ext_traits::OptionExt;
+use masking::{PeekInterface, Secret};
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
-use storage_impl::{errors as storage_errors, payment_method};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardResp {
