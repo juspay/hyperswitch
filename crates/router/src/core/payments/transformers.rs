@@ -4280,14 +4280,15 @@ pub fn extract_upi_data(
         .map(|uri_info| uri_info.sdk_uri);
 
     // Extract wait screen information
-    let wait_screen_info = metadata_value
-        .get("WaitScreenInstructions")
-        .and_then(|wait_screen_value| {
-            serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
-                wait_screen_value.clone(),
-            )
-            .ok()
-        });
+    let wait_screen_info =
+        metadata_value
+            .get("WaitScreenInstructions")
+            .and_then(|wait_screen_value| {
+                serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+                .ok()
+            });
 
     Ok((sdk_uri, wait_screen_info))
 }
