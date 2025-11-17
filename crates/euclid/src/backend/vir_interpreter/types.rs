@@ -98,6 +98,11 @@ impl Context {
         if let Some(card_bin) = payment.card_bin {
             enum_values.insert(EuclidValue::CardBin(StrValue { value: card_bin }));
         }
+        if let Some(extended_card_bin) = payment.extended_card_bin {
+            enum_values.insert(EuclidValue::ExtendedCardBin(StrValue {
+                value: extended_card_bin,
+            }));
+        }
         if let Some(business_label) = payment.business_label {
             enum_values.insert(EuclidValue::BusinessLabel(StrValue {
                 value: business_label,

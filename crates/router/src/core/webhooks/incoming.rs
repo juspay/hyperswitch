@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, RequestId};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{types, utils, MERCHANT_ID};

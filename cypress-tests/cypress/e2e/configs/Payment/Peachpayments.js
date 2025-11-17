@@ -1,19 +1,19 @@
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
-  card_exp_month: "10",
-  card_exp_year: "25",
+  card_number: "5181030000183696",
+  card_exp_month: "01",
+  card_exp_year: "28",
   card_holder_name: "John",
-  card_cvc: "123",
+  card_cvc: "576",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
-  card_exp_month: "10",
-  card_exp_year: "25",
+  card_number: "5181030000183696",
+  card_exp_month: "01",
+  card_exp_year: "28",
   card_holder_name: "Joseph",
-  card_cvc: "123",
+  card_cvc: "576",
 };
 
 const singleUseMandateData = {
@@ -96,12 +96,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           shipping_cost: 50,
-          amount_received: null,
+          amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
-          error_message: "No or unknown response code",
         },
       },
     },
@@ -174,9 +173,6 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      config: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -189,14 +185,9 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "automatic is not supported by peachpayments",
-            type: "invalid_request",
-          },
+          status: "succeeded",
         },
       },
     },

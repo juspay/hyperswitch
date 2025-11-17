@@ -6,6 +6,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
+    mandates::MandateData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
@@ -768,10 +769,23 @@ impl
             connector_customer_id: router_data.connector_customer.clone(),
             state,
             merchant_account_metadata,
-            description: None,
-            setup_mandate_details: None,
-            statement_descriptor_name: None,
-            statement_descriptor_suffix: None,
+            description: router_data.description.clone(),
+            setup_mandate_details: router_data
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+                .transpose()?,
+            statement_descriptor_name: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            statement_descriptor_suffix: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
         })
     }
 }
@@ -927,10 +941,15 @@ impl
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
             state: None,
-            description: None,
-            setup_mandate_details: None,
-            statement_descriptor_name: None,
-            statement_descriptor_suffix: None,
+            description: router_data.description.clone(),
+            setup_mandate_details: router_data
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+                .transpose()?,
+            statement_descriptor_name: router_data.request.statement_descriptor.clone(),
+            statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
         })
     }
 }
@@ -1081,6 +1100,8 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
         let mandate_reference = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
@@ -1152,11 +1173,11 @@ impl
             test_mode: router_data.test_mode,
             payment_method_type: None,
             state,
-            return_url: None,
-            description: None,
-            connector_customer_id: None,
-            address: None,
-            off_session: None,
+            return_url: router_data.request.router_return_url.clone(),
+            description: router_data.description.clone(),
+            connector_customer_id: router_data.connector_customer.clone(),
+            address: Some(address),
+            off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
         })
     }
@@ -1638,7 +1659,14 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                         None => router_request_types::ResponseId::NoResponseId,
                     },
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: grpc_mandate.payment_method_id,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
                     connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
@@ -2336,6 +2364,22 @@ impl transformers::ForeignTryFrom<common_types::payments::CustomerAcceptance>
                 .map(|dt| dt.assume_utc().unix_timestamp())
                 .unwrap_or_default(),
             online_mandate_details,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateDetails {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(mandate_data: &MandateData) -> Result<Self, Self::Error> {
+        let customer_acceptance = mandate_data
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        Ok(Self {
+            update_mandate_id: mandate_data.update_mandate_id.clone(),
+            customer_acceptance,
         })
     }
 }

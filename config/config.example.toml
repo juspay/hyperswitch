@@ -224,6 +224,7 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
+envoy.base_url = "https://www.envoytx.com/MerchantAPI.asmx"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -318,7 +319,8 @@ trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
-vgs.base_url = "https://api.sandbox.verygoodvault.com/"
+vgs.base_url = "https://{{vault_id}}.sandbox.vault-api.verygoodvault.com/"
+vgs.secondary_base_url = "https://auth.verygoodsecurity.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -1299,6 +1301,10 @@ allow_connected_merchants = false # Enable or disable connected merchant account
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 encryption_key = ""                            # Key to encrypt and decrypt chats
+
+[trace_header]
+header_name = "x-request-id"    # HTTP header name for request tracing (can be x-trace-id, x-correlation-id, etc.)
+id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or "use_incoming"
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
