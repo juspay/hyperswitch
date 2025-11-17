@@ -338,7 +338,7 @@ fn scan_rust_file(
             let enabled_features = feature_resolver.get_enabled_crate_features(crate_name);
 
             // Special handling for items that have multiple definitions with different derives
-            if item_name == "FeatureMetadata" {
+            if item_name == "FeatureMetadata" || item_name == "CustomerRequest" || item_name == "CustomerUpdateRequest" {
                 // FeatureMetadata only has SmithyModel in v1 version
                 if !enabled_features.contains("v1") {
                     continue;
