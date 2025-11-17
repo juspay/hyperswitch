@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.17.1
+
+### Features
+
+- **business_profile:** Add token field selector column to business profile ([#10190](https://github.com/juspay/hyperswitch/pull/10190)) ([`ad92f7f`](https://github.com/juspay/hyperswitch/commit/ad92f7f986ae956c36beaca03455fcfe9bf20b47))
+- **connector:** [Peach Payments] Add Automatic Capture Flow for Peach Payments ([#10270](https://github.com/juspay/hyperswitch/pull/10270)) ([`11f08ea`](https://github.com/juspay/hyperswitch/commit/11f08eafc898fce3d3de1412fc556700f0c7f389))
+- **router:** Flow changes for split payments (v2) ([#9239](https://github.com/juspay/hyperswitch/pull/9239)) ([`7529008`](https://github.com/juspay/hyperswitch/commit/75290087ce78892a45bf12d4beb6fbce42108c06))
+
+### Bug Fixes
+
+- **connector:** [PayJustNow] Omit Nullable Fields if None ([#10267](https://github.com/juspay/hyperswitch/pull/10267)) ([`02b29ae`](https://github.com/juspay/hyperswitch/commit/02b29ae265e7bdbc5447eb774d77a5d2be85367e))
+- **connectors:** [Nexixpay] avoid complete authorize call when preprocessing failed ([#10254](https://github.com/juspay/hyperswitch/pull/10254)) ([`39f3a00`](https://github.com/juspay/hyperswitch/commit/39f3a00ff3bbf5fc99493d30f5887e380b86d9a0))
+
+### Miscellaneous Tasks
+
+- **euclid_wasm:** Add wasm for Vgs vault ([#10198](https://github.com/juspay/hyperswitch/pull/10198)) ([`2fc3259`](https://github.com/juspay/hyperswitch/commit/2fc3259246e83ded69b5c5b7ecccc883c800f637))
+
+**Full Changelog:** [`2025.11.17.0...2025.11.17.1`](https://github.com/juspay/hyperswitch/compare/2025.11.17.0...2025.11.17.1)
+
+- - -
+
 ## 2025.11.17.0
 
 ### Features
