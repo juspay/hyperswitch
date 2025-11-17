@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0-hotfix1
+
+### Features
+
+- **euclid:** Support for extended_card_bins in routing ([#10293](https://github.com/juspay/hyperswitch/pull/10293)) ([`2d16228`](https://github.com/juspay/hyperswitch/commit/2d16228eeeb7f790144bc0f640567a8390e21753))
+
+### Bug Fixes
+
+- **connector:** Nuvie psync + rsync delay exception ([#10298](https://github.com/juspay/hyperswitch/pull/10298)) ([`7fefd35`](https://github.com/juspay/hyperswitch/commit/7fefd3501505a997b532e8a50ab3f22fe2856325))
+
+### Refactors
+
+- **connector:** [Gigadat] add phone country code in interac required fields ([#10305](https://github.com/juspay/hyperswitch/pull/10305)) ([`1ae58a0`](https://github.com/juspay/hyperswitch/commit/1ae58a0318f4d21464f598aaed37045c60416c52))
+- **euclid:** Remove disabled mcas from eligibility ([#10295](https://github.com/juspay/hyperswitch/pull/10295)) ([`4fcd73c`](https://github.com/juspay/hyperswitch/commit/4fcd73ca2d3548dd6746c21dacee938b06bc575a))
+- Update storage call to only fetch blocklist status from db ([#10294](https://github.com/juspay/hyperswitch/pull/10294)) ([`5db3475`](https://github.com/juspay/hyperswitch/commit/5db3475f186e1b62fe5d532e72e0560ae3366480))
+
+### Revert
+
+- Refactor(payment-methods): add support to avoid duplication while adding card to ext vault and add resource locking for payment methods for concurrent requests ([#9963](https://github.com/juspay/hyperswitch/pull/9963)) ([#10310](https://github.com/juspay/hyperswitch/pull/10310)) ([`e8d9242`](https://github.com/juspay/hyperswitch/commit/e8d92421e33739aaedd2e13410906ead0a305d7d))
+
+**Full Changelog:** [`2025.11.12.0...2025.11.12.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0...2025.11.12.0-hotfix1)
+
+- - -
+
 ## 2025.11.12.0
 
 ### Features
