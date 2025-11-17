@@ -146,7 +146,7 @@ where
                 .0
                 .get(&connector_name.to_string())
                 .map(|token_filter| token_filter.long_lived_token)
-                .unwrap_or(false);
+                .unwrap_or(false); 
 
             let network_transaction_id = match &responses {
                 types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
