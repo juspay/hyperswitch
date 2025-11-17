@@ -165,6 +165,7 @@ pub fn make_dsl_input_for_payouts(
     let payment = dsl_inputs::PaymentInput {
         amount: payout_data.payouts.amount,
         card_bin: None,
+        extended_card_bin: None,
         currency: payout_data.payouts.destination_currency,
         authentication_type: None,
         capture_method: None,
@@ -295,6 +296,15 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        extended_card_bin: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => {
+                    Some(card.card_number.peek().chars().take(8).collect::<String>())
+                }
+                _ => None,
+            }),
         currency: payments_dsl_input.currency,
         authentication_type: Some(payments_dsl_input.payment_attempt.authentication_type),
         capture_method: Some(payments_dsl_input.payment_intent.capture_method),
@@ -406,6 +416,15 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        extended_card_bin: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => {
+                    Some(card.card_number.peek().chars().take(8).collect())
+                }
+                _ => None,
+            }),
         currency: payments_dsl_input.currency,
         authentication_type: payments_dsl_input.payment_attempt.authentication_type,
         capture_method: payments_dsl_input
@@ -1152,6 +1171,7 @@ pub async fn perform_session_flow_routing<'a>(
         currency: session_input.payment_intent.amount_details.currency,
         authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
+        extended_card_bin: None,
         capture_method: Option::<euclid_enums::CaptureMethod>::foreign_from(
             session_input.payment_intent.capture_method,
         ),
@@ -1299,6 +1319,7 @@ pub async fn perform_session_flow_routing(
             })?,
         authentication_type: session_input.payment_attempt.authentication_type,
         card_bin: None,
+        extended_card_bin: None,
         capture_method: session_input
             .payment_attempt
             .capture_method
@@ -1627,6 +1648,7 @@ pub fn make_dsl_input_for_surcharge(
             })?,
         authentication_type: payment_attempt.authentication_type,
         card_bin: None,
+        extended_card_bin: None,
         capture_method: payment_attempt.capture_method,
         business_country: payment_intent
             .business_country
