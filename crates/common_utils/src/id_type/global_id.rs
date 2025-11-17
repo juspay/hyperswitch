@@ -191,7 +191,6 @@ impl<'de> serde::Deserialize<'de> for GlobalId {
 
 #[cfg(test)]
 mod global_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

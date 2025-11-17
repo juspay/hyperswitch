@@ -94,6 +94,123 @@ pub async fn create_subscription(
 }
 
 #[instrument(skip_all)]
+pub async fn pause_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+    json_payload: web::Json<subscription_types::PauseSubscriptionRequest>,
+) -> impl Responder {
+    let flow = Flow::PauseSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscriptions::pause_subscription(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+                payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn resume_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+    json_payload: web::Json<subscription_types::ResumeSubscriptionRequest>,
+) -> impl Responder {
+    let flow = Flow::ResumeSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscriptions::resume_subscription(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+                payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn cancel_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+    json_payload: web::Json<subscription_types::CancelSubscriptionRequest>,
+) -> impl Responder {
+    let flow = Flow::CancelSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscriptions::cancel_subscription(
+                state.into(),
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+                payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
 pub async fn confirm_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,

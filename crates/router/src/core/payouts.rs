@@ -37,7 +37,6 @@ use masking::{PeekInterface, Secret};
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
-use serde_json;
 use time::Duration;
 
 #[cfg(feature = "olap")]
@@ -2851,7 +2850,7 @@ pub async fn payout_create_db_entries(
             payment_method
                 .as_ref()
                 .map(|pm| pm.payment_method_id.clone()),
-            Some(api_enums::PayoutType::foreign_from(payout_method_data)),
+            Some(api_enums::PayoutType::foreign_try_from(payout_method_data)?),
         ),
         None => {
             (

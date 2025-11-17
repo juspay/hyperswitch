@@ -1,4 +1,3 @@
-pub mod customer_validation;
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
@@ -167,7 +166,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type,
-        description: None,
+        description: payout_data.payouts.description.clone(),
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -423,27 +422,9 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a diesel_refund::Refund,
-    creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        creds_identifier.as_deref(),
-        merchant_context.get_merchant_key_store(),
-        profile_id,
-        connector_id,
-        payment_attempt.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -784,7 +765,6 @@ pub fn get_split_refunds(
 }
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -2387,6 +2367,7 @@ pub async fn construct_vault_router_data<F>(
     >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2405,6 +2386,7 @@ pub async fn construct_vault_router_data<F>(
             payment_method_vaulting_data,
             connector_vault_id,
             connector_customer_id,
+            should_generate_multiple_tokens,
         },
         response: Ok(types::VaultResponseData::default()),
     };

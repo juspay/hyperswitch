@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
+use common_enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -243,6 +244,7 @@ pub enum PayoutMethodData {
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
+    Passthrough(Passthrough),
 }
 
 impl Default for PayoutMethodData {
@@ -268,6 +270,10 @@ pub struct CardPayout {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -393,6 +399,18 @@ pub struct Interac {
     pub email: Email,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct Passthrough {
+    /// PSP token generated for the payout method
+    #[schema(value_type = String, example = "token_12345")]
+    pub psp_token: Secret<String>,
+
+    /// Payout method type of the token
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    pub token_type: api_enums::PaymentMethodType,
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct Paypal {
     /// Email linked with paypal account
@@ -432,6 +450,10 @@ pub struct ApplePayDecrypt {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
@@ -638,6 +660,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
+    #[schema(value_type = PassthroughAddtionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
 }
 
 #[derive(
@@ -1064,6 +1088,15 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
     }
 }
 
+impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
+    fn from(passthrough_data: Passthrough) -> Self {
+        Self {
+            psp_token: passthrough_data.psp_token.into(),
+            token_type: passthrough_data.token_type,
+        }
+    }
+}
+
 impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
@@ -1078,6 +1111,9 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::BankRedirect(bank_redirect)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
+                Self::Passthrough(passthrough)
             }
         }
     }

@@ -418,6 +418,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                     None,
                                     None,
                                     connector_id.get_connector_mandate_request_reference_id(),
+                                    None
                                 )
                                 ))
                             }
@@ -452,6 +453,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 api_models::payments::MandateReferenceId::ConnectorMandateId(
                                     api_models::payments::ConnectorMandateReferenceId::new(
                                         Some(token.processor_payment_token.clone()),
+                                        None,
                                         None,
                                         None,
                                         None,
@@ -560,6 +562,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     Some(common_utils::generate_id_with_len(
                         consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
+                    None,
                 ),
             ));
 
@@ -631,6 +634,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             whole_connector_response: None,
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
+            external_authentication_data: request.three_ds_data.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1212,7 +1216,7 @@ impl PaymentCreate {
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
                             Some(enums::PaymentMethodType::ApplePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
-                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                    apple_pay: Box::<api_models::payments::ApplepayPaymentMethod>::try_from(
                                         wallet,
                                     )
                                     .inspect_err(|err| {
@@ -1229,7 +1233,7 @@ impl PaymentCreate {
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
-                                    google_pay: Some(wallet.into()),
+                                    google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
                                 })
                             }
@@ -1237,7 +1241,7 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: None,
-                                    samsung_pay: Some(wallet.into()),
+                                    samsung_pay: Some(Box::new(wallet.into())),
                                 })
                             }
                             _ => None,
@@ -1414,6 +1418,7 @@ impl PaymentCreate {
                 connector_mandate_detail: None,
                 request_extended_authorization: None,
                 extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: merchant_id.to_owned(),
@@ -1670,6 +1675,7 @@ impl PaymentCreate {
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
+            billing_descriptor: request.billing_descriptor.clone(),
         })
     }
 

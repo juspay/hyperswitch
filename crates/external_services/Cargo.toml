@@ -58,7 +58,7 @@ vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
-tokio = "1.45.1"
+tokio = "1.48.0"
 tonic = "0.13.1"
 tonic-reflection = "0.13.1"
 tonic-types = "0.13.1"
@@ -69,7 +69,7 @@ reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "36731a85e6b7877139ca3b6ee5d6b919702df8b4", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "77eaaa6344de9657c83a65ed0d619f48dff0c4a5", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.88.1", optional = true }
 

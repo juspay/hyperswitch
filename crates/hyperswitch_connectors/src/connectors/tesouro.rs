@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -46,7 +47,11 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as tesouro;
 
-use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self as connector_utils, PaymentMethodDataType},
+};
 
 #[derive(Clone)]
 pub struct Tesouro {
@@ -171,16 +176,15 @@ impl ConnectorCommon for Tesouro {
 impl ConnectorValidation for Tesouro {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::ApplePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -313,15 +317,82 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Tesouro {
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_url(
+        &self,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/graphql", self.base_url(connectors).to_owned()))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = tesouro::get_tesouro_setupmandate_request(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Tesouro".to_string())
-                .into(),
-        )
+        Ok(Some(
+            RequestBuilder::new()
+                .method(types::SetupMandateType::get_http_method(self))
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
+        let response: tesouro::TesouroSetupMandateResponse = res
+            .response
+            .parse_struct("Tesouro TesouroSetupMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -860,7 +931,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -879,7 +950,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -898,7 +969,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::ApplePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -909,7 +980,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,

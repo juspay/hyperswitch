@@ -908,6 +908,7 @@ impl RevenueRecoveryAttempt {
         payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
+
         let error_code = revenue_recovery_attempt_data.error_code.clone();
         let error_message = revenue_recovery_attempt_data.error_message.clone();
         let connector_name = payment_connector_name
@@ -939,6 +940,7 @@ impl RevenueRecoveryAttempt {
             daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
             scheduled_at: None,
             is_hard_decline: Some(is_hard_decline),
+            modified_at: Some(recovery_attempt.created_at),
             payment_processor_token_details: PaymentProcessorTokenDetails {
                 payment_processor_token: revenue_recovery_attempt_data
                     .processor_payment_method_token
@@ -955,7 +957,10 @@ impl RevenueRecoveryAttempt {
                 last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
                 card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
                 card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
+                card_isin: revenue_recovery_attempt_data.card_info.card_isin.clone(),
             },
+            is_active: Some(true), // Tokens created from recovery attempts are active by default
+            account_update_history: None, // No prior account update history exists for freshly ingested tokens
         };
 
         // Make the Redis call to store tokens

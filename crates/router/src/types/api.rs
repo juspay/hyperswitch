@@ -46,6 +46,7 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
     mandate_revoke::MandateRevoke,
+    unified_authentication_service::*,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::{
@@ -240,7 +241,6 @@ pub enum ConnectorChoice {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

@@ -271,6 +271,7 @@ where
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             ))
             .await?;
@@ -325,6 +326,7 @@ where
                 capture_request,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             ))

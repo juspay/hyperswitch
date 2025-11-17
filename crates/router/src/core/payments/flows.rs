@@ -226,6 +226,7 @@ pub trait Feature<F, T> {
         _merchant_context: &domain::MerchantContext,
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<(Self, bool)>
     where
         F: Clone,
@@ -248,6 +249,8 @@ pub trait Feature<F, T> {
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
         _merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
+        _creds_identifier: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,

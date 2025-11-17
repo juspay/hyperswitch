@@ -891,6 +891,71 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
+  // Nuvei 3DS: 2-step flow (auth button + redirect button)
+  if (connectorId === "nuvei") {
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+
+    cy.url().then((currentUrl) => {
+      const currentOrigin = new URL(currentUrl).origin;
+      const redirectOrigin = new URL(redirectionUrl.href).origin;
+
+      if (currentOrigin !== redirectOrigin) {
+        cy.origin(
+          currentOrigin,
+          {
+            args: {
+              WAIT_TIME: CONSTANTS.WAIT_TIME,
+            },
+          },
+          ({ WAIT_TIME }) => {
+            cy.wait(WAIT_TIME);
+
+            cy.get("body").then(($body) => {
+              if ($body.find("#btn1").length > 0) {
+                cy.get("#btn1").click();
+                cy.get(
+                  "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+                  { timeout: 10000 }
+                )
+                  .should("be.visible")
+                  .first()
+                  .click();
+              }
+            });
+          }
+        );
+      } else {
+        cy.wait(CONSTANTS.WAIT_TIME);
+        cy.get("body").then(($body) => {
+          if ($body.find("#btn1").length > 0) {
+            cy.get("#btn1").click();
+            cy.get(
+              "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+              { timeout: 10000 }
+            )
+              .should("be.visible")
+              .first()
+              .click();
+          }
+        });
+      }
+    });
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      new URL(expectedUrl.href).origin
+    );
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -1055,87 +1120,16 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "nuvei":
-          cy.wait(constants.WAIT_TIME); // Wait for the page to load
-
-          // Check if we're on the Nuvei 3DS challenge page
-          cy.get("body").then(($body) => {
-            const bodyText = $body.text();
-
-            if (
-              bodyText.includes("ThreeDS ACS Emulator") ||
-              bodyText.includes("Challenge Page")
-            ) {
-              // Look for success buttons (based on UI test patterns)
-              cy.get("body").then(() => {
-                // Try to find and click success buttons
-                if ($body.find("#btn1").length > 0) {
-                  cy.get("#btn1").click();
-                }
-
-                if ($body.find("#btn5").length > 0) {
-                  cy.get("#btn5").click();
-                }
-
-                // If no specific buttons found, try generic success patterns
-                if (
-                  $body.find("#btn1").length === 0 &&
-                  $body.find("#btn5").length === 0
-                ) {
-                  // Look for any button with "success", "continue", or "submit" text
-                  cy.get(
-                    "button, input[type='button'], input[type='submit']"
-                  ).then(($buttons) => {
-                    $buttons.each((index, button) => {
-                      const buttonText = Cypress.$(button).text().toLowerCase();
-                      const buttonValue =
-                        Cypress.$(button).val()?.toLowerCase() || "";
-
-                      if (
-                        buttonText.includes("success") ||
-                        buttonText.includes("continue") ||
-                        buttonText.includes("submit") ||
-                        buttonValue.includes("success")
-                      ) {
-                        cy.wrap(button).click();
-                        return false; // Break the loop
-                      }
-                    });
-                  });
-                }
-              });
-            } else if ($body.find("iframe").length > 0) {
-              cy.log("Found iframe, attempting to interact with it");
-              cy.get("iframe")
-                .first()
-                .its("0.contentDocument.body")
-                .within(() => {
-                  // Look for 3DS challenge form elements
-                  cy.get("body").then(($iframeBody) => {
-                    const iframeText = $iframeBody.text();
-
-                    if (
-                      iframeText.includes("ThreeDS") ||
-                      iframeText.includes("Challenge")
-                    ) {
-                      // Try to find and interact with 3DS elements
-                      cy.get(
-                        "button, input[type='button'], input[type='submit']"
-                      ).then(($buttons) => {
-                        if ($buttons.length > 0) {
-                          cy.log("Clicking first available button in iframe");
-                          cy.wrap($buttons.first()).click();
-                        }
-                      });
-                    }
-                  });
-                });
-            } else {
-              cy.log(
-                "No specific 3DS elements found, waiting for automatic redirect"
-              );
-              cy.wait(constants.WAIT_TIME);
-            }
-          });
+          cy.get("#btn1", { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          cy.get(
+            "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+            { timeout: 10000 }
+          )
+            .should("be.visible")
+            .first()
+            .click();
           break;
         case "stripe":
           cy.get("iframe", { timeout: constants.TIMEOUT })
@@ -1225,7 +1219,6 @@ function upiRedirection(
       case "upi_collect":
         cy.visit(redirectionUrl.href);
         cy.wait(CONSTANTS.TIMEOUT).then(() => {
-          cy.contains("button", "Simulate").should("be.visible").click();
           verifyUrl = true;
         });
         break;

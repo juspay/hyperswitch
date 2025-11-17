@@ -1,3 +1,4 @@
+use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "payouts")]
 use api_models::{
     self,
@@ -180,7 +181,7 @@ pub struct GigadatPaymentData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum GigadatPaymentStatus {
+pub enum GigadatTransactionStatus {
     StatusInited,
     StatusSuccess,
     StatusRejected,
@@ -191,39 +192,76 @@ pub enum GigadatPaymentStatus {
     StatusFailed,
 }
 
-impl From<GigadatPaymentStatus> for enums::AttemptStatus {
-    fn from(item: GigadatPaymentStatus) -> Self {
+impl From<GigadatTransactionStatus> for enums::AttemptStatus {
+    fn from(item: GigadatTransactionStatus) -> Self {
         match item {
-            GigadatPaymentStatus::StatusSuccess => Self::Charged,
-            GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
+            GigadatTransactionStatus::StatusSuccess => Self::Charged,
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
                 Self::Pending
             }
-            GigadatPaymentStatus::StatusRejected
-            | GigadatPaymentStatus::StatusExpired
-            | GigadatPaymentStatus::StatusRejected1
-            | GigadatPaymentStatus::StatusAborted1
-            | GigadatPaymentStatus::StatusFailed => Self::Failure,
+            GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusAborted1
+            | GigadatTransactionStatus::StatusFailed => Self::Failure,
         }
     }
 }
 
-impl From<GigadatPaymentStatus> for api_models::webhooks::IncomingWebhookEvent {
-    fn from(item: GigadatPaymentStatus) -> Self {
-        match item {
-            GigadatPaymentStatus::StatusSuccess => Self::PaymentIntentSuccess,
-            GigadatPaymentStatus::StatusFailed
-            | GigadatPaymentStatus::StatusRejected
-            | GigadatPaymentStatus::StatusRejected1
-            | GigadatPaymentStatus::StatusExpired
-            | GigadatPaymentStatus::StatusAborted1 => Self::PaymentIntentFailure,
-            GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
-                Self::PaymentIntentProcessing
+pub enum GigadatFlow {
+    Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
+}
+
+impl GigadatFlow {
+    pub fn get_flow(webhook_type: &str) -> Result<Self, errors::ConnectorError> {
+        match webhook_type {
+            #[cfg(feature = "payouts")]
+            "ETO" | "RTO" | "RTX" | "ANR" | "ANX" => Ok(Self::Payout),
+
+            "ETI" | "RFM" | "CPI" | "ACK" => Ok(Self::Payment),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Invalid transaction type ".to_string(),
+            )),
+        }
+    }
+}
+
+pub fn get_gigadat_webhook_event_type(
+    status: GigadatTransactionStatus,
+    flow: GigadatFlow,
+) -> IncomingWebhookEvent {
+    match flow {
+        GigadatFlow::Payment => match status {
+            GigadatTransactionStatus::StatusSuccess => IncomingWebhookEvent::PaymentIntentSuccess,
+            GigadatTransactionStatus::StatusFailed
+            | GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusAborted1 => {
+                IncomingWebhookEvent::PaymentIntentFailure
             }
-        }
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
+                IncomingWebhookEvent::PaymentIntentProcessing
+            }
+        },
+        #[cfg(feature = "payouts")]
+        GigadatFlow::Payout => match status {
+            GigadatTransactionStatus::StatusSuccess => IncomingWebhookEvent::PayoutSuccess,
+            GigadatTransactionStatus::StatusFailed
+            | GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusAborted1 => IncomingWebhookEvent::PayoutFailure,
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
+                IncomingWebhookEvent::PayoutProcessing
+            }
+        },
     }
 }
 
-impl TryFrom<String> for GigadatPaymentStatus {
+impl TryFrom<String> for GigadatTransactionStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
@@ -242,7 +280,7 @@ impl TryFrom<String> for GigadatPaymentStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatTransactionStatusResponse {
-    pub status: GigadatPaymentStatus,
+    pub status: GigadatTransactionStatus,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>>
@@ -421,12 +459,13 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
                     sandbox,
                 })
             }
-            PayoutMethodData::Card(_) | PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Payment Method Not Supported".to_string(),
-                    connector: "Gigadat",
-                })?
-            }
+            PayoutMethodData::Card(_)
+            | PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
+                message: "Payment Method Not Supported".to_string(),
+                connector: "Gigadat",
+            })?,
         }
     }
 }
@@ -580,7 +619,7 @@ pub struct Error {
 #[derive(Debug, Deserialize)]
 pub struct GigadatWebhookQueryParameters {
     pub transaction: String,
-    pub status: GigadatPaymentStatus,
+    pub status: GigadatTransactionStatus,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

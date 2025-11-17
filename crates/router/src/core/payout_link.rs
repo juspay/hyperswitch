@@ -360,6 +360,7 @@ pub async fn filter_payout_methods(
     let mut bank_transfer_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
+    let mut bank_redirect_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_method_filters.clone();
     for mca in &filtered_mcas {
         let payout_methods = match &mca.payment_methods_enabled {
@@ -408,9 +409,14 @@ pub async fn filter_payout_methods(
                                 payment_method_list_hm
                                     .insert(payment_method, bank_transfer_hash_set.clone());
                             }
+                            common_enums::PaymentMethod::BankRedirect => {
+                                bank_redirect_hash_set
+                                    .insert(request_payout_method_type.payment_method_type);
+                                payment_method_list_hm
+                                    .insert(payment_method, bank_redirect_hash_set.clone());
+                            }
                             common_enums::PaymentMethod::CardRedirect
                             | common_enums::PaymentMethod::PayLater
-                            | common_enums::PaymentMethod::BankRedirect
                             | common_enums::PaymentMethod::Crypto
                             | common_enums::PaymentMethod::BankDebit
                             | common_enums::PaymentMethod::Reward
