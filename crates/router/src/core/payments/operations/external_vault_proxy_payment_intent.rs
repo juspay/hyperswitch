@@ -280,6 +280,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                         None,
                         None,
                         None,
+                        None,
                     ),
                 )
             }),
@@ -298,6 +299,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
             payment_method: None,
             merchant_connector_details: None,
             external_vault_pmd: payment_method_data,
+            webhook_url: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

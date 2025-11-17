@@ -182,6 +182,8 @@ impl<F: Send + Clone + Sync>
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
+            is_l2_l3_enabled: false,
+            external_authentication_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

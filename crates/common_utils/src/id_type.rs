@@ -20,6 +20,7 @@ mod relay;
 mod routing;
 mod subscription;
 mod tenant;
+mod webhook_endpoint;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -60,6 +61,7 @@ pub use self::{
     routing::RoutingId,
     subscription::SubscriptionId,
     tenant::TenantId,
+    webhook_endpoint::WebhookEndpointId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
 
@@ -246,7 +248,6 @@ pub trait GenerateId {
 
 #[cfg(test)]
 mod alphanumeric_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     const VALID_UNDERSCORE_ID_JSON: &str = r#""cus_abcdefghijklmnopqrstuv""#;

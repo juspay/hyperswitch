@@ -1790,7 +1790,15 @@ impl behaviour::Conversion for PaymentIntent {
                 })
                 .transpose()?
                 .map(Secret::new),
-            connector_metadata,
+            connector_metadata: connector_metadata
+                .map(|cm| {
+                    cm.encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize connector_metadata".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
             feature_metadata,
             attempt_count,
             profile_id,
@@ -1851,6 +1859,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization,
             enable_overcapture: None,
             mit_category: None,
+            billing_descriptor: None,
         })
     }
     async fn convert_back(
@@ -1947,7 +1956,12 @@ impl behaviour::Conversion for PaymentIntent {
                         .collect::<Vec<_>>()
                 }),
                 allowed_payment_method_types,
-                connector_metadata: storage_model.connector_metadata,
+                connector_metadata: storage_model
+                    .connector_metadata
+                    .map(|cm| cm.parse_value("ConnectorMetadata"))
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to deserialize connector_metadata")?,
                 feature_metadata: storage_model.feature_metadata,
                 attempt_count: storage_model.attempt_count,
                 profile_id: storage_model.profile_id,
@@ -2038,7 +2052,16 @@ impl behaviour::Conversion for PaymentIntent {
                 })
                 .transpose()?
                 .map(Secret::new),
-            connector_metadata: self.connector_metadata,
+            connector_metadata: self
+                .connector_metadata
+                .map(|cm| {
+                    cm.encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize connector_metadata".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
@@ -2178,6 +2201,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
         })
     }
 
@@ -2288,6 +2312,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
+                billing_descriptor: storage_model.billing_descriptor,
             })
         }
         .await
@@ -2370,6 +2395,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
         })
     }
 }

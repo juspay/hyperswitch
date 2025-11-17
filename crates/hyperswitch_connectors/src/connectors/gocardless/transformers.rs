@@ -10,8 +10,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::Execute,
     router_request_types::{
-        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsSyncData, ResponseId, SetupMandateRequestData,
+        ConnectorCustomerData, PaymentMethodTokenizationData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
@@ -23,7 +22,10 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CustomerData, ForeignTryFrom,
         PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _,
@@ -315,10 +317,12 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Gocardless"),
-            )
-            .into()),
+            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -470,6 +474,7 @@ fn get_ip_if_required(
     match bank_debit_data {
         BankDebitData::AchBankDebit { .. } => Ok(Some(ip_address)),
         BankDebitData::SepaBankDebit { .. }
+        | BankDebitData::SepaGuarenteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
         | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
@@ -482,10 +487,12 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-            )
-            .into()),
+            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+                )
+                .into())
+            }
         }
     }
 }
@@ -654,24 +661,12 @@ pub struct PaymentResponse {
     id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<GocardlessPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let mandate_reference = MandateReference {
             connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
@@ -696,19 +691,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, GocardlessPaymentsResponse, PaymentsSyncData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
+    for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),

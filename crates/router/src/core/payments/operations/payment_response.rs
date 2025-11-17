@@ -18,6 +18,8 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
@@ -61,7 +63,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data, extend_authorization_data"
 )]
 pub struct PaymentResponse;
 
@@ -1069,6 +1071,49 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
 
 #[cfg(feature = "v1")]
 #[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthorizationData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsExtendAuthorizationData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = Box::pin(payment_response_update_tracker(
+            db,
+            payment_data,
+            router_data,
+            key_store,
+            storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
 {
@@ -1142,7 +1187,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         Ok(payment_data)
     }
 }
-
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
@@ -1528,9 +1572,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             // Use the status sent by connector in error_response if it's present
                             Some(status) => status,
                             None =>
-                            // mark previous attempt status for technical failures in PSync flow
+                            // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
                             {
-                                if flow_name == "PSync" {
+                                if flow_name == "PSync" || flow_name == "ExtendAuthorization" {
                                     match err.status_code {
                                         // marking failure for 2xx because this is genuine payment failure
                                         200..=299 => enums::AttemptStatus::Failure,
@@ -1849,7 +1893,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                     .map(|enable_overcapture| common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture.deref()))
                                             });
 
-                            let (capture_before, extended_authorization_applied) = router_data
+                            let (
+                                capture_before,
+                                extended_authorization_applied,
+                                extended_authorization_last_applied_at,
+                            ) = router_data
                                 .connector_response
                                 .as_ref()
                                 .and_then(|connector_response| {
@@ -1859,9 +1907,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     (
                                         extended_auth_resp.capture_before,
                                         extended_auth_resp.extended_authentication_applied,
+                                        extended_auth_resp.extended_authorization_last_applied_at,
                                     )
                                 })
-                                .unwrap_or((None, None));
+                                .unwrap_or((None, None, None));
                             let (capture_updates, payment_attempt_update) = match payment_data
                                 .multiple_capture_data
                             {
@@ -1928,6 +1977,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         payment_method_data: additional_payment_method_data,
                                         capture_before,
                                         extended_authorization_applied,
+                                        extended_authorization_last_applied_at,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
@@ -2642,8 +2692,56 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let attempt_status = updated_payment_attempt.status;
 
+        let mandate_reference_id = response_router_data
+            .connector_response
+            .as_ref()
+            .and_then(|data| data.mandate_reference.as_ref())
+            .and_then(|mandate_ref| mandate_ref.connector_mandate_id.clone());
+
+        let updated_metadata_details = response_router_data
+            .connector_response
+            .as_ref()
+            .and_then(|data| data.mandate_reference.as_ref())
+            .and_then(|mandate_ref| mandate_ref.mandate_metadata.clone());
+
+        let updated_metadata_info = updated_metadata_details
+            .map(|data| {
+                serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(
+                    data.peek().clone(),
+                )
+            })
+            .transpose()
+            .inspect_err(|e| {
+                logger::error!(
+                    "Failed to deserialize UpdatedMandateDetails from mandate metadata: {:?}",
+                    e
+                );
+            })
+            .ok()
+            .flatten();
+
+        let mandate_data_updated = match updated_metadata_info {
+            Some(data) => Some(api_models::payments::MandateIds {
+                mandate_id: None,
+                mandate_reference_id: Some(
+                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        api_models::payments::ConnectorMandateReferenceId::new(
+                            mandate_reference_id,
+                            None,
+                            None,
+                            None,
+                            None,
+                            Some(data),
+                        ),
+                    ),
+                ),
+            }),
+            None => payment_data.mandate_data,
+        };
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+        payment_data.mandate_data = mandate_data_updated;
 
         if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
@@ -3287,6 +3385,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
                 None,
                 mandate_metadata,
                 connector_mandate_request_reference_id,
+                None,
             ))
         }
     } else {

@@ -1,4 +1,7 @@
 #[cfg(feature = "v2")]
+use std::collections::HashMap;
+
+#[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{customers, payment_methods, payments};
 // specific imports because of using the macro
@@ -797,6 +800,17 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_payment_method_by_locker_id_customer_id_merchant_id(
+        &self,
+        state: &keymanager::KeyManagerState,
+        key_store: &MerchantKeyStore,
+        locker_id: &str,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &keymanager::KeyManagerState,
@@ -1177,10 +1191,72 @@ impl From<PaymentMethodVaultSourceDetails>
     }
 }
 
+/// This struct stores information to generate the key to identify
+/// a unique payment method balance entry in the HashMap stored in Redis
+#[cfg(feature = "v2")]
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
+pub struct PaymentMethodBalanceKey {
+    pub payment_method_type: common_enums::PaymentMethod,
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_key: String,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodBalanceKey {
+    pub fn get_redis_key(&self) -> String {
+        format!(
+            "{}_{}_{}",
+            self.payment_method_type, self.payment_method_subtype, self.payment_method_key
+        )
+    }
+}
+
+/// This struct stores the balance and currency information for a specific
+/// payment method to be stored in the HashMap in Redis
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentMethodBalance {
+    pub balance: common_utils::types::MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodBalanceData<'a> {
+    pub pm_balance_data: HashMap<PaymentMethodBalanceKey, PaymentMethodBalance>,
+    pub payment_intent_id: &'a id_type::GlobalPaymentId,
+}
+
+#[cfg(feature = "v2")]
+impl<'a> PaymentMethodBalanceData<'a> {
+    pub fn new(payment_intent_id: &'a id_type::GlobalPaymentId) -> Self {
+        Self {
+            pm_balance_data: HashMap::new(),
+            payment_intent_id,
+        }
+    }
+
+    pub fn get_pm_balance_redis_key(&self) -> String {
+        format!("pm_balance_{}", self.payment_intent_id.get_string_repr())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pm_balance_data.is_empty()
+    }
+
+    pub fn get_individual_pm_balance_key_value_pairs(&self) -> Vec<(String, PaymentMethodBalance)> {
+        self.pm_balance_data
+            .iter()
+            .map(|(pm_balance_key, pm_balance_value)| {
+                let key = pm_balance_key.get_redis_key();
+                (key, pm_balance_value.to_owned())
+            })
+            .collect()
+    }
+}
+
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use id_type::MerchantConnectorAccountId;
 
     use super::*;

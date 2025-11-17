@@ -446,7 +446,7 @@ pub async fn create_routing_algorithm_under_profile(
         if let Some(static_algorithm) = maybe_static_algorithm {
             let routing_rule = RoutingRule {
                 rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
-                name: name.clone(),
+                name: name.to_string(),
                 description: Some(description.clone()),
                 created_by: profile_id.get_string_repr().to_string(),
                 algorithm: static_algorithm,
@@ -498,7 +498,7 @@ pub async fn create_routing_algorithm_under_profile(
         algorithm_id: algorithm_id.clone(),
         profile_id,
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        name: name.clone(),
+        name: name.to_string(),
         description: Some(description.clone()),
         kind: algorithm.get_kind().foreign_into(),
         algorithm_data: serde_json::json!(algorithm),
@@ -734,8 +734,15 @@ pub async fn link_routing_config(
                             Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        .map_err(|err| match err.current_context() {
+                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
+                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                .attach_printable("Decision engine config not found")
+                            }
+                            _ => err
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to setup decision engine dynamic routing"),
+                        })?;
                         }
                     }
                 }
@@ -896,6 +903,23 @@ pub async fn link_routing_config(
             }
         }
     }
+
+    // redact cgraph cache on rule activation
+    helpers::redact_cgraph_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
+    // redact routing cache on rule activation
+    helpers::redact_routing_cache(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),
@@ -1109,9 +1133,25 @@ pub async fn unlink_routing_config(
                         db,
                         key_manager_state,
                         merchant_context.get_merchant_key_store(),
-                        business_profile,
+                        business_profile.clone(),
                         routing_algorithm,
                         &transaction_type,
+                    )
+                    .await?;
+
+                    // redact cgraph cache on rule activation
+                    helpers::redact_cgraph_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
+                    )
+                    .await?;
+
+                    // redact routing cache on rule activation
+                    helpers::redact_routing_cache(
+                        &state,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile.get_id(),
                     )
                     .await?;
 
@@ -1744,7 +1784,7 @@ pub async fn create_specific_dynamic_routing(
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
-    payload: routing_types::DynamicRoutingPayload,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
@@ -1790,7 +1830,7 @@ pub async fn create_specific_dynamic_routing(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
-                Some(payload),
+                payload,
             ))
             .await
         }

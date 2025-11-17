@@ -124,7 +124,6 @@ impl AttemptStatusExt for enums::AttemptStatus {
     feature = "dummy_connector"
 ))]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
@@ -220,6 +219,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),
@@ -316,6 +316,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),
@@ -425,6 +426,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),

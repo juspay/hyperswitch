@@ -62,9 +62,6 @@ use crate::{
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
-#[cfg(feature = "payouts")]
-pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
-    "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
@@ -169,7 +166,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type,
-        description: None,
+        description: payout_data.payouts.description.clone(),
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -201,6 +198,7 @@ pub async fn construct_payout_router_data<'a, F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -303,10 +301,9 @@ pub async fn construct_refund_router_data<'a, F>(
         .attach_printable("Failed to get optional customer id")?;
 
     let braintree_metadata = payment_intent
-        .get_optional_connector_metadata()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed parsing ConnectorMetadata")?
-        .and_then(|cm| cm.braintree);
+        .connector_metadata
+        .as_ref()
+        .and_then(|cm| cm.braintree.clone());
 
     let merchant_account_id = braintree_metadata
         .as_ref()
@@ -425,27 +422,9 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a diesel_refund::Refund,
-    creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        creds_identifier.as_deref(),
-        merchant_context.get_merchant_key_store(),
-        profile_id,
-        connector_id,
-        payment_attempt.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -786,7 +765,6 @@ pub fn get_split_refunds(
 }
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -1873,9 +1851,10 @@ pub async fn validate_and_get_business_profile(
 ) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(
+            db.find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
                 merchant_key_store,
+                merchant_id,
                 profile_id,
             )
             .await
@@ -1884,18 +1863,6 @@ pub async fn validate_and_get_business_profile(
             })
         })
         .await
-        .transpose()?
-        .map(|business_profile| {
-            // Check if the merchant_id of business profile is same as the current merchant_id
-            if business_profile.merchant_id.ne(merchant_id) {
-                Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.get_id().get_string_repr().to_owned(),
-                }
-                .into())
-            } else {
-                Ok(business_profile)
-            }
-        })
         .transpose()
 }
 
@@ -2400,6 +2367,7 @@ pub async fn construct_vault_router_data<F>(
     >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2418,6 +2386,7 @@ pub async fn construct_vault_router_data<F>(
             payment_method_vaulting_data,
             connector_vault_id,
             connector_customer_id,
+            should_generate_multiple_tokens,
         },
         response: Ok(types::VaultResponseData::default()),
     };

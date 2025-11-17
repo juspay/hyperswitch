@@ -1,11 +1,13 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
+  noon: noonConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
@@ -49,7 +51,29 @@ export function getValueByKey(jsonObject, key) {
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
-    return data[key];
+    const value = data[key];
+
+    // Check if the value has connector_account_details
+    if (value && typeof value === "object" && value.connector_account_details) {
+      return value;
+    }
+
+    // Check if it has nested structure like connector_1, connector_2
+    if (value && typeof value === "object") {
+      // Default to connector_1 if it exists
+      if (value.connector_1 && value.connector_1.connector_account_details) {
+        return value.connector_1;
+      }
+      // Fallback to first key that has connector_account_details
+      const keys = Object.keys(value);
+      for (const nestedKey of keys) {
+        if (value[nestedKey] && value[nestedKey].connector_account_details) {
+          return value[nestedKey];
+        }
+      }
+    }
+
+    return value;
   } else {
     return null;
   }
@@ -61,9 +85,9 @@ export const should_continue_further = (res_data) => {
   }
 
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    res_data.Response.body.error !== undefined ||
+    res_data.Response.body.error_code !== undefined ||
+    res_data.Response.body.error_message !== undefined
   ) {
     return false;
   } else {
@@ -89,9 +113,12 @@ export function defaultErrorHandler(response, response_data) {
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
       // Check if the error message is a Json deserialize error
-      let apiResponseContent = response.body.error[key];
-      let expectedContent = response_data.body.error[key];
-      if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
+      const apiResponseContent = response.body.error[key];
+      const expectedContent = response_data.body.error[key];
+      if (
+        typeof apiResponseContent === "string" &&
+        apiResponseContent.includes("Json deserialize error")
+      ) {
         expect(apiResponseContent).to.include(expectedContent);
       } else {
         expect(apiResponseContent).to.equal(expectedContent);

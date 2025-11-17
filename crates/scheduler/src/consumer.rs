@@ -52,7 +52,6 @@ where
 
     // TODO: this can be removed once rand-0.9 is released
     // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(unknown_lints)]
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;

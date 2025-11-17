@@ -1103,7 +1103,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1290,7 +1290,7 @@ pub async fn update_window_for_elimination_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1481,7 +1481,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                     state.tenant.tenant_id.clone(),
-                    state.request_id,
+                    state.request_id.clone(),
                     payment_attempt.payment_id.get_string_repr().to_string(),
                     profile_id.to_owned(),
                     payment_attempt.merchant_id.to_owned(),
@@ -2250,7 +2250,15 @@ pub async fn create_specific_dynamic_routing_setup(
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let success_config = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in SuccessBasedRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2275,7 +2283,15 @@ pub async fn create_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let elimination_config = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in EliminationRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),
@@ -2758,6 +2774,35 @@ pub async fn redact_cgraph_cache(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to invalidate the cgraph cache")?;
+
+    Ok(())
+}
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
 
     Ok(())
 }

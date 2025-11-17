@@ -2,11 +2,14 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
-use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
+use common_types::{
+    payments::BillingDescriptor,
+    primitive_wrappers::{
+        AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
+    },
 };
 use common_utils::{
     self,
@@ -126,6 +129,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<BillingDescriptor>,
 }
 
 impl PaymentIntent {
@@ -286,6 +290,25 @@ impl PaymentIntent {
             router_env::logger::error!("Metadata does not contain any key");
             Err(common_utils::errors::ParsingError::UnknownError)
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_billing_descriptor(&self) -> Option<BillingDescriptor> {
+        self.billing_descriptor
+            .as_ref()
+            .map(|descriptor| BillingDescriptor {
+                name: descriptor.name.clone(),
+                city: descriptor.city.clone(),
+                phone: descriptor.phone.clone(),
+                statement_descriptor: descriptor
+                    .statement_descriptor
+                    .clone()
+                    .or_else(|| self.statement_descriptor_name.clone()),
+                statement_descriptor_suffix: descriptor
+                    .statement_descriptor_suffix
+                    .clone()
+                    .or_else(|| self.statement_descriptor_suffix.clone()),
+            })
     }
 }
 
@@ -478,8 +501,8 @@ pub struct PaymentIntent {
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
-    /// This metadata contains details about
-    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    /// This metadata contains connector-specific details like Apple Pay certificates, Airwallex data, Noon order category, Braintree merchant account ID, and Adyen testing data
+    pub connector_metadata: Option<ConnectorMetadata>,
     pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
@@ -635,10 +658,6 @@ impl PaymentIntent {
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
-        let connector_metadata = request
-            .get_connector_metadata_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting connector metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
         let allowed_payment_method_types = request.allowed_payment_method_types;
@@ -679,7 +698,7 @@ impl PaymentIntent {
             active_attempts_group_id: None,
             order_details,
             allowed_payment_method_types,
-            connector_metadata,
+            connector_metadata: request.connector_metadata,
             feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
@@ -829,27 +848,18 @@ impl PaymentIntent {
             .transpose()
     }
 
-    pub fn get_optional_connector_metadata(
-        &self,
-    ) -> CustomResult<
-        Option<api_models::payments::ConnectorMetadata>,
-        common_utils::errors::ParsingError,
-    > {
-        self.connector_metadata
-            .clone()
-            .map(|cm| {
-                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
-            })
-            .transpose()
-    }
-
     pub fn get_currency(&self) -> storage_enums::Currency {
         self.amount_details.currency
+    }
+
+    pub fn is_split_payment(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
     }
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub client_source: Option<String>,
@@ -869,7 +879,6 @@ pub struct ClickToPayMetaData {
     pub dpa_id: String,
     pub dpa_name: String,
     pub locale: String,
-    pub card_brands: Vec<String>,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
@@ -879,7 +888,7 @@ pub struct ClickToPayMetaData {
 
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     /// The source with which the payment is confirmed.
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
@@ -944,6 +953,8 @@ where
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
+    /// The webhook url of the merchant, to which the connector will send the webhook.
+    pub webhook_url: Option<String>,
 }
 
 #[cfg(feature = "v2")]
