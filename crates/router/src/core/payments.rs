@@ -4343,7 +4343,7 @@ where
     }
 
     let is_ucs_granular_flow =
-        gateway::COMPOSITE_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
+        gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
     if is_ucs_granular_flow {
         logger::info!("Current flow is UCS Composite flow");
