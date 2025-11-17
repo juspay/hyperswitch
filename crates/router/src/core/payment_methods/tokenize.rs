@@ -412,7 +412,6 @@ where
             self.state,
             &locker_req,
             customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
         .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))

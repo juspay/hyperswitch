@@ -1,7 +1,7 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodResponseItem;
-use api_models::{enums as api_enums, payment_methods::Card};
+use api_models::payment_methods::Card;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -200,16 +200,9 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 pub async fn get_decrypted_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
-    locker_choice: Option<api_enums::LockerChoice>,
     decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
-
-    let public_key = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.vault_encryption_key.peek().as_bytes()
-        }
-    };
+    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -324,7 +317,6 @@ pub async fn create_jwe_body_for_vault(
 pub async fn mk_basilisk_req(
     jwekey: &settings::Jwekey,
     jws: &str,
-    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -342,11 +334,7 @@ pub async fn mk_basilisk_req(
         .encode_to_vec()
         .change_context(errors::VaultError::SaveCardFailed)?;
 
-    let public_key = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.vault_encryption_key.peek().as_bytes()
-        }
-    };
+    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
     let jwe_encrypted =
         encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
@@ -375,7 +363,6 @@ pub async fn mk_generic_locker_request<T>(
     locker: &settings::Locker,
     payload: &T,
     endpoint_path: &str,
-    locker_choice: Option<api_enums::LockerChoice>,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError>
@@ -392,12 +379,9 @@ where
             .await
             .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
 
-    let mut url = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
-    };
+    let mut url = locker.host.to_owned();
     url.push_str(endpoint_path);
 
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -420,7 +404,6 @@ pub async fn mk_add_locker_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: &StoreLockerReq,
-    locker_choice: api_enums::LockerChoice,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -429,7 +412,6 @@ pub async fn mk_add_locker_request_hs(
         locker,
         payload,
         "/cards/add",
-        Some(locker_choice),
         tenant_id,
         request_id,
     )
@@ -628,14 +610,12 @@ pub fn generate_payment_method_response(
     Ok(resp)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
-    locker_choice: Option<api_enums::LockerChoice>,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -650,7 +630,6 @@ pub async fn mk_get_card_request_hs(
         locker,
         &card_req_body,
         "/cards/retrieve",
-        locker_choice,
         tenant_id,
         request_id,
     )
@@ -712,7 +691,6 @@ pub async fn mk_delete_card_request_hs(
         locker,
         &card_req_body,
         "/cards/delete",
-        Some(api_enums::LockerChoice::HyperswitchCardVault),
         tenant_id,
         request_id,
     )
@@ -741,7 +719,6 @@ pub async fn mk_delete_card_request_hs_by_id(
         locker,
         &card_req_body,
         "/cards/delete",
-        Some(api_enums::LockerChoice::HyperswitchCardVault),
         tenant_id,
         request_id,
     )

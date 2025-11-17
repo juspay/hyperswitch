@@ -1,4 +1,4 @@
-use api_models::{blocklist, enums as api_enums};
+use api_models::blocklist;
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use josekit::jwe;
@@ -34,7 +34,6 @@ pub async fn generate_fingerprint(
     state: &routes::SessionState,
     card_number: StrongSecret<String>,
     hash_key: StrongSecret<String>,
-    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let payload = blocklist::GenerateFingerprintRequest {
         data: card_number,
@@ -42,7 +41,7 @@ pub async fn generate_fingerprint(
     };
 
     let generate_fingerprint_resp =
-        call_to_locker_for_fingerprint(state, &payload, locker_choice).await?;
+        call_to_locker_for_fingerprint(state, &payload).await?;
 
     Ok(generate_fingerprint_resp)
 }
@@ -51,7 +50,6 @@ pub async fn generate_fingerprint(
 async fn call_to_locker_for_fingerprint(
     state: &routes::SessionState,
     payload: &blocklist::GenerateFingerprintRequest,
-    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
@@ -61,7 +59,6 @@ async fn call_to_locker_for_fingerprint(
         locker,
         payload,
         LOCKER_FINGERPRINT_PATH,
-        Some(locker_choice),
         state.tenant.tenant_id.clone(),
         state.request_id.clone(),
     )
@@ -76,7 +73,6 @@ async fn call_to_locker_for_fingerprint(
     let decrypted_payload = decrypt_generate_fingerprint_response_payload(
         jwekey,
         jwe_body,
-        Some(locker_choice),
         locker.decryption_scheme.clone(),
     )
     .await
@@ -93,16 +89,9 @@ async fn call_to_locker_for_fingerprint(
 async fn decrypt_generate_fingerprint_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
-    locker_choice: Option<api_enums::LockerChoice>,
     decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
-
-    let public_key = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.vault_encryption_key.peek().as_bytes()
-        }
-    };
+    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 

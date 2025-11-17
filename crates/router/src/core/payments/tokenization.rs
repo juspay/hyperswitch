@@ -761,7 +761,6 @@ pub async fn create_or_fetch_payment_method_helper(
                             payment_method_create_request,
                             &card,
                             &customer_id,
-                            api::enums::LockerChoice::HyperswitchCardVault,
                             Some(
                                 existing_pm
                                     .locker_id

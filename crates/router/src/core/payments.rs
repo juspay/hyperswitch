@@ -6020,7 +6020,6 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
                 &cust_id,
                 merchant_context.get_merchant_account().get_id(),
                 id.as_str(),
-                Some(enums::LockerChoice::HyperswitchCardVault),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

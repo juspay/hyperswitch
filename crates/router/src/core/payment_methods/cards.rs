@@ -597,7 +597,6 @@ impl PaymentMethodsController for PmCards<'_> {
             self.state,
             &payload,
             customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await?;
         let payment_method_resp = payment_methods::mk_add_bank_response_hs(
@@ -630,7 +629,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     req.clone(),
                     card,
                     customer_id,
-                    api_enums::LockerChoice::HyperswitchCardVault,
                     card_reference,
                 )
                 .await
@@ -686,7 +684,6 @@ impl PaymentMethodsController for PmCards<'_> {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
         card_reference: Option<&str>,
     ) -> errors::CustomResult<
         (
@@ -716,7 +713,7 @@ impl PaymentMethodsController for PmCards<'_> {
         });
 
         let store_card_payload =
-            add_card_to_hs_locker(self.state, &payload, customer_id, locker_choice).await?;
+            add_card_to_hs_locker(self.state, &payload, customer_id).await?;
 
         let payment_method_resp = payment_methods::mk_add_card_response_hs(
             card.clone(),
@@ -1189,7 +1186,6 @@ impl PaymentMethodsController for PmCards<'_> {
                                 req.clone(),
                                 &card,
                                 &customer_id,
-                                api::enums::LockerChoice::HyperswitchCardVault,
                                 Some(
                                     existing_pm
                                         .locker_id
@@ -2018,7 +2014,6 @@ pub async fn get_card_from_locker(
                 customer_id,
                 merchant_id,
                 card_reference,
-                api_enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .map_err(|err| match err.current_context() {
@@ -2092,7 +2087,6 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     payment_method_reference: &'a str,
-    locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
@@ -2104,7 +2098,6 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             customer_id,
             merchant_id,
             payment_method_reference,
-            locker_choice,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -2116,7 +2109,6 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             state,
             request,
             "get_pm_from_locker",
-            locker_choice,
         )
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
@@ -2148,7 +2140,6 @@ pub async fn add_card_to_hs_locker(
     state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq,
     customer_id: &id_type::CustomerId,
-    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
@@ -2158,7 +2149,6 @@ pub async fn add_card_to_hs_locker(
             jwekey,
             locker,
             payload,
-            locker_choice,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -2167,7 +2157,6 @@ pub async fn add_card_to_hs_locker(
             state,
             request,
             "add_card_to_hs_locker",
-            Some(locker_choice),
         )
         .await
         .change_context(errors::VaultError::SaveCardFailed)?
@@ -2188,7 +2177,6 @@ pub async fn call_locker_api<T>(
     state: &routes::SessionState,
     request: Request,
     flow_name: &str,
-    locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<T, errors::VaultError>
 where
     T: serde::de::DeserializeOwned,
@@ -2213,7 +2201,6 @@ where
     let decrypted_payload = payment_methods::get_decrypted_response_payload(
         jwekey,
         jwe_body,
-        locker_choice,
         locker.decryption_scheme.clone(),
     )
     .await
@@ -2329,7 +2316,6 @@ pub async fn get_card_from_hs_locker<'a>(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
-    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<Card, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
@@ -2341,7 +2327,6 @@ pub async fn get_card_from_hs_locker<'a>(
             customer_id,
             merchant_id,
             card_reference,
-            Some(locker_choice),
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -2352,7 +2337,6 @@ pub async fn get_card_from_hs_locker<'a>(
             state,
             request,
             "get_card_from_locker",
-            Some(locker_choice),
         )
         .await
         .change_context(errors::VaultError::FetchCardFailed)?;
@@ -2400,7 +2384,6 @@ pub async fn delete_card_from_hs_locker<'a>(
             state,
             request,
             "delete_card_from_locker",
-            Some(api_enums::LockerChoice::HyperswitchCardVault),
         )
         .await
         .change_context(errors::VaultError::DeleteCardFailed)
@@ -4875,7 +4858,6 @@ pub async fn get_bank_from_hs_locker(
         customer_id,
         merchant_id,
         token_ref,
-        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
