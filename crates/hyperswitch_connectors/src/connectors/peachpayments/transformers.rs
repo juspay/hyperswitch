@@ -489,6 +489,20 @@ impl
     }
 }
 
+fn compute_rrn(merchant_order_reference_id: Option<String>) -> Option<String> {
+    merchant_order_reference_id.map(|id| {
+        let alphanumeric_id: String = id.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+
+        let final_rrn = if alphanumeric_id.len() < 12 {
+            format!("{:0>12}", alphanumeric_id)
+        } else {
+            alphanumeric_id[alphanumeric_id.len().saturating_sub(12)..].to_string()
+        };
+
+        final_rrn
+    })
+}
+
 impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     for PeachpaymentsPaymentsRequest
 {
@@ -524,13 +538,15 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             display_amount: None,
         };
 
+        let rrn = compute_rrn(item.router_data.request.merchant_order_reference_id.clone());
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
                 routing_reference,
                 card,
                 amount,
-                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+                rrn,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
