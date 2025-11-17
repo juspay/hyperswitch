@@ -3340,4 +3340,54 @@ impl ConnectorSpecifications for Adyen {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_reference_id(
+        &self,
+        connector_customer_id: Option<String>,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> Option<String> {
+        // MIT (Merchant Initiated Transaction): Check payment_method.connector_mandate_details first
+        if let Some(payment_method) = payment_method_info {
+            // Try to get connector mandate details and find the mandate ID using merchant_connector_id
+            if let Ok(common_mandate_ref) = payment_method.get_common_mandate_reference() {
+                if let Some(merchant_connector_id) = &payment_attempt.merchant_connector_id {
+                    // Check payments section first
+                    if let Some(payments_ref) = &common_mandate_ref.payments {
+                        if let Some(mandate_record) = payments_ref.get(merchant_connector_id) {
+                            return Some(mandate_record.connector_mandate_id.clone());
+                        }
+                    }
+
+                    // Check payouts section if payments not found
+                    if let Some(payouts_ref) = &common_mandate_ref.payouts {
+                        if let Some(payout_record) = payouts_ref.get(merchant_connector_id) {
+                            if let Some(transfer_method_id) = &payout_record.transfer_method_id {
+                                return Some(transfer_method_id.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // CIT (Customer Initiated Transaction): Check connector_customer_id
+        if let Some(connector_customer_id) = connector_customer_id {
+            return Some(connector_customer_id);
+        }
+
+        // Fallback: Generate {merchant_id}_{customer_id}
+        if let Some(customer_id) = customer_id {
+            Some(format!(
+                "{}_{}",
+                payment_attempt.merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
+            ))
+        } else {
+            // If customer_id is None, return None to indicate error
+            None
+        }
+    }
 }

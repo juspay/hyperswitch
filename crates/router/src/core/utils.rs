@@ -1841,6 +1841,48 @@ pub fn get_connector_request_reference_id(
     todo!()
 }
 
+#[cfg(feature = "v1")]
+pub fn get_connector_customer_reference_id(
+    conf: &Settings,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    connector_customer_id: Option<String>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    connector_name: &str,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    // let is_config_enabled_to_send_payment_id_as_connector_request_id =
+    //     is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+    let connector_request_reference_id = connector_data
+        .connector
+        .generate_connector_customer_reference_id(
+            connector_customer_id,
+            customer_id,
+            payment_method_info,
+            payment_attempt,
+        );
+    Ok(connector_request_reference_id)
+}
+
+// TODO: Based on the connector configuration, the connector_request_reference_id should be generated
+#[cfg(feature = "v2")]
+pub fn get_connector_customer_reference_id(
+    conf: &Settings,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> Option<String> {
+    todo!()
+}
+
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
