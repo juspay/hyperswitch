@@ -402,10 +402,17 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
 
                 let vault_data = get_vault_details(authentication_details)?;
 
+                // decide which fields to tokenize in vault
+                let vault_custom_data =
+                    crate::core::payment_methods::get_payment_method_custom_data(
+                        vault_data,
+                        external_vault_details.vault_token_selector,
+                    )?;
+
                 let external_vault_response = Box::pin(
                     crate::core::payment_methods::vault_payment_method_external_v1(
                         state,
-                        &vault_data,
+                        &vault_custom_data,
                         merchant_context.get_merchant_account(),
                         merchant_connector_account_details,
                         Some(true),

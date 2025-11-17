@@ -9963,19 +9963,27 @@ pub enum SubscriptionStatus {
 #[serde(rename_all = "snake_case")]
 pub enum VaultTokenType {
     /// Card number
+    #[serde(alias = "card_number")]
     CardNumber,
     /// Card cvc
+    #[serde(alias = "card_cvc")]
     CardCvc,
     /// Card expiry year
+    #[serde(alias = "card_exp_year")]
     CardExpiryYear,
     /// Card expiry month
+    #[serde(alias = "card_exp_month")]
     CardExpiryMonth,
     /// Network token
+    #[serde(alias = "network_token")]
     NetworkToken,
     /// Token expiry year
+    #[serde(alias = "network_token_exp_year")]
     NetworkTokenExpiryYear,
     /// Token expiry month
+    #[serde(alias = "network_token_exp_month")]
     NetworkTokenExpiryMonth,
     /// Token cryptogram
+    #[serde(alias = "cryptogram")]
     NetworkTokenCryptogram,
 }

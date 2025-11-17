@@ -2362,11 +2362,60 @@ pub async fn vault_payment_method_external(
     get_vault_response_for_insert_payment_method_data(router_data_resp)
 }
 
+pub fn get_payment_method_custom_data(
+    payment_method_vaulting_data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    fields_to_tokenize: Option<Vec<diesel_models::business_profile::VaultTokenField>>,
+) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData> {
+    match fields_to_tokenize {
+        Some(fields) => {
+            let json_data = serde_json::to_value(payment_method_vaulting_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse PaymentMethodVaultingData to value")?;
+
+            match json_data {
+                serde_json::Value::Object(values) => {
+                    // convert the vec of object to vec of enum key for comparison
+                    let enum_fields: Vec<common_enums::VaultTokenType> = fields
+                        .iter()
+                        .map(|field| field.token_type.clone())
+                        .collect();
+
+                    let json_fields = serde_json::to_value(enum_fields)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse Vec<VaultTokenField> to value")?;
+
+                    // Convert the key slice to a BTreeSet for fast lookups
+                    let keys_set: std::collections::BTreeSet<String> =
+                        serde_json::from_value(json_fields)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to parse BTreeSet<Striong> from value")?;
+
+                    let filtered_values = values
+                        .into_iter()
+                        .filter(|(key, _value)| {
+                            // Keep the field ONLY if its name is in our set
+                            keys_set.contains(key)
+                        })
+                        .collect();
+
+                    serde_json::from_value(serde_json::Value::Object(filtered_values))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse BTreeSet<Striong> from value")
+                }
+                _ => Ok(
+                    hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::default(),
+                ),
+            }
+        }
+        None => Ok(payment_method_vaulting_data.into()),
+    }
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method_external_v1(
     state: &SessionState,
-    pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    pmd: &hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     should_generate_multiple_tokens: Option<bool>,

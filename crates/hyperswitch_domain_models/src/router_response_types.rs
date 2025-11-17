@@ -742,15 +742,15 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: masking::Secret<String>,
-        tokenized_card_expiry_year: masking::Secret<String>,
-        tokenized_card_expiry_month: masking::Secret<String>,
+        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
         tokenized_card_cvc: Option<masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: masking::Secret<String>,
-        tokenized_network_token_exp_year: masking::Secret<String>,
-        tokenized_network_token_exp_month: masking::Secret<String>,
+        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
         tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }

@@ -29,7 +29,9 @@ use router_env::{instrument, tracing};
 
 use super::helpers;
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::vault_payment_method_external_v1;
+use crate::core::payment_methods::{
+    get_payment_method_custom_data, vault_payment_method_external_v1,
+};
 use crate::{
     consts,
     core::{
@@ -1216,8 +1218,12 @@ pub async fn save_in_locker_external(
         .get_required_value("customer_id")?;
     // For external vault, we need to convert the card data to PaymentMethodVaultingData
     if let Some(card) = card_detail {
-        let payment_method_vaulting_data =
-            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone());
+        let payment_method_custom_vaulting_data = get_payment_method_custom_data(
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone()),
+            external_vault_connector_details
+                .vault_token_selector
+                .clone(),
+        )?;
 
         let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
 
@@ -1239,7 +1245,7 @@ pub async fn save_in_locker_external(
         // Call vault_payment_method_external_v1
         let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
-            &payment_method_vaulting_data,
+            &payment_method_custom_vaulting_data,
             merchant_context.get_merchant_account(),
             merchant_connector_account_details,
             None,
