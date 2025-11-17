@@ -33277,7 +33277,7 @@
             "description": "Error message received from the issuer in case of failed refunds",
             "nullable": true
           },
-          "whole_connector_response": {
+          "raw_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
