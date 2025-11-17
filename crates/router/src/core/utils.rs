@@ -157,11 +157,11 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: get_payout_connector_customer_reference_id(
-            &payout_data.payout_attempt,
-            connector_customer_id.clone(),
-            &payout_data.payment_method,
-            &customer_details.to_owned().map(|c| c.customer_id),
             connector_data,
+            connector_customer_id.clone(),
+            &customer_details.to_owned().map(|c| c.customer_id),
+            &payout_data.payment_method,
+            &payout_data.payout_attempt,
         )?,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
@@ -1850,11 +1850,11 @@ pub fn get_connector_request_reference_id(
 #[cfg(feature = "v1")]
 pub fn get_connector_customer_reference_id(
     conf: &Settings,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    connector_customer_id: Option<String>,
-    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-    customer_id: &Option<common_utils::id_type::CustomerId>,
     connector_name: &str,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &conf.connectors,
@@ -1879,6 +1879,9 @@ pub fn get_connector_customer_reference_id(
 #[cfg(feature = "v2")]
 pub fn get_connector_customer_reference_id(
     conf: &Settings,
+    connector_name: &str,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> Option<String> {
@@ -1887,11 +1890,11 @@ pub fn get_connector_customer_reference_id(
 
 #[cfg(feature = "v1")]
 pub fn get_payout_connector_customer_reference_id(
-    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    connector_customer_id: Option<String>,
-    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-    customer_id: &Option<common_utils::id_type::CustomerId>,
     connector_data: &api::ConnectorData,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let payout_connector_request_reference_id = connector_data
         .connector
@@ -1906,9 +1909,11 @@ pub fn get_payout_connector_customer_reference_id(
 
 #[cfg(feature = "v2")]
 pub fn get_payout_connector_customer_reference_id(
-    conf: &Settings,
+    connector_data: &api::ConnectorData,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
 ) -> Option<String> {
     todo!()
 }

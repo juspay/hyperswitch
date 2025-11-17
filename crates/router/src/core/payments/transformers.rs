@@ -1883,11 +1883,11 @@ where
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
         connector_customer: core_utils::get_connector_customer_reference_id(
             &state.conf,
-            &payment_data.payment_attempt,
-            payment_data.connector_customer_id.clone(),
-            &payment_data.payment_method_info,
-            &payment_data.payment_intent.customer_id,
             connector_id,
+            payment_data.connector_customer_id.clone(),
+            &payment_data.payment_intent.customer_id,
+            &payment_data.payment_method_info,
+            &payment_data.payment_attempt,
         )?,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
