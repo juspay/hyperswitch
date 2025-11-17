@@ -994,7 +994,7 @@ pub async fn payouts_list_available_filters_core(
     ))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 pub async fn get_payout_filters_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -1021,20 +1021,17 @@ pub async fn get_payout_filters_core(
         .filter(|&merchant_connector_account| {
             merchant_connector_account.connector_type == api_enums::ConnectorType::PayoutProcessor
         })
-        .flat_map(|merchant_connector_account| {
+        .for_each(|merchant_connector_account| {
             merchant_connector_account
                 .connector_label
                 .as_ref()
                 .map(|label| {
                     let info = merchant_connector_account.to_merchant_connector_info(label);
-                    (merchant_connector_account.get_connector_name(), info)
-                })
-        })
-        .for_each(|(connector_name, info)| {
-            connector_map
-                .entry(connector_name.to_string())
-                .or_default()
-                .push(info);
+                    connector_map
+                        .entry(merchant_connector_account.get_connector_name().to_string())
+                        .or_default()
+                        .push(info);
+                });
         });
 
     // populate payout method type map
