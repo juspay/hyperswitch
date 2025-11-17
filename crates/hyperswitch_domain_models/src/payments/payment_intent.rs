@@ -522,8 +522,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -536,7 +534,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: None,
                 active_attempts_group_id: None,
-
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount_captured,
@@ -573,8 +570,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -585,7 +580,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: None,
                 active_attempts_group_id: None,
-
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -622,8 +616,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -635,7 +627,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: None,
                 active_attempts_group_id: None,
-
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -671,8 +662,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -682,7 +671,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: None,
                 active_attempts_group_id: None,
-
                 modified_at: common_utils::date_time::now(),
                 amount_captured: None,
                 prerouting_algorithm: Some(
@@ -723,8 +711,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -769,9 +755,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 Ok(Self {
                     status: None,
                     active_attempt_id,
-                    active_attempt_id_type: None,
-                    active_attempts_group_id: None,
-
+                    active_attempt_id_type,
+                    active_attempts_group_id,
                     prerouting_algorithm: None,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
@@ -814,8 +799,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
                     enable_partial_authorization,
-                    active_attempt_id_type,
-                    active_attempts_group_id,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -829,9 +812,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 status: Some(status),
                 amount_captured: None,
                 active_attempt_id: Some(active_attempt_id),
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
-
+                active_attempt_id_type,
+                active_attempts_group_id,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
@@ -867,8 +849,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type,
-                active_attempts_group_id,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -923,7 +903,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: Some(active_attempt_id_type),
                 active_attempts_group_id: Some(active_attempts_group_id),
-
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -966,7 +945,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 active_attempt_id: None,
                 active_attempt_id_type: None,
                 active_attempts_group_id: None,
-
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -1002,8 +980,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
-                active_attempt_id_type: None,
-                active_attempts_group_id: None,
             }),
         }
     }
