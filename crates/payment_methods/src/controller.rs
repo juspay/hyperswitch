@@ -37,7 +37,7 @@ use hyperswitch_domain_models::{
     merchant_key_store, payment_methods, type_encryption,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::logger;
+use router_env::{instrument, tracing, logger};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
@@ -309,6 +309,7 @@ where
 #[async_trait::async_trait]
 impl PaymentMethodsController for PmController<'_> {
     #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
@@ -446,6 +447,7 @@ impl PaymentMethodsController for PmController<'_> {
     }
 
     #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -528,7 +530,7 @@ impl PaymentMethodsController for PmController<'_> {
         _resp: &mut api::PaymentMethodResponse,
         _customer_id: &id_type::CustomerId,
         _key_store: &merchant_key_store::MerchantKeyStore,
-    ) -> errors::RouterResult<payment_methods::PaymentMethod> {
+    ) -> errors::PmResult<payment_methods::PaymentMethod> {
         todo!()
     }
 
@@ -581,7 +583,7 @@ impl PaymentMethodsController for PmController<'_> {
             Ok(resp) => {
                 logger::debug!("Network token added to locker");
                 let (token_pm_resp, _duplication_check) = resp;
-                let pm_token_details: Option<_> = token_pm_resp.card.as_ref().map(|card| {
+                let pm_token_details = token_pm_resp.card.as_ref().map(|card| {
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
                 });
                 let pm_network_token_data_encrypted = pm_token_details
@@ -1133,7 +1135,8 @@ impl PaymentMethodsController for PmController<'_> {
         ))
     }
 
-        #[cfg(feature = "v1")]
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,

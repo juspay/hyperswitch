@@ -1,13 +1,4 @@
-use error_stack::report;
-use router_env::{instrument, tracing};
-
-use super::{MockDb, Store};
-use crate::{
-    connection,
-    core::errors::{self, CustomResult},
-    types::storage,
-};
-use hyperswitch_domain_models::locker_mock_up::LockerMockUpInterface;
+pub use hyperswitch_domain_models::locker_mock_up::LockerMockUpInterface;
 
 #[cfg(test)]
 mod tests {

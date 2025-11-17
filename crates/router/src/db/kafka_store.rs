@@ -868,6 +868,7 @@ impl EventInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl LockerMockUpInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,

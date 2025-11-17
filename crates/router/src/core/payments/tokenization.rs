@@ -448,7 +448,7 @@ pub async fn create_or_fetch_payment_method_helper(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
 ) -> RouterResult<Option<String>> {
     let cards = PmCards {
-        state,
+                    state: &state.into(),
         merchant_context,
     };
     let key_manager_state = state.into();
@@ -1157,7 +1157,7 @@ pub async fn save_in_locker_internal(
     match (payment_method_request.card.clone(), card_detail) {
         (_, Some(card)) | (Some(card), _) => Box::pin(
             PmCards {
-                state,
+                    state: &state.into(),
                 merchant_context,
             }
             .add_card_to_locker(payment_method_request, &card, &customer_id, None),
@@ -1369,7 +1369,7 @@ pub async fn save_network_token_in_locker(
         Some(nt_data) => {
             let (res, dc) = Box::pin(
                 PmCards {
-                    state,
+                    state: &state.into(),
                     merchant_context,
                 }
                 .add_card_to_locker(
@@ -1417,7 +1417,7 @@ pub async fn save_network_token_in_locker(
 
                         let (res, dc) = Box::pin(
                             PmCards {
-                                state,
+                    state: &state.into(),
                                 merchant_context,
                             }
                             .add_card_to_locker(

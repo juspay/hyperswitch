@@ -26,27 +26,6 @@ impl super::settings::Secrets {
     }
 }
 
-impl super::settings::Locker {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(!self.mock_locker && self.host.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "locker host must not be empty when mock locker is disabled".into(),
-            ))
-        })?;
-
-        when(
-            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "basilisk host must not be empty when mock locker is disabled".into(),
-                ))
-            },
-        )
-    }
-}
-
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -215,45 +194,6 @@ impl super::settings::CellInformation {
                 "CellId cannot be set to a default".into(),
             ))
         })
-    }
-}
-
-impl super::settings::NetworkTokenizationService {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.token_service_api_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "token_service_api_key must not be empty".into(),
-            ))
-        })?;
-
-        when(self.public_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "public_key must not be empty".into(),
-            ))
-        })?;
-
-        when(self.key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "key_id must not be empty".into(),
-            ))
-        })?;
-
-        when(self.private_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "private_key must not be empty".into(),
-            ))
-        })?;
-
-        when(
-            self.webhook_source_verification_key.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "webhook_source_verification_key must not be empty".into(),
-                ))
-            },
-        )
     }
 }
 

@@ -107,7 +107,7 @@ pub trait StorageInterface:
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
-    + locker_mock_up::LockerMockUpInterface
+    + locker_mock_up::LockerMockUpInterface<Error = StorageError>
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface<Error = StorageError>
     + merchant_connector_account::ConnectorAccessToken

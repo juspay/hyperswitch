@@ -29,7 +29,7 @@ use external_services::{
 pub use hyperswitch_interfaces::{
     configs::{
         Connectors, GlobalTenant, InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig,
-        Tenant, TenantUserConfig,
+        Tenant, TenantUserConfig, NetworkTokenizationService, Jwekey, Locker, DecryptionScheme,
     },
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
@@ -574,19 +574,6 @@ pub struct NetworkTokenizationSupportedCardNetworks {
     pub card_networks: HashSet<enums::CardNetwork>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct NetworkTokenizationService {
-    pub generate_token_url: url::Url,
-    pub fetch_token_url: url::Url,
-    pub token_service_api_key: Secret<String>,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
-    pub key_id: String,
-    pub delete_token_url: url::Url,
-    pub check_token_status_url: url::Url,
-    pub webhook_source_verification_key: Secret<String>,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -705,28 +692,6 @@ pub struct UserSettings {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct Locker {
-    pub host: String,
-    pub host_rs: String,
-    pub mock_locker: bool,
-    pub basilisk_host: String,
-    pub locker_signing_key_id: String,
-    pub locker_enabled: bool,
-    pub ttl_for_storage_in_secs: i64,
-    pub decryption_scheme: DecryptionScheme,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub enum DecryptionScheme {
-    #[default]
-    #[serde(rename = "RSA-OAEP")]
-    RsaOaep,
-    #[serde(rename = "RSA-OAEP-256")]
-    RsaOaep256,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
 pub struct Refund {
     pub max_attempts: usize,
     pub max_age: i64,
@@ -736,15 +701,6 @@ pub struct Refund {
 #[serde(default)]
 pub struct EphemeralConfig {
     pub validity: i64,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct Jwekey {
-    pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
-    pub vault_private_key: Secret<String>,
-    pub tunnel_private_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -167,7 +167,7 @@ pub async fn call_to_locker(
         };
 
         let add_card_result = cards::PmCards{
-            state,
+            state: &state.into(),
             merchant_context,
         }.add_card_hs(
                 pm_create,

@@ -47,22 +47,6 @@ impl Default for super::settings::Database {
         }
     }
 }
-impl Default for super::settings::Locker {
-    fn default() -> Self {
-        Self {
-            host: "localhost".into(),
-            host_rs: "localhost".into(),
-            mock_locker: true,
-            basilisk_host: "localhost".into(),
-            locker_signing_key_id: "1".into(),
-            //true or false
-            locker_enabled: true,
-            //Time to live for storage entries in locker
-            ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
-            decryption_scheme: Default::default(),
-        }
-    }
-}
 
 impl Default for super::settings::SupportedConnectors {
     fn default() -> Self {

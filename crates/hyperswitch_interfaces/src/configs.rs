@@ -4,6 +4,14 @@ pub use hyperswitch_domain_models::{
 };
 use masking::{PeekInterface, Secret};
 use serde::Deserialize;
+use crate::secrets_interface::SecretsManagementError;
+use crate::secrets_interface::secret_state::RawSecret;
+use crate::secrets_interface::secret_state::SecretStateContainer;
+use crate::secrets_interface::SecretManagementInterface;
+use crate::secrets_interface::secret_state::SecuredSecret;
+use crate::secrets_interface::secret_handler::SecretsHandler;
+use common_enums::enums::ApplicationError;
+use common_utils::ext_traits::ConfigExt;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -231,6 +239,28 @@ impl Default for Locker {
     }
 }
 
+#[allow(missing_docs)]
+impl Locker {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.mock_locker && self.host.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "locker host must not be empty when mock locker is disabled".into(),
+            ))
+        })?;
+
+        when(
+            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "basilisk host must not be empty when mock locker is disabled".into(),
+                ))
+            },
+        )
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[allow(missing_docs)]
 #[serde(default)]
@@ -239,6 +269,33 @@ pub struct Jwekey {
     pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for Jwekey {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let jwekey = value.get_inner();
+        let (
+            vault_encryption_key,
+            rust_locker_encryption_key,
+            vault_private_key,
+            tunnel_private_key,
+        ) = tokio::try_join!(
+            secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
+            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
+            secret_management_client.get_secret(jwekey.vault_private_key.clone()),
+            secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
+        )?;
+        Ok(value.transition_state(|_| Self {
+            vault_encryption_key,
+            rust_locker_encryption_key,
+            vault_private_key,
+            tunnel_private_key,
+        }))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -253,4 +310,74 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+}
+
+#[allow(missing_docs)]
+impl NetworkTokenizationService {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.token_service_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "token_service_api_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.public_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "public_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.key_id.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "key_id must not be empty".into(),
+            ))
+        })?;
+
+        when(self.private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "private_key must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.webhook_source_verification_key.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "webhook_source_verification_key must not be empty".into(),
+                ))
+            },
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for NetworkTokenizationService {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let network_tokenization = value.get_inner();
+        let token_service_api_key = secret_management_client
+            .get_secret(network_tokenization.token_service_api_key.clone())
+            .await?;
+        let public_key = secret_management_client
+            .get_secret(network_tokenization.public_key.clone())
+            .await?;
+        let private_key = secret_management_client
+            .get_secret(network_tokenization.private_key.clone())
+            .await?;
+        let webhook_source_verification_key = secret_management_client
+            .get_secret(network_tokenization.webhook_source_verification_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|network_tokenization| Self {
+            public_key,
+            private_key,
+            token_service_api_key,
+            webhook_source_verification_key,
+            ..network_tokenization
+        }))
+    }
 }

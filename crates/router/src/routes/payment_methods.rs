@@ -289,7 +289,7 @@ pub async fn migrate_payment_method_api(
                 &merchant_id,
                 &merchant_context,
                 &cards::PmCards {
-                    state: &state,
+                    state: &(&state).into(),
                     merchant_context: &merchant_context,
                 },
             ))
@@ -390,7 +390,7 @@ pub async fn migrate_payment_methods(
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let controller = cards::PmCards {
-                    state: &state,
+                    state: &(&state).into(),
                     merchant_context: &merchant_context,
                 };
                 Box::pin(migration::migrate_payment_methods(
@@ -818,7 +818,7 @@ pub async fn payment_method_retrieve_api(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             cards::PmCards {
-                state: &state,
+                state: &(&state).into(),
                 merchant_context: &merchant_context,
             }
             .retrieve_payment_method(pm)
@@ -903,7 +903,7 @@ pub async fn payment_method_delete_api(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             cards::PmCards {
-                state: &state,
+                state: &(&state).into(),
                 merchant_context: &merchant_context,
             }
             .delete_payment_method(req)
@@ -1022,7 +1022,7 @@ pub async fn default_payment_method_set_api(
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             let merchant_id = auth.merchant_account.get_id();
             cards::PmCards {
-                state: &state,
+                state: &(&state).into(),
                 merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(
                     domain::Context(auth.merchant_account.clone(), auth.key_store),
                 )),

@@ -570,7 +570,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             network_transaction_id: None,
         };
         PmCards {
-            state: self.state,
+            state: &self.state.into(),
             merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
                 self.merchant_account.clone(),
                 self.key_store.clone(),

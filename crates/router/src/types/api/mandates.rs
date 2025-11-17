@@ -80,7 +80,7 @@ impl MandateResponseExt for MandateResponse {
                     domain::Context(merchant_account.clone(), key_store),
                 ));
                 payment_methods::cards::PmCards {
-                    state,
+                    state: &state.into(),
                     merchant_context: &merchant_context,
                 }
                 .get_card_details_without_locker_fallback(&payment_method)

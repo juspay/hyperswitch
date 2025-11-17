@@ -25,33 +25,6 @@ impl SecretsHandler for settings::Database {
     }
 }
 
-#[async_trait::async_trait]
-impl SecretsHandler for settings::Jwekey {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let jwekey = value.get_inner();
-        let (
-            vault_encryption_key,
-            rust_locker_encryption_key,
-            vault_private_key,
-            tunnel_private_key,
-        ) = tokio::try_join!(
-            secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
-            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
-            secret_management_client.get_secret(jwekey.vault_private_key.clone()),
-            secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
-        )?;
-        Ok(value.transition_state(|_| Self {
-            vault_encryption_key,
-            rust_locker_encryption_key,
-            vault_private_key,
-            tunnel_private_key,
-        }))
-    }
-}
-
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 impl SecretsHandler for settings::ConnectorOnboarding {
@@ -317,36 +290,6 @@ impl SecretsHandler for settings::ChatSettings {
         Ok(value.transition_state(|chat_settings| Self {
             encryption_key,
             ..chat_settings
-        }))
-    }
-}
-
-#[async_trait::async_trait]
-impl SecretsHandler for settings::NetworkTokenizationService {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let network_tokenization = value.get_inner();
-        let token_service_api_key = secret_management_client
-            .get_secret(network_tokenization.token_service_api_key.clone())
-            .await?;
-        let public_key = secret_management_client
-            .get_secret(network_tokenization.public_key.clone())
-            .await?;
-        let private_key = secret_management_client
-            .get_secret(network_tokenization.private_key.clone())
-            .await?;
-        let webhook_source_verification_key = secret_management_client
-            .get_secret(network_tokenization.webhook_source_verification_key.clone())
-            .await?;
-
-        Ok(value.transition_state(|network_tokenization| Self {
-            public_key,
-            private_key,
-            token_service_api_key,
-            webhook_source_verification_key,
-            ..network_tokenization
         }))
     }
 }
