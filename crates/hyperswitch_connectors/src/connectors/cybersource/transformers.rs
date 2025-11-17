@@ -1926,7 +1926,7 @@ impl
                 let effective_authentication_type = authn_data.authentication_type.map(Into::into);
 
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
-                    if token_data.network == Some(common_enums::CardNetwork::Mastercard) {
+                    if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
                         (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
@@ -1936,7 +1936,7 @@ impl
                     date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .ok();
-                let network_score = (token_data.network
+                let network_score = (token_data.card_network
                     == Some(common_enums::CardNetwork::CartesBancaires))
                 .then_some(authn_data.message_extension.as_ref())
                 .flatten()

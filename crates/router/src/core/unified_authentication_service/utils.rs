@@ -464,7 +464,7 @@ fn get_vault_details(
             Ok(
                 hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                     hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
-                        network_token: token_data.payment_token.clone().to_network_token(),
+                        network_token: token_data.payment_token.clone(),
                         network_token_exp_month: token_data.token_expiration_month.clone(),
                         network_token_exp_year: token_data.token_expiration_year.clone(),
                         cryptogram,

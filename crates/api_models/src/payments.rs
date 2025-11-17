@@ -6,7 +6,7 @@ use std::{
 };
 pub mod additional_info;
 pub mod trait_impls;
-use cards::CardNumber;
+use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::{GooglePayCardFundingSource, ProductType};
@@ -3384,37 +3384,102 @@ pub struct VaultToken {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTokenData {
     /// The network token
     #[schema(value_type = String, example = "4242424242424242")]
-    pub network_token: CardNumber,
+    #[smithy(value_type = "String")]
+    pub network_token: NetworkToken,
 
     /// The token's expiry month
     #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
     pub token_exp_month: Secret<String>,
 
     /// The token's expiry year
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub token_exp_year: Secret<String>,
 
     /// The token cryptogram
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub token_cryptogram: Secret<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI value for this authentication.
     #[schema(value_type = Option<String>)]
-    pub token_cryptogram: Option<Secret<String>>,
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTokenResponse {
-    pub token_last_four: Option<String>,
-
+    #[smithy(value_type = "Option<String>")]
+    pub last4: Option<String>,
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub token_exp_month: Option<Secret<String>>,
-
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub token_exp_year: Option<Secret<String>>,
-
     #[schema(value_type = Option<String>)]
-    pub token_cryptogram: Option<Secret<String>>,
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3941,6 +4006,31 @@ pub struct AdditionalCardInfo {
     pub signature_network: Option<api_enums::CardNetwork>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct AdditionalNetworkTokenInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+
+    /// Card network of the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card type, can be either `credit` or `debit`
+    pub card_type: Option<String>,
+
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+
+    pub token_exp_month: Option<Secret<String>>,
+
+    pub token_exp_year: Option<Secret<String>>,
+
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
@@ -4005,10 +4095,7 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
     },
-    NetworkToken {
-        #[serde(flatten)]
-        details: Option<NetworkTokenData>,
-    },
+    NetworkToken(Box<AdditionalNetworkTokenInfo>),
 }
 
 impl AdditionalPaymentData {
@@ -8840,6 +8927,21 @@ impl From<AdditionalCardInfo> for CardResponse {
     }
 }
 
+impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
+    fn from(network_token: AdditionalNetworkTokenInfo) -> Self {
+        Self {
+            last4: network_token.last4,
+            card_type: network_token.card_type,
+            card_network: network_token.card_network,
+            card_issuer: network_token.card_issuer,
+            card_issuing_country: network_token.card_issuing_country,
+            token_exp_month: network_token.token_exp_month,
+            token_exp_year: network_token.token_exp_year,
+            card_holder_name: network_token.card_holder_name,
+        }
+    }
+}
+
 impl From<KlarnaSdkPaymentMethod> for PaylaterResponse {
     fn from(klarna_sdk: KlarnaSdkPaymentMethod) -> Self {
         Self {
@@ -8933,24 +9035,8 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::MobilePayment { details } => {
                 Self::MobilePayment(Box::new(MobilePaymentResponse { details }))
             }
-            AdditionalPaymentData::NetworkToken { details } => {
-                Self::NetworkToken(Box::new(NetworkTokenResponse {
-                    token_last_four: details.clone().map(|dt| {
-                        dt.network_token
-                            .peek()
-                            .clone()
-                            .chars()
-                            .rev()
-                            .take(4)
-                            .collect::<String>()
-                            .chars()
-                            .rev()
-                            .collect::<String>()
-                    }),
-                    token_exp_month: details.clone().map(|dt| dt.token_exp_month.clone()),
-                    token_exp_year: details.clone().map(|dt| dt.token_exp_year.clone()),
-                    token_cryptogram: details.clone().and_then(|dt| dt.token_cryptogram.clone()),
-                }))
+            AdditionalPaymentData::NetworkToken(network_token) => {
+                Self::NetworkToken(Box::new(NetworkTokenResponse::from(*network_token)))
             }
         }
     }

@@ -581,7 +581,15 @@ pub async fn get_token_pm_type_mandate_details(
                         }
                         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
                             // NetworkToken is not yet fully implemented for recurring details
-                            (None, request.payment_method, None, None, None, None, None)
+                            (
+                                None,
+                                request.payment_method,
+                                request.payment_method_type,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
                         }
                     }
                 }
@@ -2739,7 +2747,7 @@ pub async fn fetch_network_token_details_from_locker(
         .flatten();
 
     let network_token_data = NetworkTokenData {
-        token_number: token_data.card_number,
+        token_number: token_data.card_number.into(),
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
@@ -5577,17 +5585,27 @@ pub async fn get_additional_payment_data(
                 details: Some(mobile_payment.to_owned().into()),
             },
         )),
-        domain::PaymentMethodData::NetworkToken(network_token) => Ok(Some(
-            api_models::payments::AdditionalPaymentData::NetworkToken {
-                details: Some(network_token.to_owned().into()),
-            },
+        domain::PaymentMethodData::NetworkToken(network_token_data) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                network_token_data.to_owned().into(),
+            )),
         )),
         domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
             network_token_data,
         ) => Ok(Some(
-            api_models::payments::AdditionalPaymentData::NetworkToken {
-                details: Some(NetworkTokenData::from(network_token_data.to_owned()).into()),
-            },
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                api_models::payments::AdditionalNetworkTokenInfo {
+                    card_issuer: network_token_data.card_issuer.to_owned(),
+                    card_network: network_token_data.card_network.to_owned(),
+                    card_type: network_token_data.card_type.to_owned(),
+                    card_issuing_country: network_token_data.card_issuing_country.to_owned(),
+                    bank_code: network_token_data.bank_code.to_owned(),
+                    token_exp_month: Some(network_token_data.token_exp_month.clone()),
+                    token_exp_year: Some(network_token_data.token_exp_year.clone()),
+                    card_holder_name: network_token_data.card_holder_name.clone(),
+                    last4: Some(network_token_data.network_token.get_last4().clone()),
+                },
+            )),
         )),
     }
 }
@@ -7601,7 +7619,6 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    println!("Checking to override setup_future_usage...");
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(

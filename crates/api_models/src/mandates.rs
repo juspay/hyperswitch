@@ -253,27 +253,67 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub network_transaction_id: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The Network Token
     #[schema(value_type = String, example = "4242424242424242")]
-    pub network_token: cards::CardNumber,
+    #[smithy(value_type = "String")]
+    pub network_token: cards::NetworkToken,
 
     /// The token's expiry month
     #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
     pub token_exp_month: Secret<String>,
 
     /// The token's expiry year
     #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
     pub token_exp_year: Secret<String>,
 
-    /// The token's network
+    /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
-    pub network: Option<api_enums::CardNetwork>,
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI value for this authentication.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// where `off_session` is true.
     #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
 }
 
