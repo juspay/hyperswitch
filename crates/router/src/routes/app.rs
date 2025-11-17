@@ -1728,6 +1728,8 @@ impl Oidc {
                     .route(web::get().to(oidc::oidc_discovery)),
             )
             .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
+            .service(web::resource("/oidc/authorize").route(web::post().to(oidc::oidc_authorize)))
+            .service(web::resource("/oauth2/token").route(web::post().to(oidc::oidc_token)))
     }
 }
 
