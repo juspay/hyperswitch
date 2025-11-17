@@ -95,12 +95,6 @@ impl FeatureMetadata {
             .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
-    pub fn get_current_working_attempt_id(&self) -> Option<&id_type::GlobalAttemptId> {
-        self.payment_revenue_recovery_metadata
-            .as_ref()
-            .and_then(|recovery_metadata| recovery_metadata.current_working_attempt_id.as_ref())
-    }
-
     // TODO: Check search_tags for relevant payment method type
     // TODO: Check redirect_response metadata if applicable
     // TODO: Check apple_pay_recurring_details metadata if applicable
@@ -206,8 +200,6 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub first_payment_attempt_network_decline_code: Option<String>,
     /// First Payment Attempt Network Advice Code
     pub first_payment_attempt_network_advice_code: Option<String>,
-    /// Current working payment attempt id
-    pub current_working_attempt_id: Option<id_type::GlobalAttemptId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

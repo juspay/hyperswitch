@@ -633,16 +633,6 @@ impl PaymentIntent {
         })
     }
 
-    pub fn get_active_attempt_id(&self) -> Option<&id_type::GlobalAttemptId> {
-        let current_working_attempt_id = self
-            .feature_metadata
-            .as_ref()
-            .and_then(|feature_metadata| feature_metadata.get_current_working_attempt_id());
-        self.active_attempt_id
-            .as_ref()
-            .or(current_working_attempt_id)
-    }
-
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -1190,7 +1180,6 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
-                current_working_attempt_id: active_attempt_id,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

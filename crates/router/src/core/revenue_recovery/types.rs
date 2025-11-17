@@ -404,8 +404,8 @@ impl Decision {
         let active_attempt_id = revenue_recovery_data
             .psync_data
             .as_ref()
-            .and_then(|psync_data| psync_data.payment_intent.get_active_attempt_id())
-            .or(active_attempt_id);
+            .and_then(|psync_data| psync_data.payment_intent.active_attempt_id.clone())
+            .or(active_attempt_id.cloned());
 
         Ok(match (intent_status, called_connector, active_attempt_id) {
             (

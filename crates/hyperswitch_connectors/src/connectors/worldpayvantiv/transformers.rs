@@ -2048,7 +2048,7 @@ impl<F>
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
-                        minor_amount_captured: minor_amount_captured.clone(),
+                        minor_amount_captured,
                         ..item.data
                     })
                 }
@@ -2143,7 +2143,7 @@ impl<F>
                         } else {
                             None
                         },
-                        minor_amount_captured: minor_amount_captured.clone(),
+                        minor_amount_captured,
                         ..item.data
                     })
                 }

@@ -1579,7 +1579,7 @@ impl
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        let amount_capturable_from_intent_status = match intent_status {
+        match intent_status {
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
@@ -1600,8 +1600,7 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
-        };
-        amount_capturable_from_intent_status
+        }
     }
 
     fn get_captured_amount(
