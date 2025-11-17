@@ -1015,13 +1015,13 @@ pub async fn get_payout_filters_core(
     let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
     let mut payout_method_map: HashSet<api_enums::PayoutType> = HashSet::new();
 
-    // populate connector map
     merchant_connector_accounts
         .iter()
         .filter(|&merchant_connector_account| {
             merchant_connector_account.connector_type == api_enums::ConnectorType::PayoutProcessor
         })
         .for_each(|merchant_connector_account| {
+            // populate connector map
             merchant_connector_account
                 .connector_label
                 .as_ref()
@@ -1032,12 +1032,8 @@ pub async fn get_payout_filters_core(
                         .or_default()
                         .push(info);
                 });
-        });
 
-    // populate payout method type map
-    merchant_connector_accounts
-        .iter()
-        .for_each(|merchant_connector_account| {
+            // populate payout method type map
             merchant_connector_account
                 .payment_methods_enabled
                 .as_ref()
