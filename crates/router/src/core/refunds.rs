@@ -1627,7 +1627,7 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
             unified_message: refund.unified_message,
             issuer_error_code: refund.issuer_error_code,
             issuer_error_message: refund.issuer_error_message,
-            whole_connector_response: None,
+            raw_connector_response: None,
         }
     }
 }
@@ -1656,7 +1656,7 @@ impl ForeignFrom<(diesel_refund::Refund, Option<masking::Secret<String>>)> for a
             unified_message: refund.unified_message,
             issuer_error_code: refund.issuer_error_code,
             issuer_error_message: refund.issuer_error_message,
-            whole_connector_response: raw_connector_response,
+            raw_connector_response,
         }
     }
 }
