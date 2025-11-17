@@ -59,6 +59,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
 const COF_DATA_TYPE: &str = "adhoc";
 const COF_DATA_SOURCE: &str = "cit";
 const COF_DATA_MODE: &str = "initial";
+const MAX_ID_LENGTH: usize = 12;
 
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
@@ -115,6 +116,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -461,6 +463,8 @@ impl
             display_amount: None,
         };
 
+        let rrn = compute_rrn(item.router_data.request.merchant_order_reference_id.clone());
+
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
@@ -472,6 +476,7 @@ impl
                     source: COF_DATA_SOURCE.to_string(),
                     mode: COF_DATA_MODE.to_string(),
                 },
+                rrn,
             },
         );
 
@@ -490,16 +495,18 @@ impl
 }
 
 fn compute_rrn(merchant_order_reference_id: Option<String>) -> Option<String> {
-    merchant_order_reference_id.map(|id| {
+    merchant_order_reference_id.and_then(|id| {
         let alphanumeric_id: String = id.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
 
-        let final_rrn = if alphanumeric_id.len() < 12 {
-            format!("{:0>12}", alphanumeric_id)
-        } else {
-            alphanumeric_id[alphanumeric_id.len().saturating_sub(12)..].to_string()
-        };
+        if alphanumeric_id.is_empty() {
+            return None;
+        }
 
-        final_rrn
+        if alphanumeric_id.len() < MAX_ID_LENGTH {
+            Some(format!("{:0>12}", alphanumeric_id))
+        } else {
+            Some(alphanumeric_id[alphanumeric_id.len() - MAX_ID_LENGTH..].to_string())
+        }
     })
 }
 
