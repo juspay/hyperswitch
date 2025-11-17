@@ -1656,8 +1656,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             .request
             .get_optional_language_from_browser_info()
             .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
-
-        let custom = NovalnetCustom { lang, extra: None };
+        let extra = metadata_to_novalnet_extra(item.request.metadata.clone().map(|m| m.expose()))?;
+        let custom = NovalnetCustom { lang, extra };
         let hook_url = item.request.get_webhook_url()?;
         let return_url = item.request.get_return_url()?;
         let create_token = Some(CREATE_TOKEN_REQUIRED);
