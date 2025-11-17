@@ -287,6 +287,7 @@ pub async fn save_payout_data_to_locker(
                     card_holder_name: card.card_holder_name.to_owned(),
                     card_exp_month: card.expiry_month.to_owned(),
                     card_exp_year: card.expiry_year.to_owned(),
+                    card_cvc: None,
                     nick_name: None,
                     card_issuing_country: None,
                     card_network: None,

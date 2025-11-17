@@ -556,6 +556,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
+                card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             }),
             metadata: None,
             customer_id: Some(customer_id.clone()),
