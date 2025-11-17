@@ -3,6 +3,7 @@ use api_models::{
     cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
     payments, routing::ConnectorSelection,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -920,6 +921,9 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
+
+        let webhook_configuration_data = api_types::ConnectorData::convert_connector(item.connector_name.as_str())?.get_api_webhook_config();
+
         #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),
@@ -1027,6 +1031,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            webhook_setup_capabilities: Some(webhook_configuration_data),
         };
         Ok(response)
     }
