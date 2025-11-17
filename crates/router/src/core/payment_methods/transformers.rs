@@ -1,7 +1,7 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
-use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
-use api_models::payment_methods::PaymentMethodResponseItem;
+use api_models::{payment_methods::PaymentMethodResponseItem,enums as api_enums};
+use api_models::payment_methods::Card;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
