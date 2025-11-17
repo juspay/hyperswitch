@@ -390,13 +390,9 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::add_card_to_hs_locker(
-        state,
-        &locker_req,
-        customer_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let stored_resp = cards::add_card_to_hs_locker(state, &locker_req, customer_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let db = &*state.store;
 
@@ -682,13 +678,9 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::add_card_to_hs_locker(
-            state,
-            &locker_req,
-            customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError);
+        let stored_resp = cards::add_card_to_hs_locker(state, &locker_req, customer_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError);
 
         // Check if locker operation was successful or not, if not, delete the entry from payment_methods table
         if let Err(err) = stored_resp {

@@ -622,19 +622,19 @@ where
                                     )
                                     .await?;
 
-                    let add_card_resp = cards
-                        .add_card_hs(
-                            payment_method_create_request,
-                            &card,
-                            &customer_id,
-                            Some(
-                                existing_pm
-                                    .locker_id
-                                    .as_ref()
-                                    .unwrap_or(&existing_pm.payment_method_id),
-                            ),
-                        )
-                        .await;
+                                let add_card_resp = cards
+                                    .add_card_hs(
+                                        payment_method_create_request,
+                                        &card,
+                                        &customer_id,
+                                        Some(
+                                            existing_pm
+                                                .locker_id
+                                                .as_ref()
+                                                .unwrap_or(&existing_pm.payment_method_id),
+                                        ),
+                                    )
+                                    .await;
 
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);

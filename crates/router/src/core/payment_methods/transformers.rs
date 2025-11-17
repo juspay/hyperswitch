@@ -1,7 +1,7 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
+use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodResponseItem;
-use api_models::payment_methods::Card;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -407,15 +407,7 @@ pub async fn mk_add_locker_request_hs(
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    mk_generic_locker_request(
-        jwekey,
-        locker,
-        payload,
-        "/cards/add",
-        tenant_id,
-        request_id,
-    )
-    .await
+    mk_generic_locker_request(jwekey, locker, payload, "/cards/add", tenant_id, request_id).await
 }
 
 #[cfg(all(feature = "v1", feature = "payouts"))]

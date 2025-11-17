@@ -40,8 +40,7 @@ pub async fn generate_fingerprint(
         key: hash_key,
     };
 
-    let generate_fingerprint_resp =
-        call_to_locker_for_fingerprint(state, &payload).await?;
+    let generate_fingerprint_resp = call_to_locker_for_fingerprint(state, &payload).await?;
 
     Ok(generate_fingerprint_resp)
 }

@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
+use api_models::payment_methods as api;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::payment_methods as api;
 #[cfg(feature = "v1")]
 use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]

@@ -408,14 +408,10 @@ where
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_hs_locker(
-            self.state,
-            &locker_req,
-            customer_id,
-        )
-        .await
-        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let stored_resp = add_card_to_hs_locker(self.state, &locker_req, customer_id)
+            .await
+            .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(stored_resp)
     }

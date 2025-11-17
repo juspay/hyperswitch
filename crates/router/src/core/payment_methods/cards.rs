@@ -594,12 +594,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 enc_data,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
-        let store_resp = add_card_to_hs_locker(
-            self.state,
-            &payload,
-            customer_id,
-        )
-        .await?;
+        let store_resp = add_card_to_hs_locker(self.state, &payload, customer_id).await?;
         let payment_method_resp = payment_methods::mk_add_bank_response_hs(
             bank.clone(),
             store_resp.card_reference,
@@ -626,19 +621,17 @@ impl PaymentMethodsController for PmCards<'_> {
         metrics::STORED_TO_LOCKER.add(1, &[]);
         let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
             async {
-                self.add_card_hs(
-                    req.clone(),
-                    card,
-                    customer_id,
-                    card_reference,
-                )
-                .await
-                .inspect_err(|_| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        1,
-                        router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
-                    );
-                })
+                self.add_card_hs(req.clone(), card, customer_id, card_reference)
+                    .await
+                    .inspect_err(|_| {
+                        metrics::CARD_LOCKER_FAILURES.add(
+                            1,
+                            router_env::metric_attributes!(
+                                ("locker", "rust"),
+                                ("operation", "add")
+                            ),
+                        );
+                    })
             },
             &metrics::CARD_ADD_TIME,
             router_env::metric_attributes!(("locker", "rust")),
@@ -713,8 +706,7 @@ impl PaymentMethodsController for PmCards<'_> {
             ttl: self.state.conf.locker.ttl_for_storage_in_secs,
         });
 
-        let store_card_payload =
-            add_card_to_hs_locker(self.state, &payload, customer_id).await?;
+        let store_card_payload = add_card_to_hs_locker(self.state, &payload, customer_id).await?;
 
         let payment_method_resp = payment_methods::mk_add_card_response_hs(
             card.clone(),
@@ -2010,29 +2002,24 @@ pub async fn get_card_from_locker(
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
-            get_card_from_hs_locker(
-                state,
-                customer_id,
-                merchant_id,
-                card_reference,
-            )
-            .await
-            .map_err(|err| match err.current_context() {
-                errors::VaultError::FetchCardFailed => {
-                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "Card not found in vault".to_string(),
-                    })
-                }
-                _ => err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error getting card from card vault"),
-            })
-            .inspect_err(|_| {
-                metrics::CARD_LOCKER_FAILURES.add(
-                    1,
-                    router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
-                );
-            })
+            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                .await
+                .map_err(|err| match err.current_context() {
+                    errors::VaultError::FetchCardFailed => {
+                        err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Card not found in vault".to_string(),
+                        })
+                    }
+                    _ => err
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error getting card from card vault"),
+                })
+                .inspect_err(|_| {
+                    metrics::CARD_LOCKER_FAILURES.add(
+                        1,
+                        router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
+                    );
+                })
         },
         &metrics::CARD_GET_TIME,
         router_env::metric_attributes!(("locker", "rust")),
@@ -2154,13 +2141,9 @@ pub async fn add_card_to_hs_locker(
             state.request_id.clone(),
         )
         .await?;
-        call_locker_api::<payment_methods::StoreCardResp>(
-            state,
-            request,
-            "add_card_to_hs_locker",
-        )
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)?
+        call_locker_api::<payment_methods::StoreCardResp>(state, request, "add_card_to_hs_locker")
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)?
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
@@ -4853,16 +4836,11 @@ pub async fn get_bank_from_hs_locker(
     merchant_id: &id_type::MerchantId,
     token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
-    let payment_method = get_payment_method_from_hs_locker(
-        state,
-        key_store,
-        customer_id,
-        merchant_id,
-        token_ref,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting payment method from locker")?;
+    let payment_method =
+        get_payment_method_from_hs_locker(state, key_store, customer_id, merchant_id, token_ref)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting payment method from locker")?;
     let pm_parsed: api::PayoutMethodData = payment_method
         .peek()
         .to_string()
