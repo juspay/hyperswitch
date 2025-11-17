@@ -50,8 +50,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
     }
 
-    let sdk_url = url::Url::parse(SDK_URL)
-        .map_err(|e| format!("Invalid SDK URL: {}", e))?;
+    let sdk_url = url::Url::parse(SDK_URL).map_err(|e| format!("Invalid SDK URL: {}", e))?;
 
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkDetails(Box::new(
         payment_link_details.clone(),
@@ -77,8 +76,8 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
 /// Implementation function for validating payment link config
 /// Called by the wasm_bindgen wrapper in lib.rs
 pub fn validate_payment_link_config_impl(config_json: &str) -> Result<String, String> {
-    let config: api_models::payments::PaymentLinkDetails = serde_json::from_str(config_json)
-        .map_err(|e| format!("Failed to parse config: {}", e))?;
+    let config: api_models::payments::PaymentLinkDetails =
+        serde_json::from_str(config_json).map_err(|e| format!("Failed to parse config: {}", e))?;
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
