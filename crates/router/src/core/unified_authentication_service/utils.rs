@@ -379,7 +379,6 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
         authentication_details,
     }) = router_data.response.clone()
     {
-        let key_manager_state = state.into();
 
         match business_profile.external_vault_details.clone() {
             business_profile::ExternalVaultDetails::ExternalVaultEnabled(
@@ -390,7 +389,6 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 let merchant_connector_account_details = state
                     .store
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        &key_manager_state,
                         merchant_context.get_merchant_account().get_id(),
                         &external_vault_mca_id,
                         merchant_context.get_merchant_key_store(),

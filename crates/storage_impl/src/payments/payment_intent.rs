@@ -1472,6 +1472,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         };
 
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+        let keymanager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
         query
             .get_results_async::<(
@@ -1493,8 +1496,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         let payment_attempt = pa
                             .async_map(|val| {
                                 PaymentAttempt::convert_back(
-                                    self.get_keymanager_state()
-                                        .attach_printable("Missing KeyManagerState")?,
+                                    keymanager_state,
                                     val,
                                     merchant_key_store.key.get_inner(),
                                     merchant_id.to_owned().into(),

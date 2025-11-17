@@ -1228,6 +1228,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             Op::Find,
         ))
         .await;
+        let keymanager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
         match decided_storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -1259,8 +1262,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     })?;
                     let merchant_id = payment_attempt.merchant_id.clone();
                     PaymentAttempt::convert_back(
-                        self.get_keymanager_state()
-                            .attach_printable("Missing KeyManagerState")?,
+                        keymanager_state,
                         payment_attempt,
                         merchant_key_store.key.get_inner(),
                         merchant_id.into(),
