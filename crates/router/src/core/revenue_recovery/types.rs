@@ -188,7 +188,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                         state,
                         &connector_customer_id,
-                    )
+                        &payment_intent.id
+                )
                     .await;
                 }
 
@@ -334,7 +335,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                         state,
                         &connector_customer_id,
-                    )
+                        &payment_intent.id
+                )
                     .await;
                 }
 
@@ -614,6 +616,7 @@ impl Action {
                             storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                         state,
                   &connector_customer_id,
+                        &payment_intent.id
                     )
                         .await;
                         }
@@ -705,6 +708,7 @@ impl Action {
                             storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
         state,
         &connector_customer_id,
+                        &payment_intent.id
     )
     .await;
                         }
@@ -926,6 +930,7 @@ impl Action {
                         storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
         state,
         &connector_customer_id,
+                    &payment_intent.id
     )
     .await;
                     }
@@ -959,6 +964,7 @@ impl Action {
                         storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
         state,
         &connector_customer_id,
+                        &payment_intent.id
     )
     .await;
                     }

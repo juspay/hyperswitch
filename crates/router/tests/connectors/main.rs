@@ -42,6 +42,7 @@ mod dummyconnector;
 mod dwolla;
 mod ebanx;
 mod elavon;
+mod envoy;
 mod facilitapay;
 mod finix;
 mod fiserv;

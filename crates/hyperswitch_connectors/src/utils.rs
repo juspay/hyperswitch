@@ -5,9 +5,12 @@ use std::{
     sync::LazyLock,
 };
 
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    payments,
+    payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
+};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -1886,6 +1889,112 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
     }
 }
 
+impl AdditionalCardInfo for WalletAdditionalDataForCard {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
+impl AdditionalCardInfo for ApplepayPaymentMethod {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -7068,7 +7177,6 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
-        is_migrated_card: data.is_migrated_card,
     }
 }
 

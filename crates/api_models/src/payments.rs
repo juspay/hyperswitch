@@ -24,7 +24,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -705,19 +705,6 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaymentMethodBalanceCheckResponse {
-    /// Global Payment Id for the payment
-    #[schema(value_type = String)]
-    pub payment_id: id_type::GlobalPaymentId,
-    /// The balance of the payment method
-    pub balance: MinorUnit,
-    /// The currency of the payment method
-    #[schema(value_type = Currency)]
-    pub currency: common_enums::Currency,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -1287,6 +1274,9 @@ pub struct PaymentsRequest {
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Three Ds Data supplied by the Merchant, Merchant have done the external authentication
+    pub three_ds_data: Option<ExternalThreeDsData>,
 
     /// Details required for recurring payment
     #[smithy(value_type = "Option<RecurringDetails>")]
@@ -3602,10 +3592,48 @@ pub struct ApplyPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct ApplyPaymentMethodDataResponse {
+pub struct PMBalanceCheckSuccessResponse {
+    pub balance: MinorUnit,
+    pub applicable_amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PMBalanceCheckFailureResponse {
+    pub error: String,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PMBalanceCheckEligibilityResponse {
+    Success(PMBalanceCheckSuccessResponse),
+    Failure(PMBalanceCheckFailureResponse),
+}
+
+impl PMBalanceCheckEligibilityResponse {
+    pub fn get_balance(&self) -> MinorUnit {
+        match self {
+            Self::Success(resp) => resp.balance,
+            Self::Failure(_) => MinorUnit::zero(),
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct EligibilityBalanceCheckResponseItem {
+    pub payment_method_data: BalanceCheckPaymentMethodData,
+    pub eligibility: PMBalanceCheckEligibilityResponse,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct CheckAndApplyPaymentMethodDataResponse {
+    pub balances: Vec<EligibilityBalanceCheckResponseItem>,
+    /// The amount left after subtracting applied payment method balance from order amount
     pub remaining_amount: MinorUnit,
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// Whether the applied payment method balance is enough for the order amount or additional PM is required
     pub requires_additional_pm_data: bool,
     pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
 }
@@ -3719,9 +3747,9 @@ pub enum AdditionalPaymentData {
         interac: Option<InteracPaymentMethod>,
     },
     Wallet {
-        apple_pay: Option<ApplepayPaymentMethod>,
-        google_pay: Option<WalletAdditionalDataForCard>,
-        samsung_pay: Option<WalletAdditionalDataForCard>,
+        apple_pay: Option<Box<ApplepayPaymentMethod>>,
+        google_pay: Option<Box<WalletAdditionalDataForCard>>,
+        samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -5247,6 +5275,12 @@ pub struct ApplepayPaymentMethod {
     #[serde(rename = "type")]
     #[smithy(value_type = "String")]
     pub pm_type: String,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "12")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "25")]
+    pub card_exp_year: Option<Secret<String>>,
 }
 
 #[derive(
@@ -7288,19 +7322,6 @@ pub struct PaymentsConfirmIntentRequest {
     pub webhook_url: Option<common_utils::types::Url>,
 }
 
-// Serialize is implemented because, this will be serialized in the api events.
-// Usually request types should not have serialize implemented.
-//
-/// Request for Payment method balance check
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentMethodBalanceCheckRequest {
-    /// The payment method data to be used for the balance check request. It can
-    /// only be a payment method that supports checking balance e.g. gift card
-    pub payment_method_data: BalanceCheckPaymentMethodData,
-}
-
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -8436,14 +8457,16 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
+                            card_exp_month: apple_pay_pm.card_exp_month,
+                            card_exp_year: apple_pay_pm.card_exp_year,
                         },
                     ))),
                 })),
                 (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                    details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
                 (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
+                    details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
@@ -11753,4 +11776,64 @@ mod null_object_test {
         let serialized = serde_json::to_string(&null_object).unwrap();
         assert_eq!(serialized, "null");
     }
+}
+
+/// Represents external 3DS authentication data used in the payment flow.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    /// Contains the authentication cryptogram data (CAVV or TAVV).
+    #[schema(value_type = Cryptogram)]
+    pub authentication_cryptogram: Cryptogram,
+    /// Directory Server Transaction ID generated during the 3DS process.
+    #[schema(value_type = String)]
+    pub ds_trans_id: String,
+    /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+    #[schema(value_type = String)]
+    pub version: SemanticVersion,
+    /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
+    #[schema(value_type = String)]
+    pub eci: String,
+    /// Indicates the transaction status from the 3DS authentication flow.
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
+    /// Optional exemption indicator specifying the exemption type, if any, used in this transaction.
+    #[schema(value_type = Option<ExemptionIndicator>)]
+    pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
+    /// Optional network-specific parameters that may be required by certain card networks.
+    #[schema(value_type = Option<NetworkParams>)]
+    pub network_params: Option<NetworkParams>,
+}
+
+/// Represents the 3DS cryptogram data returned after authentication.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    /// Cardholder Authentication Verification Value (CAVV) cryptogram.
+    Cavv {
+        /// The authentication cryptogram provided by the issuer or ACS.
+        #[schema(value_type = Option<String>)]
+        authentication_cryptogram: Secret<String>,
+    },
+}
+
+/// Represents additional network-level parameters for 3DS processing.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct NetworkParams {
+    /// Parameters specific to Cartes Bancaires network, if applicable.
+    #[schema(value_type = Option<CartesBancairesParams>)]
+    pub cartes_bancaires: Option<CartesBancairesParams>,
+}
+
+/// Represents network-specific parameters for the Cartes Bancaires 3DS process.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CartesBancairesParams {
+    /// The algorithm used to generate the CAVV value.
+    #[schema(value_type = Option<CavvAlgorithm>)]
+    pub cavv_algorithm: common_enums::CavvAlgorithm,
+    /// Exemption indicator specific to Cartes Bancaires network (e.g., "low_value", "trusted_merchant")
+    #[schema(value_type = String)]
+    pub cb_exemption: String,
+    /// Cartes Bancaires risk score assigned during 3DS authentication.
+    #[schema(value_type = i32)]
+    pub cb_score: i32,
 }

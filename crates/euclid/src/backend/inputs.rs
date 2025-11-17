@@ -26,6 +26,7 @@ pub struct PaymentInput {
     pub currency: enums::Currency,
     pub authentication_type: Option<enums::AuthenticationType>,
     pub card_bin: Option<String>,
+    pub extended_card_bin: Option<String>,
     pub capture_method: Option<enums::CaptureMethod>,
     pub business_country: Option<enums::Country>,
     pub billing_country: Option<enums::Country>,
