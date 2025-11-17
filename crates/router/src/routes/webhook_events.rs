@@ -10,10 +10,11 @@ use crate::{
         authorization::permissions::Permission,
     },
     types::api::webhook_events::{
-        EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
-        WebhookDeliveryRetryRequestInternal,
+        EventListConstraints, EventListRequestInternal,
+        WebhookDeliveryAttemptListRequestInternal, WebhookDeliveryRetryRequestInternal,
     },
 };
+use api_models::webhook_events::EventSearchConfig;
 
 #[instrument(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
 pub async fn list_initial_webhook_delivery_attempts(
@@ -21,10 +22,12 @@ pub async fn list_initial_webhook_delivery_attempts(
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<EventListConstraints>,
+    search_config: web::Query<EventSearchConfig>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let merchant_id = path.into_inner();
     let constraints = json_payload.into_inner();
+    let search_config = search_config.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: merchant_id.clone(),
@@ -41,6 +44,7 @@ pub async fn list_initial_webhook_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
+                search_config,
             )
         },
         auth::auth_type(
@@ -61,9 +65,11 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<EventListConstraints>,
+    search_config: web::Query<EventSearchConfig>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let constraints = json_payload.into_inner();
+    let search_config = search_config.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: common_utils::id_type::MerchantId::default(),
@@ -81,11 +87,13 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
 
             request_internal.merchant_id = merchant_id;
             request_internal.constraints.profile_id = Some(profile_id);
+            println!("\n\n\nlist_initial_webhook_delivery_attempts_with_jwtauth - Object_id: {:?} and search config: {:?}", request_internal.constraints, search_config);
 
             webhook_events::list_initial_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
+                search_config,
             )
         },
         &auth::JWTAuth {

@@ -1828,19 +1828,19 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), Some(event_id)) => Ok(Self::ObjectIdFilter {
-                object_id,
-                event_id,
+            (Some(object_id), Some(event_id)) => Ok(Self::SearchFilter {
+                object_id: Some(object_id),
+                event_id: Some(event_id),
             }),
 
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
-                event_id: object_id.clone(),
-                object_id,
+            (Some(object_id), None) => Ok(Self::SearchFilter{
+                event_id: None,
+                object_id: Some(object_id),
             }),
 
-            (None, Some(event_id)) => Ok(Self::ObjectIdFilter {
-                object_id: event_id.clone(),
-                event_id,
+            (None, Some(event_id)) => Ok(Self::SearchFilter {
+                object_id: None,
+                event_id: Some(event_id),
             }),
 
             (None, None) => Ok(Self::GenericFilter {

@@ -50,9 +50,10 @@ where
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -81,9 +82,10 @@ where
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -197,9 +199,10 @@ impl EventInterface for Store {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_merchant_id_primary_object_id_or_initial_attempt_id(
@@ -207,6 +210,7 @@ impl EventInterface for Store {
             merchant_id,
             primary_object_id,
             initial_attempt_id,
+            search_config.search_config,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -314,9 +318,10 @@ impl EventInterface for Store {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_profile_id_primary_object_id_or_initial_attempt_id(
@@ -324,6 +329,7 @@ impl EventInterface for Store {
             profile_id,
             primary_object_id,
             initial_attempt_id,
+            search_config.search_config,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -537,21 +543,68 @@ impl EventInterface for MockDb {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
-        let events = locked_events
-            .iter()
-            .filter(|event| {
-                event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
-                    && (event.primary_object_id == primary_object_id
-                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        
+        let events = match search_config.search_config {
+            Some(true) => {
+                if let Some(event_id) = initial_attempt_id {
+                    if let Some(event) = locked_events
+                        .iter()
+                        .find(|event| {
+                            event.merchant_id == Some(merchant_id.to_owned())
+                                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                                && event.initial_attempt_id.as_deref() == Some(event_id)
+                        })
+                    {
+                        vec![event.clone()]
+                    } else {
+                        vec![]
+                    }
+                } else if let Some(obj_id) = primary_object_id {
+                    locked_events
+                        .iter()
+                        .filter(|event| {
+                            event.merchant_id == Some(merchant_id.to_owned())
+                                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                                && event.primary_object_id.as_str() == obj_id
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>()
+                } else {
+                    vec![]
+                }
+            },
+            Some(false) | None => {
+                let mut filtered_events = Vec::new();
+                
+                for event in locked_events.iter() {
+                    if event.merchant_id != Some(merchant_id.to_owned()) {
+                        continue;
+                    }
+                    
+                    let matches = if let (Some(event_id), Some(obj_id)) = (initial_attempt_id, primary_object_id) {
+                        event.initial_attempt_id.as_deref() == Some(event_id) || event.primary_object_id.as_str() == obj_id
+                    } else if let Some(event_id) = initial_attempt_id {
+                        event.initial_attempt_id.as_deref() == Some(event_id)
+                    } else if let Some(obj_id) = primary_object_id {
+                        event.primary_object_id.as_str() == obj_id
+                    } else {
+                        false
+                    };
+                    
+                    if matches {
+                        filtered_events.push(event.clone());
+                    }
+                }
+                
+                filtered_events
+            }
+        };
 
         let mut domain_events = Vec::with_capacity(events.len());
 
@@ -675,21 +728,68 @@ impl EventInterface for MockDb {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
+        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
-        let events = locked_events
-            .iter()
-            .filter(|event| {
-                event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && (event.primary_object_id == primary_object_id
-                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        
+        let events = match search_config.search_config {
+            Some(true) => {
+                if let Some(event_id) = initial_attempt_id {
+                    if let Some(event) = locked_events
+                        .iter()
+                        .find(|event| {
+                            event.business_profile_id == Some(profile_id.to_owned())
+                                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                                && event.event_id == event_id
+                        })
+                    {
+                        vec![event.clone()]
+                    } else {
+                        vec![]
+                    }
+                } else if let Some(obj_id) = primary_object_id {
+                    locked_events
+                        .iter()
+                        .filter(|event| {
+                            event.business_profile_id == Some(profile_id.to_owned())
+                                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                                && event.primary_object_id.as_str() == obj_id
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>()
+                } else {
+                    vec![]
+                }
+            },
+            Some(false) | None => {
+                let mut filtered_events = Vec::new();
+                
+                for event in locked_events.iter() {
+                    if event.business_profile_id != Some(profile_id.to_owned()) {
+                        continue;
+                    }
+                    
+                    let matches = if let (Some(event_id), Some(obj_id)) = (initial_attempt_id, primary_object_id) {
+                        event.event_id == event_id || event.primary_object_id.as_str() == obj_id
+                    } else if let Some(event_id) = initial_attempt_id {
+                        event.event_id == event_id
+                    } else if let Some(obj_id) = primary_object_id {
+                        event.primary_object_id.as_str() == obj_id
+                    } else {
+                        false
+                    };
+                    
+                    if matches {
+                        filtered_events.push(event.clone());
+                    }
+                }
+                
+                filtered_events
+            }
+        };
 
         let mut domain_events = Vec::with_capacity(events.len());
 
@@ -1476,9 +1576,12 @@ mod tests {
             .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 key_manager_state,
                 &business_profile.merchant_id,
-                &primary_object_id.clone(),
-                &initial_attempt_id.clone(),
+                Some(primary_object_id.as_str()),
+                Some(initial_attempt_id.as_str()),
                 merchant_context.get_merchant_key_store(),
+                api_models::webhook_events::EventSearchConfig {
+                    search_config: None,
+                },
             )
             .await?;
 
