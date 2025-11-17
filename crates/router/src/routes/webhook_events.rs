@@ -87,7 +87,6 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
 
             request_internal.merchant_id = merchant_id;
             request_internal.constraints.profile_id = Some(profile_id);
-            println!("\n\n\nlist_initial_webhook_delivery_attempts_with_jwtauth - Object_id: {:?} and search config: {:?}", request_internal.constraints, search_config);
 
             webhook_events::list_initial_delivery_attempts(
                 state,
