@@ -8456,24 +8456,18 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
     );
-
-    let execution_path = ExecutionPath::Direct;
-    // Execution mode is irrelevant for Direct execution path
-    let execution_mode = ExecutionMode::Shadow;
-
     let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        creds_identifier: None,
         merchant_context: merchant_context.clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
-        execution_path,
-        execution_mode,
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
     };
 
     call_connector_service(
@@ -8584,9 +8578,7 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-
-    let execution_path = ExecutionPath::Direct;
-    let execution_mode = ExecutionMode::Shadow;
+    let execution_mode = ExecutionMode::NotApplicable;
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
@@ -8594,7 +8586,7 @@ where
         header_payload: header_payload.clone(),
         lineage_ids: lineage_ids.clone(),
         merchant_connector_account: merchant_connector_account.clone(),
-        execution_path,
+        execution_path: ExecutionPath::Direct,
         execution_mode,
     };
 

@@ -31,7 +31,7 @@ impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
-        domain::PSync,
+        Self,
         types::PaymentsSyncData,
         types::PaymentsResponseData,
         RouterGatewayContext,
@@ -41,28 +41,24 @@ where
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
 {
     async fn execute(
         self: Box<Self>,
         state: &SessionState,
         _connector_integration: BoxedConnectorIntegrationInterface<
-            domain::PSync,
+            Self,
             RCD,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        router_data: &RouterData<
-            domain::PSync,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
+        router_data: &RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let connector_name = router_data.connector.clone();
@@ -101,7 +97,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_get_request = payments_grpc::PaymentServiceGetRequest::foreign_try_from((
-            &*router_data,
+            router_data,
             call_connector_action,
         ))
         .change_context(ConnectorError::RequestEncodingFailed)
@@ -223,7 +219,7 @@ where
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<domain::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -240,7 +236,7 @@ where
         match execution_path {
             ExecutionPath::Direct => Box::new(payment_gateway::DirectGateway),
             ExecutionPath::UnifiedConnectorService
-            | ExecutionPath::ShadowUnifiedConnectorService => Box::new(domain::PSync),
+            | ExecutionPath::ShadowUnifiedConnectorService => Box::new(Self),
         }
     }
 }

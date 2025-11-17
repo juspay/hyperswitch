@@ -25,9 +25,6 @@ use std::{
 
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
-use external_services::grpc_client;
-
-#[cfg(feature = "v2")]
 pub mod payment_methods;
 
 use std::future;
@@ -132,7 +129,6 @@ use crate::{
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
-        unified_connector_service::update_gateway_system_in_feature_metadata,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -154,7 +150,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::authentication as authentication_core,
+    core::{
+        authentication as authentication_core,
+        unified_connector_service::update_gateway_system_in_feature_metadata,
+    },
     types::{api::authentication, BrowserInformation},
 };
 
@@ -4339,7 +4338,7 @@ where
             ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
             ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
             // ExecutionMode is irrelevant for Direct path in this context
-            ExecutionPath::Direct => ExecutionMode::Shadow,
+            ExecutionPath::Direct => ExecutionMode::NotApplicable,
         };
 
         let gateway_context = gateway_context::RouterGatewayContext {
@@ -4597,6 +4596,15 @@ where
         // and rely on previous status set in router_data
         // TODO: status is already set when constructing payment data, why should this be done again?
         // router_data.status = payment_data.get_payment_attempt().status;
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
         router_data
             .decide_flows(
                 state,
@@ -4606,7 +4614,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                None,
+                gateway_context,
             )
             .await
     } else {
@@ -5421,7 +5429,7 @@ where
     // TODO: determine execution path for proxy call connector service
     let execution_path = ExecutionPath::Direct;
     // Execution mode is irrelevant for Direct execution path
-    let execution_mode = ExecutionMode::Shadow;
+    let execution_mode = ExecutionMode::NotApplicable;
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
@@ -5563,6 +5571,16 @@ where
         )
         .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
+
     let router_data = if should_continue_further {
         router_data
             .decide_flows(
@@ -5573,7 +5591,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                None,
+                gateway_context,
             )
             .await
     } else {
@@ -5689,6 +5707,16 @@ where
         )
         .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
+
     let router_data = if should_continue_further {
         router_data
             .decide_flows(
@@ -5699,7 +5727,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                None,
+                gateway_context,
             )
             .await
     } else {
@@ -6224,6 +6252,19 @@ where
                 Some(header_payload.clone()),
             )
             .await?;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
 
         let res = router_data.decide_flows(
             state,
@@ -6233,7 +6274,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
-            None,
+            gateway_context,
         );
 
         join_handlers.push(res);
@@ -6357,8 +6398,7 @@ where
 
         // TODO: determine execution path for SDK session token call.
         let execution_path = ExecutionPath::Direct;
-        // Execution mode is irrelevant for Direct execution path
-        let execution_mode = ExecutionMode::Shadow;
+        let execution_mode = ExecutionMode::NotApplicable;
 
         let gateway_context = gateway_context::RouterGatewayContext {
             creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),

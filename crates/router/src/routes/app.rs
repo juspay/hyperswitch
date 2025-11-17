@@ -166,13 +166,14 @@ impl SessionState {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.map(|req_id| (*req_id).to_string());
         let shadow_mode = match unified_connector_service_execution_mode {
-            ExecutionMode::Primary => false,
-            ExecutionMode::Shadow => true,
+            ExecutionMode::Primary => Some(false),
+            ExecutionMode::Shadow => Some(true),
+            ExecutionMode::NotApplicable => None,
         };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
-            .shadow_mode(Some(shadow_mode))
+            .shadow_mode(shadow_mode)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {

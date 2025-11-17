@@ -793,6 +793,7 @@ impl<F>
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn process_capture_flow(
     mut router_data: types::RouterData<
         api::CompleteAuthorize,
