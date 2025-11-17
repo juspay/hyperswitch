@@ -4342,10 +4342,10 @@ where
         }
     }
 
-    let is_ucs_composite_flow =
+    let is_ucs_granular_flow =
         gateway::COMPOSITE_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-    if is_ucs_composite_flow {
+    if is_ucs_granular_flow {
         logger::info!("Current flow is UCS Composite flow");
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
