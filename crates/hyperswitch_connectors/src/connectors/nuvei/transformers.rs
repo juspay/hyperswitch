@@ -3419,6 +3419,11 @@ where
 
         let (amount_captured, minor_amount_capturable) =
             get_amount_captured(response.get_partial_approval(), transaction_type.clone())?;
+
+        if bypass_error_for_no_payments_found(response.err_code) {
+            return Ok(item.data);
+        };
+
         Ok(Self {
             status,
             response: if let Some(err) = build_error_response(ErrorResponseParams {
@@ -3537,6 +3542,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if bypass_error_for_no_payments_found(item.response.err_code) {
+            return Ok(item.data);
+        };
         let txn_id = item
             .response
             .transaction_details
@@ -4426,5 +4434,14 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             // --- DisputeReversal ---
             DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Self::DisputeReversal,
         }
+    }
+}
+/// bypass error state when psync is called immediately and psp returns no payments found
+/// https://docs.nuvei.com/documentation/integration/response-handling/
+fn bypass_error_for_no_payments_found(err_code: Option<i64>) -> bool {
+    match err_code {
+        //No transaction details returned for the provided ID.
+        Some(9146) => true,
+        _ => false,
     }
 }
