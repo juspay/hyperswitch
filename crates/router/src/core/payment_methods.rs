@@ -3556,6 +3556,10 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
+    let payment_method_token =
+        id_type::GlobalPaymentMethodToken::generate(&state.conf.cell_information.id)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodToken")?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
     let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
@@ -3565,7 +3569,7 @@ pub async fn payment_methods_session_confirm(
     // insert the token data into redis
     if let Some(token_data) = token_data {
         pm_routes::ParentPaymentMethodToken::create_key_for_token((
-            &parent_payment_method_token,
+            &payment_method_token.get_string_repr().to_string(),
             request.payment_method_type,
         ))
         .insert(intent_fulfillment_time, token_data, &state)
@@ -3573,12 +3577,12 @@ pub async fn payment_methods_session_confirm(
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
-        associated_payment_methods:  Some(vec![parent_payment_method_token.clone()])
+        associated_payment_methods:  Some(vec![payment_method_token.clone()])
     };
 
-    vault::insert_cvc_using_payment_token(
+    vault::insert_cvc_using_payment_method_token(
         &state,
-        &parent_payment_method_token,
+        payment_method_token.get_string_repr(),
         create_payment_method_request.payment_method_data.clone(),
         request.payment_method_type,
         intent_fulfillment_time,

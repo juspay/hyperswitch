@@ -33,6 +33,20 @@ pub struct GlobalPaymentMethodId(GlobalId);
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct GlobalPaymentMethodSessionId(GlobalId);
 
+/// A global id that can be used to identify a payment method token
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    diesel::expression::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct GlobalPaymentMethodToken(GlobalId);
+
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 pub enum GlobalPaymentMethodIdError {
     #[error("Failed to construct GlobalPaymentMethodId")]
@@ -42,6 +56,12 @@ pub enum GlobalPaymentMethodIdError {
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 pub enum GlobalPaymentMethodSessionIdError {
     #[error("Failed to construct GlobalPaymentMethodSessionId")]
+    ConstructionError,
+}
+
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum GlobalPaymentMethodTokenError {
+    #[error("Failed to construct GlobalPaymentMethodToken")]
     ConstructionError,
 }
 
@@ -101,6 +121,32 @@ impl GlobalPaymentMethodId {
         let id = GlobalId::from_string(value.into())
             .change_context(GlobalPaymentMethodIdError::ConstructionError)?;
         Ok(Self(id))
+    }
+}
+
+impl GlobalPaymentMethodToken {
+    /// Create a new GlobalPaymentMethodToken from cell id information
+    pub fn generate(cell_id: &CellId) -> error_stack::Result<Self, GlobalPaymentMethodTokenError> {
+        let global_id = GlobalId::generate(cell_id, GlobalEntity::PaymentMethodToken);
+        Ok(Self(global_id))
+    }
+
+    /// Get the string representation of the id
+    pub fn get_string_repr(&self) -> &str {
+        self.0.get_string_repr()
+    }
+
+    /// Construct a redis key from the id to be stored in redis
+    pub fn get_redis_key(&self) -> String {
+        format!("payment_method_token:{}", self.get_string_repr())
+    }
+}
+
+impl crate::events::ApiEventMetric for GlobalPaymentMethodToken {
+    fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
+        Some(crate::events::ApiEventsType::PaymentMethodToken {
+            payment_method_token: self.clone(),
+        })
     }
 }
 
