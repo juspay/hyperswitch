@@ -3349,45 +3349,41 @@ impl ConnectorSpecifications for Adyen {
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Option<String> {
-        // MIT (Merchant Initiated Transaction): Check payment_method.connector_mandate_details first
-        if let Some(payment_method) = payment_method_info {
-            // Try to get connector mandate details and find the mandate ID using merchant_connector_id
-            if let Ok(common_mandate_ref) = payment_method.get_common_mandate_reference() {
-                if let Some(merchant_connector_id) = &payment_attempt.merchant_connector_id {
-                    // Check payments section first
-                    if let Some(payments_ref) = &common_mandate_ref.payments {
-                        if let Some(mandate_record) = payments_ref.get(merchant_connector_id) {
-                            return Some(mandate_record.connector_mandate_id.clone());
-                        }
-                    }
-
-                    // Check payouts section if payments not found
-                    if let Some(payouts_ref) = &common_mandate_ref.payouts {
-                        if let Some(payout_record) = payouts_ref.get(merchant_connector_id) {
-                            if let Some(transfer_method_id) = &payout_record.transfer_method_id {
-                                return Some(transfer_method_id.clone());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // CIT (Customer Initiated Transaction): Check connector_customer_id
-        if let Some(connector_customer_id) = connector_customer_id {
-            return Some(connector_customer_id);
-        }
-
-        // Fallback: Generate {merchant_id}_{customer_id}
-        if let Some(customer_id) = customer_id {
-            Some(format!(
-                "{}_{}",
-                payment_attempt.merchant_id.get_string_repr(),
-                customer_id.get_string_repr()
-            ))
-        } else {
-            // If customer_id is None, return None to indicate error
-            None
-        }
+        // Try mandate-based lookup first
+        payment_method_info
+            .as_ref()
+            .and_then(|pm| pm.get_common_mandate_reference().ok())
+            .and_then(|mandate_ref| {
+                payment_attempt
+                    .merchant_connector_id
+                    .as_ref()
+                    .and_then(|mci| {
+                        mandate_ref
+                            .payments
+                            .as_ref()
+                            .and_then(|payments| payments.get(mci))
+                            .and_then(|record| record.connector_customer_id.clone())
+                            .or_else(|| {
+                                mandate_ref
+                                    .payouts
+                                    .as_ref()?
+                                    .get(mci)?
+                                    .connector_customer_id
+                                    .clone()
+                            })
+                    })
+            })
+            // Fallback to provided connector_customer_id
+            .or(connector_customer_id)
+            // Final fallback: generate {merchant_id}_{customer_id}
+            .or_else(|| {
+                customer_id.as_ref().map(|cid| {
+                    format!(
+                        "{}_{}",
+                        payment_attempt.merchant_id.get_string_repr(),
+                        cid.get_string_repr()
+                    )
+                })
+            })
     }
 }

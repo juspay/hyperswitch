@@ -541,7 +541,6 @@ pub trait ConnectorSpecifications {
     }
 
     #[cfg(not(feature = "v2"))]
-    /// Generate connector customer reference ID
     fn generate_connector_customer_reference_id(
         &self,
         connector_customer_id: Option<String>,
@@ -549,19 +548,16 @@ pub trait ConnectorSpecifications {
         _payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Option<String> {
-        // Default implementation delegates to request reference ID
         connector_customer_id
     }
 
     #[cfg(feature = "v2")]
-    /// Generate connector customer reference ID
     fn generate_connector_customer_reference_id(
         &self,
-        connector_customer_id: Option<String>,
+        connector_customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Option<String> {
-        // Default implementation delegates to request reference ID
         todo!()
     }
 

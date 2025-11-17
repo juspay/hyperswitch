@@ -1850,9 +1850,6 @@ pub fn get_connector_customer_reference_id(
     customer_id: &Option<common_utils::id_type::CustomerId>,
     connector_name: &str,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    // let is_config_enabled_to_send_payment_id_as_connector_request_id =
-    //     is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
-
     let connector_data = api::ConnectorData::get_connector_by_name(
         &conf.connectors,
         connector_name,
@@ -1873,7 +1870,6 @@ pub fn get_connector_customer_reference_id(
     Ok(connector_request_reference_id)
 }
 
-// TODO: Based on the connector configuration, the connector_request_reference_id should be generated
 #[cfg(feature = "v2")]
 pub fn get_connector_customer_reference_id(
     conf: &Settings,

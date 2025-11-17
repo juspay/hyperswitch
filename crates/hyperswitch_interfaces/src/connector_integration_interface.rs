@@ -699,7 +699,6 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     #[cfg(feature = "v2")]
-    /// Generate connector request reference ID
     fn generate_connector_customer_reference_id(
         &self,
         connector_customer_id: &Option<common_utils::id_type::CustomerId>,
