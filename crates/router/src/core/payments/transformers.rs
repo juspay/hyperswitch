@@ -4630,7 +4630,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .authentication
                 .as_ref()
                 .map(AuthenticationData::foreign_try_from)
-                .transpose()?,
+                .transpose()?
+                .or(payment_data
+                    .external_authentication_data
+                    .as_ref()
+                    .map(AuthenticationData::foreign_try_from)
+                    .transpose()?),
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,

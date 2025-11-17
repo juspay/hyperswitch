@@ -9943,3 +9943,88 @@ pub enum SubscriptionStatus {
     /// Subscription has failed.
     Failed,
 }
+
+/// This is typically provided by the card network or Access Control Server (ACS)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+pub enum CavvAlgorithm {
+    /// `00` — Reserved or unspecified algorithm.
+    #[serde(rename = "00")]
+    Zero,
+    /// `01` — HMAC-based algorithm.
+    #[serde(rename = "01")]
+    One,
+    /// `02` — RSA-based algorithm (standard 3DS cryptographic method).
+    #[serde(rename = "02")]
+    Two,
+    /// `03` — Elliptic Curve algorithm.
+    #[serde(rename = "03")]
+    Three,
+    /// `04` — Proprietary algorithm defined by the card network.
+    #[serde(rename = "04")]
+    Four,
+    /// `A` — Custom or network-defined algorithm indicator.
+    #[serde(rename = "A")]
+    A,
+}
+
+/// Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExemptionIndicator {
+    /// Low-value payment exemption (below regulatory threshold).
+    LowValue,
+    /// Secure corporate payment (SCP) exemption.
+    SecureCorporatePayment,
+    /// Trusted beneficiary or whitelist exemption.
+    TrustedListing,
+    /// Transaction Risk Analysis (TRA) exemption.
+    TransactionRiskAssessment,
+    /// 3DS server or ACS outage exemption.
+    ThreeDsOutage,
+    /// SCA delegation exemption (authentication delegated to another party).
+    ScaDelegation,
+    /// Out of SCA scope (e.g., one-leg-out transactions).
+    OutOfScaScope,
+    /// Other exemption reason not covered by known types.
+    Other,
+    /// Low-risk program exemption (network-initiated low-risk flag).
+    LowRiskProgram,
+    /// Recurring transaction exemption (subsequent payment in a series).
+    RecurringOperation,
+}
+
+/// Fields that can be tokenized with vault
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultTokenType {
+    /// Card number
+    CardNumber,
+    /// Card cvc
+    CardCvc,
+    /// Card expiry year
+    CardExpiryYear,
+    /// Card expiry month
+    CardExpiryMonth,
+    /// Network token
+    NetworkToken,
+    /// Token expiry year
+    NetworkTokenExpiryYear,
+    /// Token expiry month
+    NetworkTokenExpiryMonth,
+    /// Token cryptogram
+    NetworkTokenCryptogram,
+}
