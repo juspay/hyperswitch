@@ -335,6 +335,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
+        | dir::DirKeyKind::ExtendedCardBin
         | dir::DirKeyKind::BusinessLabel
         | dir::DirKeyKind::MetaData
         | dir::DirKeyKind::IssuerName

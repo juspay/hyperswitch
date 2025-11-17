@@ -727,7 +727,26 @@ where
         )
         .await?;
 
-        if is_eligible_for_uas {
+        if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
+            let maybe_connector_enum = match &connector_details {
+                ConnectorCallType::PreDetermined(connector_data) => {
+                    Some(connector_data.connector_data.connector_name)
+                }
+                ConnectorCallType::Retryable(connector_list) => connector_list
+                    .first()
+                    .map(|c| c.connector_data.connector_name),
+                ConnectorCallType::SessionMultiple(_) => None,
+            };
+
+            if let Some(connector_enum) = maybe_connector_enum {
+                if connector_enum.is_separate_authentication_supported() {
+                    logger::info!(
+                        "Proceeding with external authentication data provided by the merchant for connector: {:?}",
+                        connector_enum
+                    );
+                }
+            }
+        } else if is_eligible_for_uas {
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -6786,25 +6805,23 @@ where
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && ((connector.connector_name == router_types::Connector::Nexixpay
-                    && is_operation_complete_authorize(&operation))
-                    || (((connector.connector_name == router_types::Connector::Nuvei && {
-                        #[cfg(feature = "v1")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true)
-                        }
-                        #[cfg(feature = "v2")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true).into()
-                        }
-                    }) || connector.connector_name == router_types::Connector::Shift4)
-                        && !is_operation_complete_authorize(&operation)))
+                && (((connector.connector_name == router_types::Connector::Nuvei && {
+                    #[cfg(feature = "v1")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true)
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true).into()
+                    }
+                }) || connector.connector_name == router_types::Connector::Shift4)
+                    && !is_operation_complete_authorize(&operation))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
@@ -6843,6 +6860,13 @@ where
                     _ => false,
                 };
                 (router_data, should_continue)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && connector.connector_name == router_types::Connector::Nexixpay
+                && is_operation_complete_authorize(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -7707,6 +7731,7 @@ where
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
+    pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
 }
 
 #[cfg(feature = "v1")]
@@ -10469,6 +10494,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),
+                authentication.force_3ds_challenge,
+                authentication.psd2_sca_exemption_type,
             )
             .await?;
         let authentication = external_authentication_update_trackers(
