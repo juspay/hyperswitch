@@ -49,5 +49,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.39.1"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3"
   }
 }

@@ -3145,12 +3145,12 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
-            .service(web::resource("/status/{token_id}").route(
+            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
-            .service(web::resource("/redis-data/{token_id}").route(
+            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
                 web::get().to(
                     super::revenue_recovery_redis::get_revenue_recovery_redis_data,
                 ),

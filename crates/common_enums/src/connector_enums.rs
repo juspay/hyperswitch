@@ -464,7 +464,6 @@ impl Connector {
             Self::Aci
             // Add Separate authentication support for connectors
 			| Self::Authipay
-            | Self::Adyen
             | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
@@ -588,7 +587,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
 
