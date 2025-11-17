@@ -534,6 +534,7 @@ impl Vaultable for api::CardPayout {
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.map(masking::Secret::new),
+            card_network: None,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -650,6 +651,7 @@ impl Vaultable for api::WalletPayout {
                             expiry_month,
                             expiry_year,
                             card_holder_name: value1.card_holder_name,
+                            card_network: None,
                         })
                     }
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1623,6 +1625,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         None,
         connector_vault_id,
         None,
+        None,
     )
     .await?;
 
@@ -1979,6 +1982,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         None,
         Some(connector_vault_id),
         None,
+        None,
     )
     .await?;
 
@@ -2116,6 +2120,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
         &merchant_connector_account,
         None,
         connector_vault_id,
+        None,
         None,
     )
     .await?;
