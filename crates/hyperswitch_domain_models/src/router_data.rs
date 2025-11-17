@@ -797,6 +797,11 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
         let updated_feature_metadata =
             payment_data
                 .payment_intent
@@ -844,7 +849,7 @@ impl
 
                 PaymentIntentUpdate::ConfirmIntentPostUpdate {
                     status,
-                    amount_captured,
+                    amount_captured: intent_amount_captured,
                     updated_by: storage_scheme.to_string(),
                     feature_metadata: updated_feature_metadata,
                 }
@@ -900,6 +905,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -938,6 +944,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1100,7 +1107,8 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1111,8 +1119,9 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                self.minor_amount_captured
+            }
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
@@ -1363,6 +1372,12 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
+
         match self.response {
             Ok(ref _response) => {
                 // Calculate base status from attempt
@@ -1389,7 +1404,7 @@ impl
 
                 PaymentIntentUpdate::SyncUpdate {
                     status,
-                    amount_captured,
+                    amount_captured: intent_amount_captured,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1430,7 +1445,7 @@ impl
 
                 PaymentIntentUpdate::SyncUpdate {
                     status,
-                    amount_captured,
+                    amount_captured: intent_amount_captured,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -1443,6 +1458,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1453,6 +1469,7 @@ impl
                         status: attempt_status,
                         amount_capturable,
                         updated_by: storage_scheme.to_string(),
+                        amount_captured,
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
@@ -1580,16 +1597,12 @@ impl
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCaptured => {
-                let total_amount = payment_attempt.amount_details.get_net_amount();
-                Some(total_amount)
-            }
+            | common_enums::IntentStatus::PartiallyCaptured => self.minor_amount_capturable,
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         };
-        self.minor_amount_capturable
-            .or(amount_capturable_from_intent_status)
+        amount_capturable_from_intent_status
     }
 
     fn get_captured_amount(
@@ -1618,23 +1631,21 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
-                let total_amount = payment_attempt.amount_details.get_net_amount();
-                Some(total_amount)
+                Some(MinorUnit::zero())
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
-            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 
@@ -1691,6 +1702,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1729,6 +1741,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1922,6 +1935,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1958,6 +1972,7 @@ impl
                                         }),
                                 ),
                             connector_response_reference_id: None,
+                            amount_captured,
                         },
                     ))
                 }

@@ -438,6 +438,39 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub (crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::Authorized
+        | AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::PartialChargedAndChargeable => true,
+        AttemptStatus::Started
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Failure
+        | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::VoidFailed 
+        | AttemptStatus::Expired=> false,
+    }
+}
+
 pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     match status {
         AttemptStatus::AuthenticationFailed

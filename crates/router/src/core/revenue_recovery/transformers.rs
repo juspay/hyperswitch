@@ -11,10 +11,10 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
         match s {
             AttemptStatus::Authorized
             | AttemptStatus::Charged
-            | AttemptStatus::AutoRefunded
-            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AutoRefunded  => Self::Succeeded,
+            AttemptStatus::PartiallyAuthorized  
             | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable => Self::Succeeded,
+            | AttemptStatus::PartialChargedAndChargeable => Self::PartialCharged,
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful

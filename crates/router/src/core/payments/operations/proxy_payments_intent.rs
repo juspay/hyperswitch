@@ -193,8 +193,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
              hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::from_encryptable(batch_encrypted_data)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
+        let active_attempt_id  = payment_intent.get_active_attempt_id().cloned();
 
-        let payment_attempt = match payment_intent.active_attempt_id.clone() {
+        let payment_attempt = match active_attempt_id {
             Some(ref active_attempt_id) => db
                 .find_payment_attempt_by_id(
                     key_manager_state,

@@ -564,20 +564,25 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
             })
         } else {
             let required_conversion_type = common_utils::types::StringMajorUnitForConnector;
-            let minor_amount_captured = item
-                .response
-                .payment_detail
-                .and_then(|details| {
-                    details.amount.map(|amount| {
-                        common_utils::types::AmountConvertor::convert_back(
-                            &required_conversion_type,
-                            amount,
-                            item.data.request.currency,
-                        )
-                    })
-                })
-                .transpose()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let minor_amount_captured: Option<MinorUnit> =
+                if connector_utils::is_successful_terminal_status(status) {
+                    item.response
+                        .payment_detail
+                        .and_then(|details| {
+                            details.amount.map(|amount| {
+                                common_utils::types::AmountConvertor::convert_back(
+                                    &required_conversion_type,
+                                    amount,
+                                    item.data.request.currency,
+                                )
+                            })
+                        })
+                        .transpose()
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?
+                } else {
+                    None
+                };
+
             Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1912,6 +1917,11 @@ impl<F>
         match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
+                let minor_amount_captured = if status == common_enums::AttemptStatus::Charged  || status == common_enums::AttemptStatus::PartialCharged || status == common_enums::AttemptStatus::Authorized  || status == common_enums::AttemptStatus::PartiallyAuthorized {
+                        sale_response.approved_amount
+                    } else {
+                        None
+                    };
 
                 // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
                 // We are extracting that new card token info here to be sent back in mandate_id in router_data.
@@ -2000,7 +2010,7 @@ impl<F>
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
-                        minor_amount_captured: sale_response.approved_amount,
+                        minor_amount_captured: minor_amount_captured.clone(),
                         ..item.data
                     })
                 }
@@ -2013,6 +2023,11 @@ impl<F>
                 };
 
                 let status = get_attempt_status(payment_flow_type, auth_response.response)?;
+                let minor_amount_captured = if status == common_enums::AttemptStatus::Charged  || status == common_enums::AttemptStatus::PartialCharged || status == common_enums::AttemptStatus::Authorized  || status == common_enums::AttemptStatus::PartiallyAuthorized {
+                        auth_response.approved_amount
+                    } else {
+                        None
+                    };
                 if connector_utils::is_payment_failure(status) {
                     let network_decline_code = item
                     .response
@@ -2078,11 +2093,7 @@ impl<F>
                         } else {
                             None
                         },
-                        minor_amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
-                            auth_response.approved_amount
-                        } else {
-                            None
-                        },
+                        minor_amount_captured: minor_amount_captured.clone(),
                         ..item.data
                     })
                 }

@@ -51,7 +51,8 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Ok(()),
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::PartiallyCaptured => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
@@ -60,7 +61,6 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Expired => {

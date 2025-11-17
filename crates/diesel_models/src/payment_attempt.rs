@@ -136,6 +136,8 @@ pub struct PaymentAttempt {
     pub network_error_message: Option<String>,
     /// A string indicating the group of the payment attempt. Used in split payments flow
     pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
+    /// Amount captured for this payment attempt
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -382,6 +384,8 @@ pub struct PaymentAttemptNew {
     pub authorized_amount: Option<MinorUnit>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
+    /// Amount captured for this payment attempt
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -802,6 +806,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        amount_captured: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -830,6 +835,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_payment_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        amount_captured: Option<MinorUnit>,
     },
     // CaptureUpdate {
     //     amount_to_capture: Option<MinorUnit>,
@@ -928,6 +934,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -961,6 +968,7 @@ impl PaymentAttemptUpdateInternal {
             payment_method_id,
             connector_request_reference_id,
             connector_response_reference_id,
+            amount_captured,
         } = self;
 
         PaymentAttempt {
@@ -1044,6 +1052,7 @@ impl PaymentAttemptUpdateInternal {
             attempts_group_id: source.attempts_group_id,
             is_stored_credential: source.is_stored_credential,
             authorized_amount: source.authorized_amount,
+            amount_captured: amount_captured.or(source.amount_captured),
         }
     }
 }
@@ -1418,6 +1427,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 unified_code,
                 unified_message,
+                amount_captured,
             } => {
                 let (connector_payment_id, connector_payment_data) = connector_payment_id
                     .map(ConnectorTransactionId::form_id_and_data)
@@ -1452,6 +1462,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1466,6 +1477,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_payment_id,
                 authentication_type,
+                amount_captured,
             } => {
                 let (connector_payment_id, connector_payment_data) = connector_payment_id
                     .map(ConnectorTransactionId::form_id_and_data)
@@ -1500,6 +1512,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1546,6 +1559,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1590,6 +1604,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1630,6 +1645,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1676,6 +1692,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
         }
