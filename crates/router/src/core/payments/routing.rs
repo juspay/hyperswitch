@@ -1359,11 +1359,7 @@ pub async fn perform_session_flow_routing(
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
     let mut final_routing_approach = None;
-    let active_mca_ids = get_active_mca_ids(
-        &session_input.state,
-        &session_input.key_store,
-    )
-    .await?;
+    let active_mca_ids = get_active_mca_ids(&session_input.state, &session_input.key_store).await?;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
