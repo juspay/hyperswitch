@@ -260,6 +260,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         F: 'b + Send,
     {
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
+        let active_attempt_id = match payment_data.revenue_recovery_data.triggered_by {
+            common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
+            common_enums::TriggeredBy::External => None,
+        };
         let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
         let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::GroupID);
         let amount_captured = payment_data.payment_intent.amount_captured;
@@ -280,6 +284,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             status,
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
+            active_attempt_id,
             active_attempt_id_type,
             active_attempts_group_id,
         }
