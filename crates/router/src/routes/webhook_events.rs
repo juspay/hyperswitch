@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
+use api_models::webhook_events::EventSearchConfig;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -10,11 +11,10 @@ use crate::{
         authorization::permissions::Permission,
     },
     types::api::webhook_events::{
-        EventListConstraints, EventListRequestInternal,
-        WebhookDeliveryAttemptListRequestInternal, WebhookDeliveryRetryRequestInternal,
+        EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
+        WebhookDeliveryRetryRequestInternal,
     },
 };
-use api_models::webhook_events::EventSearchConfig;
 
 #[instrument(skip_all, fields(flow = ?Flow::WebhookEventInitialDeliveryAttemptList))]
 pub async fn list_initial_webhook_delivery_attempts(

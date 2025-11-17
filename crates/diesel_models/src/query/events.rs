@@ -53,17 +53,19 @@ impl Event {
         initial_attempt_id: Option<&str>,
         search_config: Option<bool>,
     ) -> StorageResult<Vec<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods};
-        use error_stack::ResultExt;
         use async_bb8_diesel::AsyncRunQueryDsl;
-        use diesel::{debug_query, pg::Pg, QueryDsl};
+        use diesel::{
+            debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+            NullableExpressionMethods, QueryDsl,
+        };
+        use error_stack::ResultExt;
         use router_env::logger;
+
         use super::generics::db_metrics::{track_database_call, DatabaseOperation};
         use crate::errors::DatabaseError;
 
         match search_config {
             Some(true) => {
-
                 if let Some(event_id) = initial_attempt_id {
                     let predicate = dsl::event_id
                         .nullable()
@@ -71,14 +73,17 @@ impl Event {
                         .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                         .and(dsl::initial_attempt_id.eq(event_id.to_owned()));
 
-                    let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
+                    let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                        conn, predicate,
+                    )
+                    .await;
 
                     match result {
                         Ok(event) => Ok(vec![event]),
                         Err(err) => match err.current_context() {
                             DatabaseError::NotFound => Ok(vec![]),
-                            _ => Err(err).attach_printable("Error finding event by event_id")
-                        }
+                            _ => Err(err).attach_printable("Error finding event by event_id"),
+                        },
                     }
                 } else if let Some(obj_id) = primary_object_id {
                     let query = Self::table()
@@ -94,14 +99,17 @@ impl Event {
 
                     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-                    track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-                        .await
-                        .change_context(DatabaseError::Others)
-                        .attach_printable("Error filtering events by object_id")
+                    track_database_call::<Self, _, _>(
+                        query.get_results_async(conn),
+                        DatabaseOperation::Filter,
+                    )
+                    .await
+                    .change_context(DatabaseError::Others)
+                    .attach_printable("Error filtering events by object_id")
                 } else {
                     Ok(vec![])
                 }
-            },
+            }
             Some(false) | None => {
                 let mut query = Self::table()
                     .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -110,8 +118,9 @@ impl Event {
 
                 if let (Some(event_id), Some(obj_id)) = (initial_attempt_id, primary_object_id) {
                     query = query.filter(
-                        dsl::initial_attempt_id.eq(event_id.to_owned())
-                            .or(dsl::primary_object_id.eq(obj_id.to_owned()))
+                        dsl::initial_attempt_id
+                            .eq(event_id.to_owned())
+                            .or(dsl::primary_object_id.eq(obj_id.to_owned())),
                     );
                 } else if let Some(event_id) = initial_attempt_id {
                     query = query.filter(dsl::initial_attempt_id.eq(event_id.to_owned()));
@@ -121,10 +130,13 @@ impl Event {
 
                 logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-                track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-                    .await
-                    .change_context(DatabaseError::Others)
-                    .attach_printable("Error filtering events with OR condition")
+                track_database_call::<Self, _, _>(
+                    query.get_results_async(conn),
+                    DatabaseOperation::Filter,
+                )
+                .await
+                .change_context(DatabaseError::Others)
+                .attach_printable("Error filtering events with OR condition")
             }
         }
     }
@@ -200,17 +212,19 @@ impl Event {
         initial_attempt_id: Option<&str>,
         search_config: Option<bool>,
     ) -> StorageResult<Vec<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods};
-        use error_stack::ResultExt;
         use async_bb8_diesel::AsyncRunQueryDsl;
-        use diesel::{debug_query, pg::Pg, QueryDsl};
+        use diesel::{
+            debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+            NullableExpressionMethods, QueryDsl,
+        };
+        use error_stack::ResultExt;
         use router_env::logger;
+
         use super::generics::db_metrics::{track_database_call, DatabaseOperation};
         use crate::errors::DatabaseError;
 
         match search_config {
             Some(true) => {
-
                 if let Some(event_id) = initial_attempt_id {
                     let predicate = dsl::event_id
                         .nullable()
@@ -218,14 +232,17 @@ impl Event {
                         .and(dsl::business_profile_id.eq(profile_id.to_owned()))
                         .and(dsl::initial_attempt_id.eq(event_id.to_owned()));
 
-                    let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
+                    let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                        conn, predicate,
+                    )
+                    .await;
 
                     match result {
                         Ok(event) => Ok(vec![event]),
                         Err(err) => match err.current_context() {
                             DatabaseError::NotFound => Ok(vec![]),
-                            _ => Err(err).attach_printable("Error finding event by event_id")
-                        }
+                            _ => Err(err).attach_printable("Error finding event by event_id"),
+                        },
                     }
                 } else if let Some(obj_id) = primary_object_id {
                     let query = Self::table()
@@ -241,14 +258,17 @@ impl Event {
 
                     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-                    track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-                        .await
-                        .change_context(DatabaseError::Others)
-                        .attach_printable("Error filtering events by object_id")
+                    track_database_call::<Self, _, _>(
+                        query.get_results_async(conn),
+                        DatabaseOperation::Filter,
+                    )
+                    .await
+                    .change_context(DatabaseError::Others)
+                    .attach_printable("Error filtering events by object_id")
                 } else {
                     Ok(vec![])
                 }
-            },
+            }
             Some(false) | None => {
                 let mut query = Self::table()
                     .filter(dsl::business_profile_id.eq(profile_id.to_owned()))
@@ -257,8 +277,9 @@ impl Event {
 
                 if let (Some(event_id), Some(obj_id)) = (initial_attempt_id, primary_object_id) {
                     query = query.filter(
-                        dsl::initial_attempt_id.eq(event_id.to_owned())
-                            .or(dsl::primary_object_id.eq(obj_id.to_owned()))
+                        dsl::initial_attempt_id
+                            .eq(event_id.to_owned())
+                            .or(dsl::primary_object_id.eq(obj_id.to_owned())),
                     );
                 } else if let Some(event_id) = initial_attempt_id {
                     query = query.filter(dsl::initial_attempt_id.eq(event_id.to_owned()));
@@ -268,10 +289,13 @@ impl Event {
 
                 logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-                track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-                    .await
-                    .change_context(DatabaseError::Others)
-                    .attach_printable("Error filtering events with OR condition")
+                track_database_call::<Self, _, _>(
+                    query.get_results_async(conn),
+                    DatabaseOperation::Filter,
+                )
+                .await
+                .change_context(DatabaseError::Others)
+                .attach_printable("Error filtering events with OR condition")
             }
         }
     }
