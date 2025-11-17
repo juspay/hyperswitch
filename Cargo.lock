@@ -6085,6 +6085,7 @@ dependencies = [
  "csv",
  "dyn-clone",
  "error-stack 0.4.1",
+ "hex",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "josekit",
@@ -6096,6 +6097,8 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "thiserror 1.0.69",
+ "time",
+ "uuid",
 ]
 
 [[package]]

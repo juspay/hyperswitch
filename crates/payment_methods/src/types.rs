@@ -1,7 +1,7 @@
 use common_utils::id_type;
 use error_stack::report;
 use serde::{Deserialize, Serialize};
-use crate::helpers::validate_payment_method_type_against_payment_method;
+use crate::{core::errors,helpers::validate_payment_method_type_against_payment_method};
 use api_models::payment_methods::{PaymentMethodCreate};
 
 #[cfg(feature = "v1")]
@@ -42,13 +42,13 @@ pub struct DeleteNetworkTokenResponse {
 }
 
 pub(crate) trait PaymentMethodCreateExt {
-    fn validate(&self) -> RouterResult<()>;
+    fn validate(&self) -> errors::PmResult<()>;
 }
 
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
 #[cfg(feature = "v1")]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
-    fn validate(&self) -> RouterResult<()> {
+    fn validate(&self) -> errors::PmResult<()> {
         if let Some(pm) = self.payment_method {
             if let Some(payment_method_type) = self.payment_method_type {
                 if !validate_payment_method_type_against_payment_method(pm, payment_method_type) {

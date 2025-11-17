@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
 use diesel_models::locker_mock_up as storage;
+pub use diesel_models::locker_mock_up::*;
 
 #[async_trait::async_trait]
 pub trait LockerMockUpInterface {

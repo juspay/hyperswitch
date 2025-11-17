@@ -4,14 +4,15 @@ use common_utils::types::keymanager;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
-    cards_info, connector_endpoints, customer, merchant_connector_account, merchant_key_store,
-    payment_methods as pm_domain, locker_mock_up
+    cards_info, connector_endpoints, customer, locker_mock_up, merchant_connector_account,
+    merchant_key_store, payment_methods as pm_domain,
 };
 use hyperswitch_interfaces::{
     configs,
     secrets_interface::secret_state::{RawSecret, SecretState, SecretStateContainer},
 };
 use router_env::request_id::RequestId;
+use scheduler::db::process_tracker;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
@@ -25,6 +26,7 @@ pub trait PaymentMethodsStorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface<Error = errors::StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = errors::StorageError>
     + locker_mock_up::LockerMockUpInterface<Error = errors::StorageError>
+    + process_tracker::ProcessTrackerInterface
     + 'static
 {
 }
@@ -34,10 +36,16 @@ dyn_clone::clone_trait_object!(PaymentMethodsStorageInterface);
 impl PaymentMethodsStorageInterface for MockDb {}
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for RouterStore<T> {}
+impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for RouterStore<T> where
+    RouterStore<T>: scheduler::ProcessTrackerInterface
+{
+}
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStore<T> {}
+impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStore<T> where
+    KVRouterStore<T>: scheduler::ProcessTrackerInterface
+{
+}
 
 #[derive(Clone)]
 pub struct PaymentMethodsConfig<S: SecretState> {
@@ -45,7 +53,8 @@ pub struct PaymentMethodsConfig<S: SecretState> {
     pub jwekey: SecretStateContainer<configs::Jwekey, S>,
     pub proxy: hyperswitch_interfaces::types::Proxy,
     pub connectors: connector_endpoints::Connectors,
-    pub network_tokenization_service: Option<SecretStateContainer<configs::NetworkTokenizationService, S>>,
+    pub network_tokenization_service:
+        Option<SecretStateContainer<configs::NetworkTokenizationService, S>>,
 }
 
 pub struct PaymentMethodsState {

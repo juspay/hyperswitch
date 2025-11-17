@@ -10,7 +10,7 @@ use crate::{core::errors::CustomResult, state};
 #[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
-    db: Box<dyn state::PaymentMethodsStorageInterface>,
+    db: &dyn state::PaymentMethodsStorageInterface,
 ) -> api_models::payment_methods::CardDetail {
     let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
     if card_details.card_issuer.is_some()

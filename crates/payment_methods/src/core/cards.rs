@@ -1,13 +1,19 @@
 use std::fmt::Debug;
 
 use crate::{
+    metrics,
     configs::settings,
     controller,
-    core::errors,
+    core::{errors,transformers},
     headers,
     helpers::{self, domain, StorageErrorExt},
     state,
 };
+use masking::ExposeOptionInterface;
+use hyperswitch_domain_models::locker_mock_up;
+use time::Duration;
+use scheduler::workflows::storage as sch_storage;
+use scheduler::errors::ProcessTrackerError;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use api_models::{
@@ -47,6 +53,17 @@ use router_env::{instrument, tracing, RequestId};
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
 use storage_impl::{errors as storage_errors, payment_method};
+
+const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
+const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodStatusTrackingData {
+    pub payment_method_id: String,
+    pub prev_status: common_enums::PaymentMethodStatus,
+    pub curr_status: common_enums::PaymentMethodStatus,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
 
 #[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
@@ -411,4 +428,296 @@ pub fn get_card_detail(
         saved_to_locker: true,
     };
     Ok(card_detail)
+}
+
+pub async fn get_card_from_locker(
+    state: &state::PaymentMethodsState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+) -> errors::PmResult<Card> {
+    metrics::GET_FROM_LOCKER.add(1, &[]);
+
+    let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
+        async {
+            get_card_from_hs_locker(
+                state,
+                customer_id,
+                merchant_id,
+                card_reference,
+                api_enums::LockerChoice::HyperswitchCardVault,
+            )
+            .await
+            .map_err(|err| match err.current_context() {
+                errors::VaultError::FetchCardFailed => {
+                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Card not found in vault".to_string(),
+                    })
+                }
+                _ => err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error getting card from card vault"),
+            })
+            .inspect_err(|_| {
+                metrics::CARD_LOCKER_FAILURES.add(
+                    1,
+                    router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
+                );
+            })
+        },
+        &metrics::CARD_GET_TIME,
+        router_env::metric_attributes!(("locker", "rust")),
+    )
+    .await?;
+
+    logger::debug!("card retrieved from rust locker");
+    Ok(get_card_from_rs_locker_resp)
+}
+
+#[instrument(skip_all)]
+pub async fn get_card_from_hs_locker<'a>(
+    state: &'a state::PaymentMethodsState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &'a str,
+    locker_choice: api_enums::LockerChoice,
+) -> CustomResult<Card, errors::VaultError> {
+    let locker = &state.conf.locker;
+    let jwekey = &state.conf.jwekey.get_inner();
+
+    if !locker.mock_locker {
+        let request = transformers::mk_get_card_request_hs(
+            jwekey,
+            locker,
+            customer_id,
+            merchant_id,
+            card_reference,
+            Some(locker_choice),
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Making get card request failed")?;
+        let get_card_resp = call_locker_api::<transformers::RetrieveCardResp>(
+            state,
+            request,
+            "get_card_from_locker",
+            Some(locker_choice),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)?;
+
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        retrieve_card_resp
+            .card
+            .get_required_value("Card")
+            .change_context(errors::VaultError::FetchCardFailed)
+    } else {
+        let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
+        transformers::mk_get_card_response(get_card_resp)
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn mock_get_card<'a>(
+    db: &dyn state::PaymentMethodsStorageInterface,
+    card_id: &'a str,
+) -> CustomResult<(transformers::GetCardResponse, Option<String>), errors::VaultError> {
+    let locker_mock_up = db
+        .find_locker_by_card_id(card_id)
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)?;
+    let add_card_response = transformers::AddCardResponse {
+        card_id: locker_mock_up
+            .payment_method_id
+            .unwrap_or(locker_mock_up.card_id),
+        external_id: locker_mock_up.external_id,
+        card_fingerprint: locker_mock_up.card_fingerprint.into(),
+        card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
+        merchant_id: Some(locker_mock_up.merchant_id),
+        card_number: cards::CardNumber::try_from(locker_mock_up.card_number)
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Invalid card number format from the mock locker")
+            .map(Some)?,
+        card_exp_year: Some(locker_mock_up.card_exp_year.into()),
+        card_exp_month: Some(locker_mock_up.card_exp_month.into()),
+        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
+        nickname: locker_mock_up.nickname,
+        customer_id: locker_mock_up.customer_id,
+        duplicate: locker_mock_up.duplicate,
+    };
+    Ok((
+        transformers::GetCardResponse {
+            card: add_card_response,
+        },
+        locker_mock_up.card_cvc,
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn add_payment_method_status_update_task(
+    db: &dyn state::PaymentMethodsStorageInterface,
+    payment_method: &domain::PaymentMethod,
+    prev_status: common_enums::PaymentMethodStatus,
+    curr_status: common_enums::PaymentMethodStatus,
+    merchant_id: &id_type::MerchantId,
+) -> Result<(), ProcessTrackerError> {
+    let created_at = payment_method.created_at;
+    let schedule_time =
+        created_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+    let tracking_data = PaymentMethodStatusTrackingData {
+        payment_method_id: payment_method.get_id().clone(),
+        prev_status,
+        curr_status,
+        merchant_id: merchant_id.to_owned(),
+    };
+
+    let runner = sch_storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;
+    let task = PAYMENT_METHOD_STATUS_UPDATE_TASK;
+    let tag = [PAYMENT_METHOD_STATUS_TAG];
+
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+        payment_method.get_id().as_str(),
+        runner,
+        task,
+    );
+    let process_tracker_entry = sch_storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct PAYMENT_METHOD_STATUS_UPDATE process tracker task")?;
+
+    db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
+                payment_method.get_id().clone()
+            )
+        })?;
+
+    Ok(())
+}
+
+fn generate_task_id_for_payment_method_status_update_workflow(
+    key_id: &str,
+    runner: sch_storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    format!("{runner}_{task}_{key_id}")
+}
+
+#[instrument(skip_all)]
+pub async fn add_card_to_hs_locker(
+    state: &state::PaymentMethodsState,
+    payload: &transformers::StoreLockerReq,
+    customer_id: &id_type::CustomerId,
+    locker_choice: api_enums::LockerChoice,
+) -> errors::CustomResult<transformers::StoreCardRespPayload, errors::VaultError> {
+    let locker = &state.conf.locker;
+    let jwekey = state.conf.jwekey.get_inner();
+    let db = &*state.store;
+    let stored_card_response = if !locker.mock_locker {
+        let request = transformers::mk_add_locker_request_hs(
+            jwekey,
+            locker,
+            payload,
+            locker_choice,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await?;
+        call_locker_api::<transformers::StoreCardResp>(
+            state,
+            request,
+            "add_card_to_hs_locker",
+            Some(locker_choice),
+        )
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)?
+    } else {
+        let card_id = generate_id(consts::ID_LENGTH, "card");
+        mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
+    };
+
+    let stored_card = stored_card_response
+        .payload
+        .get_required_value("StoreCardRespPayload")
+        .change_context(errors::VaultError::SaveCardFailed)?;
+    Ok(stored_card)
+}
+
+///Mock api for local testing
+pub async fn mock_call_to_locker_hs(
+    db: &dyn state::PaymentMethodsStorageInterface,
+    card_id: &str,
+    payload: &transformers::StoreLockerReq,
+    card_cvc: Option<String>,
+    payment_method_id: Option<String>,
+    customer_id: Option<&id_type::CustomerId>,
+) -> errors::CustomResult<transformers::StoreCardResp, errors::VaultError> {
+    let mut locker_mock_up = locker_mock_up::LockerMockUpNew {
+        card_id: card_id.to_string(),
+        external_id: uuid::Uuid::new_v4().to_string(),
+        card_fingerprint: uuid::Uuid::new_v4().to_string(),
+        card_global_fingerprint: uuid::Uuid::new_v4().to_string(),
+        merchant_id: id_type::MerchantId::default(),
+        card_number: "4111111111111111".to_string(),
+        card_exp_year: "2099".to_string(),
+        card_exp_month: "12".to_string(),
+        card_cvc,
+        payment_method_id,
+        customer_id: customer_id.map(ToOwned::to_owned),
+        name_on_card: None,
+        nickname: None,
+        enc_card_data: None,
+    };
+    locker_mock_up = match payload {
+        transformers::StoreLockerReq::LockerCard(store_card_req) => locker_mock_up::LockerMockUpNew {
+            merchant_id: store_card_req.merchant_id.to_owned(),
+            card_number: store_card_req.card.card_number.peek().to_string(),
+            card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
+            card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
+            name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
+            nickname: store_card_req.card.nick_name.to_owned(),
+            ..locker_mock_up
+        },
+        transformers::StoreLockerReq::LockerGeneric(store_generic_req) => {
+            locker_mock_up::LockerMockUpNew {
+                merchant_id: store_generic_req.merchant_id.to_owned(),
+                enc_card_data: Some(store_generic_req.enc_data.to_owned()),
+                ..locker_mock_up
+            }
+        }
+    };
+
+    let response = db
+        .insert_locker_mock_up(locker_mock_up)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)?;
+    let payload = transformers::StoreCardRespPayload {
+        card_reference: response.card_id,
+        duplication_check: None,
+    };
+    Ok(transformers::StoreCardResp {
+        status: "Ok".to_string(),
+        error_code: None,
+        error_message: None,
+        payload: Some(payload),
+    })
 }
