@@ -1,11 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::errors::CustomResult;
-use hyperswitch_interfaces::secrets_interface::{
-    secret_handler::SecretsHandler,
-    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
-    SecretManagementInterface, SecretsManagementError,
+use common_utils::ext_traits::Encode;
+use common_utils::{errors::CustomResult, id_type};
+pub use hyperswitch_interfaces::{
+    configs::{DecryptionScheme, Locker, Jwekey},
+    secrets_interface::{
+        secret_handler::SecretsHandler,
+        secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+        SecretManagementInterface, SecretsManagementError,
+    },
 };
 use masking::Secret;
 use serde::{self, Deserialize, Serialize};
@@ -152,4 +156,11 @@ where
     use serde::de::Error;
 
     deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBody {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: id_type::CustomerId,
+    pub card_reference: String,
 }

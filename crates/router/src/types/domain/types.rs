@@ -30,7 +30,21 @@ impl From<&app::SessionState> for pm_state::PaymentMethodsState {
     fn from(state: &app::SessionState) -> Self {
         Self {
             store: state.store.get_payment_methods_store(),
+            conf: pm_state::PaymentMethodsConfig {
+                locker: state.conf.locker.clone(),
+                jwekey: state.conf.jwekey.clone(),
+                proxy: state.conf.proxy.clone(),
+                connectors: state.conf.connectors.clone(),
+                network_tokenization_service: state
+                    .conf
+                    .network_tokenization_service
+                    .clone(),
+            },
+            tenant: state.tenant.clone(),
+            api_client: state.api_client.clone(),
+            request_id: state.request_id.clone(),
             key_store: None,
+            event_handler: Box::new(state.event_handler.clone()),
             key_manager_state: state.into(),
         }
     }

@@ -17,6 +17,7 @@ pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
 pub mod invoice;
+pub mod locker_mock_up;
 pub mod mandates;
 pub mod master_key;
 pub mod merchant_account;

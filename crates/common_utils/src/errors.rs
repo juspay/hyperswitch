@@ -3,6 +3,7 @@
 use serde::Serialize;
 
 use crate::types::MinorUnit;
+use std::fmt::Display;
 
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
@@ -225,5 +226,39 @@ where
 {
     fn switch(&self) -> T {
         T::switch_from(self)
+    }
+}
+
+macro_rules! impl_error_display {
+    ($st: ident, $arg: tt) => {
+        impl Display for $st {
+            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(
+                    fmt,
+                    "{{ error_type: {:?}, error_description: {} }}",
+                    self, $arg
+                )
+            }
+        }
+    };
+}
+
+macro_rules! impl_error_type {
+    ($name: ident, $arg: tt) => {
+        #[derive(Debug)]
+        #[allow(missing_docs)]
+        pub struct $name;
+
+        impl_error_display!($name, $arg);
+
+        impl std::error::Error for $name {}
+    };
+}
+
+impl_error_type!(EncryptionError, "Encryption error");
+
+impl From<ring::error::Unspecified> for EncryptionError {
+    fn from(_: ring::error::Unspecified) -> Self {
+        Self
     }
 }

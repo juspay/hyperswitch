@@ -189,3 +189,68 @@ impl MerchantConnectorAccountType {
         }
     }
 }
+
+#[allow(missing_docs)]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub enum DecryptionScheme {
+    #[default]
+    #[serde(rename = "RSA-OAEP")]
+    RsaOaep,
+    #[serde(rename = "RSA-OAEP-256")]
+    RsaOaep256,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(missing_docs)]
+#[serde(default)]
+pub struct Locker {
+    pub host: String,
+    pub host_rs: String,
+    pub mock_locker: bool,
+    pub basilisk_host: String,
+    pub locker_signing_key_id: String,
+    pub locker_enabled: bool,
+    pub ttl_for_storage_in_secs: i64,
+    pub decryption_scheme: DecryptionScheme,
+}
+
+impl Default for Locker {
+    fn default() -> Self {
+        Self {
+            host: "localhost".into(),
+            host_rs: "localhost".into(),
+            mock_locker: true,
+            basilisk_host: "localhost".into(),
+            locker_signing_key_id: "1".into(),
+            //true or false
+            locker_enabled: true,
+            //Time to live for storage entries in locker
+            ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
+            decryption_scheme: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[allow(missing_docs)]
+#[serde(default)]
+pub struct Jwekey {
+    pub vault_encryption_key: Secret<String>,
+    pub rust_locker_encryption_key: Secret<String>,
+    pub vault_private_key: Secret<String>,
+    pub tunnel_private_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(missing_docs)]
+pub struct NetworkTokenizationService {
+    pub generate_token_url: url::Url,
+    pub fetch_token_url: url::Url,
+    pub token_service_api_key: Secret<String>,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub key_id: String,
+    pub delete_token_url: url::Url,
+    pub check_token_status_url: url::Url,
+    pub webhook_source_verification_key: Secret<String>,
+}

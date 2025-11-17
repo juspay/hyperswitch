@@ -1,11 +1,12 @@
 use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "v1")]
-use common_utils::ext_traits::AsyncExt;
-pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain};
+use common_utils::{ext_traits::AsyncExt, id_type};
+pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain, merchant_connector_account, merchant_key_store};
 #[cfg(feature = "v1")]
 use router_env::logger;
+use error_stack::ResultExt;
 
-use crate::state;
+use crate::{core::errors::CustomResult, state};
 #[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
@@ -336,4 +337,82 @@ impl<T> StorageErrorExt<T, api_error_response::ApiErrorResponse>
             err.change_context(new_err)
         })
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
+    state: &state::PaymentMethodsState,
+    key_store: &merchant_key_store::MerchantKeyStore,
+    connector_mandate_details: &api_models::payment_methods::CommonMandateReference,
+    merchant_id: &id_type::MerchantId,
+    card_network: Option<api_enums::CardNetwork>,
+) -> CustomResult<(), api_error_response::ApiErrorResponse> {
+    let db = &*state.store;
+    let merchant_connector_account_list = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .to_not_found_response(api_error_response::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_connector_account_details_hash_map: std::collections::HashMap<
+        id_type::MerchantConnectorAccountId,
+        merchant_connector_account::MerchantConnectorAccount,
+    > = merchant_connector_account_list
+        .iter()
+        .map(|merchant_connector_account| {
+            (
+                merchant_connector_account.get_id(),
+                merchant_connector_account.clone(),
+            )
+        })
+        .collect();
+
+    if let Some(payment_mandate_reference) = &connector_mandate_details.payments {
+        let payments_map = payment_mandate_reference.0.clone();
+        for (migrating_merchant_connector_id, migrating_connector_mandate_details) in payments_map {
+            match (
+                card_network.clone(),
+                merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id),
+            ) {
+                (Some(api_enums::CardNetwork::Discover), Some(merchant_connector_account_details)) => {
+                    if let ("cybersource", None) = (
+                        merchant_connector_account_details.connector_name.as_str(),
+                        migrating_connector_mandate_details
+                            .original_payment_authorized_amount
+                            .zip(
+                                migrating_connector_mandate_details
+                                    .original_payment_authorized_currency,
+                            ),
+                    ) {
+                        Err(api_error_response::ApiErrorResponse::MissingRequiredFields {
+                            field_names: vec![
+                                "original_payment_authorized_currency",
+                                "original_payment_authorized_amount",
+                            ],
+                        })
+                        .attach_printable(format!(
+                            "Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id:?}",
+
+                        ))?
+                    }
+                }
+                (_, Some(_)) => (),
+                (_, None) => Err(api_error_response::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_connector_id",
+                })
+                .attach_printable_lazy(|| {
+                    format!(
+                        "{migrating_merchant_connector_id:?} invalid merchant connector id in connector_mandate_details",
+
+                    )
+                })?,
+            }
+        }
+    } else {
+        logger::error!("payment mandate reference not found");
+    }
+    Ok(())
 }

@@ -4,8 +4,14 @@ use common_utils::types::keymanager;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
-    cards_info, customer, merchant_key_store, payment_methods as pm_domain,
+    cards_info, connector_endpoints, customer, merchant_connector_account, merchant_key_store,
+    payment_methods as pm_domain, locker_mock_up
 };
+use hyperswitch_interfaces::{
+    configs,
+    secrets_interface::secret_state::{RawSecret, SecretState, SecretStateContainer},
+};
+use router_env::request_id::RequestId;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
@@ -16,6 +22,9 @@ pub trait PaymentMethodsStorageInterface:
     + pm_domain::PaymentMethodInterface<Error = errors::StorageError>
     + cards_info::CardsInfoInterface<Error = errors::StorageError>
     + customer::CustomerInterface<Error = errors::StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = errors::StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = errors::StorageError>
+    + locker_mock_up::LockerMockUpInterface<Error = errors::StorageError>
     + 'static
 {
 }
@@ -31,9 +40,22 @@ impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for RouterStore<
 impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStore<T> {}
 
 #[derive(Clone)]
+pub struct PaymentMethodsConfig<S: SecretState> {
+    pub locker: configs::Locker,
+    pub jwekey: SecretStateContainer<configs::Jwekey, S>,
+    pub proxy: hyperswitch_interfaces::types::Proxy,
+    pub connectors: connector_endpoints::Connectors,
+    pub network_tokenization_service: Option<SecretStateContainer<configs::NetworkTokenizationService, S>>,
+}
+
 pub struct PaymentMethodsState {
     pub store: Box<dyn PaymentMethodsStorageInterface>,
+    pub conf: PaymentMethodsConfig<RawSecret>,
+    pub tenant: configs::Tenant,
+    pub api_client: Box<dyn hyperswitch_interfaces::api_client::ApiClient>,
+    pub request_id: Option<RequestId>,
     pub key_store: Option<merchant_key_store::MerchantKeyStore>,
+    pub event_handler: Box<dyn hyperswitch_interfaces::events::EventHandlerInterface>,
     pub key_manager_state: keymanager::KeyManagerState,
 }
 impl From<&PaymentMethodsState> for keymanager::KeyManagerState {
@@ -70,5 +92,36 @@ impl PaymentMethodsState {
             Ok(pm) => Ok(pm),
             Err(err) => Err(err),
         }
+    }
+}
+
+impl hyperswitch_interfaces::api_client::ApiClientWrapper for PaymentMethodsState {
+    fn get_proxy(&self) -> hyperswitch_interfaces::types::Proxy {
+        self.conf.proxy.clone()
+    }
+
+    fn get_api_client(&self) -> &dyn hyperswitch_interfaces::api_client::ApiClient {
+        self.api_client.as_ref()
+    }
+
+    fn get_request_id(&self) -> Option<RequestId> {
+        self.api_client.get_request_id()
+    }
+    fn get_request_id_str(&self) -> Option<String> {
+        self.api_client
+            .get_request_id()
+            .map(|req_id| req_id.to_string())
+    }
+
+    fn get_tenant(&self) -> configs::Tenant {
+        self.tenant.clone()
+    }
+
+    fn get_connectors(&self) -> configs::Connectors {
+        self.conf.connectors.clone()
+    }
+
+    fn event_handler(&self) -> &dyn hyperswitch_interfaces::events::EventHandlerInterface {
+        self.event_handler.as_ref()
     }
 }

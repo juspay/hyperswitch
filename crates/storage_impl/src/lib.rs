@@ -21,6 +21,7 @@ pub mod database;
 pub mod errors;
 pub mod invoice;
 pub mod kv_router_store;
+pub mod locker_mock_up;
 pub mod lookup;
 pub mod mandate;
 pub mod merchant_account;
