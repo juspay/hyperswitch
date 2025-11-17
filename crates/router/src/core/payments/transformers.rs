@@ -70,6 +70,11 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct SdkUpiUriInformation {
+    sdk_uri: String,
+}
+
 #[cfg(feature = "v2")]
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
@@ -2828,18 +2833,105 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            // Enhanced UPI routing based on payment method type
+            let upi_next_action = match (
+                payment_attempt.payment_method_type,
+                payment_attempt.payment_method_subtype,
+            ) {
+                (common_enums::PaymentMethod::Upi, common_enums::PaymentMethodType::UpiCollect) => {
+                    let (_, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+                    wait_screen_info.map(|wait_screen_data| {
+                        api_models::payments::NextActionData::WaitScreenInformation {
+                            display_from_timestamp: wait_screen_data.display_from_timestamp,
+                            display_to_timestamp: wait_screen_data.display_to_timestamp,
+                            poll_config: wait_screen_data.poll_config,
+                        }
+                    })
+                }
+                (common_enums::PaymentMethod::Upi, common_enums::PaymentMethodType::UpiIntent) => {
+                    let (sdk_uri_str, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+
+                    match (sdk_uri_str, wait_screen_info) {
+                        (Some(uri_str), Some(wait_info)) => {
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                api_models::payments::NextActionData::InvokeUpiIntentSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: wait_info.display_from_timestamp,
+                                    display_to_timestamp: wait_info.display_to_timestamp,
+                                    poll_config: wait_info.poll_config,
+                                }
+                            })
+                        }
+                        (Some(uri_str), None) => {
+                            // Fallback with default wait screen values
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                let current_time =
+                                    time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+                                api_models::payments::NextActionData::InvokeUpiIntentSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: current_time,
+                                    display_to_timestamp: Some(
+                                        current_time + (5 * 60 * 1_000_000_000),
+                                    ),
+                                    poll_config: Some(api_models::payments::PollConfig {
+                                        delay_in_secs: 5,
+                                        frequency: 60,
+                                    }),
+                                }
+                            })
+                        }
+                        _ => None,
+                    }
+                }
+                (common_enums::PaymentMethod::Upi, common_enums::PaymentMethodType::UpiQr) => {
+                    let (sdk_uri_str, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+
+                    match (sdk_uri_str, wait_screen_info) {
+                        (Some(uri_str), Some(wait_info)) => {
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                api_models::payments::NextActionData::InvokeUpiQrSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: wait_info.display_from_timestamp,
+                                    display_to_timestamp: wait_info.display_to_timestamp,
+                                    poll_config: wait_info.poll_config,
+                                }
+                            })
+                        }
+                        (Some(uri_str), None) => {
+                            // Fallback with default wait screen values
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                let current_time =
+                                    time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+                                api_models::payments::NextActionData::InvokeUpiQrSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: current_time,
+                                    display_to_timestamp: Some(
+                                        current_time + (5 * 60 * 1_000_000_000),
+                                    ),
+                                    poll_config: Some(api_models::payments::PollConfig {
+                                        delay_in_secs: 5,
+                                        frequency: 60,
+                                    }),
+                                }
+                            })
+                        }
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
 
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                    api_models::payments::NextActionData::SdkUpiIntentInformation {
-                        sdk_uri: sdk_uri_data.sdk_uri,
-                    }
-                }))
+                .or(upi_next_action)
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3580,8 +3672,94 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            // Enhanced UPI routing based on payment method type
+            let upi_collect_next_action = match payment_attempt.payment_method_type {
+                Some(enums::PaymentMethodType::UpiCollect) => {
+                    // Extract wait screen data from UCS-generated metadata
+                    tracing::info!("UPI Collect (V2): Extracting wait screen data from connector_metadata: {:?}", payment_attempt.connector_metadata);
+                    let (_, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+                    tracing::info!(
+                        "UPI Collect (V2): Extracted wait screen info: {:?}",
+                        wait_screen_info
+                    );
+                    wait_screen_info
+                }
+                _ => None,
+            };
+
+            let upi_intent_next_action = match payment_attempt.payment_method_type {
+                Some(enums::PaymentMethodType::UpiIntent) => {
+                    let (sdk_uri_str, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+
+                    match (sdk_uri_str, wait_screen_info) {
+                        (Some(uri_str), Some(wait_info)) => {
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                (
+                                    sdk_uri,
+                                    wait_info.display_from_timestamp,
+                                    wait_info.display_to_timestamp,
+                                    wait_info.poll_config,
+                                )
+                            })
+                        }
+                        (Some(uri_str), None) => url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                            let current_time =
+                                time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+                            (
+                                sdk_uri,
+                                current_time,
+                                Some(current_time + (5 * 60 * 1_000_000_000)),
+                                Some(api_models::payments::PollConfig {
+                                    delay_in_secs: 5,
+                                    frequency: 60,
+                                }),
+                            )
+                        }),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+
+            let upi_qr_next_action = match payment_attempt.payment_method_type {
+                Some(enums::PaymentMethodType::UpiQr) => {
+                    let (sdk_uri_str, wait_screen_info) = extract_upi_data(&payment_attempt)
+                        .ok()
+                        .unwrap_or((None, None));
+
+                    match (sdk_uri_str, wait_screen_info) {
+                        (Some(uri_str), Some(wait_info)) => {
+                            url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                                (
+                                    sdk_uri,
+                                    wait_info.display_from_timestamp,
+                                    wait_info.display_to_timestamp,
+                                    wait_info.poll_config,
+                                )
+                            })
+                        }
+                        (Some(uri_str), None) => url::Url::parse(&uri_str).ok().map(|sdk_uri| {
+                            let current_time =
+                                time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+                            (
+                                sdk_uri,
+                                current_time,
+                                Some(current_time + (5 * 60 * 1_000_000_000)),
+                                Some(api_models::payments::PollConfig {
+                                    delay_in_secs: 5,
+                                    frequency: 60,
+                                }),
+                            )
+                        }),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
 
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
@@ -3591,7 +3769,9 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
-                || next_action_containing_sdk_upi_intent.is_some()
+                || upi_collect_next_action.is_some()
+                || upi_intent_next_action.is_some()
+                || upi_qr_next_action.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3625,9 +3805,27 @@ where
                                     next_action_data: paypal_next_action_data
                                 }
                             }))
-                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                                api_models::payments::NextActionData::SdkUpiIntentInformation {
-                                    sdk_uri: sdk_uri_data.sdk_uri,
+                            .or(upi_collect_next_action.map(|wait_screen_data| {
+                                api_models::payments::NextActionData::WaitScreenInformation {
+                                    display_from_timestamp: wait_screen_data.display_from_timestamp,
+                                    display_to_timestamp: wait_screen_data.display_to_timestamp,
+                                    poll_config: wait_screen_data.poll_config,
+                                }
+                            }))
+                            .or(upi_intent_next_action.map(|(sdk_uri, display_from, display_to, poll_config)| {
+                                api_models::payments::NextActionData::InvokeUpiIntentSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: display_from,
+                                    display_to_timestamp: display_to,
+                                    poll_config,
+                                }
+                            }))
+                            .or(upi_qr_next_action.map(|(sdk_uri, display_from, display_to, poll_config)| {
+                                api_models::payments::NextActionData::InvokeUpiQrSdk {
+                                    sdk_uri,
+                                    display_from_timestamp: display_from,
+                                    display_to_timestamp: display_to,
+                                    poll_config,
                                 }
                             }))
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {
@@ -4056,16 +4254,42 @@ pub fn fetch_qr_code_url_next_steps_check(
     Ok(qr_code_fetch_url)
 }
 
-pub fn extract_sdk_uri_information(
-    payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
-    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
+/// Extract UPI data from connector metadata - handles both URI and wait screen information
+pub fn extract_upi_data(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<(
+    Option<String>,
+    Option<api_models::payments::WaitScreenInstructions>,
+)> {
+    let metadata = match &payment_attempt.connector_metadata {
+        Some(metadata) => metadata,
+        None => return Ok((None, None)),
+    };
 
-    let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
-    Ok(sdk_uri_information)
+    // Extract URI information from UCS-generated metadata
+    #[cfg(feature = "v2")]
+    let metadata_value = metadata.peek();
+    #[cfg(not(feature = "v2"))]
+    let metadata_value = metadata;
+
+    let sdk_uri = metadata_value
+        .get("SdkUpiUriInformation")
+        .and_then(|uri_info_value| {
+            serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone()).ok()
+        })
+        .map(|uri_info| uri_info.sdk_uri);
+
+    // Extract wait screen information
+    let wait_screen_info = metadata_value
+        .get("WaitScreenInstructions")
+        .and_then(|wait_screen_value| {
+            serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                wait_screen_value.clone(),
+            )
+            .ok()
+        });
+
+    Ok((sdk_uri, wait_screen_info))
 }
 
 pub fn wait_screen_next_steps_check(
