@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use api_models::webhook_events::EventSearchConfig;
 use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -12,7 +13,6 @@ use crate::{
     types::{api, domain, storage, transformers::ForeignTryFrom},
     utils::{OptionExt, StringExt},
 };
-use api_models::webhook_events::EventSearchConfig;
 
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS: i64 = 90;
@@ -51,31 +51,31 @@ pub async fn list_initial_delivery_attempts(
         } => {
             let events =
                 match account {
-                MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
-                    .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
-                        key_manager_state,
-                        merchant_account.get_id(),
-                        object_id.as_deref(),
-                        event_id.as_deref(),
-                        &key_store,
-                        search_config,
-                    )
-                    .await,
-                MerchantAccountOrProfile::Profile(business_profile) => {
-                    store
-                        .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+                    MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
+                        .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                             key_manager_state,
-                            business_profile.get_id(),
+                            merchant_account.get_id(),
                             object_id.as_deref(),
                             event_id.as_deref(),
                             &key_store,
                             search_config,
                         )
-                        .await
+                        .await,
+                    MerchantAccountOrProfile::Profile(business_profile) => {
+                        store
+                            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+                                key_manager_state,
+                                business_profile.get_id(),
+                                object_id.as_deref(),
+                                event_id.as_deref(),
+                                &key_store,
+                                search_config,
+                            )
+                            .await
+                    }
                 }
-            }
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to list events with specified constraints")?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to list events with specified constraints")?;
 
             let total_count = i64::try_from(events.len())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
