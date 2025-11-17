@@ -786,18 +786,11 @@ impl Payments {
                     web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
+                .service(web::scope("/payment-methods").service(
+                    web::resource("").route(web::get().to(payments::list_payment_methods)),
+                ))
                 .service(
-                    web::scope("/payment-methods")
-                        .service(
-                            web::resource("").route(web::get().to(payments::list_payment_methods)),
-                        )
-                        .service(
-                            web::resource("/check-balance")
-                                .route(web::post().to(payments::payment_check_gift_card_balance)),
-                        ),
-                )
-                .service(
-                    web::resource("/apply-payment-method-data")
+                    web::resource("/eligibility/check-balance-and-apply-pm-data")
                         .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
@@ -3152,12 +3145,12 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
-            .service(web::resource("/status/{token_id}").route(
+            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
-            .service(web::resource("/redis-data/{token_id}").route(
+            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
                 web::get().to(
                     super::revenue_recovery_redis::get_revenue_recovery_redis_data,
                 ),
