@@ -31,6 +31,13 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{PoFulfill, PoSync},
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{PayoutFulfillType, PayoutSyncType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -72,6 +79,11 @@ impl api::Refund for Envoy {}
 impl api::RefundExecute for Envoy {}
 impl api::RefundSync for Envoy {}
 impl api::PaymentToken for Envoy {}
+impl api::Payouts for Envoy {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Envoy {}
+// #[cfg(feature = "payouts")]
+// impl api::PayoutSync for Envoy {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Envoy
@@ -108,7 +120,7 @@ impl ConnectorCommon for Envoy {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/soap+xml; charset=utf-8"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -117,14 +129,10 @@ impl ConnectorCommon for Envoy {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = envoy::EnvoyAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        // For Envoy, authentication is handled in the SOAP body, not headers
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -569,6 +577,170 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Envoy {
         self.build_error_response(res, event_builder)
     }
 }
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Envoy {
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/MerchantAPI.asmx", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let auth = envoy::EnvoyAuthType::try_from(&req.connector_auth_type)?;
+        let router_data = envoy::EnvoyPayoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.minor_amount,
+            req,
+        ))?;
+
+        let connector_req = envoy::EnvoyPayoutRequest::try_from((&router_data, &auth))?;
+        let xml_request = connector_req.to_xml()?;
+        println!("$$$ XML Request: {}", xml_request);
+        Ok(RequestContent::RawBytes(xml_request.into_bytes()))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: envoy::EnvoyPayoutResponse = res
+            .response
+            .parse_struct("EnvoyPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(crate::types::PayoutsResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+// #[cfg(feature = "payouts")]
+// impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Envoy {
+//     fn get_url(
+//         &self,
+//         _req: &PayoutsRouterData<PoSync>,
+//         connectors: &Connectors,
+//     ) -> CustomResult<String, errors::ConnectorError> {
+//         Ok(format!("{}/MerchantAPI.asmx", self.base_url(connectors)))
+//     }
+
+//     fn get_headers(
+//         &self,
+//         req: &PayoutsRouterData<PoSync>,
+//         connectors: &Connectors,
+//     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+//         self.build_headers(req, connectors)
+//     }
+
+//     fn get_content_type(&self) -> &'static str {
+//         self.common_get_content_type()
+//     }
+
+//     fn get_request_body(
+//         &self,
+//         req: &PayoutsRouterData<PoSync>,
+//         _connectors: &Connectors,
+//     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+//         let connector_req = envoy::build_payout_sync_request(req)?;
+//         Ok(RequestContent::RawBytes(connector_req))
+//     }
+
+//     fn build_request(
+//         &self,
+//         req: &PayoutsRouterData<PoSync>,
+//         connectors: &Connectors,
+//     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+//         let request = RequestBuilder::new()
+//             .method(Method::Post)
+//             .url(&PayoutSyncType::get_url(self, req, connectors)?)
+//             .attach_default_headers()
+//             .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+//             .set_body(PayoutSyncType::get_request_body(self, req, connectors)?)
+//             .build();
+
+//         Ok(Some(request))
+//     }
+
+//     fn handle_response(
+//         &self,
+//         data: &PayoutsRouterData<PoSync>,
+//         event_builder: Option<&mut ConnectorEvent>,
+//         res: Response,
+//     ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+//         let response: envoy::EnvoyPayoutSyncResponse = res
+//             .response
+//             .parse_struct("EnvoyPayoutSyncResponse")
+//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+//         event_builder.map(|i| i.set_response_body(&response));
+//         router_env::logger::info!(connector_response=?response);
+
+//         RouterData::try_from(ResponseRouterData {
+//             response,
+//             data: data.clone(),
+//             http_code: res.status_code,
+//         })
+//     }
+
+//     fn get_error_response(
+//         &self,
+//         res: Response,
+//         event_builder: Option<&mut ConnectorEvent>,
+//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+//         self.build_error_response(res, event_builder)
+//     }
+// }
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Envoy {

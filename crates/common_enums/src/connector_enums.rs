@@ -97,6 +97,7 @@ pub enum RoutableConnectors {
     Dwolla,
     Ebanx,
     Elavon,
+    Envoy,
     Facilitapay,
     Finix,
     Fiserv,
@@ -281,6 +282,7 @@ pub enum Connector {
     Dwolla,
     Ebanx,
     Elavon,
+    Envoy,
     Facilitapay,
     Finix,
     Fiserv,
@@ -388,6 +390,7 @@ impl Connector {
                 | (Self::Loonio, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -496,6 +499,7 @@ impl Connector {
             | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
+            | Self::Envoy
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
@@ -682,6 +686,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
+            RoutableConnectors::Envoy => Self::Envoy,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
@@ -825,6 +830,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
+            Connector::Envoy => Ok(Self::Envoy),
             Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
