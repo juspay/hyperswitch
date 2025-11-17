@@ -110,6 +110,7 @@ impl AdyenTest {
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
                         card_holder_name: Some(Secret::new("John Doe".to_string())),
+                        card_network: None,
                     },
                 )),
                 enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
