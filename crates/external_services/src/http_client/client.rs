@@ -169,27 +169,27 @@ fn apply_mitm_certificate(
 ) -> reqwest::ClientBuilder {
     if let Some(mitm_ca_cert) = &proxy_config.mitm_ca_certificate {
         let encoded_cert = mitm_ca_cert.clone().expose();
-        
+
         // Try to decode base64 first, fallback to raw string for backward compatibility
         let pem = match BASE64_ENGINE.decode(&encoded_cert) {
-            Ok(decoded_bytes) => {
-                match String::from_utf8(decoded_bytes) {
-                    Ok(decoded_string) => {
-                        logger::debug!("Successfully decoded base64 MITM CA certificate");
-                        decoded_string.replace("\\r\\n", "\n")
-                    }
-                    Err(_) => {
-                        logger::warn!("Base64 decoded bytes are not valid UTF-8, treating as raw certificate");
-                        encoded_cert.replace("\\r\\n", "\n")
-                    }
+            Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
+                Ok(decoded_string) => {
+                    logger::debug!("Successfully decoded base64 MITM CA certificate");
+                    decoded_string.replace("\\r\\n", "\n")
                 }
-            }
+                Err(_) => {
+                    logger::warn!(
+                        "Base64 decoded bytes are not valid UTF-8, treating as raw certificate"
+                    );
+                    encoded_cert.replace("\\r\\n", "\n")
+                }
+            },
             Err(_) => {
                 logger::debug!("Certificate is not base64 encoded, treating as raw certificate");
                 encoded_cert.replace("\\r\\n", "\n")
             }
         };
-        
+
         match reqwest::Certificate::from_pem(pem.as_bytes()) {
             Ok(cert) => {
                 logger::debug!("Successfully added MITM CA certificate");

@@ -299,7 +299,7 @@ where
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
     let (shadow_key_exists, _shadow_percentage) =
         get_rollout_config_info(state, &shadow_rollout_key).await;
-    
+
     // Fetch shadow rollout result if shadow key exists to get proxy configuration
     let shadow_rollout_result = if shadow_key_exists {
         Some(should_execute_based_on_rollout(state, &shadow_rollout_key).await?)
@@ -404,7 +404,7 @@ where
                 .as_ref()
                 .and_then(|result| result.proxy_override.clone())
                 .or(rollout_result.proxy_override.clone());
-            
+
             match &proxy_override {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
