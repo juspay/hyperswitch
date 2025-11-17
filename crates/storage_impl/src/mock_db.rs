@@ -67,13 +67,14 @@ pub struct MockDb {
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
-    pub key_manager_state: KeyManagerState,
-    pub domain_merchant_key_store: Option<MerchantKeyStore>,
+    pub key_manager_state: Option<KeyManagerState>,
 }
 
 impl MockDb {
     pub fn get_keymanager_state(&self) -> Result<&KeyManagerState, StorageError> {
-        Ok(&self.key_manager_state)
+        self.key_manager_state
+            .as_ref()
+            .ok_or(StorageError::DecryptionError)
     }
     pub async fn new(
         redis: &RedisSettings,
@@ -124,8 +125,7 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
-            key_manager_state,
-            domain_merchant_key_store: None,
+            key_manager_state: Some(key_manager_state),
         })
     }
 
@@ -144,7 +144,8 @@ impl MockDb {
         match resource {
             Some(res) => Ok(Some(
                 res.convert(
-                    &self.key_manager_state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

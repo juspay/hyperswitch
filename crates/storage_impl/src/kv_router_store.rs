@@ -36,7 +36,6 @@ use crate::{
 pub struct KVRouterStore<T: DatabaseStore> {
     pub router_store: RouterStore<T>,
     pub key_manager_state: Option<KeyManagerState>,
-    pub merchant_key_store: Option<MerchantKeyStore>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
@@ -173,7 +172,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             request_id,
             soft_kill_mode: soft_kill.unwrap_or(false),
             key_manager_state,
-            merchant_key_store: None,
         }
     }
 

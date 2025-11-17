@@ -251,7 +251,7 @@ impl StorageInterface for MockDb {
         Box::new(self.clone())
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
-        self.key_manager_state = key_manager_state;
+        self.key_manager_state = Some(key_manager_state);
     }
 }
 
