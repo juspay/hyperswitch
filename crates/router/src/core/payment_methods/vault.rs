@@ -1640,6 +1640,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         None,
         connector_vault_id,
         None,
+        None,
     )
     .await?;
 
@@ -1996,6 +1997,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         None,
         Some(connector_vault_id),
         None,
+        None,
     )
     .await?;
 
@@ -2133,6 +2135,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
         &merchant_connector_account,
         None,
         connector_vault_id,
+        None,
         None,
     )
     .await?;

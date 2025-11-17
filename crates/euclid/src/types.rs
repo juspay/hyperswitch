@@ -35,6 +35,8 @@ pub enum EuclidKey {
     PaymentMethod,
     #[strum(serialize = "card_bin")]
     CardBin,
+    #[strum(serialize = "extended_card_bin")]
+    ExtendedCardBin,
     #[strum(serialize = "metadata")]
     Metadata,
     #[strum(serialize = "mandate_type")]
@@ -91,6 +93,7 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::CaptureMethod,
         DirKeyKind::AuthenticationType,
         DirKeyKind::CardBin,
+        DirKeyKind::ExtendedCardBin,
         DirKeyKind::PayLaterType,
         DirKeyKind::PaymentAmount,
         DirKeyKind::MetaData,
@@ -145,6 +148,7 @@ impl EuclidKey {
         match self {
             Self::PaymentMethod => DataType::EnumVariant,
             Self::CardBin => DataType::StrValue,
+            Self::ExtendedCardBin => DataType::StrValue,
             Self::Metadata => DataType::MetadataValue,
             Self::PaymentMethodType => DataType::EnumVariant,
             Self::CardNetwork => DataType::EnumVariant,
@@ -269,6 +273,7 @@ impl NumValue {
 pub enum EuclidValue {
     PaymentMethod(enums::PaymentMethod),
     CardBin(StrValue),
+    ExtendedCardBin(StrValue),
     Metadata(MetadataValue),
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
@@ -306,6 +311,7 @@ impl EuclidValue {
         match self {
             Self::PaymentMethod(_) => EuclidKey::PaymentMethod,
             Self::CardBin(_) => EuclidKey::CardBin,
+            Self::ExtendedCardBin(_) => EuclidKey::ExtendedCardBin,
             Self::Metadata(_) => EuclidKey::Metadata,
             Self::PaymentMethodType(_) => EuclidKey::PaymentMethodType,
             Self::MandateType(_) => EuclidKey::MandateType,

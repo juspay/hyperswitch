@@ -244,6 +244,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
     Ok(match dir_value {
         dir::DirValue::PaymentMethod(pm) => EuclidValue::PaymentMethod(pm),
         dir::DirValue::CardBin(ci) => EuclidValue::CardBin(ci),
+        dir::DirValue::ExtendedCardBin(ecb) => EuclidValue::ExtendedCardBin(ecb),
         dir::DirValue::CardType(ct) => EuclidValue::PaymentMethodType(ct.into()),
         dir::DirValue::CardNetwork(cn) => EuclidValue::CardNetwork(cn),
         dir::DirValue::MetaData(md) => EuclidValue::Metadata(md),
