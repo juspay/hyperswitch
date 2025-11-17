@@ -2,7 +2,6 @@
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
 use masking::Secret;
-use router_derive;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -54,6 +53,7 @@ pub struct Connectors {
     pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
+    pub envoy: ConnectorParams,
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,

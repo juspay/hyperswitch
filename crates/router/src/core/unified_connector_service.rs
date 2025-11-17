@@ -773,7 +773,7 @@ pub fn build_unified_connector_service_payment_method(
                     )?,
                 ),
                 card_exp_month: Some(card_exp_month.into()),
-                card_exp_year: Some(card.get_expiry_year_4_digit().expose().into()),
+                card_exp_year: Some(card.card_exp_year.expose().into()),
                 card_cvc: Some(card.card_cvc.expose().into()),
                 card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: card.card_issuer.clone(),

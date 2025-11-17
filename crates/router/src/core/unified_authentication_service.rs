@@ -1,22 +1,30 @@
 pub mod types;
 use std::str::FromStr;
 
+use common_utils::ext_traits::StringExt;
+
 pub mod utils;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
+    AuthenticationEligibilityCheckData, AuthenticationEligibilityCheckRequest,
+    AuthenticationEligibilityCheckResponse, AuthenticationEligibilityCheckResponseData,
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
+    AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest, AuthenticationSyncResponse,
+    ClickToPayEligibilityCheckResponseData,
 };
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSessionTokenRequest,
+        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSdkNextAction,
+        AuthenticationSessionTokenRequest,
     },
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
 use common_utils::{
-    ext_traits::ValueExt, types::keymanager::ToEncryptable, types::AmountConvertor,
+    errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
+    types::AmountConvertor,
 };
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -49,6 +57,7 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
+        payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
@@ -95,6 +104,8 @@ impl UnifiedAuthenticationService for ClickToPay {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
 
         let authentication_info = Some(AuthenticationInfo {
@@ -322,6 +333,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
@@ -399,6 +412,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
             browser_details,
@@ -407,6 +422,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 currency,
                 device_channel: Some(device_channel),
                 message_category: Some(message_category),
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             },
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
@@ -451,6 +468,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -465,6 +484,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -1382,6 +1403,8 @@ pub async fn authentication_authenticate_core(
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
+        authentication.force_3ds_challenge,
+        authentication.psd2_sca_exemption_type,
     )
     .await?;
 
@@ -1402,7 +1425,7 @@ pub async fn authentication_authenticate_core(
         AuthFlow::Client => (None, None),
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                let tokenised_data = payment_methods::vault::get_tokenized_data(
                     &state,
                     authentication_id.get_string_repr(),
                     false,
@@ -1430,6 +1453,250 @@ pub async fn authentication_authenticate_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
+    ))
+}
+
+// Trait for Eligibility Checks
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+trait EligibilityCheck {
+    type Output;
+
+    // Determine if the check should be run based on the runtime checks
+    async fn should_run(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+    ) -> CustomResult<bool, ApiErrorResponse>;
+
+    // Run the actual check and return the SDK Next Action if applicable
+    async fn execute_check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
+    ) -> CustomResult<Self::Output, ApiErrorResponse>;
+
+    fn transform(output: Self::Output) -> Option<AuthenticationSdkNextAction>;
+}
+
+// Result of an Eligibility Check
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone)]
+pub enum CheckResult {
+    Allow,
+    Deny { message: String },
+    Await,
+}
+
+#[cfg(feature = "v1")]
+impl From<CheckResult> for Option<AuthenticationSdkNextAction> {
+    fn from(result: CheckResult) -> Self {
+        match result {
+            CheckResult::Allow => None,
+            CheckResult::Deny { message } => Some(AuthenticationSdkNextAction::Deny { message }),
+            CheckResult::Await => Some(AuthenticationSdkNextAction::AwaitMerchantCallback),
+        }
+    }
+}
+
+// Perform StoreEligibilityCheckData for the authentication
+#[cfg(feature = "v1")]
+struct StoreEligibilityCheckData;
+
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+impl EligibilityCheck for StoreEligibilityCheckData {
+    type Output = CheckResult;
+
+    async fn should_run(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+    ) -> CustomResult<bool, ApiErrorResponse> {
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let should_store_eligibility_check_data_key =
+            merchant_id.get_should_store_eligibility_check_data_for_authentication();
+        let should_store_eligibility_check_data = state
+            .store
+            .find_config_by_key_unwrap_or(
+                &should_store_eligibility_check_data_key,
+                Some("false".to_string()),
+            )
+            .await;
+
+        Ok(match should_store_eligibility_check_data {
+            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+
+            // If it is not present in db we are defaulting it to false
+            Err(inner) => {
+                if !inner.current_context().is_db_not_found() {
+                    router_env::logger::error!(
+                        "Error fetching should store eligibility check data enabled config {:?}",
+                        inner
+                    );
+                }
+                false
+            }
+        })
+    }
+
+    async fn execute_check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
+    ) -> CustomResult<CheckResult, ApiErrorResponse> {
+        let redis = &state
+            .store
+            .get_redis_conn()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let key = format!(
+            "{}_{}_{}",
+            consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+            merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_string_repr(),
+            authentication_eligibility_check_request
+                .authentication_id
+                .get_string_repr()
+        );
+        redis
+            .serialize_and_set_key_with_expiry(
+                &key.as_str().into(),
+                &authentication_eligibility_check_request.eligibility_check_data,
+                consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL,
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to set key in redis")?;
+        Ok(CheckResult::Await)
+    }
+
+    fn transform(output: CheckResult) -> Option<AuthenticationSdkNextAction> {
+        output.into()
+    }
+}
+
+// Eligibility handler to run all the eligibility checks
+#[cfg(feature = "v1")]
+pub struct EligibilityHandler {
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+}
+
+#[cfg(feature = "v1")]
+impl EligibilityHandler {
+    fn new(
+        state: SessionState,
+        merchant_context: domain::MerchantContext,
+        authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+    ) -> Self {
+        Self {
+            state,
+            merchant_context,
+            authentication_eligibility_check_request,
+        }
+    }
+
+    async fn run_check<C: EligibilityCheck>(
+        &self,
+        check: C,
+    ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
+        let should_run = check
+            .should_run(&self.state, &self.merchant_context)
+            .await?;
+        Ok(match should_run {
+            true => check
+                .execute_check(
+                    &self.state,
+                    &self.merchant_context,
+                    &self.authentication_eligibility_check_request,
+                )
+                .await
+                .map(C::transform)?,
+            false => None,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationEligibilityCheckRequest,
+    _auth_flow: AuthFlow,
+) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
+    let authentication_id = req.authentication_id.clone();
+    let eligibility_handler = EligibilityHandler::new(state, merchant_context, req);
+    // Run the checks in sequence, short-circuiting on the first that returns a next action
+    let sdk_next_action = eligibility_handler
+        .run_check(StoreEligibilityCheckData)
+        .await?
+        .unwrap_or(AuthenticationSdkNextAction::Proceed);
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationEligibilityCheckResponse {
+            authentication_id,
+            sdk_next_action,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_retrieve_eligibility_check_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationRetrieveEligibilityCheckRequest,
+) -> RouterResponse<AuthenticationRetrieveEligibilityCheckResponse> {
+    let redis = &state
+        .store
+        .get_redis_conn()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "{}_{}_{}",
+        consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        req.authentication_id.get_string_repr()
+    );
+    let eligibility_check_data: AuthenticationEligibilityCheckData = redis
+        .get_key::<String>(&key.as_str().into())
+        .await
+        .change_context(ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Eligibility check data not found for authentication id: {}",
+                req.authentication_id.get_string_repr()
+            ),
+        })
+        .attach_printable("Failed to get key from redis")?
+        .parse_struct("PaymentTokenData")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize eligibility check data")?;
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        AuthenticationRetrieveEligibilityCheckResponse {
+            authentication_id: req.authentication_id,
+            eligibility_check_data:
+                AuthenticationEligibilityCheckResponseData::ClickToPayEnrollmentStatus(
+                    ClickToPayEligibilityCheckResponseData {
+                        visa: eligibility_check_data
+                            .get_click_to_pay_data()
+                            .and_then(|data| data.visa.clone().map(|visa| visa.consumer_present)),
+                        mastercard: eligibility_check_data.get_click_to_pay_data().and_then(
+                            |data| {
+                                data.mastercard
+                                    .clone()
+                                    .map(|mastercard| mastercard.consumer_present)
+                            },
+                        ),
+                    },
+                ),
+        },
     ))
 }
 
@@ -1571,6 +1838,8 @@ pub async fn authentication_sync_core(
             currency: authentication.currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
 
         let authentication_info = Some(AuthenticationInfo {
@@ -1616,71 +1885,89 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let updated_authentication = if !authentication.authentication_status.is_terminal_status() {
-        let post_auth_response = if authentication_connector.is_click_to_pay() {
-            ClickToPay::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account.clone(),
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                None,
-            )
-            .await?
-        } else {
-            ExternalAuthentication::post_authentication(
-                &state,
-                &business_profile,
-                None,
-                &three_ds_connector_account,
-                &authentication_connector.to_string(),
-                &authentication_id,
-                common_enums::PaymentMethod::Card,
-                merchant_id,
-                Some(&authentication),
-            )
-            .await?
-        };
-        utils::external_authentication_update_trackers(
-            &state,
-            post_auth_response,
-            authentication.clone(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?
-    } else {
-        authentication
-    };
+    let (updated_authentication, vault_token_data) =
+        if !authentication.authentication_status.is_terminal_status() {
+            let post_auth_response = if authentication_connector.is_click_to_pay() {
+                ClickToPay::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account.clone(),
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    None,
+                )
+                .await?
+            } else {
+                ExternalAuthentication::post_authentication(
+                    &state,
+                    &business_profile,
+                    None,
+                    &three_ds_connector_account,
+                    &authentication_connector.to_string(),
+                    &authentication_id,
+                    common_enums::PaymentMethod::Card,
+                    merchant_id,
+                    Some(&authentication),
+                )
+                .await?
+            };
 
-    let (authentication_value, eci) = match auth_flow {
-        AuthFlow::Client => (None, None),
+            let config = db
+                .find_config_by_key_unwrap_or(
+                    &merchant_id.get_should_disable_auth_tokenization(),
+                    Some("false".to_string()),
+                )
+                .await;
+            let should_disable_auth_tokenization = match config {
+                Ok(conf) => conf.config == "true",
+                Err(error) => {
+                    router_env::logger::error!(?error);
+                    false
+                }
+            };
+
+            let vault_token_data = if should_disable_auth_tokenization {
+                utils::get_raw_authentication_token_data(&post_auth_response)
+            } else {
+                Box::pin(utils::get_auth_multi_token_from_external_vault(
+                    &state,
+                    &merchant_context,
+                    &business_profile,
+                    &post_auth_response,
+                ))
+                .await?
+            };
+
+            let auth_update_response = utils::external_authentication_update_trackers(
+                &state,
+                post_auth_response,
+                authentication.clone(),
+                None,
+                merchant_context.get_merchant_key_store(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
+            (auth_update_response, vault_token_data)
+        } else {
+            (authentication, None)
+        };
+
+    let eci = match auth_flow {
+        AuthFlow::Client => None,
         AuthFlow::Merchant => {
             if let Some(common_enums::TransactionStatus::Success) =
                 updated_authentication.trans_status
             {
-                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication status is success")?;
-                (
-                    Some(masking::Secret::new(tokenised_data.value1)),
-                    updated_authentication.eci.clone(),
-                )
+                updated_authentication.eci.clone()
             } else {
-                (None, None)
+                None
             }
         }
     };
@@ -1809,7 +2096,6 @@ pub async fn authentication_sync_core(
         acquirer_details,
         error_message: updated_authentication.error_message.clone(),
         error_code: updated_authentication.error_code.clone(),
-        authentication_value,
         threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id.clone(),
         maximum_supported_3ds_version: updated_authentication.maximum_supported_version.clone(),
         connector_authentication_id: updated_authentication.connector_authentication_id.clone(),
@@ -1818,6 +2104,7 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
+        vault_token_data,
         billing,
         shipping,
         browser_information: browser_info,

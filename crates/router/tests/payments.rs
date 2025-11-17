@@ -1,9 +1,4 @@
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::print_stdout
-)]
+#![allow(clippy::unwrap_in_result)]
 
 mod utils;
 
@@ -371,6 +366,7 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Hyperswtich".to_string()),
         statement_descriptor_suffix: Some("Hyperswitch".to_string()),
+        three_ds_data: None,
         ..Default::default()
     };
 
@@ -475,6 +471,7 @@ async fn payments_create_core() {
         network_details: None,
         is_stored_credential: None,
         request_extended_authorization: None,
+        billing_descriptor: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -659,6 +656,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
+        three_ds_data: None,
         ..Default::default()
     };
 
@@ -764,6 +762,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_details: None,
             is_stored_credential: None,
             request_extended_authorization: None,
+            billing_descriptor: None,
         },
         vec![],
     ));

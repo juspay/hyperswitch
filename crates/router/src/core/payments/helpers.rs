@@ -2671,6 +2671,10 @@ pub async fn fetch_card_details_from_external_vault(
                     .attach_printable("Failed to generate card data")?,
             )
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Network Token not supproted")
+        }
     }
 }
 #[cfg(feature = "v1")]
@@ -4084,8 +4088,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[test]
@@ -4167,6 +4169,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4253,6 +4256,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4337,6 +4341,7 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4593,7 +4598,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
-        is_migrated_card: router_data.is_migrated_card,
     }
 }
 
@@ -5025,7 +5029,6 @@ pub fn is_manual_retry_allowed(
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     #[test]
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
@@ -5293,24 +5296,50 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
+                let (card_exp_month, card_exp_year) = match apple_pay_wallet_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.application_expiration_month.clone()),
+                        Some(token.application_expiration_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
+                    apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
-                    }),
+                        card_exp_month,
+                        card_exp_year,
+                    })),
                     google_pay: None,
                     samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
+                let (card_exp_month, card_exp_year) = match google_pay_pm_data
+                    .tokenization_data
+                    .get_decrypted_google_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.card_exp_month.clone()),
+                        Some(token.card_exp_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
-                    google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: google_pay_pm_data.info.card_details.clone(),
-                        card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: Some(google_pay_pm_data.pm_type.clone()),
-                    }),
+                    google_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: google_pay_pm_data.info.card_details.clone(),
+                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            card_exp_month,
+                            card_exp_year,
+                        },
+                    )),
                     samsung_pay: None,
                 }))
             }
@@ -5318,17 +5347,21 @@ pub async fn get_additional_payment_data(
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: None,
-                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: samsung_pay_pm_data
-                            .payment_credential
-                            .card_last_four_digits
-                            .clone(),
-                        card_network: samsung_pay_pm_data
-                            .payment_credential
-                            .card_brand
-                            .to_string(),
-                        card_type: None,
-                    }),
+                    samsung_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: samsung_pay_pm_data
+                                .payment_credential
+                                .card_last_four_digits
+                                .clone(),
+                            card_network: samsung_pay_pm_data
+                                .payment_credential
+                                .card_brand
+                                .to_string(),
+                            card_type: None,
+                            card_exp_month: None,
+                            card_exp_year: None,
+                        },
+                    )),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {

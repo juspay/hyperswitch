@@ -5,7 +5,12 @@ pub mod subscriptions;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
-use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
+use common_utils::{
+    consts, errors,
+    ext_traits::OptionExt,
+    id_type, pii,
+    types::{MinorUnit, SemanticVersion},
+};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
@@ -40,8 +45,6 @@ pub struct PaymentsAuthorizeData {
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
-    pub statement_descriptor_suffix: Option<String>,
-    pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -90,6 +93,7 @@ pub struct PaymentsAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -308,7 +312,7 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             phone: None,
             name: None,
             preprocessing_id: None,
-            split_payments: None,
+            split_payments: data.split_payments,
             setup_future_usage: data.setup_future_usage,
             customer_acceptance: data.customer_acceptance,
             customer_id: None,
@@ -866,6 +870,7 @@ pub struct PaymentsCancelData {
     pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1054,7 +1059,7 @@ pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
     pub threeds_server_transaction_id: Option<String>,
-    pub message_version: Option<common_utils::types::SemanticVersion>,
+    pub message_version: Option<SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub acs_trans_id: Option<String>,
     pub trans_status: Option<common_enums::TransactionStatus>,
@@ -1067,7 +1072,7 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
-    pub message_version: Option<common_utils::types::SemanticVersion>,
+    pub message_version: Option<SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub challenge_code: Option<String>,
@@ -1076,6 +1081,9 @@ pub struct AuthenticationData {
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub acs_trans_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub transaction_status: Option<common_enums::TransactionStatus>,
+    pub cb_network_params: Option<api_models::payments::NetworkParams>,
+    pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1427,7 +1435,6 @@ pub struct SetupMandateRequestData {
     pub payment_method_data: PaymentMethodData,
     pub amount: Option<i64>,
     pub confirm: bool,
-    pub statement_descriptor_suffix: Option<String>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -1456,6 +1463,8 @@ pub struct SetupMandateRequestData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
     pub is_stored_credential: Option<bool>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Clone)]
@@ -1463,6 +1472,7 @@ pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub should_generate_multiple_tokens: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone)]
