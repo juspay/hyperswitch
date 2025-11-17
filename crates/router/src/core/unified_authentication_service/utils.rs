@@ -379,7 +379,6 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
         authentication_details,
     }) = router_data.response.clone()
     {
-
         match business_profile.external_vault_details.clone() {
             business_profile::ExternalVaultDetails::ExternalVaultEnabled(
                 external_vault_details,
