@@ -130,6 +130,7 @@ pub async fn refund_retrieve(
         refund_id: path.into_inner(),
         force_sync: Some(true),
         merchant_connector_details: None,
+        all_keys_required: None,
     };
 
     let flow = Flow::RefundsRetrieveForceSync;
