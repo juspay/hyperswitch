@@ -300,6 +300,7 @@ pub async fn generate_sample_data(
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            partner_merchant_identifier: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

@@ -6972,6 +6972,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
         billing_descriptor: data.request.billing_descriptor.clone(),
+        partner_merchant_identifier: data.request.partner_merchant_identifier.clone(),
     }
 }
 

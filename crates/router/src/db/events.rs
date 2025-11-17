@@ -1425,6 +1425,7 @@ mod tests {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            partner_merchant_identifier: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

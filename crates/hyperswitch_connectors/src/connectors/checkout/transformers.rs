@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_with::skip_serializing_none;
 use time::PrimitiveDateTime;
 use url::Url;
@@ -383,6 +384,7 @@ pub struct PaymentsRequest {
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+    #[serde(skip_serializing_if = "is_metadata_empty")]
     pub metadata: Option<Secret<serde_json::Value>>,
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
@@ -470,6 +472,52 @@ fn split_account_holder_name(
             None => (Some(Secret::new(name)), None),
         },
         _ => (None, None),
+    }
+}
+
+fn build_metadata(
+    item: &CheckoutRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<Secret<serde_json::Value>> {
+    // get metadata or create empty json object
+    let mut metadata_json = item
+        .router_data
+        .request
+        .metadata
+        .clone()
+        .unwrap_or_else(|| json!({}));
+
+    // get udf5 value (name or integrator)
+    let udf5 = item
+        .router_data
+        .request
+        .partner_merchant_identifier
+        .as_ref()
+        .and_then(|p| p.partner_details.as_ref())
+        .and_then(|e| e.name.clone().or(e.integrator.clone()));
+
+    // insert udf5 if present
+    if let Some(v) = udf5 {
+        if let Some(obj) = metadata_json.as_object_mut() {
+            obj.insert("udf5".to_string(), json!(v));
+        } else {
+            metadata_json = json!({ "udf5": v });
+        }
+    }
+
+    Some(Secret::new(metadata_json))
+}
+
+fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {
+    match val {
+        None => true,
+        Some(secret) => {
+            let inner = secret.clone().expose();
+            match inner {
+                serde_json::Value::Null => true,
+                serde_json::Value::Object(map) => map.is_empty(),
+                _ => false,
+            }
+        }
     }
 }
 
@@ -752,7 +800,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = item.router_data.request.metadata.clone().map(Into::into);
+        let metadata = build_metadata(item);
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.l2_l3_data
         {

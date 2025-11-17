@@ -1675,6 +1675,7 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            partner_merchant_identifier: request.partner_merchant_identifier.clone(),
         })
     }
 

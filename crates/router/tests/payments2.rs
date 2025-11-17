@@ -231,6 +231,7 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        partner_merchant_identifier: None,
     };
 
     let expected_response =
@@ -529,6 +530,7 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            partner_merchant_identifier: None,
         },
         vec![],
     ));

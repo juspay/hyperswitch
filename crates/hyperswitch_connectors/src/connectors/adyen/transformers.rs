@@ -267,6 +267,31 @@ pub struct RiskData {
 }
 
 #[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationInfo {
+    external_platform: Option<ExternalPlatform>,
+    merchant_application: Option<MerchantApplication>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalPlatform {
+    name: Option<String>,
+    version: Option<String>,
+    integrator: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantApplication {
+    name: Option<String>,
+    version: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest<'a> {
@@ -304,6 +329,7 @@ pub struct AdyenPaymentRequest<'a> {
     session_validity: Option<PrimitiveDateTime>,
     metadata: Option<serde_json::Value>,
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
+    application_info: Option<ApplicationInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1775,9 +1801,35 @@ impl TryFrom<&ConnectorAuthType> for AdyenAuthType {
     }
 }
 
+fn get_application_info(
+    item: &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<ApplicationInfo> {
+    item.router_data
+        .request
+        .partner_merchant_identifier
+        .as_ref()
+        .map(|partner_merchant_identifier| ApplicationInfo {
+            merchant_application: partner_merchant_identifier.merchant_details.as_ref().map(
+                |merchant_details| MerchantApplication {
+                    name: merchant_details.name.clone(),
+                    version: merchant_details.version.clone(),
+                },
+            ),
+            external_platform: partner_merchant_identifier.partner_details.as_ref().map(
+                |platform_details| ExternalPlatform {
+                    name: platform_details.name.clone(),
+                    version: platform_details.version.clone(),
+                    integrator: platform_details.integrator.clone(),
+                },
+            ),
+        })
+}
+
 impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentRequest<'_> {
     type Error = Error;
     fn try_from(item: &AdyenRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let application_info = get_application_info(item);
+
         match item
             .router_data
             .request
@@ -1785,35 +1837,39 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
             .to_owned()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(mandate_ref) => AdyenPaymentRequest::try_from((item, mandate_ref)),
+            Some(mandate_ref) => {
+                AdyenPaymentRequest::try_from((item, mandate_ref, application_info))
+            }
             None => match item.router_data.request.payment_method_data {
-                PaymentMethodData::Card(ref card) => AdyenPaymentRequest::try_from((item, card)),
+                PaymentMethodData::Card(ref card) => {
+                    AdyenPaymentRequest::try_from((item, card, application_info))
+                }
                 PaymentMethodData::Wallet(ref wallet) => {
-                    AdyenPaymentRequest::try_from((item, wallet))
+                    AdyenPaymentRequest::try_from((item, wallet, application_info))
                 }
                 PaymentMethodData::PayLater(ref pay_later) => {
-                    AdyenPaymentRequest::try_from((item, pay_later))
+                    AdyenPaymentRequest::try_from((item, pay_later, application_info))
                 }
                 PaymentMethodData::BankRedirect(ref bank_redirect) => {
-                    AdyenPaymentRequest::try_from((item, bank_redirect))
+                    AdyenPaymentRequest::try_from((item, bank_redirect, application_info))
                 }
                 PaymentMethodData::BankDebit(ref bank_debit) => {
-                    AdyenPaymentRequest::try_from((item, bank_debit))
+                    AdyenPaymentRequest::try_from((item, bank_debit, application_info))
                 }
                 PaymentMethodData::BankTransfer(ref bank_transfer) => {
-                    AdyenPaymentRequest::try_from((item, bank_transfer.as_ref()))
+                    AdyenPaymentRequest::try_from((item, bank_transfer.as_ref(), application_info))
                 }
                 PaymentMethodData::CardRedirect(ref card_redirect_data) => {
-                    AdyenPaymentRequest::try_from((item, card_redirect_data))
+                    AdyenPaymentRequest::try_from((item, card_redirect_data, application_info))
                 }
                 PaymentMethodData::Voucher(ref voucher_data) => {
-                    AdyenPaymentRequest::try_from((item, voucher_data))
+                    AdyenPaymentRequest::try_from((item, voucher_data, application_info))
                 }
                 PaymentMethodData::GiftCard(ref gift_card_data) => {
-                    AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
+                    AdyenPaymentRequest::try_from((item, gift_card_data.as_ref(), application_info))
                 }
                 PaymentMethodData::NetworkToken(ref token_data) => {
-                    AdyenPaymentRequest::try_from((item, token_data))
+                    AdyenPaymentRequest::try_from((item, token_data, application_info))
                 }
                 PaymentMethodData::Crypto(_)
                 | PaymentMethodData::MandatePayment
@@ -2905,6 +2961,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         payments::MandateReferenceId,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -2912,9 +2969,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             payments::MandateReferenceId,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, mandate_ref_id) = value;
+        let (item, mandate_ref_id, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3108,15 +3166,26 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
-impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenPaymentRequest<'_> {
+impl
+    TryFrom<(
+        &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+        &Card,
+        Option<ApplicationInfo>,
+    )> for AdyenPaymentRequest<'_>
+{
     type Error = Error;
     fn try_from(
-        value: (&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card),
+        value: (
+            &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+            &Card,
+            Option<ApplicationInfo>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (item, card_data) = value;
+        let (item, card_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3195,6 +3264,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
@@ -3203,6 +3273,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &BankDebitData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3211,9 +3282,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &BankDebitData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, bank_debit_data) = value;
+        let (item, bank_debit_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3287,20 +3359,29 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         };
         Ok(request)
     }
 }
 
-impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
-    for AdyenPaymentRequest<'_>
+impl
+    TryFrom<(
+        &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+        &VoucherData,
+        Option<ApplicationInfo>,
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
 
     fn try_from(
-        value: (&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData),
+        value: (
+            &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+            &VoucherData,
+            Option<ApplicationInfo>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (item, voucher_data) = value;
+        let (item, voucher_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3368,6 +3449,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            application_info,
         };
         Ok(request)
     }
@@ -3377,6 +3459,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &BankTransferData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3385,9 +3468,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &BankTransferData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, bank_transfer_data) = value;
+        let (item, bank_transfer_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3491,6 +3575,7 @@ impl
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            application_info,
         };
         Ok(request)
     }
@@ -3500,6 +3585,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &GiftCardData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3508,9 +3594,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &GiftCardData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, gift_card_data) = value;
+        let (item, gift_card_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3572,6 +3659,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         };
         Ok(request)
     }
@@ -3581,6 +3669,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &BankRedirectData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3588,9 +3677,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &BankRedirectData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, bank_redirect_data) = value;
+        let (item, bank_redirect_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -3658,6 +3748,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
@@ -3695,14 +3786,22 @@ fn get_shopper_email(
     }
 }
 
-impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
-    for AdyenPaymentRequest<'_>
+impl
+    TryFrom<(
+        &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+        &WalletData,
+        Option<ApplicationInfo>,
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
-        value: (&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData),
+        value: (
+            &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+            &WalletData,
+            Option<ApplicationInfo>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (item, wallet_data) = value;
+        let (item, wallet_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
@@ -3794,6 +3893,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
@@ -3802,6 +3902,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &PayLaterData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3809,9 +3910,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &PayLaterData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, paylater_data) = value;
+        let (item, paylater_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let browser_info = get_browser_info(item.router_data)?;
@@ -3888,6 +3990,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
@@ -3896,6 +3999,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &CardRedirectData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -3903,9 +4007,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &CardRedirectData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, card_redirect_data) = value;
+        let (item, card_redirect_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
@@ -3975,6 +4080,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }
@@ -6425,6 +6531,7 @@ impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
         &NetworkTokenData,
+        Option<ApplicationInfo>,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
@@ -6432,9 +6539,10 @@ impl
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
             &NetworkTokenData,
+            Option<ApplicationInfo>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, token_data) = value;
+        let (item, token_data, application_info) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
@@ -6523,6 +6631,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            application_info,
         })
     }
 }

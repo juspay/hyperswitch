@@ -458,6 +458,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
+        partner_merchant_identifier: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1534,6 +1535,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         split_payments: None,
+        partner_merchant_identifier: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3760,6 +3762,7 @@ where
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
+            partner_merchant_identifier: payment_intent.partner_merchant_identifier, //response mein rakhna hai ???
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4077,6 +4080,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
+            partner_merchant_identifier: pi.partner_merchant_identifier, //response mein rakhna hai ??
         }
     }
 }
@@ -4412,6 +4416,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_overcapture: None,
             is_stored_credential: None,
             billing_descriptor: None,
+            partner_merchant_identifier: None,
         })
     }
 }
@@ -4649,6 +4654,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
             billing_descriptor,
+            partner_merchant_identifier: payment_data.payment_intent.partner_merchant_identifier,
         })
     }
 }
@@ -5669,6 +5675,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
             billing_descriptor,
             split_payments: payment_data.payment_intent.split_payments.clone(),
+            partner_merchant_identifier: payment_data.payment_intent.partner_merchant_identifier,
         })
     }
 }
