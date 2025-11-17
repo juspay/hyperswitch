@@ -121,7 +121,7 @@ pub enum BankOfAmericaActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaAuthorizationOptions {
     initiator: Option<BankOfAmericaPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -653,7 +653,7 @@ impl
                     None,
                     Some(BankOfAmericaAuthorizationOptions {
                         initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount: Some(utils::get_amount_as_string(
                                 &api::CurrencyUnit::Base,
@@ -2682,7 +2682,7 @@ fn get_boa_mandate_action_details() -> (
                 credential_stored_on_file: Some(true),
                 stored_credential_used: None,
             }),
-            merchant_intitiated_transaction: None,
+            merchant_initiated_transaction: None,
         }),
     )
 }

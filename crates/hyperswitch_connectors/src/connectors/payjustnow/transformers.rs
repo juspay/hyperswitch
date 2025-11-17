@@ -140,8 +140,13 @@ impl TryFrom<&PayjustnowRouterData<&PaymentsAuthorizeRouterData>> for Payjustnow
         let router_return_url = item.router_data.request.get_router_return_url()?;
 
         let payjustnow_request = PayjustnowRequest {
-            request_id: Some(item.router_data.payment_id.clone()),
-            merchant_order_reference: router_data.connector_request_reference_id.clone(),
+            request_id: Some(item.router_data.connector_request_reference_id.clone()),
+            merchant_order_reference: item
+                .router_data
+                .request
+                .merchant_order_reference_id
+                .clone()
+                .unwrap_or(item.router_data.payment_id.clone()),
             order_amount_cents: item.amount,
             order_items,
             customer,
@@ -339,7 +344,7 @@ impl<F> TryFrom<&RefundsRouterData<F>> for PayjustnowRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_id: Some(item.request.refund_id.clone()),
+            request_id: Some(item.connector_request_reference_id.clone()),
             checkout_token: item.request.connector_transaction_id.clone(),
             merchant_refund_reference: item.request.refund_id.clone(),
             refund_amount_cents: item.request.minor_refund_amount,
@@ -460,12 +465,16 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayjustnowRsyncResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PayjustnowErrorResponse {
-    pub code: String,
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PayjustnowError {
     pub message: String,
-    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PayjustnowErrorResponse {
+    Structured(PayjustnowError),
+    Message(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

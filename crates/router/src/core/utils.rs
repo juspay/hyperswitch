@@ -166,7 +166,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type,
-        description: None,
+        description: payout_data.payouts.description.clone(),
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -765,7 +765,6 @@ pub fn get_split_refunds(
 }
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -2368,6 +2367,7 @@ pub async fn construct_vault_router_data<F>(
     >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2386,6 +2386,7 @@ pub async fn construct_vault_router_data<F>(
             payment_method_vaulting_data,
             connector_vault_id,
             connector_customer_id,
+            should_generate_multiple_tokens,
         },
         response: Ok(types::VaultResponseData::default()),
     };

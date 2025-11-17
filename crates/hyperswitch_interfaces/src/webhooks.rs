@@ -285,6 +285,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
+    /// fn to get additional payment method data from connector if any
+    fn get_additional_payment_method_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     /// get revenue recovery invoice details
     fn get_revenue_recovery_attempt_details(

@@ -242,9 +242,9 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_pre_authenticate",
+                    method="payment_post_authenticate",
                     connector_name=?connector_name,
-                    "UCS payment pre authenticate gRPC call failed"
+                    "UCS payment post authenticate gRPC call failed"
                 )
             })
     }
@@ -604,10 +604,10 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     };
 
-    if let Some(request_id) = grpc_headers.request_id {
+    if let Some(ref request_id) = grpc_headers.request_id {
         metadata.append(
             common_utils_consts::X_REQUEST_ID,
-            parse(common_utils_consts::X_REQUEST_ID, &request_id)?,
+            parse(common_utils_consts::X_REQUEST_ID, request_id.as_str())?,
         );
     };
 

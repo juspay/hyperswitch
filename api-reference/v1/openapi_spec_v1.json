@@ -6975,6 +6975,207 @@
         ]
       }
     },
+    "/authentication/{authentication_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Eligibility",
+        "description": "Check if an authentication is eligible for a specific merchant.\n",
+        "operationId": "Check Authentication Eligibility",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication eligibility checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/authenticate": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Authenticate",
+        "description": "Authenticate an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Authenticate an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationAuthenticateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationAuthenticateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/redirect": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Redirect",
+        "description": "Redirect an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Redirect an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncPostUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication redirect"
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": []
+      }
+    },
+    "/authentication/{authentication_id}/sync": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Sync",
+        "description": "Sync an authentication for accessing our APIs from your servers.\n",
+        "operationId": "Sync an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication sync",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/authentication/{authentication_id}/enabled_authn_methods_token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Enable Authn Methods Token",
+        "description": "Enable authn methods token for an authentication.\n",
+        "operationId": "Enable Authentication Authn Methods Token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationSessionTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication enabled authn methods token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/authentication/{authentication_id}/eligibility-check": {
       "post": {
         "tags": [
@@ -8929,6 +9130,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9302,6 +9511,18 @@
           "type": {
             "type": "string",
             "description": "The type of the payment method"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -9390,6 +9611,134 @@
           "integrity_failure",
           "expired"
         ]
+      },
+      "AuthenticationAuthenticateRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for the authentication"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+          }
+        }
+      },
+      "AuthenticationAuthenticateResponse": {
+        "type": "object",
+        "required": [
+          "acs_url",
+          "three_ds_requestor_url",
+          "error_message",
+          "error_code",
+          "authentication_value",
+          "status",
+          "authentication_id",
+          "eci"
+        ],
+        "properties": {
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL to be used for challenge submission",
+            "example": "https://example.com/redirect"
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
+            "nullable": true
+          },
+          "three_ds_server_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "Contains the JWS object created by the ACS for the ARes(Authentication Response) message",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "The error message for this authentication."
+          },
+          "error_code": {
+            "type": "string",
+            "description": "The error code for this authentication."
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_id": {
+            "$ref": "#/components/schemas/AuthenticationId"
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI value for this authentication."
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "AuthenticationConnectorDetails": {
         "type": "object",
@@ -9497,6 +9846,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
               }
             ],
             "nullable": true
@@ -9721,6 +10078,23 @@
           }
         }
       },
+      "AuthenticationId": {
+        "type": "string",
+        "description": "A type for authentication_id that can be used for authentication IDs"
+      },
+      "AuthenticationPaymentMethodData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClickToPayDetails"
+          }
+        ]
+      },
+      "AuthenticationPaymentMethodType": {
+        "type": "string",
+        "enum": [
+          "ctp"
+        ]
+      },
       "AuthenticationResponse": {
         "type": "object",
         "required": [
@@ -9816,6 +10190,14 @@
             "type": "string",
             "description": "Profile Acquirer ID get from profile acquirer configuration",
             "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9861,8 +10243,89 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "The next action is to proceed with the payment",
+            "enum": [
+              "proceed"
+            ]
           }
         ]
+      },
+      "AuthenticationSessionResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "session_token"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "session_token": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationSessionToken"
+            },
+            "description": "The list of session token object"
+          }
+        }
+      },
+      "AuthenticationSessionToken": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_name"
+            ],
+            "properties": {
+              "wallet_name": {
+                "type": "string",
+                "enum": [
+                  "no_session_token_received"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "wallet_name"
+        }
+      },
+      "AuthenticationSessionTokenRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret for the authentication"
+          }
+        }
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -9873,6 +10336,9 @@
           "failed"
         ]
       },
+      "AuthenticationSyncPostUpdateRequest": {
+        "type": "object"
+      },
       "AuthenticationSyncRequest": {
         "type": "object",
         "required": [
@@ -9882,6 +10348,14 @@
           "client_secret": {
             "type": "string",
             "description": "The client secret for this authentication."
+          },
+          "payment_method_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostAuthenticationRequestPaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10003,6 +10477,14 @@
             "description": "The unique identifier for the directory server.",
             "nullable": true
           },
+          "vault_token_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationVaultTokenData"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -10075,11 +10557,6 @@
             "description": "Merchant app URL for OOB authentication.",
             "nullable": true
           },
-          "authentication_value": {
-            "type": "string",
-            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
-            "nullable": true
-          },
           "eci": {
             "type": "string",
             "description": "ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
@@ -10109,6 +10586,81 @@
           "three_ds",
           "no_three_ds"
         ]
+      },
+      "AuthenticationVaultTokenData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card_number",
+              "card_expiry_year",
+              "card_expiry_month",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "token representing card_number"
+              },
+              "card_expiry_year": {
+                "type": "string",
+                "description": "token representing card_numcard_expiry_yearber"
+              },
+              "card_expiry_month": {
+                "type": "string",
+                "description": "token representing card_expiry_month"
+              },
+              "card_cvc": {
+                "type": "string",
+                "description": "token representing card_cvc",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_token",
+              "token_expiry_year",
+              "token_expiry_month",
+              "type"
+            ],
+            "properties": {
+              "payment_token": {
+                "type": "string",
+                "description": "token representing payment_token"
+              },
+              "token_expiry_year": {
+                "type": "string",
+                "description": "token representing token_expiry_year"
+              },
+              "token_expiry_month": {
+                "type": "string",
+                "description": "token representing token_expiry_month"
+              },
+              "token_cryptogram": {
+                "type": "string",
+                "description": "token representing token_cryptogram",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "AuthorizationStatus": {
         "type": "string",
@@ -11395,6 +11947,14 @@
                   }
                 ],
                 "nullable": true
+              },
+              "interac": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InteracPaymentMethod"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -12126,6 +12686,40 @@
             "type": "string",
             "description": "Bank account's owner name",
             "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "BillingDescriptor": {
+        "type": "object",
+        "description": "Billing Descriptor information to be sent to the payment gateway",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "name to be put in billing description",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "description": "city to be put in billing description",
+            "example": "San Francisco",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "phone to be put in billing description",
+            "example": "9123456789",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "a short description for the payment",
+            "nullable": true
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.",
             "nullable": true
           }
         }
@@ -12868,6 +13462,12 @@
             "description": "Card Expiry Year",
             "example": "25"
           },
+          "card_cvc": {
+            "type": "string",
+            "description": "Card CVC for Volatile Storage",
+            "example": "123",
+            "nullable": true
+          },
           "card_holder_name": {
             "type": "string",
             "description": "Card Holder Name",
@@ -12999,6 +13599,30 @@
             "type": "string",
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
+            "nullable": true
+          },
+          "last4_digits": {
+            "type": "string",
+            "description": "Card's Last 4 Digits",
+            "example": "1111",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuing Bank of the Particular Card",
+            "example": "Bank of America",
+            "nullable": true
+          },
+          "issuer_country": {
+            "type": "string",
+            "description": "The country where that particular card was issued",
+            "example": "US",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "VISA",
             "nullable": true
           }
         },
@@ -13179,6 +13803,14 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13426,8 +14058,47 @@
           "debit"
         ]
       },
+      "CartesBancairesParams": {
+        "type": "object",
+        "description": "Represents network-specific parameters for the Cartes Bancaires 3DS process.",
+        "required": [
+          "cb_exemption",
+          "cb_score"
+        ],
+        "properties": {
+          "cavv_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CavvAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "cb_exemption": {
+            "type": "string",
+            "description": "Exemption indicator specific to Cartes Bancaires network (e.g., \"low_value\", \"trusted_merchant\")"
+          },
+          "cb_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cartes Bancaires risk score assigned during 3DS authentication."
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
+      },
+      "CavvAlgorithm": {
+        "type": "string",
+        "description": "This is typically provided by the card network or Access Control Server (ACS)",
+        "enum": [
+          "00",
+          "01",
+          "02",
+          "03",
+          "04",
+          "A"
+        ]
       },
       "ChargeRefunds": {
         "type": "object",
@@ -13458,6 +14129,39 @@
           "invoice_immediately",
           "add_to_unbilled_charges"
         ]
+      },
+      "ClickToPayDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "encrypted_payload": {
+            "type": "string",
+            "description": "Encrypted payload",
+            "nullable": true
+          }
+        }
       },
       "ClickToPayEligibilityCheckData": {
         "type": "object",
@@ -13900,6 +14604,7 @@
           "riskified",
           "xendit",
           "zen",
+          "zift",
           "zsl"
         ]
       },
@@ -15248,6 +15953,30 @@
             "type": "object"
           }
         ]
+      },
+      "Cryptogram": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cavv"
+            ],
+            "properties": {
+              "cavv": {
+                "type": "object",
+                "description": "Cardholder Authentication Verification Value (CAVV) cryptogram.",
+                "properties": {
+                  "authentication_cryptogram": {
+                    "type": "string",
+                    "description": "The authentication cryptogram provided by the issuer or ACS.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Represents the 3DS cryptogram data returned after authentication."
       },
       "CtpServiceDetails": {
         "type": "object",
@@ -17195,6 +17924,22 @@
           "invoice_paid"
         ]
       },
+      "ExemptionIndicator": {
+        "type": "string",
+        "description": "Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.",
+        "enum": [
+          "low_value",
+          "secure_corporate_payment",
+          "trusted_listing",
+          "transaction_risk_assessment",
+          "three_ds_outage",
+          "sca_delegation",
+          "out_of_sca_scope",
+          "other",
+          "low_risk_program",
+          "recurring_operation"
+        ]
+      },
       "ExtendedCardInfo": {
         "type": "object",
         "required": [
@@ -17333,6 +18078,53 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          }
+        }
+      },
+      "ExternalThreeDsData": {
+        "type": "object",
+        "description": "Represents external 3DS authentication data used in the payment flow.",
+        "required": [
+          "authentication_cryptogram",
+          "ds_trans_id",
+          "version",
+          "eci",
+          "transaction_status"
+        ],
+        "properties": {
+          "authentication_cryptogram": {
+            "$ref": "#/components/schemas/Cryptogram"
+          },
+          "ds_trans_id": {
+            "type": "string",
+            "description": "Directory Server Transaction ID generated during the 3DS process."
+          },
+          "version": {
+            "type": "string",
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
+          },
+          "eci": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
+          },
+          "transaction_status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "exemption_indicator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExemptionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "network_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkParams"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19261,6 +20053,15 @@
             "type": "string",
             "description": "Email linked with interac account",
             "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
+      },
+      "InteracPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "customer_info": {
+            "type": "object",
             "nullable": true
           }
         }
@@ -21592,6 +22393,20 @@
         "properties": {
           "network_advice_code": {
             "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "NetworkParams": {
+        "type": "object",
+        "description": "Represents additional network-level parameters for 3DS processing.",
+        "properties": {
+          "cartes_bancaires": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CartesBancairesParams"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24677,6 +25492,18 @@
             "type": "string",
             "description": "The type of payment method",
             "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "10",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -25573,14 +26400,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -25736,6 +26565,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -25870,6 +26707,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
               }
             ],
             "nullable": true
@@ -26048,14 +26893,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -26224,6 +27071,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -26364,6 +27219,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
               }
             ],
             "nullable": true
@@ -27019,6 +27882,14 @@
               }
             ],
             "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27515,14 +28386,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -27718,6 +28591,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -27858,6 +28739,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
               }
             ],
             "nullable": true
@@ -28539,6 +29428,14 @@
               }
             ],
             "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28865,14 +29762,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -29023,6 +29922,14 @@
             "example": true,
             "nullable": true
           },
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
+              }
+            ],
+            "nullable": true
+          },
           "recurring_details": {
             "allOf": [
               {
@@ -29163,6 +30070,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingDescriptor"
               }
             ],
             "nullable": true
@@ -29520,7 +30435,8 @@
           "paypal",
           "stripe",
           "wise",
-          "worldpay"
+          "worldpay",
+          "worldpayxml"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -31163,6 +32079,21 @@
           "completed",
           "not_found"
         ]
+      },
+      "PostAuthenticationRequestPaymentMethodData": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodType"
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
+          }
+        }
       },
       "PrimaryBusinessDetails": {
         "type": "object",
@@ -33467,6 +34398,7 @@
           "worldpayxml",
           "xendit",
           "zen",
+          "zift",
           "plaid",
           "zsl"
         ]
@@ -36406,6 +37338,18 @@
           "type": {
             "type": "string",
             "description": "The type of payment method",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "03",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
             "nullable": true
           }
         }

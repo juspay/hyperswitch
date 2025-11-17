@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{id_type, ucs_types};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -971,21 +971,20 @@ async fn call_unified_connector_service_authorize(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_authorize_request,
         headers_builder,
         |mut router_data, payment_authorize_request, grpc_headers| async move {
-            let response = client
-                .payment_authorize(
-                    payment_authorize_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
 
             let payment_authorize_response = response.into_inner();
 
@@ -1030,6 +1029,10 @@ async fn call_unified_connector_service_authorize(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_authorize_response.captured_amount;
+            router_data.minor_amount_captured = payment_authorize_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
@@ -1045,7 +1048,7 @@ async fn call_unified_connector_service_authorize(
                 router_data.connector_response = Some(customer_response);
             });
 
-            Ok((router_data, payment_authorize_response))
+            Ok((router_data, (), payment_authorize_response))
         },
     ))
     .await?;
@@ -1181,7 +1184,7 @@ async fn call_unified_connector_service_pre_authenticate(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_pre_authenticate_request,
@@ -1221,7 +1224,7 @@ async fn call_unified_connector_service_pre_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            Ok((router_data, payment_pre_authenticate_response))
+            Ok((router_data,(), payment_pre_authenticate_response))
         },
     ))
     .await?;
@@ -1281,7 +1284,7 @@ async fn call_unified_connector_service_repeat_payment(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let updated_router_data = Box::pin(ucs_logging_wrapper(
+    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_repeat_request,
@@ -1340,6 +1343,10 @@ async fn call_unified_connector_service_repeat_payment(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_repeat_response.captured_amount;
+            router_data.minor_amount_captured = payment_repeat_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response
                 .clone()
@@ -1356,7 +1363,7 @@ async fn call_unified_connector_service_repeat_payment(
                 router_data.connector_response = Some(connector_response);
             });
 
-            Ok((router_data, payment_repeat_response))
+            Ok((router_data, (), payment_repeat_response))
         },
     ))
     .await?;
