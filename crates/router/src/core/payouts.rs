@@ -1037,18 +1037,20 @@ pub async fn get_payout_filters_core(
     // populate payout method type map
     merchant_connector_accounts
         .iter()
-        .flat_map(|merchant_connector_account| {
-            merchant_connector_account.payment_methods_enabled.as_ref()
-        })
-        .for_each(|payout_methods_enabled| {
-            payout_methods_enabled
-                .iter()
-                .for_each(|payout_method_enabled| {
-                    if let Ok(payout_type) = api_enums::PayoutType::foreign_try_from(
-                        payout_method_enabled.payment_method,
-                    ) {
-                        payout_method_map.insert(payout_type);
-                    }
+        .for_each(|merchant_connector_account| {
+            merchant_connector_account
+                .payment_methods_enabled
+                .as_ref()
+                .map(|payout_methods_enabled| {
+                    payout_methods_enabled
+                        .iter()
+                        .for_each(|payout_method_enabled| {
+                            if let Ok(payout_type) = api_enums::PayoutType::foreign_try_from(
+                                payout_method_enabled.payment_method,
+                            ) {
+                                payout_method_map.insert(payout_type);
+                            }
+                        });
                 });
         });
 
