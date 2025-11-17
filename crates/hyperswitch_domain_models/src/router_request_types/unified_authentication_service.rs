@@ -86,6 +86,8 @@ pub struct TransactionDetails {
     pub currency: Option<common_enums::Currency>,
     pub device_channel: Option<DeviceChannel>,
     pub message_category: Option<super::authentication::MessageCategory>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug)]
