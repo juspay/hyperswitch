@@ -1959,20 +1959,20 @@ fn get_shopper_statement(item: &PaymentsAuthorizeRouterData) -> Option<String> {
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    let shopper_reference = item.connector_customer.clone();
+    let shopper_reference = item.get_connector_customer_id()?;
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {
             let store_payment_method = item.request.is_mandate_payment();
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
                 Some(store_payment_method),
-                shopper_reference,
+                Some(shopper_reference),
             ))
         }
         (_, Some(true)) => Ok((
             Some(AdyenRecurringModel::UnscheduledCardOnFile),
             None,
-            shopper_reference,
+            Some(shopper_reference),
         )),
         _ => Ok((None, None, None)),
     }

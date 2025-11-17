@@ -3349,7 +3349,7 @@ impl ConnectorSpecifications for Adyen {
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Option<String> {
-        // Try mandate-based lookup first
+        // Try mandate-based lookup (payments section only)
         payment_method_info
             .as_ref()
             .and_then(|pm| pm.get_common_mandate_reference().ok())
@@ -3363,14 +3363,6 @@ impl ConnectorSpecifications for Adyen {
                             .as_ref()
                             .and_then(|payments| payments.get(mci))
                             .and_then(|record| record.connector_customer_id.clone())
-                            .or_else(|| {
-                                mandate_ref
-                                    .payouts
-                                    .as_ref()?
-                                    .get(mci)?
-                                    .connector_customer_id
-                                    .clone()
-                            })
                     })
             })
             // Fallback to provided connector_customer_id

@@ -464,7 +464,6 @@ pub async fn update_payment_method_record(
                 .connector_mandate_details
                 .map(pii::SecretSerdeValue::new),
             updated_payment_method_data: Some(updated_card_expiry),
-            connector_customer: None,
         },
     ))
 }

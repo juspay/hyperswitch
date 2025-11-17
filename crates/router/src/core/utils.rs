@@ -156,7 +156,13 @@ pub async fn construct_payout_router_data<'a, F>(
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
-        connector_customer: connector_customer_id,
+        connector_customer: get_payout_connector_customer_reference_id(
+            &payout_data.payout_attempt,
+            connector_customer_id.clone(),
+            &payout_data.payment_method,
+            &customer_details.to_owned().map(|c| c.customer_id),
+            connector_data,
+        )?,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
             .get_string_repr()
@@ -1872,6 +1878,34 @@ pub fn get_connector_customer_reference_id(
 
 #[cfg(feature = "v2")]
 pub fn get_connector_customer_reference_id(
+    conf: &Settings,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> Option<String> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub fn get_payout_connector_customer_reference_id(
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    connector_customer_id: Option<String>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    connector_data: &api::ConnectorData,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let payout_connector_request_reference_id = connector_data
+        .connector
+        .generate_payout_connector_customer_reference_id(
+            connector_customer_id,
+            customer_id,
+            payment_method_info,
+            payout_attempt,
+        );
+    Ok(payout_connector_request_reference_id)
+}
+
+#[cfg(feature = "v2")]
+pub fn get_payout_connector_customer_reference_id(
     conf: &Settings,
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,

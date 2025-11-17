@@ -486,4 +486,42 @@ impl ConnectorSpecifications for Adyenplatform {
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
         None
     }
+    #[cfg(feature = "v1")]
+    fn generate_payout_connector_customer_reference_id(
+        &self,
+        connector_customer_id: Option<String>,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> Option<String> {
+        // Try mandate-based lookup (payouts section only)
+        payment_method_info
+            .as_ref()
+            .and_then(|pm| pm.get_common_mandate_reference().ok())
+            .and_then(|mandate_ref| {
+                payout_attempt
+                    .merchant_connector_id
+                    .as_ref()
+                    .and_then(|mci| {
+                        mandate_ref
+                            .payouts
+                            .as_ref()?
+                            .get(mci)?
+                            .connector_customer_id
+                            .clone()
+                    })
+            })
+            // Fallback to provided connector_customer_id
+            .or(connector_customer_id)
+            // Final fallback: generate {merchant_id}_{customer_id}
+            .or_else(|| {
+                customer_id.as_ref().map(|cid| {
+                    format!(
+                        "{}_{}",
+                        payout_attempt.merchant_id.get_string_repr(),
+                        cid.get_string_repr()
+                    )
+                })
+            })
+    }
 }
