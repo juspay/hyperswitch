@@ -441,7 +441,7 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
-pub (crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
+pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
     match status {
         AttemptStatus::Authorized
         | AttemptStatus::Charged
@@ -469,8 +469,8 @@ pub (crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::VoidFailed 
-        | AttemptStatus::Expired=> false,
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Expired => false,
     }
 }
 

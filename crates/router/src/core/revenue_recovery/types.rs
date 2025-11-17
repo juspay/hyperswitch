@@ -226,7 +226,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
                 .attach_printable("Failed to update the process tracker")?;
             }
-            Self::PartialCharged =>{
+            Self::PartialCharged => {
                 // finish psync task as the payment was a PartialCharged
                 db.as_scheduler()
                     .finish_process_with_business_status(
@@ -291,7 +291,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     payments_response
                 )
                 .await?;
-
             }
             Self::Failed => {
                 // finish psync task

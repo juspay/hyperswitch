@@ -308,7 +308,7 @@ pub async fn perform_execute_payment(
                         &tracking_data.payment_attempt_id,
                     ))
                     .await?;
-                    
+
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
                 }
 

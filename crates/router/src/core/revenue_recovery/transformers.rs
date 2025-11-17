@@ -9,10 +9,10 @@ use crate::{
 impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
         match s {
-            AttemptStatus::Authorized
-            | AttemptStatus::Charged
-            | AttemptStatus::AutoRefunded  => Self::Succeeded,
-            AttemptStatus::PartiallyAuthorized  
+            AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
+                Self::Succeeded
+            }
+            AttemptStatus::PartiallyAuthorized
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::PartialCharged,
 
