@@ -171,8 +171,10 @@ impl behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -260,8 +262,11 @@ impl behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            created_by: self.created_by.as_ref().map(|cb| cb.to_string()),
-            last_modified_by: self.created_by.map(|cb| cb.to_string()), // Same as created_by on creation
+            created_by: self
+                .created_by
+                .as_ref()
+                .map(|created_by| created_by.to_string()),
+            last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
         })
     }
 }
@@ -292,8 +297,10 @@ impl behaviour::Conversion for Customer {
             version: self.version,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -388,8 +395,11 @@ impl behaviour::Conversion for Customer {
             version: common_types::consts::API_VERSION,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            created_by: self.created_by.as_ref().map(|cb| cb.to_string()),
-            last_modified_by: self.created_by.map(|cb| cb.to_string()), // Same as created_by on creation
+            created_by: self
+                .created_by
+                .as_ref()
+                .map(|created_by| created_by.to_string()),
+            last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
         })
     }
 }

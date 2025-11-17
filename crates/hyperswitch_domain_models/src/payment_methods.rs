@@ -310,8 +310,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source,
             vault_type,
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -480,8 +482,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source,
             vault_type,
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 }
@@ -522,8 +526,10 @@ impl super::behaviour::Conversion for PaymentMethod {
             external_vault_source: self.external_vault_source,
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
             vault_type: self.vault_type,
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -674,8 +680,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
             vault_type: self.vault_type,
-            created_by: self.created_by.map(|cb| cb.to_string()),
-            last_modified_by: self.last_modified_by.map(|lmb| lmb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 }
