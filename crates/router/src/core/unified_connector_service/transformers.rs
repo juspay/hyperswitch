@@ -618,6 +618,7 @@ impl
             setup_mandate_details: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
+            order_details: vec![],
         })
     }
 }
@@ -786,6 +787,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            order_details: vec![],
         })
     }
 }
@@ -950,6 +952,7 @@ impl
                 .transpose()?,
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
+            order_details: vec![],
         })
     }
 }
