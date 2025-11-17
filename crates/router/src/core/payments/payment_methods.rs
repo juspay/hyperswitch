@@ -407,7 +407,8 @@ fn get_pm_subtype_specific_data(
         | common_enums::PaymentMethod::Upi
         | common_enums::PaymentMethod::Voucher
         | common_enums::PaymentMethod::GiftCard
-        | common_enums::PaymentMethod::MobilePayment => None,
+        | common_enums::PaymentMethod::MobilePayment
+        | common_enums::PaymentMethod::NetworkToken => None,
     }
 }
 

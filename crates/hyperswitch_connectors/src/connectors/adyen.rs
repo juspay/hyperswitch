@@ -215,7 +215,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Skrill
-                | PaymentMethodType::Paypal => match capture_method {
+                | PaymentMethodType::Paypal
+                | PaymentMethodType::NetworkToken => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual

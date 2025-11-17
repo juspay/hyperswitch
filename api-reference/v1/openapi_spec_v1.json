@@ -22548,7 +22548,9 @@
         "required": [
           "network_token",
           "token_exp_month",
-          "token_exp_year"
+          "token_exp_year",
+          "token_cryptogram",
+          "card_holder_name"
         ],
         "properties": {
           "network_token": {
@@ -22568,7 +22570,51 @@
           },
           "token_cryptogram": {
             "type": "string",
-            "description": "The token cryptogram",
+            "description": "The token cryptogram"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI value for this authentication.",
             "nullable": true
           }
         }
@@ -22576,7 +22622,27 @@
       "NetworkTokenResponse": {
         "type": "object",
         "properties": {
-          "token_last_four": {
+          "last4": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuing_country": {
             "type": "string",
             "nullable": true
           },
@@ -22588,7 +22654,7 @@
             "type": "string",
             "nullable": true
           },
-          "token_cryptogram": {
+          "card_holder_name": {
             "type": "string",
             "nullable": true
           }
@@ -22671,6 +22737,7 @@
           "network_token",
           "token_exp_month",
           "token_exp_year",
+          "card_holder_name",
           "network_transaction_id"
         ],
         "properties": {
@@ -22689,12 +22756,49 @@
             "description": "The token's expiry year",
             "example": "24"
           },
-          "network": {
+          "card_network": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardNetwork"
               }
             ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI value for this authentication.",
             "nullable": true
           },
           "network_transaction_id": {
