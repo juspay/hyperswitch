@@ -124,11 +124,11 @@ impl GlobalAttemptGroupId {
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptGroupId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
-        let global_attempt_id = super::GlobalId::from_string(value).change_context(
+        let global_attempt_group_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "global_attempt_id",
+                field_name: "global_attempt_group_id",
             },
         )?;
-        Ok(Self(global_attempt_id))
+        Ok(Self(global_attempt_group_id))
     }
 }
