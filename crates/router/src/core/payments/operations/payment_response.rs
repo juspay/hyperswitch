@@ -1990,17 +1990,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         network_transaction_id: resp_network_transaction_id,
                                         is_overcapture_enabled,
                                         authorized_amount: router_data.authorized_amount,
-                                        tokenization: core_utils::determine_tokenization_value(
-                                            payment_data
-                                                .payment_attempt
-                                                .connector_mandate_detail
-                                                .clone()
-                                                .as_ref(),
-                                            payment_data
-                                                .payment_attempt
-                                                .setup_future_usage_applied
-                                                .clone(),
-                                        ),
+                                        tokenization: payment_data
+                                            .payment_attempt
+                                            .connector_mandate_detail
+                                            .as_ref()
+                                            .and_then(|detail| {
+                                                detail.get_tokenization_strategy(
+                                                    payment_data
+                                                        .payment_attempt
+                                                        .setup_future_usage_applied,
+                                                )
+                                            }),
                                     }),
                                 ),
                             };

@@ -8420,8 +8420,8 @@ pub enum VaultSdk {
 pub enum Tokenization {
     /// Skip PSP-level tokenization
     SkipPsp,
-    /// Via PSP
-    ViaPsp,
+    /// Tokenize at PSP Level
+    TokenizeAtPsp,
 }
 
 #[derive(

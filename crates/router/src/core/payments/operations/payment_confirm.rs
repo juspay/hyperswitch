@@ -2010,15 +2010,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         request_extended_authorization: payment_data
                             .payment_attempt
                             .request_extended_authorization,
-                        tokenization: core_utils::determine_tokenization_value(
-                            payment_data
-                                .payment_attempt
-                                .connector_mandate_detail
-                                .clone()
-                                .as_ref(),
-                                payment_data
-                                .payment_attempt.setup_future_usage_applied.clone()
-                        ),
+                        tokenization: payment_data
+                        .payment_attempt
+                        .connector_mandate_detail
+                        .as_ref()
+                        .and_then(|detail| detail.get_tokenization_strategy(
+                            payment_data.payment_attempt.setup_future_usage_applied,
+                        ))
                     },
                     storage_scheme,
                 )
