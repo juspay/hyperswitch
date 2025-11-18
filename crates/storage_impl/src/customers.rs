@@ -816,7 +816,8 @@ impl domain::CustomerInterface for MockDb {
                     customer
                         .to_owned()
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -847,7 +848,8 @@ impl domain::CustomerInterface for MockDb {
                     customer
                         .to_owned()
                         .convert(
-                            self.get_keymanager_state(),
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -919,7 +921,8 @@ impl domain::CustomerInterface for MockDb {
 
         customer
             .convert(
-                self.get_keymanager_state(),
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
