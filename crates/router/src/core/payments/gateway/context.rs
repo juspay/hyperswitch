@@ -6,7 +6,7 @@
 
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{platform::Platform, payments::HeaderPayload};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Platform};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
