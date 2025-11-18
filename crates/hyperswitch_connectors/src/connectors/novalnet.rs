@@ -845,6 +845,10 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
                 (data.amount, data.currency)
             }
+
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
+                (data.amount, data.currency)
+            }
         };
         let amount = amount
             .map(|amount| amount.to_string())
@@ -882,6 +886,9 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
+                data.order_no
+            }
         };
 
         if novalnet::is_refund_event(&notif.event.event_type) {
@@ -909,13 +916,16 @@ impl webhooks::IncomingWebhook for Novalnet {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        let optional_transaction_status = match notif.transaction {
+        let optional_transaction_status = match &notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 Some(data.status)
             }
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                Some(data.status)
+            }
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
                 Some(data.status)
             }
         };
@@ -928,8 +938,18 @@ impl webhooks::IncomingWebhook for Novalnet {
         // But we are handling optional type here, since we are reusing TransactionData Struct from NovalnetPaymentsResponseTransactionData for Webhooks response too
         // In NovalnetPaymentsResponseTransactionData, transaction_status is optional
 
-        let incoming_webhook_event =
-            novalnet::get_incoming_webhook_event(notif.event.event_type, transaction_status);
+        let payment_type = match notif.transaction.clone() {
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(_) => {
+                Some(novalnet::NovalNetPaymentTypes::ReturnDebitSepa)
+            }
+            _ => None,
+        };
+
+        let incoming_webhook_event = novalnet::get_incoming_webhook_event(
+            notif.event.event_type,
+            transaction_status,
+            payment_type,
+        );
         Ok(incoming_webhook_event)
     }
 
@@ -962,6 +982,10 @@ impl webhooks::IncomingWebhook for Novalnet {
             }
 
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                (data.amount, data.currency, data.reason, data.reason_code)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
                 (data.amount, data.currency, data.reason, data.reason_code)
             }
         };

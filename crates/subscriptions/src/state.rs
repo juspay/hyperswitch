@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     subscription as subscription_domain,
 };
 use hyperswitch_interfaces::configs;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
@@ -84,7 +84,7 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SubscriptionState 
     fn get_request_id_str(&self) -> Option<String> {
         self.api_client
             .get_request_id()
-            .map(|req_id| req_id.as_hyphenated().to_string())
+            .map(|req_id| req_id.to_string())
     }
 
     fn get_tenant(&self) -> configs::Tenant {

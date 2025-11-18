@@ -105,7 +105,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Capture,
@@ -119,7 +119,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             &self,
             call_connector_action,
             connector_request,
-            None,
+            return_raw_connector_response,
         )
         .await
         .to_payment_failed_response()?;
@@ -187,6 +187,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
         _call_connector_action: common_enums::CallConnectorAction,
+        _creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -221,7 +222,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(ucs_logging_wrapper(
+        let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
             payment_capture_request,
@@ -257,7 +258,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                     .map(MinorUnit::new);
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, payment_capture_response))
+                Ok((router_data, (), payment_capture_response))
             },
         ))
         .await?;

@@ -153,7 +153,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub payment_id: &'a id_type::GlobalPaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub attempt_id: &'a id_type::GlobalAttemptId,
-    pub attempts_group_id: Option<&'a String>,
+    pub attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
     pub connector: Option<&'a String>,

@@ -60,7 +60,7 @@ pub struct AddVaultResponse {
     #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
     #[cfg(feature = "v1")]
-    pub vault_id: String,
+    pub vault_id: hyperswitch_domain_models::router_response_types::VaultIdType,
     pub fingerprint_id: Option<String>,
 }
 

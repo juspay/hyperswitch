@@ -205,7 +205,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: None,
+                            payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
                         }
@@ -259,6 +259,7 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
+            payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
     }
@@ -287,6 +288,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
                     extended_authentication_applied: data
                         .extended_authentication_applied
                         .map(ExtendedAuthorizationAppliedBool::from),
+                    extended_authorization_last_applied_at: None, // This field has to be added to UCS
                 }
             });
 
@@ -298,6 +300,7 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_response_data,
+            None,
         ))
     }
 }

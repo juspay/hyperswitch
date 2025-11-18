@@ -167,7 +167,6 @@ impl AwsKmsConfig {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::print_stdout)]
     #[tokio::test]
     async fn check_aws_kms_encryption() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
