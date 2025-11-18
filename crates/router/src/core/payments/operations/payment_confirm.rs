@@ -1981,7 +1981,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         payment_method_id: m_payment_method_id,
                         client_source,
                         client_version,
-                        customer_acceptance: payment_data.payment_attempt.customer_acceptance.clone(),
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone(),
                         net_amount:
                             hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                                 payment_data.payment_attempt.net_amount.get_order_amount(),
