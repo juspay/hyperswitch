@@ -122,7 +122,8 @@ pub async fn trigger_refund_to_gateway(
     platform: &domain::Platform,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-) -> errors::RouterResult<diesel_refund::Refund> {
+    return_raw_connector_response: Option<bool>,
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
 
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
@@ -190,6 +191,7 @@ pub async fn trigger_refund_to_gateway(
         &connector,
         add_access_token_result,
         router_data,
+        return_raw_connector_response,
     ))
     .await;
 
@@ -220,9 +222,13 @@ pub async fn trigger_refund_to_gateway(
             })?,
         None => refund.to_owned(),
     };
+    let raw_connector_response = connector_response
+        .as_ref()
+        .ok()
+        .and_then(|data| data.raw_connector_response.clone());
     // Implement outgoing webhooks here
     connector_response.to_refund_failed_response()?;
-    Ok(response)
+    Ok((response, raw_connector_response))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -234,7 +240,8 @@ pub async fn internal_trigger_refund_to_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
-) -> errors::RouterResult<diesel_refund::Refund> {
+    return_raw_connector_response: Option<bool>,
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let routed_through = payment_attempt
@@ -294,6 +301,7 @@ pub async fn internal_trigger_refund_to_gateway(
         &connector,
         add_access_token_result,
         router_data,
+        return_raw_connector_response,
     ))
     .await;
 
@@ -324,9 +332,13 @@ pub async fn internal_trigger_refund_to_gateway(
             })?,
         None => refund.to_owned(),
     };
+    let raw_connector_response = connector_response
+        .as_ref()
+        .ok()
+        .and_then(|data| data.raw_connector_response.clone());
     // Implement outgoing webhooks here
     connector_response.to_refund_failed_response()?;
-    Ok(response)
+    Ok((response, raw_connector_response))
 }
 
 async fn call_connector_service<F>(
@@ -334,6 +346,7 @@ async fn call_connector_service<F>(
     connector: &api::ConnectorData,
     add_access_token_result: types::AddAccessTokenResult,
     router_data: RouterData<F, types::RefundsData, types::RefundsResponseData>,
+    return_raw_connector_response: Option<bool>,
 ) -> Result<
     RouterData<F, types::RefundsData, types::RefundsResponseData>,
     error_stack::Report<errors::ConnectorError>,
@@ -359,7 +372,7 @@ where
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
-            None,
+            return_raw_connector_response,
         )
         .await
     } else {
@@ -641,7 +654,7 @@ pub async fn refund_retrieve_core_with_refund_id(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
-    let response = Box::pin(refund_retrieve_core(
+    let (response, raw_connector_response) = Box::pin(refund_retrieve_core(
         state.clone(),
         platform,
         Some(profile_id),
@@ -660,7 +673,7 @@ pub async fn refund_retrieve_core(
     profile_id: Option<id_type::ProfileId>,
     request: refunds::RefundsRetrieveRequest,
     refund: diesel_refund::Refund,
-) -> errors::RouterResult<diesel_refund::Refund> {
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
 
     let key_manager_state = &(&state).into();
@@ -712,7 +725,11 @@ pub async fn refund_retrieve_core(
         ..refund
     };
 
-    let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
+    let (response, raw_connector_response) = if should_call_refund(
+        &refund,
+        request.force_sync.unwrap_or(false),
+        request.return_raw_connector_response.unwrap_or(false),
+    ) {
         if state.conf.merchant_id_auth.merchant_id_auth_enabled {
             let merchant_connector_details = match request.merchant_connector_details {
                 Some(details) => details,
@@ -729,6 +746,7 @@ pub async fn refund_retrieve_core(
                 &payment_intent,
                 &refund,
                 merchant_connector_details,
+                request.return_raw_connector_response,
             ))
             .await
         } else {
@@ -738,23 +756,29 @@ pub async fn refund_retrieve_core(
                 &payment_attempt,
                 &payment_intent,
                 &refund,
+                request.return_raw_connector_response,
             ))
             .await
         }
     } else {
-        Ok(refund)
+        Ok((refund, None))
     }?;
-    Ok(response)
+    Ok((response, raw_connector_response))
 }
 
-fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) -> bool {
+fn should_call_refund(
+    refund: &diesel_models::refund::Refund,
+    force_sync: bool,
+    return_raw_connector_response: bool,
+) -> bool {
     // This implies, we cannot perform a refund sync & `the connector_refund_id`
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
 
     // This allows refund sync at connector level if force_sync is enabled, or
     // checks if the refund has failed
-    let predicate2 = force_sync
+    let predicate2 = return_raw_connector_response
+        || force_sync
         || !matches!(
             refund.refund_status,
             diesel_models::enums::RefundStatus::Failure
@@ -772,7 +796,8 @@ pub async fn sync_refund_with_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &diesel_refund::Refund,
-) -> errors::RouterResult<diesel_refund::Refund> {
+    return_raw_connector_response: Option<bool>,
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
 
     let connector_id = refund.connector.to_string();
@@ -834,13 +859,14 @@ pub async fn sync_refund_with_gateway(
         &connector,
         add_access_token_result,
         router_data,
+        return_raw_connector_response,
     ))
     .await
     .to_refund_failed_response()?;
 
     let connector_response = perform_integrity_check(connector_response);
 
-    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response);
+    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response.clone());
 
     let response = state
         .store
@@ -859,7 +885,7 @@ pub async fn sync_refund_with_gateway(
         })?;
 
     // Implement outgoing webhook here
-    Ok(response)
+    Ok((response, connector_response.raw_connector_response))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -871,7 +897,8 @@ pub async fn internal_sync_refund_with_gateway(
     payment_intent: &storage::PaymentIntent,
     refund: &diesel_refund::Refund,
     merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
-) -> errors::RouterResult<diesel_refund::Refund> {
+    return_raw_connector_response: Option<bool>,
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let connector_enum = merchant_connector_details.connector_name;
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -916,13 +943,14 @@ pub async fn internal_sync_refund_with_gateway(
         &connector,
         add_access_token_result,
         router_data,
+        return_raw_connector_response,
     ))
     .await
     .to_refund_failed_response()?;
 
     let connector_response = perform_integrity_check(connector_response);
 
-    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response);
+    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response.clone());
 
     let response = state
         .store
@@ -941,7 +969,7 @@ pub async fn internal_sync_refund_with_gateway(
         })?;
 
     // Implement outgoing webhook here
-    Ok(response)
+    Ok((response, connector_response.raw_connector_response))
 }
 
 pub fn build_refund_update_for_rsync(
@@ -1174,7 +1202,7 @@ pub async fn validate_and_create_refund(
         processor_refund_data: None,
     };
 
-    let refund = match db
+    let (refund, raw_connector_response) = match db
         .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
@@ -1190,6 +1218,7 @@ pub async fn validate_and_create_refund(
                 payment_attempt,
                 payment_intent,
                 merchant_connector_details,
+                req.return_raw_connector_response,
             ))
             .await?
         }
@@ -1222,7 +1251,10 @@ pub async fn validate_and_create_refund(
         ..refund
     };
 
-    api::RefundResponse::foreign_try_from(refund)
+    let mut refund_response: api::RefundResponse = api::RefundResponse::foreign_try_from(refund)?;
+    refund_response.raw_connector_response = raw_connector_response;
+
+    Ok(refund_response)
 }
 
 impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
@@ -1265,6 +1297,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
                 message: refund.refund_error_message.unwrap_or_default(),
             }),
             connector_refund_reference_id: None,
+            raw_connector_response: None,
         })
     }
 }
@@ -1281,7 +1314,8 @@ pub async fn schedule_refund_execution(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
-) -> errors::RouterResult<diesel_refund::Refund> {
+    return_raw_connector_response: Option<bool>,
+) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
@@ -1305,7 +1339,7 @@ pub async fn schedule_refund_execution(
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.id.get_string_repr()))?;
 
-                            Ok(refund)
+                            Ok((refund, None))
                         }
                         api_models::refunds::RefundType::Instant => {
                             let update_refund =
@@ -1328,6 +1362,7 @@ pub async fn schedule_refund_execution(
                                         payment_attempt,
                                         payment_intent,
                                         merchant_connector_details,
+                                        return_raw_connector_response,
                                     ))
                                     .await
                                 } else {
@@ -1337,12 +1372,13 @@ pub async fn schedule_refund_execution(
                                         platform,
                                         payment_attempt,
                                         payment_intent,
+                                        return_raw_connector_response,
                                     ))
                                     .await
                                 };
 
                             match update_refund {
-                                Ok(updated_refund_data) => {
+                                Ok((updated_refund_data, raw_connector_response)) => {
                                     add_refund_sync_task(db, &updated_refund_data, runner)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1350,7 +1386,7 @@ pub async fn schedule_refund_execution(
                                             "Failed while pushing refund sync task in scheduler: refund_id: {}",
                                             refund.id.get_string_repr()
                                         ))?;
-                                    Ok(updated_refund_data)
+                                    Ok((updated_refund_data, raw_connector_response))
                                 }
                                 Err(err) => Err(err),
                             }
@@ -1366,19 +1402,19 @@ pub async fn schedule_refund_execution(
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.id.get_string_repr()))?;
-                            Ok(refund)
+                            Ok((refund, None))
                         }
                         api_models::refunds::RefundType::Instant => {
                             // [#255]: This is not possible in schedule_refund_execution as it will always be scheduled
                             // sync_refund_with_gateway(data, &refund).await
-                            Ok(refund)
+                            Ok((refund, None))
                         }
                     }
                 }
             }
         }
         //  [#255]: This is not allowed to be otherwise or all
-        _ => Ok(refund),
+        _ => Ok((refund, None)),
     }?;
     Ok(result)
 }

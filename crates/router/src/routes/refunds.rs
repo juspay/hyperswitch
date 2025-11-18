@@ -146,6 +146,7 @@ pub async fn refunds_retrieve(
         refund_id: path.into_inner(),
         force_sync: query_params.force_sync,
         merchant_connector_details: None,
+        all_keys_required: query_params.all_keys_required,
     };
     let flow = match query_params.force_sync {
         Some(true) => Flow::RefundsRetrieveForceSync,
@@ -196,6 +197,7 @@ pub async fn refunds_retrieve(
         refund_id: path.into_inner(),
         force_sync: query_params.force_sync,
         merchant_connector_details: None,
+        return_raw_connector_response: query_params.return_raw_connector_response,
     };
     let flow = match query_params.force_sync {
         Some(true) => Flow::RefundsRetrieveForceSync,
@@ -247,6 +249,7 @@ pub async fn refunds_retrieve_with_gateway_creds(
         refund_id: path.into_inner(),
         force_sync: payload.force_sync,
         merchant_connector_details: payload.merchant_connector_details.clone(),
+        return_raw_connector_response: payload.return_raw_connector_response,
     };
 
     let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {

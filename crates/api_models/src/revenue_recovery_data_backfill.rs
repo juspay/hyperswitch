@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufReader};
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_enums::{CardNetwork, PaymentMethodType};
-use common_utils::{events::ApiEventMetric, pii::PhoneNumberStrategy};
+use common_utils::{events::ApiEventMetric, id_type, pii::PhoneNumberStrategy};
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,12 @@ impl RevenueRecoveryBackfillRequest {
 #[derive(Debug, Serialize)]
 pub struct UnlockStatusResponse {
     pub unlocked: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UnlockStatusRequest {
+    pub connector_customer_id: String,
+    pub payment_intent_id: id_type::GlobalPaymentId,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,6 +109,12 @@ impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
 }
 
 impl ApiEventMetric for UnlockStatusResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UnlockStatusRequest {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

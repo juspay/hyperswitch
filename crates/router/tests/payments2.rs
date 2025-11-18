@@ -126,6 +126,7 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Hyperswitch".to_string()),
         statement_descriptor_suffix: Some("Hyperswitch".to_string()),
+        three_ds_data: None,
         ..<_>::default()
     };
 
@@ -423,6 +424,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
+        three_ds_data: None,
         ..Default::default()
     };
 

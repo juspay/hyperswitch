@@ -111,6 +111,17 @@ pub async fn payouts_update(
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    if let Err(err) =
+        populate_browser_info_for_payouts(&req, &mut payout_update_payload, &header_payload)
+    {
+        return api::log_and_return_error_response(err);
+    }
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -149,6 +160,14 @@ pub async fn payouts_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    if let Err(err) = populate_browser_info_for_payouts(&req, &mut payload, &header_payload) {
+        return api::log_and_return_error_response(err);
+    }
 
     Box::pin(api::server_wrap(
         flow,

@@ -166,7 +166,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type,
-        description: None,
+        description: payout_data.payouts.description.clone(),
         address,
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -231,7 +231,6 @@ pub async fn construct_payout_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -407,7 +406,6 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -599,7 +597,6 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
@@ -1045,7 +1042,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1152,7 +1148,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1268,7 +1263,6 @@ pub async fn construct_upload_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1344,7 +1338,6 @@ pub async fn construct_dispute_list_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     })
 }
 
@@ -1453,7 +1446,6 @@ pub async fn construct_dispute_sync_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1584,7 +1576,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1694,7 +1685,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -1797,7 +1787,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
     Ok(router_data)
 }
@@ -2379,6 +2368,7 @@ pub async fn construct_vault_router_data<F>(
     >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2397,6 +2387,7 @@ pub async fn construct_vault_router_data<F>(
             payment_method_vaulting_data,
             connector_vault_id,
             connector_customer_id,
+            should_generate_multiple_tokens,
         },
         response: Ok(types::VaultResponseData::default()),
     };

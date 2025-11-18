@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{id_type, ucs_types};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -1023,6 +1023,10 @@ async fn call_unified_connector_service_authorize(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_authorize_response.captured_amount;
+            router_data.minor_amount_captured = payment_authorize_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
@@ -1333,6 +1337,10 @@ async fn call_unified_connector_service_repeat_payment(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_repeat_response.captured_amount;
+            router_data.minor_amount_captured = payment_repeat_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response
                 .clone()

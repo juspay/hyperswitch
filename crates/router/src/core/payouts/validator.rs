@@ -262,6 +262,7 @@ pub async fn validate_create_request(
                                     .expiry_month
                                     .get_required_value("expiry_month")?,
                                 expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                                card_network: card.card_network.clone(),
                             },
                         ))),
                         (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
