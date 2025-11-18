@@ -110,25 +110,12 @@ use hyperswitch_interfaces::{
         payments_v2::{
             ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate, MandateSetupV2,
             PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
-<<<<<<< HEAD
             PaymentCreateOrderV2, PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
             PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
-            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2,
-||||||| 7f6bed3f8e
-            PaymentCreateOrderV2, PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
-            PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
-            PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2, PaymentsPostProcessingV2,
-=======
-            PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
-            PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2,
-            PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
-            PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
-            PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2,
->>>>>>> main
-            PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
-            PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsCompleteAuthorizeV2,
+            PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
+            PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
