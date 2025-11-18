@@ -6032,6 +6032,8 @@ pub struct PaymentsCaptureRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// If true, returns stringified connector raw response body
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6040,6 +6042,8 @@ pub struct PaymentsCaptureRequest {
     /// The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -7265,7 +7269,7 @@ pub struct PaymentsListResponseItem {
 //
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation

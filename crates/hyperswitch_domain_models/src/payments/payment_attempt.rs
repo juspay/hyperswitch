@@ -393,7 +393,7 @@ pub struct PaymentAttempt {
     /// Merchant id for the payment attempt
     pub merchant_id: id_type::MerchantId,
     /// Group id for the payment attempt
-    pub attempts_group_id: Option<String>,
+    pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount details for the payment attempt
     pub amount_details: AttemptAmountDetails,
     /// Status of the payment attempt. This is the status that is updated by the connector.

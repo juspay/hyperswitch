@@ -18144,6 +18144,14 @@
               }
             ],
             "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenField"
+            },
+            "description": "Fields to tokenization in vault",
+            "nullable": true
           }
         }
       },
@@ -26194,6 +26202,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         }
       },
@@ -33435,6 +33448,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -33545,6 +33563,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed refunds",
+            "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
             "nullable": true
           }
         }
@@ -37071,6 +37094,33 @@
         "enum": [
           "vgs_sdk",
           "hyperswitch_sdk"
+        ]
+      },
+      "VaultTokenField": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
         ]
       },
       "Venmo": {
