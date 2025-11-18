@@ -7422,8 +7422,7 @@ pub struct RecoveryPaymentsListResponseItem {
     )]
     pub id: id_type::GlobalPaymentId,
 
-    /// This is an identifier for the merchant account. This is inferred from the API key
-    /// provided during the request
+    /// This is an identifier for the merchant account
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
@@ -7463,7 +7462,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(value_type = Option<Connector>, example = "stripe")]
     pub connector: Option<String>,
 
-    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    /// Identifier of the connector which was chosen to make the payment
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 

@@ -56,7 +56,6 @@ use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCancelData, PaymentCaptureData, PaymentConfirmData,
     PaymentIntentData, PaymentStatusData,
 };
-use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
@@ -67,6 +66,7 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
+    router_response_types::RedirectForm,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -2655,9 +2655,12 @@ pub async fn revenue_recovery_get_intent_core(
     global_payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<RevenueRecoveryGetIntentResponse> {
-    use crate::core::revenue_recovery::{get_workflow_entries, map_recovery_status};
-    use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
     use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    use crate::{
+        core::revenue_recovery::{get_workflow_entries, map_recovery_status},
+        types::storage::revenue_recovery_redis_operation::RedisTokenManager,
+    };
 
     // Get payment intent using the existing operation
     let (payment_data, _req, customer) = Box::pin(payments_intent_operation_core::<
@@ -2721,7 +2724,8 @@ pub async fn revenue_recovery_get_intent_core(
             &connector_customer_id,
         )
         .await
-        .map(|tokens| tokens.len() as u32)
+        .ok()
+        .and_then(|tokens| tokens.len().try_into().ok())
         .unwrap_or(0)
     } else {
         0

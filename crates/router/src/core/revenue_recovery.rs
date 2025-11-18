@@ -228,7 +228,7 @@ pub async fn record_internal_attempt_and_execute_payment(
         Err(err) => {
             logger::error!("Error while recording attempt: {:?}", err);
             let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                status: enums::ProcessTrackerStatus::Pending,
+                status: ProcessTrackerStatus::Pending,
                 business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_REQUEUE)),
             };
             db.as_scheduler()
@@ -1320,11 +1320,10 @@ fn determine_recovery_status_from_workflows(
         // Queued status conditions
         (Some(cal_biz_status), Some(cal_pt_status), _, _)
             if (cal_biz_status == business_status::PENDING
-                && cal_pt_status
-                    == ProcessTrackerStatus::Processing.to_string().to_uppercase())
-                || (cal_biz_status == business_status::PENDING
-                    && cal_pt_status
-                        == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>
+                && (cal_pt_status
+                    == ProcessTrackerStatus::Processing.to_string().to_uppercase()
+                    || cal_pt_status
+                        == ProcessTrackerStatus::Pending.to_string().to_uppercase())) =>
         {
             RecoveryStatus::Queued
         }

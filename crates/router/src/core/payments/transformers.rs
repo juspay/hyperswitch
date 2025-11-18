@@ -2,10 +2,11 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
-
+#[cfg(feature = "v2")]
+use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, NetworkDetails, RequestSurchargeDetails, RevenueRecoveryGetIntentResponse,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
