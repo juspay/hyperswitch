@@ -3170,13 +3170,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         ),
                     };
 
-                payment_methods::update_payment_method_core(
+                Box::pin(payment_methods::update_payment_method_core(
                     state,
                     merchant_context,
                     business_profile,
                     payment_method_update_request,
                     &payment_method_id,
-                )
+                ))
                 .await
                 .attach_printable("Failed to update payment method")?;
             }

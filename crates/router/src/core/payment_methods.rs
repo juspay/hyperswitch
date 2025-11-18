@@ -2300,7 +2300,7 @@ pub async fn vault_payment_method_internal(
 #[instrument(skip_all)]
 pub async fn vault_payment_method_external(
     state: &SessionState,
-    pmd: &domain::PaymentMethodVaultingData,
+    pmd: &domain::PaymentMethodCustomVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::AddVaultResponse> {
@@ -2342,24 +2342,41 @@ pub async fn vault_payment_method_external(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        ExternalVaultInsertFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
-
-    let router_data_resp = services::execute_connector_processing_step(
+    access_token::create_access_token(
         state,
-        connector_integration,
-        &old_router_data,
-        payments_core::CallConnectorAction::Trigger,
-        None,
-        None,
+        &connector_data,
+        merchant_account,
+        &mut old_router_data,
     )
-    .await
-    .to_vault_failed_response()?;
+    .await?;
 
-    get_vault_response_for_insert_payment_method_data(router_data_resp)
+    if old_router_data.response.is_ok() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            ExternalVaultInsertFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments_core::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+
+        get_vault_response_for_insert_payment_method_data(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_payment_method_custom_data(
@@ -2368,45 +2385,63 @@ pub fn get_payment_method_custom_data(
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData> {
     match fields_to_tokenize {
         Some(fields) => {
-            let json_data = serde_json::to_value(payment_method_vaulting_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse PaymentMethodVaultingData to value")?;
+            let keys_set: Vec<String> = fields
+                .iter()
+                .map(|field| field.token_type.to_string())
+                .collect();
 
-            match json_data {
-                serde_json::Value::Object(values) => {
-                    // convert the vec of object to vec of enum key for comparison
-                    let enum_fields: Vec<common_enums::VaultTokenType> = fields
-                        .iter()
-                        .map(|field| field.token_type.clone())
-                        .collect();
+            match payment_method_vaulting_data {
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details) => {
+                    let mut json_data = serde_json::to_value(card_details)
+                        .map_err(|_| {
+                            logger::error!("Error Parsing the CardDetail to Value");
+                            errors::ApiErrorResponse::InternalServerError
+                        })?
+                        .as_object()
+                        .cloned()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse Value to Object")?;
 
-                    let json_fields = serde_json::to_value(enum_fields)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Vec<VaultTokenField> to value")?;
+                    json_data.retain(|key, _value| keys_set.contains(key));
 
-                    // Convert the key slice to a BTreeSet for fast lookups
-                    let keys_set: std::collections::BTreeSet<String> =
-                        serde_json::from_value(json_fields)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to parse BTreeSet<Striong> from value")?;
-
-                    let filtered_values = values
-                        .into_iter()
-                        .filter(|(key, _value)| {
-                            // Keep the field ONLY if its name is in our set
-                            keys_set.contains(key)
-                        })
-                        .collect();
-
-                    serde_json::from_value(serde_json::Value::Object(filtered_values))
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse BTreeSet<Striong> from value")
+                    let custom_card_detail: hyperswitch_domain_models::vault::CardCustomData = serde_json::from_value(
+                        serde_json::Value::Object(json_data)
+                    )
+                        .map_err(|_| {
+                            logger::error!("Error Parsing the Value to CardCustomData");
+                            errors::ApiErrorResponse::InternalServerError
+                        })?;
+                    Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::CardData(custom_card_detail))
                 }
-                _ => Ok(
-                    hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::default(),
-                ),
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(network_token_details) => {
+                    let mut json_data = serde_json::to_value(network_token_details)
+                        .map_err(|_| {
+                            logger::error!("Error Parsing the NetworkTokenDetails to Value");
+                            errors::ApiErrorResponse::InternalServerError
+                        })?
+                        .as_object()
+                        .cloned()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse Value to Object")?;
+
+                    json_data.retain(|key, _value| keys_set.contains(key));
+
+                    let custom_network_token_detail: hyperswitch_domain_models::vault::NetworkTokenCustomData = serde_json::from_value(
+                        serde_json::Value::Object(json_data)
+                    )
+                        .map_err(|_| {
+                            logger::error!("Error Parsing the Value to NetworkTokenCustomData");
+                            errors::ApiErrorResponse::InternalServerError
+                        })?;
+                    Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::NetworkTokenData(custom_network_token_detail))
+                }
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(_) => {
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unexpected Behaviour, Card Number variant is not supported for Custom Tokenization")?
+                }
             }
         }
+        // default case, populate data one to one
         None => Ok(payment_method_vaulting_data.into()),
     }
 }
@@ -2537,10 +2572,15 @@ pub async fn vault_payment_method(
 
     match is_external_vault_enabled {
         true => {
-            let external_vault_source: id_type::MerchantConnectorAccountId = profile
+            let (external_vault_source, vault_token_selector) = profile
                 .external_vault_connector_details
                 .clone()
-                .map(|connector_details| connector_details.vault_connector_id.clone())
+                .map(|connector_details| {
+                    (
+                        connector_details.vault_connector_id.clone(),
+                        connector_details.vault_token_selector.clone(),
+                    )
+                })
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("mca_id not present for external vault")?;
 
@@ -2557,9 +2597,12 @@ pub async fn vault_payment_method(
                     )?,
                 ));
 
+            let payment_method_custom_data =
+                get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
+
             vault_payment_method_external(
                 state,
-                pmd,
+                &payment_method_custom_data,
                 merchant_context.get_merchant_account(),
                 merchant_connector_account,
             )
@@ -2891,9 +2934,14 @@ pub async fn update_payment_method(
     req: api::PaymentMethodUpdate,
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let response =
-        update_payment_method_core(&state, &merchant_context, &profile, req, payment_method_id)
-            .await?;
+    let response = Box::pin(update_payment_method_core(
+        &state,
+        &merchant_context,
+        &profile,
+        req,
+        payment_method_id,
+    ))
+    .await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -3418,13 +3466,13 @@ pub async fn payment_methods_session_update_payment_method(
 
     let payment_method_update_request = request.payment_method_update_request;
 
-    let updated_payment_method = update_payment_method_core(
+    let updated_payment_method = Box::pin(update_payment_method_core(
         &state,
         &merchant_context,
         &profile,
         payment_method_update_request,
         &request.payment_method_id,
-    )
+    ))
     .await
     .attach_printable("Failed to update saved payment method")?;
 
