@@ -5686,16 +5686,23 @@ pub fn get_applepay_metadata(
         .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
             "ApplepayCombinedSessionTokenData",
         )
-        .map(|combined_metadata| {
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined.data,
-            )
-        })
+        .change_context(errors::ConnectorError::ParsingFailed)
+        .and_then(
+            |combined_metadata| match combined_metadata.apple_pay_combined.data {
+                Some(combined_metadata) => Ok(
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        combined_metadata,
+                    ),
+                ),
+                None => Err(errors::ConnectorError::ParsingFailed.into()),
+            },
+        )
         .or_else(|_| {
             connector_metadata
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                     "ApplepaySessionTokenData",
                 )
+                .change_context(errors::ConnectorError::ParsingFailed)
                 .map(|old_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
                         old_metadata.apple_pay,

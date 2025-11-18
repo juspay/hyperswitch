@@ -125,6 +125,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
+        payments::helpers::get_applepay_metadata,
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
@@ -7268,30 +7269,7 @@ fn check_apple_pay_metadata(
     merchant_connector_account.and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
-            let parsed_metadata = apple_pay_metadata
-                .clone()
-                .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-                    "ApplepayCombinedSessionTokenData",
-                )
-                .map(|combined_metadata| {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                        combined_metadata.apple_pay_combined.data,
-                    )
-                })
-                .or_else(|_| {
-                    apple_pay_metadata
-                        .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                            "ApplepaySessionTokenData",
-                        )
-                        .map(|old_metadata| {
-                            api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                                old_metadata.apple_pay,
-                            )
-                        })
-                })
-                .map_err(|error| {
-                    logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
-                });
+            let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
 
             parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(

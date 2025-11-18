@@ -9084,7 +9084,7 @@ pub struct ApplepaySessionTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplePayCombinedWrapper {
     #[serde(flatten)]
-    pub data: ApplePayCombinedMetadata,
+    pub data: Option<ApplePayCombinedMetadata>,
     pub enable_predecrypted_token: Option<bool>,
 }
 
