@@ -1385,6 +1385,10 @@ pub struct PaymentsRequest {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
+    #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
+    pub tokenization: Option<enums::Tokenization>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7126,6 +7130,10 @@ pub struct PaymentsResponse {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
+    #[schema(value_type = Option<Tokenization>,example="skip_psp")]
+    pub tokenization: Option<enums::Tokenization>,
 }
 
 #[cfg(feature = "v2")]
