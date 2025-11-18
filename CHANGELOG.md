@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.18.0
+
+### Features
+
+- **core:** Add all_keys_required in Capture, Refund and RSync Flows ([#10178](https://github.com/juspay/hyperswitch/pull/10178)) ([`6f582dc`](https://github.com/juspay/hyperswitch/commit/6f582dc0c4a9ccd00c00c215f0db1d3e57c86890))
+
+### Revert
+
+- Refactor(payment-methods): add support to avoid duplication while adding card to ext vault and add resource locking for payment methods for concurrent requests ([#9963](https://github.com/juspay/hyperswitch/pull/9963)) ([#10304](https://github.com/juspay/hyperswitch/pull/10304)) ([`bc9c8fa`](https://github.com/juspay/hyperswitch/commit/bc9c8fae225e1f7530468df8407b05765d2fc098))
+
+**Full Changelog:** [`2025.11.17.1...2025.11.18.0`](https://github.com/juspay/hyperswitch/compare/2025.11.17.1...2025.11.18.0)
+
+- - -
+
 ## 2025.11.17.1
 
 ### Features

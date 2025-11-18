@@ -32,7 +32,7 @@ use hyperswitch_interfaces::api as api_interfaces;
 use crate::{
     core::{
         errors::{ApiErrorResponse, RouterResult},
-        payments::{self, helpers},
+        payments::{self, gateway::context as gateway_context, helpers},
     },
     logger,
     routes::SessionState,
@@ -92,6 +92,7 @@ pub trait Feature<F, T> {
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -324,6 +325,7 @@ pub async fn call_capture_request(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: domain_payments::HeaderPayload,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::RouterData<api::Capture, PaymentsCaptureData, types::PaymentsResponseData>>
 {
     // Build capture-specific connector request
@@ -341,6 +343,7 @@ pub async fn call_capture_request(
             business_profile,
             header_payload.clone(),
             None,
+            context, // gateway_context
         )
         .await
 }
