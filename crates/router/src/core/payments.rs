@@ -32,6 +32,8 @@ use std::future;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
+#[cfg(feature = "v2")]
+use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
@@ -54,7 +56,6 @@ use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCancelData, PaymentCaptureData, PaymentConfirmData,
     PaymentIntentData, PaymentStatusData,
 };
-#[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
@@ -2641,6 +2642,98 @@ where
         header_payload.x_hs_latency,
         &merchant_context,
     )
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn revenue_recovery_get_intent_core(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    request: api_models::payments::PaymentsGetIntentRequest,
+    global_payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+) -> RouterResponse<RevenueRecoveryGetIntentResponse> {
+    use crate::core::revenue_recovery::{get_workflow_entries, map_recovery_status};
+    use crate::types::storage::revenue_recovery_redis_operation::RedisTokenManager;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    // Get payment intent using the existing operation
+    let (payment_data, _req, customer) = Box::pin(payments_intent_operation_core::<
+        api::PaymentGetIntent,
+        _,
+        _,
+        PaymentIntentData<api::PaymentGetIntent>,
+    >(
+        &state,
+        req_state,
+        merchant_context.clone(),
+        profile.clone(),
+        operations::PaymentGetIntent,
+        request.clone(),
+        global_payment_id.clone(),
+        header_payload.clone(),
+    ))
+    .await?;
+
+    let payment_intent = payment_data.get_payment_intent();
+
+    // Get workflow entries to determine recovery status
+    let (calculate_workflow, execute_workflow) = get_workflow_entries(&state, &payment_intent.id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch workflow entries")?;
+
+    // Get billing connector account to get retry threshold
+    let billing_mca_id = payment_intent.get_billing_merchant_connector_account_id();
+    let max_retry_threshold = if let Some(billing_mca_id) = billing_mca_id {
+        state
+            .store
+            .find_merchant_connector_account_by_id(
+                &(&state).into(),
+                &billing_mca_id,
+                merchant_context.get_merchant_key_store(),
+            )
+            .await
+            .ok()
+            .and_then(|mca| mca.get_retry_threshold())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    // Map recovery status
+    let recovery_status = map_recovery_status(
+        payment_intent.status,
+        calculate_workflow.as_ref(),
+        execute_workflow.as_ref(),
+        payment_intent.attempt_count,
+        max_retry_threshold.try_into().unwrap_or(0),
+    );
+
+    // Get card_attached count from Redis
+    let card_attached = if let Some(connector_customer_id) =
+        payment_intent.get_connector_customer_id_from_feature_metadata()
+    {
+        RedisTokenManager::get_connector_customer_payment_processor_tokens(
+            &state,
+            &connector_customer_id,
+        )
+        .await
+        .map(|tokens| tokens.len() as u32)
+        .unwrap_or(0)
+    } else {
+        0
+    };
+
+    let response = transformers::generate_revenue_recovery_get_intent_response(
+        payment_data,
+        recovery_status,
+        card_attached,
+    );
+
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]

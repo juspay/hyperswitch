@@ -5,6 +5,7 @@ use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
     RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -251,6 +252,15 @@ impl ApiEventMetric for PaymentAttemptListResponse {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsIntentResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl ApiEventMetric for RevenueRecoveryGetIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),

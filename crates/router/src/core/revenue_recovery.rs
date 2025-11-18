@@ -1370,7 +1370,7 @@ fn determine_recovery_status_from_workflows(
     }
 }
 
-fn map_recovery_status(
+pub fn map_recovery_status(
     intent_status: IntentStatus,
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,

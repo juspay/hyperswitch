@@ -774,6 +774,10 @@ impl Payments {
                         .route(web::get().to(payments::payments_get_intent)),
                 )
                 .service(
+                    web::resource("/get-revenue-recovery-intent")
+                        .route(web::get().to(payments::revenue_recovery_get_intent)),
+                )
+                .service(
                     web::resource("/update-intent")
                         .route(web::put().to(payments::payments_update_intent)),
                 )

@@ -292,6 +292,67 @@ pub async fn payments_get_intent(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsGetIntent, payment_id))]
+pub async fn revenue_recovery_get_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetIntentRequest;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsGetIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let payload = PaymentsGetIntentRequest {
+        id: path.into_inner(),
+    };
+
+    let global_payment_id = payload.id.clone();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payments::revenue_recovery_get_intent_core(
+                state,
+                req_state,
+                merchant_context,
+                auth.profile,
+                req,
+                global_payment_id.clone(),
+                header_payload.clone(),
+            )
+        },
+        auth::api_or_client_or_jwt_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id.clone(),
+            )),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRevenueRecoveryRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentAttemptsList, payment_id,))]
 pub async fn list_payment_attempts(
