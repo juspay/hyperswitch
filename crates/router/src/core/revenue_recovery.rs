@@ -1295,10 +1295,79 @@ pub async fn get_workflow_entries(
         .as_scheduler()
         .find_process_by_id(&execute_process_tracker_id)
         .await
-        .ok()
-        .flatten();
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to fetch execute workflow entry for payment_id: {}",
+            payment_id.get_string_repr()
+        ))?;
 
     Ok((calculate_workflow, execute_workflow))
+}
+
+fn determine_recovery_status_from_workflows(
+    calculate_business_status: Option<String>,
+    calculate_process_tracker_status: Option<String>,
+    execute_business_status: Option<String>,
+    execute_process_tracker_status: Option<String>,
+    default_fallback: impl FnOnce() -> RecoveryStatus,
+) -> RecoveryStatus {
+    match (
+        calculate_business_status,
+        calculate_process_tracker_status,
+        execute_business_status,
+        execute_process_tracker_status,
+    ) {
+        // Queued status conditions
+        (Some(cal_biz_status), Some(cal_pt_status), _, _)
+            if (cal_biz_status == business_status::PENDING
+                && cal_pt_status
+                    == ProcessTrackerStatus::Processing.to_string().to_uppercase())
+                || (cal_biz_status == business_status::PENDING
+                    && cal_pt_status
+                        == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>
+        {
+            RecoveryStatus::Queued
+        }
+
+        // Scheduled status conditions
+        (Some(cal_biz_status), Some(cal_pt_status), Some(exe_biz_status), Some(exe_pt_status))
+            if (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED
+                && cal_pt_status == ProcessTrackerStatus::Finish.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status
+                        == ProcessTrackerStatus::Pending.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status
+                        == ProcessTrackerStatus::ProcessStarted
+                            .to_string()
+                            .to_uppercase()) =>
+        {
+            RecoveryStatus::Scheduled
+        }
+
+        (_, _, Some(exe_biz_status), Some(exe_pt_status))
+            if (exe_biz_status == business_status::PENDING
+                && exe_pt_status
+                    == ProcessTrackerStatus::Processing.to_string().to_uppercase()) =>
+        {
+            RecoveryStatus::Processing
+        }
+
+        // Terminated status conditions
+        (Some(cal_biz_status), _, _, _)
+            if cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH
+                || cal_biz_status == business_status::RETRIES_EXCEEDED
+                || cal_biz_status == business_status::FAILURE
+                || cal_biz_status == business_status::GLOBAL_FAILURE =>
+        {
+            RecoveryStatus::Terminated
+        }
+
+        // Default fallback
+        _ => default_fallback(),
+    }
 }
 
 fn map_recovery_status(
@@ -1308,130 +1377,65 @@ fn map_recovery_status(
     attempt_count: i16,
     max_retry_threshold: i16,
 ) -> RecoveryStatus {
-    let (calculate_business_status, calculate_process_tracker_status) =
-        if let Some(calculate) = calculate_workflow {
+    let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
+        .map(|calculate| {
             (
                 Some(calculate.business_status.clone()),
                 Some(calculate.status.to_string().to_uppercase()),
             )
-        } else {
-            (None, None)
-        };
+        })
+        .unwrap_or((None, None));
 
-    let (execute_business_status, execute_process_tracker_status) =
-        if let Some(execute) = execute_workflow {
+    let (execute_business_status, execute_process_tracker_status) = execute_workflow
+        .map(|execute| {
             (
                 Some(execute.business_status.clone()),
                 Some(execute.status.to_string().to_uppercase()),
             )
-        } else {
-            (None, None)
-        };
+        })
+        .unwrap_or((None, None));
 
     match intent_status {
         // Only Failed payments are eligible for recovery
-        IntentStatus::Failed => {
-            match (
+        IntentStatus::Failed => determine_recovery_status_from_workflows(
+            calculate_business_status,
+            calculate_process_tracker_status,
+            execute_business_status,
+            execute_process_tracker_status,
+            || {
+                if attempt_count > max_retry_threshold {
+                    RecoveryStatus::NoPicked
+                } else {
+                    RecoveryStatus::Monitoring
+                }
+            },
+        ),
+
+        IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
+            determine_recovery_status_from_workflows(
                 calculate_business_status,
                 calculate_process_tracker_status,
                 execute_business_status,
                 execute_process_tracker_status,
-            ) {
-                // Queued status conditions
-                (Some(cal_biz_status), Some(cal_pt_status), _, _)
-                    if (cal_biz_status == business_status::CALCULATE_WORKFLOW_QUEUED
-                        && cal_pt_status
-                            == ProcessTrackerStatus::New.to_string().to_uppercase())
-                        || (cal_biz_status == business_status::PENDING
-                            && cal_pt_status
-                                == ProcessTrackerStatus::New.to_string().to_uppercase())
-                        || (cal_biz_status == business_status::PENDING
-                            && cal_pt_status
-                                == ProcessTrackerStatus::Processing.to_string().to_uppercase())
-                        || (cal_biz_status == business_status::PENDING
-                            && cal_pt_status
-                                == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>
-                {
-                    RecoveryStatus::Queued
-                }
-
-                // Scheduled status conditions
-                (
-                    Some(cal_biz_status),
-                    Some(cal_pt_status),
-                    Some(exe_biz_status),
-                    Some(exe_pt_status),
-                ) if (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED
-                    && cal_pt_status
-                        == ProcessTrackerStatus::Finish.to_string().to_uppercase())
-                    || (exe_biz_status == business_status::PENDING
-                        && exe_pt_status
-                            == ProcessTrackerStatus::New.to_string().to_uppercase())
-                    || (exe_biz_status == business_status::PENDING
-                        && exe_pt_status
-                            == ProcessTrackerStatus::Pending.to_string().to_uppercase())
-                    || (exe_biz_status == business_status::PENDING
-                        && exe_pt_status
-                            == ProcessTrackerStatus::ProcessStarted
-                                .to_string()
-                                .to_uppercase()) =>
-                {
-                    RecoveryStatus::Scheduled
-                }
-
-                (
-                    Some(cal_biz_status),
-                    Some(cal_pt_status),
-                    Some(exe_biz_status),
-                    Some(exe_pt_status),
-                ) if (cal_biz_status == business_status::CALCULATE_WORKFLOW_PROCESSING
-                    && cal_pt_status
-                        == ProcessTrackerStatus::Processing.to_string().to_uppercase())
-                    || (exe_biz_status == business_status::PENDING
-                        && exe_pt_status
-                            == ProcessTrackerStatus::Processing.to_string().to_uppercase()) =>
-                {
-                    RecoveryStatus::Processing
-                }
-
-                // Unrecoverable status conditions
-                (Some(cal_biz_status), _, _, _)
-                    if cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH
-                        || cal_biz_status == business_status::RETRIES_EXCEEDED
-                        || cal_biz_status == business_status::FAILURE
-                        || cal_biz_status == business_status::GLOBAL_FAILURE =>
-                {
-                    RecoveryStatus::Unrecoverable
-                }
-
-                // Default fallback
-                _ => {
-                    if attempt_count > max_retry_threshold {
-                        RecoveryStatus::NoPicked
-                    } else {
-                        RecoveryStatus::Monitoring
-                    }
-                }
-            }
+                || RecoveryStatus::PartiallyRecovered,
+            )
         }
 
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
-        IntentStatus::Cancelled => RecoveryStatus::Unrecoverable,
-        IntentStatus::CancelledPostCapture => RecoveryStatus::Unrecoverable,
         IntentStatus::Processing => RecoveryStatus::Processing,
-        IntentStatus::Conflicted => RecoveryStatus::Unrecoverable,
-        IntentStatus::Expired => RecoveryStatus::Unrecoverable,
+        IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired => RecoveryStatus::Terminated,
 
         // For statuses that don't need recovery
-        IntentStatus::RequiresCustomerAction => RecoveryStatus::Processing,
-        IntentStatus::RequiresMerchantAction => RecoveryStatus::Processing,
-        IntentStatus::RequiresPaymentMethod => RecoveryStatus::Processing,
-        IntentStatus::RequiresConfirmation => RecoveryStatus::Processing,
-        IntentStatus::RequiresCapture => RecoveryStatus::Processing,
-        IntentStatus::PartiallyCaptured => RecoveryStatus::Processing,
-        IntentStatus::PartiallyCapturedAndCapturable => RecoveryStatus::Processing,
-        IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Processing,
+        IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
     }
 }
 

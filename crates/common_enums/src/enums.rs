@@ -1873,7 +1873,7 @@ pub enum RecoveryStatus {
     Processing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
-    Unrecoverable,
+    Terminated,
     /// The payment is being monitored for potential recovery.
     /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
     #[default]
@@ -1881,6 +1881,12 @@ pub enum RecoveryStatus {
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
     /// This status indicates the payment is in the initial queuing phase of the recovery process.
     Queued,
+    /// The payment has been partially recovered through retry mechanisms.
+    /// This indicates that a partially captured payment has been processed.
+    PartiallyRecovered,
+    /// The payment is pending action from the customer, merchant, or requires additional information.
+    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
+    Pending,
 }
 
 /// Specifies how the payment method can be used for future payments.
