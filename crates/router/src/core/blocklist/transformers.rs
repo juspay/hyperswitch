@@ -63,10 +63,7 @@ async fn generate_fingerprint_request(
         tenant_id.get_string_repr().to_owned().into(),
     );
     if let Some(req_id) = request_id {
-        request.add_header(
-            headers::X_REQUEST_ID,
-            req_id.to_string().into(),
-        );
+        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
     }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
