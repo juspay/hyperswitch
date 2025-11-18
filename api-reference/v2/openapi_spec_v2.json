@@ -19058,14 +19058,12 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
