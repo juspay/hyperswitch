@@ -4151,36 +4151,46 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
-// UCS Configuration Commands
-Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
-  cy.setupConfigs(globalState, "ucs_enabled", "true");
+// UCS Configuration - Supported flows
+const UCS_FLOWS = ["Authorize", "Capture", "PSync", "Execute", "RSync", "Void"];
 
-  const merchantId = globalState.get("merchantId");
-  const rolloutConfigs = [
-    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
-  ];
+// Helper: Check if UCS is enabled
+function isUCSEnabled() {
+  const flag = Cypress.env("UCS_ENABLED");
+  return flag === "true" || flag === true;
+}
 
-  rolloutConfigs.forEach((key) => {
-    cy.setConfigs(globalState, key, "1.0", "CREATE");
-  });
-});
+// Helper: Generate UCS config key
+function getUCSConfigKey(merchantId, connector, paymentMethod, flow) {
+  return `ucs_rollout_config_${merchantId}_${connector}_${paymentMethod}_${flow}`;
+}
 
-Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
-  const merchantId = globalState.get("merchantId");
-  const rolloutConfigs = [
-    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
-  ];
+// Setup UCS configurations for all subsequent tests
+Cypress.Commands.add(
+  "setupUCSConfigs",
+  (globalState, connector, paymentMethod = "card", flows = null) => {
+    if (!isUCSEnabled()) {
+      cy.task("cli_log", "⚠️  UCS Testing DISABLED - Skipping setup");
+      return;
+    }
 
-  rolloutConfigs.forEach((key) => {
-    cy.setConfigs(globalState, key, "1.0", "DELETE");
-  });
+    cy.task("cli_log", "🔧 Setting up UCS configurations...");
+    cy.setupConfigs(globalState, "ucs_enabled", "true");
 
-  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
-});
+    const merchantId = globalState.get("merchantId");
+    const flowsToEnable = flows || UCS_FLOWS;
+
+    cy.task("cli_log", `Connector: ${connector}, Method: ${paymentMethod}, Flows: ${flowsToEnable.join(", ")}`);
+
+    flowsToEnable.forEach((flow) => {
+      const key = getUCSConfigKey(merchantId, connector, paymentMethod, flow);
+      cy.setConfigs(globalState, key, "1.0", "CREATE");
+    });
+
+    cy.task("cli_log", "✅ UCS setup complete");
+  }
+);
+
 
 // DDC Race Condition Test Commands
 Cypress.Commands.add(

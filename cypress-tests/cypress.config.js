@@ -18,6 +18,9 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       mochawesome(on);
 
+      // Set UCS_ENABLED environment variable for Cypress
+      config.env.UCS_ENABLED = process.env.UCS_ENABLED || "false";
+
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
@@ -58,6 +61,17 @@ export default defineConfig({
           }
         }
       });
+
+      // Log UCS status at startup
+      // eslint-disable-next-line no-console
+      console.log("\n========================================");
+      // eslint-disable-next-line no-console
+      console.log(
+        `UCS Testing: ${config.env.UCS_ENABLED === "true" ? "ENABLED ✓" : "DISABLED ✗"}`
+      );
+      // eslint-disable-next-line no-console
+      console.log("========================================\n");
+
       return config;
     },
     experimentalRunAllSpecs: true,
