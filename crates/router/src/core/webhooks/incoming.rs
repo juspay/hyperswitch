@@ -2879,7 +2879,7 @@ async fn update_connector_mandate_details(
                         let attempt_update =
                             storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                                 connector_mandate_detail: Some(connector_mandate_reference_id),
-                                tokenization: None,
+                                tokenization: None,  // We need to handle tokenization field update in webhooks as well
                                 updated_by: merchant_context
                                     .get_merchant_account()
                                     .storage_scheme
