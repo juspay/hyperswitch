@@ -20,7 +20,7 @@ pub struct VirInterpreterBackend<O> {
 
 impl<O> VirInterpreterBackend<O>
 where
-    O: Clone,
+    O: Clone + std::fmt::Debug,
 {
     #[inline]
     fn eval_comparison(comp: &vir::ValuedComparison, ctx: &types::Context) -> bool {
@@ -61,6 +61,8 @@ where
         program: &vir::ValuedProgram<O>,
         ctx: &types::Context,
     ) -> backend::BackendOutput<O> {
+        println!(">>>>>>>>>>>>>>>>>>>> program2: {:?}", program);
+        println!(">>>>>>>>>>>>>>>>>>>> ctx: {:?}", ctx);
         program
             .rules
             .iter()
@@ -80,7 +82,7 @@ where
 
 impl<O> EuclidBackend<O> for VirInterpreterBackend<O>
 where
-    O: Clone + EuclidDirFilter + std::fmt::Debug,
+    O: Clone + EuclidDirFilter + Debug,
 {
     type Error = types::VirInterpreterError;
 

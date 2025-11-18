@@ -93,6 +93,7 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::CaptureMethod,
         DirKeyKind::AuthenticationType,
         DirKeyKind::CardBin,
+        DirKeyKind::CardBins,
         DirKeyKind::PayLaterType,
         DirKeyKind::PaymentAmount,
         DirKeyKind::MetaData,
@@ -303,6 +304,7 @@ impl EuclidValue {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
             Self::CardBin(val) => Some(val.clone()),
+            Self::CardBins(val) => Some(val.clone()),
             _ => None,
         }
     }

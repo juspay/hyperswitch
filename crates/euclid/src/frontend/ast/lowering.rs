@@ -249,26 +249,33 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::MobilePaymentType => lower_enum!(MobilePaymentType, value),
         dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
         dir::DirKeyKind::CardBins => {
-            let num = match &value {
-                ast::ValueType::Number(n) => *n,
+            // FIRST: validate the value is a NumberArray
+            let nums = match &value {
+                ast::ValueType::NumberArray(n) => n,
                 _ => {
                     return Err(AnalysisErrorType::InvalidValue {
-                        key: dir::DirKeyKind::CardBin,
+                        key: dir::DirKeyKind::CardBins,
                         value: format!("{value:?}"),
-                        message: Some("CardBin must be a number literal (u64)".to_string()),
+                        message: Some("CardBins must be an array of number literals".to_string()),
                     });
                 }
             };
 
-            let num_len = num.to_string().len();
-            if !(4..=6).contains(&num_len) {
-                return Err(AnalysisErrorType::InvalidValue {
-                    key: dir::DirKeyKind::CardBin,
-                    value: num.to_string(),
-                    message: Some("Expected 4 to 6 digits (only digits allowed)".to_string()),
-                });
+            // SECOND: validate each element of the BIN array
+            for num in nums {
+                let num_len = num.to_string().len();
+                if !(4..=6).contains(&num_len) {
+                    return Err(AnalysisErrorType::InvalidValue {
+                        key: dir::DirKeyKind::CardBins,
+                        value: num.to_string(),
+                        message: Some("Each CardBin must be 4 to 6 digits (only digits allowed)".to_string()),
+                    });
+                }
             }
-            lower_number!(CardBin, value, comparison)
+
+            // THIRD: LOWER using the macro with the ORIGINAL value
+            // (this is why your earlier version broke)
+            lower_number!(CardBins, value, comparison)
         }
         dir::DirKeyKind::CardBin => {
             let num = match &value {

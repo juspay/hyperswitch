@@ -12,6 +12,7 @@ pub enum VirInterpreterError {
     LoweringError(dssa::types::AnalysisError),
 }
 
+#[derive(Debug)]
 pub struct Context {
     atomic_values: FxHashSet<EuclidValue>,
     numeric_values: FxHashMap<EuclidKey, EuclidValue>,
@@ -148,8 +149,8 @@ impl Context {
             }),
         )]);
 
-        if let Some(card_bin_str) = payment.card_bin.as_deref() {
-            if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin_str) {
+        if let Some(card_bin) = payment.card_bin.as_deref() {
+            if let Some(card_bin_minor) = dssa::utils::string_to_minor_unit_cardbin(card_bin) {
                 numeric_values.insert(
                     EuclidKey::CardBins,
                     EuclidValue::CardBins(types::NumValue {
