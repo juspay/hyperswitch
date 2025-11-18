@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
 pub mod flows;
+pub mod gateway;
 pub mod helpers;
 pub mod operations;
 
@@ -22,9 +23,7 @@ use std::{
     vec::IntoIter,
 };
 
-#[cfg(feature = "v2")]
 use external_services::grpc_client;
-
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -91,6 +90,7 @@ pub use self::operations::{
 use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
+    gateway::context as gateway_context,
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
@@ -149,7 +149,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::authentication as authentication_core,
+    core::{
+        authentication as authentication_core,
+        unified_connector_service::update_gateway_system_in_feature_metadata,
+    },
     types::{api::authentication, BrowserInformation},
 };
 
@@ -727,7 +730,26 @@ where
         )
         .await?;
 
-        if is_eligible_for_uas {
+        if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
+            let maybe_connector_enum = match &connector_details {
+                ConnectorCallType::PreDetermined(connector_data) => {
+                    Some(connector_data.connector_data.connector_name)
+                }
+                ConnectorCallType::Retryable(connector_list) => connector_list
+                    .first()
+                    .map(|c| c.connector_data.connector_name),
+                ConnectorCallType::SessionMultiple(_) => None,
+            };
+
+            if let Some(connector_enum) = maybe_connector_enum {
+                if connector_enum.is_separate_authentication_supported() {
+                    logger::info!(
+                        "Proceeding with external authentication data provided by the merchant for connector: {:?}",
+                        connector_enum
+                    );
+                }
+            }
+        } else if is_eligible_for_uas {
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -2805,6 +2827,51 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
+pub(crate) async fn payments_execute_wrapper(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    request: payments_api::PaymentsConfirmIntentRequest,
+    header_payload: HeaderPayload,
+    payment_id: id_type::GlobalPaymentId,
+) -> RouterResponse<payments_api::PaymentsResponse> {
+    if request.split_payment_method_data.is_none() {
+        Box::pin(payments_core::<
+            api::Authorize,
+            api_models::payments::PaymentsResponse,
+            _,
+            _,
+            _,
+            PaymentConfirmData<api::Authorize>,
+        >(
+            state,
+            req_state,
+            merchant_context,
+            profile,
+            operations::PaymentIntentConfirm,
+            request,
+            payment_id,
+            CallConnectorAction::Trigger,
+            header_payload,
+        ))
+        .await
+    } else {
+        Box::pin(super::split_payments::split_payments_execute_core(
+            state,
+            req_state,
+            merchant_context,
+            profile,
+            request,
+            header_payload,
+            payment_id,
+        ))
+        .await
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub(crate) async fn payments_create_and_confirm_intent(
     state: SessionState,
     req_state: ReqState,
@@ -3920,6 +3987,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4082,6 +4150,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                context,
             )
             .await
     } else {
@@ -4318,83 +4387,138 @@ where
         }
     }
 
-    record_time_taken_with(|| async {
-        match execution_path {
-            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
-            ExecutionPath::UnifiedConnectorService => {
-                process_through_ucs(
-                    &updated_state,
-                    req_state,
-                    merchant_context,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    merchant_connector_account,
-                    &connector,
-                    router_data,
-                )
-                .await
-            }
+    let is_ucs_granular_flow =
+        gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-            // Process through Direct with Shadow UCS
-            ExecutionPath::ShadowUnifiedConnectorService => {
-                process_through_direct_with_shadow_unified_connector_service(
-                    &updated_state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    shadow_ucs_call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
-                )
-                .await
-            }
+    if is_ucs_granular_flow {
+        logger::info!("Current flow is UCS Composite flow");
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
 
-            // Process through Direct gateway
-            ExecutionPath::Direct => {
-                process_through_direct(
-                    state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
-                )
-                .await
+        let execution_mode = match execution_path {
+            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            // ExecutionMode is irrelevant for Direct path in this context
+            ExecutionPath::Direct => ExecutionMode::NotApplicable,
+        };
+
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path,
+            execution_mode,
+        };
+        // Update feature metadata to track Direct routing usage for stickiness
+        update_gateway_system_in_feature_metadata(
+            payment_data,
+            gateway_context.get_gateway_system(),
+        )?;
+        call_connector_service(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+            gateway_context,
+        )
+        .await
+    } else {
+        record_time_taken_with(|| async {
+            match execution_path {
+                // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+                ExecutionPath::UnifiedConnectorService => {
+                    process_through_ucs(
+                        &updated_state,
+                        req_state,
+                        merchant_context,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        merchant_connector_account,
+                        &connector,
+                        router_data,
+                    )
+                    .await
+                }
+
+                // Process through Direct with Shadow UCS
+                ExecutionPath::ShadowUnifiedConnectorService => {
+                    process_through_direct_with_shadow_unified_connector_service(
+                        &updated_state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        shadow_ucs_call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                    )
+                    .await
+                }
+
+                // Process through Direct gateway
+                ExecutionPath::Direct => {
+                    process_through_direct(
+                        state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                    )
+                    .await
+                }
             }
-        }
-    })
-    .await
+        })
+        .await
+    }
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
@@ -4535,6 +4659,19 @@ where
         // and rely on previous status set in router_data
         // TODO: status is already set when constructing payment data, why should this be done again?
         // router_data.status = payment_data.get_payment_attempt().status;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account_type_details,
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
         router_data
             .decide_flows(
                 state,
@@ -4544,6 +4681,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5350,6 +5488,26 @@ where
         )
         .await?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    // TODO: determine execution path for proxy call connector service
+    let execution_path = ExecutionPath::Direct;
+    // Execution mode is irrelevant for Direct execution path
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -5365,6 +5523,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5478,6 +5637,20 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     let router_data = if should_continue_further {
         router_data
@@ -5489,6 +5662,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5603,6 +5777,20 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     let router_data = if should_continue_further {
         router_data
@@ -5614,6 +5802,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -6138,6 +6327,19 @@ where
                 Some(header_payload.clone()),
             )
             .await?;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
 
         let res = router_data.decide_flows(
             state,
@@ -6147,6 +6349,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
+            gateway_context,
         );
 
         join_handlers.push(res);
@@ -6263,6 +6466,25 @@ where
             )
             .await?;
 
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+
+        // TODO: determine execution path for SDK session token call.
+        let execution_path = ExecutionPath::Direct;
+        let execution_mode = ExecutionMode::NotApplicable;
+
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path,
+            execution_mode,
+        };
+
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
@@ -6271,6 +6493,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
+            gateway_context,
         );
 
         join_handlers.push(res);
@@ -6786,25 +7009,23 @@ where
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && ((connector.connector_name == router_types::Connector::Nexixpay
-                    && is_operation_complete_authorize(&operation))
-                    || (((connector.connector_name == router_types::Connector::Nuvei && {
-                        #[cfg(feature = "v1")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true)
-                        }
-                        #[cfg(feature = "v2")]
-                        {
-                            payment_data
-                                .get_payment_intent()
-                                .request_external_three_ds_authentication
-                                != Some(true).into()
-                        }
-                    }) || connector.connector_name == router_types::Connector::Shift4)
-                        && !is_operation_complete_authorize(&operation)))
+                && (((connector.connector_name == router_types::Connector::Nuvei && {
+                    #[cfg(feature = "v1")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true)
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true).into()
+                    }
+                }) || connector.connector_name == router_types::Connector::Shift4)
+                    && !is_operation_complete_authorize(&operation))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
@@ -6843,6 +7064,13 @@ where
                     _ => false,
                 };
                 (router_data, should_continue)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && connector.connector_name == router_types::Connector::Nexixpay
+                && is_operation_complete_authorize(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -7707,6 +7935,7 @@ where
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
+    pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
 }
 
 #[cfg(feature = "v1")]
@@ -10469,6 +10698,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 &merchant_connector_account,
                 &authentication_connector,
                 Some(payment_intent.payment_id),
+                authentication.force_3ds_challenge,
+                authentication.psd2_sca_exemption_type,
             )
             .await?;
         let authentication = external_authentication_update_trackers(

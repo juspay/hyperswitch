@@ -424,36 +424,33 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     let is_mandate = item.router_data.request.is_mandate_payment();
                     let is_auto_capture = item.router_data.request.is_auto_capture()?;
 
-                    let (
-                        query,
-                        customer_details,
-                        vault_payment_method_after_transacting,
-                    ) = if is_mandate {
-                        (
-                            if is_auto_capture {
-                                CHARGE_AND_VAULT_APPLE_PAY_MUTATION.to_string()
-                            } else {
-                                AUTHORIZE_AND_VAULT_APPLE_PAY_MUTATION.to_string()
-                            },
-                            item.router_data
-                                .get_billing_email()
-                                .ok()
-                                .map(|email| CustomerBody { email }),
-                            Some(TransactionTiming {
-                                when: VaultTiming::Always,
-                            }),
-                        )
-                    } else {
-                        (
-                            if is_auto_capture {
-                                CHARGE_APPLE_PAY_MUTATION.to_string()
-                            } else {
-                                AUTHORIZE_APPLE_PAY_MUTATION.to_string()
-                            },
-                            None,
-                            None,
-                        )
-                    };
+                    let (query, customer_details, vault_payment_method_after_transacting) =
+                        if is_mandate {
+                            (
+                                if is_auto_capture {
+                                    CHARGE_AND_VAULT_APPLE_PAY_MUTATION.to_string()
+                                } else {
+                                    AUTHORIZE_AND_VAULT_APPLE_PAY_MUTATION.to_string()
+                                },
+                                item.router_data
+                                    .get_billing_email()
+                                    .ok()
+                                    .map(|email| CustomerBody { email }),
+                                Some(TransactionTiming {
+                                    when: VaultTiming::Always,
+                                }),
+                            )
+                        } else {
+                            (
+                                if is_auto_capture {
+                                    CHARGE_APPLE_PAY_MUTATION.to_string()
+                                } else {
+                                    AUTHORIZE_APPLE_PAY_MUTATION.to_string()
+                                },
+                                None,
+                                None,
+                            )
+                        };
 
                     Ok(Self::Wallet(BraintreeWalletRequest {
                         query,

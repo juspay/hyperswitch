@@ -634,6 +634,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             whole_connector_response: None,
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
+            external_authentication_data: request.three_ds_data.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1215,7 +1216,7 @@ impl PaymentCreate {
                         PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
                             Some(enums::PaymentMethodType::ApplePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
-                                    apple_pay: api::payments::ApplepayPaymentMethod::try_from(
+                                    apple_pay: Box::<api_models::payments::ApplepayPaymentMethod>::try_from(
                                         wallet,
                                     )
                                     .inspect_err(|err| {
@@ -1232,7 +1233,7 @@ impl PaymentCreate {
                             Some(enums::PaymentMethodType::GooglePay) => {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
-                                    google_pay: Some(wallet.into()),
+                                    google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
                                 })
                             }
@@ -1240,7 +1241,7 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: None,
-                                    samsung_pay: Some(wallet.into()),
+                                    samsung_pay: Some(Box::new(wallet.into())),
                                 })
                             }
                             _ => None,

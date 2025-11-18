@@ -23,7 +23,9 @@ use external_services::{
 use hyperswitch_interfaces::{
     crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
+    helpers as interfaces_helpers,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    types as interfaces_types,
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
@@ -164,13 +166,14 @@ impl SessionState {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.clone();
         let shadow_mode = match unified_connector_service_execution_mode {
-            ExecutionMode::Primary => false,
-            ExecutionMode::Shadow => true,
+            ExecutionMode::Primary => Some(false),
+            ExecutionMode::Shadow => Some(true),
+            ExecutionMode::NotApplicable => None,
         };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
-            .shadow_mode(Some(shadow_mode))
+            .shadow_mode(shadow_mode)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -248,6 +251,12 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+}
+
+impl interfaces_helpers::GetComparisonServiceConfig for SessionState {
+    fn get_comparison_service_config(&self) -> Option<interfaces_types::ComparisonServiceConfig> {
+        self.conf.comparison_service.clone()
     }
 }
 
@@ -3145,12 +3154,12 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
-            .service(web::resource("/status/{token_id}").route(
+            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
-            .service(web::resource("/redis-data/{token_id}").route(
+            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
                 web::get().to(
                     super::revenue_recovery_redis::get_revenue_recovery_redis_data,
                 ),

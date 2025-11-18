@@ -35,7 +35,7 @@ use crate::{
         revenue_recovery::types::{
             reopen_calculate_workflow_on_payment_failure, RevenueRecoveryOutgoingWebhook,
         },
-        revenue_recovery_data_backfill::unlock_connector_customer_status,
+        revenue_recovery_data_backfill::unlock_connector_customer_status_handler,
     },
     db::StorageInterface,
     logger,
@@ -309,7 +309,7 @@ pub async fn perform_execute_payment(
                     ))
                     .await?;
 
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
                 }
 
                 Some(payment_processor_token) => {
