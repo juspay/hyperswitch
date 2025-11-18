@@ -11860,6 +11860,14 @@
               }
             ],
             "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenField"
+            },
+            "description": "Fields to tokenization in vault",
+            "nullable": true
           }
         }
       },
@@ -19792,6 +19800,11 @@
             "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540,
             "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
+            "nullable": true
           }
         }
       },
@@ -24198,6 +24211,11 @@
             "type": "string",
             "description": "The reference id of the connector for the refund",
             "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains raw connector response",
+            "nullable": true
           }
         }
       },
@@ -24282,6 +24300,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -27322,6 +27345,33 @@
               }
             }
           }
+        ]
+      },
+      "VaultTokenField": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
         ]
       },
       "Venmo": {
