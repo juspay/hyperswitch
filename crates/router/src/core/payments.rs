@@ -3821,13 +3821,6 @@ where
             _ => return Ok(None),
         };
 
-        // Check if the wallet has already decrypted the token from the payment data.
-        // If a pre-decrypted token is available, use it directly to avoid redundant decryption.
-        if let Some(predecrypted_token) = wallet.check_predecrypted_token(payment_data)? {
-            logger::debug!("Using predecrypted token for wallet");
-            return Ok(Some(predecrypted_token));
-        }
-
         let merchant_connector_account =
             get_merchant_connector_account_for_wallet_decryption_flow::<F, D>(
                 state,
@@ -3836,6 +3829,15 @@ where
                 connector_call_type_optional,
             )
             .await?;
+        // Check if the wallet has already decrypted the token from the payment data.
+        // If a pre-decrypted token is available, check if it is enabled in mca and use it directly to avoid redundant decryption.
+
+        if let Some(predecrypted_token) =
+            wallet.check_predecrypted_token(payment_data, &merchant_connector_account)?
+        {
+            logger::debug!("Using predecrypted token for wallet");
+            return Ok(Some(predecrypted_token));
+        }
 
         let decide_wallet_flow = &wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
@@ -4146,6 +4148,7 @@ where
     ) {
         let payment_method_data = payment_data.get_payment_method_data();
         let customer_id = payment_data.get_payment_intent().customer_id.clone();
+
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
@@ -5640,6 +5643,7 @@ where
     fn check_predecrypted_token(
         &self,
         _payment_data: &D,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         // Default implementation returns None (no pre-decrypted data)
         Ok(None)
@@ -5736,13 +5740,14 @@ where
     fn check_predecrypted_token(
         &self,
         payment_data: &D,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         let apple_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data());
 
-        let result = if let Some(data) = apple_pay_wallet_data {
+        let pre_decrypted_token = if let Some(data) = apple_pay_wallet_data {
             match &data.payment_data {
                 common_payments_types::ApplePayPaymentData::Encrypted(_) => None,
                 common_payments_types::ApplePayPaymentData::Decrypted(
@@ -5760,7 +5765,27 @@ where
         } else {
             None
         };
-        Ok(result)
+
+        let enable_predecrypted_token = merchant_connector_account
+            .get_metadata()
+            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+                "ApplepayCombinedSessionTokenData",
+            )
+            .ok()
+            .and_then(|apple_pay_metadata| {
+                apple_pay_metadata
+                    .apple_pay_combined
+                    .enable_predecrypted_token
+            })
+            .unwrap_or(false);
+        match (pre_decrypted_token, enable_predecrypted_token) {
+            (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Predecrypted token config is not enabled for ApplePay".to_string(),
+            }
+            .into()),
+            (Some(token), true) => Ok(Some(token)),
+            (None, _) => Ok(None),
+        }
     }
 
     fn decide_wallet_flow(
@@ -5848,13 +5873,14 @@ where
     fn check_predecrypted_token(
         &self,
         payment_data: &D,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse> {
         let google_pay_wallet_data = payment_data
             .get_payment_method_data()
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data());
 
-        let result = if let Some(data) = google_pay_wallet_data {
+        let pre_decrypted_token = if let Some(data) = google_pay_wallet_data {
             match &data.tokenization_data {
                 common_payments_types::GpayTokenizationData::Encrypted(_) => None,
                 common_payments_types::GpayTokenizationData::Decrypted(
@@ -5872,7 +5898,20 @@ where
         } else {
             None
         };
-        Ok(result)
+        let enable_predecrypted_token = merchant_connector_account
+            .get_metadata()
+            .parse_value::<api_models::payments::GooglePayWalletDetails>("GooglePayWalletDetails")
+            .ok()
+            .and_then(|apple_pay_metadata| apple_pay_metadata.google_pay.enable_predecrypted_token)
+            .unwrap_or(false);
+        match (pre_decrypted_token, enable_predecrypted_token) {
+            (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Predecrypted token config is not enabled for ApplePay".to_string(),
+            }
+            .into()),
+            (Some(token), true) => Ok(Some(token)),
+            (None, _) => Ok(None),
+        }
     }
     fn decide_wallet_flow(
         &self,
@@ -7236,7 +7275,7 @@ fn check_apple_pay_metadata(
                 )
                 .map(|combined_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                        combined_metadata.apple_pay_combined,
+                        combined_metadata.apple_pay_combined.data,
                     )
                 })
                 .or_else(|_| {

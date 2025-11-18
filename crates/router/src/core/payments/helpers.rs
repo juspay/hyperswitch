@@ -5688,7 +5688,7 @@ pub fn get_applepay_metadata(
         )
         .map(|combined_metadata| {
             api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined,
+                combined_metadata.apple_pay_combined.data,
             )
         })
         .or_else(|_| {

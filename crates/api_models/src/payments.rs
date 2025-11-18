@@ -9082,8 +9082,15 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: ApplePayCombinedMetadata,
+    pub enable_predecrypted_token: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9192,6 +9199,7 @@ pub struct GooglePayWalletDetails {
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
     pub cards: GpayAllowedMethodsParameters,
+    pub enable_predecrypted_token: Option<bool>,
 }
 
 // Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails

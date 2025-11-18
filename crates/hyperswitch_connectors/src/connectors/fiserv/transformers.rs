@@ -615,7 +615,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                             )
                             .map(|combined_metadata| {
                                 ApplepaySessionTokenMetadata::ApplePayCombined(
-                                    combined_metadata.apple_pay_combined,
+                                    combined_metadata.apple_pay_combined.data,
                                 )
                             })
                             .or_else(|_| {
