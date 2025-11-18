@@ -307,7 +307,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 merchant_context.get_merchant_key_store(),
                 storage_scheme,
@@ -358,7 +357,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
-                key_manager_state,
                 merchant_context.get_merchant_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
