@@ -1288,7 +1288,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
         (Connector::Authipay, fields(vec![], vec![], card_basic())),
-        (Connector::Adyen, fields(vec![], vec![], card_basic())),
+        (Connector::Adyen, fields(vec![], vec![], card_with_name())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
             Connector::Authorizedotnet,
