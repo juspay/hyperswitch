@@ -129,6 +129,7 @@ impl EuclidDirFilter for ConnectorSelection {
     const ALLOWED: &'static [DirKeyKind] = &[
         DirKeyKind::PaymentMethod,
         DirKeyKind::CardBin,
+        DirKeyKind::CardBins,
         DirKeyKind::CardType,
         DirKeyKind::CardNetwork,
         DirKeyKind::PayLaterType,
