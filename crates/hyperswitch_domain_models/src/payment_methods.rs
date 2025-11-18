@@ -243,20 +243,6 @@ impl PaymentMethod {
         }
     }
 
-    #[cfg(feature = "v1")]
-    pub fn is_migrated_card(&self) -> bool {
-        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
-            && self.locker_id.is_none()
-            && self.connector_mandate_details.is_some()
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn is_migrated_card(&self) -> bool {
-        self.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
-            && self.locker_id.is_none()
-            && self.connector_mandate_details.is_some()
-    }
-
     #[cfg(feature = "v2")]
     pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
         self.payment_method_type = Some(payment_method_type);

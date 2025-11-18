@@ -121,6 +121,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bitpay::transformers::BitpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_models::connector_enums::Connector::Zift => {
+                zift::transformers::ZiftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Bambora => {
                 bambora::transformers::BamboraAuthType::try_from(self.auth_type)?;
                 Ok(())

@@ -1515,6 +1515,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Zift,
+            fields(vec![], vec![], [card_with_name()].concat()),
+        ),
+        (
             Connector::Nuvei,
             fields(
                 vec![],
@@ -2350,6 +2354,7 @@ fn get_bank_redirect_required_fields(
                             RequiredField::BillingUserFirstName,
                             RequiredField::BillingUserLastName,
                             RequiredField::BillingPhone,
+                            RequiredField::BillingPhoneCountryCode,
                         ],
                         vec![],
                     ),

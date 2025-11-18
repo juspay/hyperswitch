@@ -413,6 +413,7 @@ impl PaymentMethodCreate {
                     card_network: payment_method_migrate_card.card_network.clone(),
                     card_issuer: payment_method_migrate_card.card_issuer.clone(),
                     card_type: payment_method_migrate_card.card_type.clone(),
+                    card_cvc: None,
                 });
 
         Self {
@@ -543,6 +544,10 @@ pub struct CardDetail {
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
     pub card_exp_year: masking::Secret<String>,
+
+    /// Card CVC for Volatile Storage
+    #[schema(value_type = Option<String>,example = "123")]
+    pub card_cvc: Option<masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
@@ -825,6 +830,7 @@ impl CardDetailUpdate {
                 .nick_name
                 .clone()
                 .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_cvc: None,
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -1187,6 +1193,12 @@ pub struct PaymentMethodDataWalletInfo {
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1195,6 +1207,8 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1205,6 +1219,8 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1223,18 +1239,22 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.network,
             card_type: Some(item.pm_type),
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
 
-impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4,
             network: item.card_network,
             pm_type: item.card_type.get_required_value("card_type")?,
-        })
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
+        }))
     }
 }
 
@@ -1278,6 +1298,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
             nick_name: card.nick_name.map(masking::Secret::new),
+            card_cvc: None,
             card_issuing_country: None,
             card_network,
             card_issuer: None,
@@ -2670,6 +2691,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
