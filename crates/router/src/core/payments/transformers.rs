@@ -2745,7 +2745,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         profile: &domain::Profile,
         connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
@@ -2803,7 +2803,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
         // TODO: Add support for other next actions, currently only supporting redirect to url
         let redirect_to_url = payment_intent.create_start_redirection_url(
             &state.base_url,
-            merchant_context
+            platform
                 .get_merchant_account()
                 .publishable_key
                 .clone(),

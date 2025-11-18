@@ -257,7 +257,7 @@ pub async fn payments_check_and_apply_pm_data_core(
                 None => {
                     match payments_check_gift_card_balance_core(
                         &state,
-                        &merchant_context,
+                        &platform,
                         &profile,
                         &_req_state,
                         pm.clone(),

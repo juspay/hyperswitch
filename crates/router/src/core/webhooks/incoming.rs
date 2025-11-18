@@ -1522,7 +1522,7 @@ async fn payouts_incoming_webhook_flow(
 
     let mut payout_data = Box::pin(payouts::make_payout_data(
         &state,
-        &merchant_context,
+        &platform,
         None,
         &action_req,
         common_utils::consts::DEFAULT_LOCALE,
@@ -1633,7 +1633,7 @@ async fn payouts_incoming_webhook_flow(
 
         Box::pin(payouts::create_payout_retrieve(
             &state,
-            &merchant_context,
+            &platform,
             &connector_data,
             &mut payout_data,
         ))

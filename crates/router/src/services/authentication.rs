@@ -61,7 +61,7 @@ mod detached;
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
-    pub platform_merchant_context: Option<PlatformMerchantContext>,
+    pub platform_merchant_context: Option<PlatformPlatform>,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id: Option<id_type::ProfileId>,
 }
@@ -72,11 +72,11 @@ pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile: domain::Profile,
-    pub platform_merchant_context: Option<PlatformMerchantContext>,
+    pub platform_merchant_context: Option<PlatformPlatform>,
 }
 
 #[derive(Clone, Debug)]
-pub struct PlatformMerchantContext {
+pub struct PlatformPlatform {
     account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
 }
@@ -534,7 +534,7 @@ where
         let platform_merchant_context =
             platform_merchant_account
                 .clone()
-                .map(|platform_account| PlatformMerchantContext {
+                .map(|platform_account| PlatformPlatform {
                     account: platform_account,
                     key_store: key_store.clone(),
                 });
@@ -668,7 +668,7 @@ where
         let platform_merchant_context =
             platform_merchant_account
                 .clone()
-                .map(|platform_account| PlatformMerchantContext {
+                .map(|platform_account| PlatformPlatform {
                     account: platform_account,
                     key_store: key_store.clone(),
                 });
@@ -939,7 +939,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant_account.clone(),
-            platform_merchant_context: Some(PlatformMerchantContext {
+            platform_merchant_context: Some(PlatformPlatform {
                 account: merchant_account.clone(),
                 key_store: key_store.clone(),
             }),
@@ -1072,7 +1072,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: route_merchant,
-            platform_merchant_context: Some(PlatformMerchantContext {
+            platform_merchant_context: Some(PlatformPlatform {
                 account: platform_merchant.clone(),
                 key_store: platform_key_store.clone(),
             }),
@@ -1296,7 +1296,7 @@ where
     let platform_merchant_context =
         platform_merchant_account
             .clone()
-            .map(|platform_account| PlatformMerchantContext {
+            .map(|platform_account| PlatformPlatform {
                 account: platform_account,
                 key_store: key_store.clone(),
             });
@@ -2692,7 +2692,7 @@ where
         let platform_merchant_context =
             platform_merchant_account
                 .clone()
-                .map(|platform_account| PlatformMerchantContext {
+                .map(|platform_account| PlatformPlatform {
                     account: platform_account,
                     key_store: key_store.clone(),
                 });

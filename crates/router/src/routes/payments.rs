@@ -2420,7 +2420,7 @@ pub async fn retrieve_extended_card_info(
         &req,
         payment_id,
         |state, auth: auth::AuthenticationData, payment_id, _| {
-            let platform: domain::Platform = auth.into(); // check this
+            let platform: domain::Platform = auth.into();
             payments::get_extended_card_info(
                 state,
                 platform.get_processor().get_account().get_id().to_owned(),

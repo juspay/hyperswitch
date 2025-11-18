@@ -154,7 +154,7 @@ impl<F: Send + Clone + Sync>
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: platform.get_merchant_account().get_id().to_owned(),
+            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,
             requeue: false,
         })

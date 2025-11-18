@@ -234,7 +234,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _state: &'a SessionState,
         _payment_id: &common_utils::id_type::GlobalPaymentId,
         _request: &R,
-        _merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::Platform,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _split_amount_data: (

@@ -2822,7 +2822,7 @@ where
 pub(crate) async fn payments_execute_wrapper(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     request: payments_api::PaymentsConfirmIntentRequest,
     header_payload: HeaderPayload,
@@ -2839,7 +2839,7 @@ pub(crate) async fn payments_execute_wrapper(
         >(
             state,
             req_state,
-            merchant_context,
+            platform,
             profile,
             operations::PaymentIntentConfirm,
             request,
@@ -2852,7 +2852,7 @@ pub(crate) async fn payments_execute_wrapper(
         Box::pin(super::split_payments::split_payments_execute_core(
             state,
             req_state,
-            merchant_context,
+            platform,
             profile,
             request,
             header_payload,

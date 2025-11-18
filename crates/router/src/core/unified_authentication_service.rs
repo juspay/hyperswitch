@@ -1922,7 +1922,7 @@ pub async fn authentication_sync_core(
             } else {
                 Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
-                    &merchant_context,
+                    &platform,
                     &business_profile,
                     &post_auth_response,
                 ))

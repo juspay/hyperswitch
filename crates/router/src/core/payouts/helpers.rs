@@ -767,7 +767,7 @@ pub async fn save_payout_data_to_locker(
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
-    _merchant_context: &domain::MerchantContext,
+    _merchant_context: &domain::Platform,
 ) -> RouterResult<Option<domain::Customer>> {
     todo!()
 }

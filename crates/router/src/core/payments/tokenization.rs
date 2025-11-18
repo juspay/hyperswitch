@@ -79,7 +79,7 @@ async fn save_in_locker(
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
-            save_in_locker_internal(state, merchant_context, payment_method_request, card_detail)
+            save_in_locker_internal(state, platform, payment_method_request, card_detail)
                 .await
         }
     }
@@ -135,7 +135,7 @@ where
     let mut pm_status = None;
     let cards = PmCards {
         state,
-        merchant_context,
+        platform,
     };
     match save_payment_method_data.response {
         Ok(responses) => {
@@ -248,7 +248,7 @@ where
                 let co_badged_card_data = payment_methods_data.get_co_badged_card_data();
 
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                let merchant_id = merchant_context.get_merchant_account().get_id();
+                let merchant_id = platform.get_processor().get_account().get_id();
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
                 let (
@@ -316,7 +316,7 @@ where
                         .async_map(|pm| {
                             create_encrypted_data(
                                 &key_manager_state,
-                                merchant_context.get_merchant_key_store(),
+                                platform.get_processor().get_key_store(),
                                 pm,
                             )
                         })
@@ -910,7 +910,7 @@ pub async fn save_payment_method<FData>(
     _connector_name: String,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
-    _merchant_context: &domain::MerchantContext,
+    _merchant_context: &domain::Platform,
     _payment_method_type: Option<storage_enums::PaymentMethodType>,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,

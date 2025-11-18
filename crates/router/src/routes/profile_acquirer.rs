@@ -70,7 +70,7 @@ pub async fn profile_acquirer_update(
                 profile_id.clone(),
                 profile_acquirer_id.clone(),
                 req,
-                platform.clone(),
+                platform,
             )
         },
         auth::auth_type(
