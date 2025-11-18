@@ -3138,14 +3138,16 @@ pub async fn payment_methods_session_create(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &request.customer_id,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    if request.customer_id.is_some() {
+        db.find_customer_by_global_id(
+            key_manager_state,
+            &request.customer_id,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    }
 
     let payment_methods_session_id =
         id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)

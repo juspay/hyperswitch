@@ -659,7 +659,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
     pub id: id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
     pub return_url: Option<common_utils::types::Url>,
