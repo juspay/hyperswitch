@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -77,6 +77,7 @@ use crate::core::{
     payments::{
         call_connector_service, customers,
         flows::{ConstructFlowSpecificData, Feature},
+        gateway::context as gateway_context,
         operations::ValidateResult as OperationsValidateResult,
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
@@ -2671,6 +2672,10 @@ pub async fn fetch_card_details_from_external_vault(
                     .attach_printable("Failed to generate card data")?,
             )
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Network Token not supproted")
+        }
     }
 }
 #[cfg(feature = "v1")]
@@ -4594,7 +4599,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
-        is_migrated_card: router_data.is_migrated_card,
     }
 }
 
@@ -5293,24 +5297,50 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
+                let (card_exp_month, card_exp_year) = match apple_pay_wallet_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.application_expiration_month.clone()),
+                        Some(token.application_expiration_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
+                    apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
-                    }),
+                        card_exp_month,
+                        card_exp_year,
+                    })),
                     google_pay: None,
                     samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
+                let (card_exp_month, card_exp_year) = match google_pay_pm_data
+                    .tokenization_data
+                    .get_decrypted_google_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.card_exp_month.clone()),
+                        Some(token.card_exp_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
-                    google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: google_pay_pm_data.info.card_details.clone(),
-                        card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: Some(google_pay_pm_data.pm_type.clone()),
-                    }),
+                    google_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: google_pay_pm_data.info.card_details.clone(),
+                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            card_exp_month,
+                            card_exp_year,
+                        },
+                    )),
                     samsung_pay: None,
                 }))
             }
@@ -5318,17 +5348,21 @@ pub async fn get_additional_payment_data(
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: None,
-                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: samsung_pay_pm_data
-                            .payment_credential
-                            .card_last_four_digits
-                            .clone(),
-                        card_network: samsung_pay_pm_data
-                            .payment_credential
-                            .card_brand
-                            .to_string(),
-                        card_type: None,
-                    }),
+                    samsung_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: samsung_pay_pm_data
+                                .payment_credential
+                                .card_last_four_digits
+                                .clone(),
+                            card_network: samsung_pay_pm_data
+                                .payment_credential
+                                .card_brand
+                                .to_string(),
+                            card_type: None,
+                            card_exp_month: None,
+                            card_exp_year: None,
+                        },
+                    )),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
@@ -8474,6 +8508,19 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: None,
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     call_connector_service(
         state,
@@ -8494,6 +8541,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await
 }
@@ -8582,6 +8630,17 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids: lineage_ids.clone(),
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode,
+    };
 
     // Call Direct connector service
     let result = call_connector_service(
@@ -8603,6 +8662,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await?;
 
@@ -8716,84 +8776,5 @@ where
             router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
             Ok(())
         }
-    }
-}
-
-/// A formatted string key in the format "payment_methods_{customer_id}_{locker_id}"
-#[cfg(feature = "v1")]
-pub fn construct_payment_method_key_for_locking(
-    customer_id: &id_type::CustomerId,
-    locker_id: &str,
-) -> String {
-    format!(
-        "payment_methods_{}_{}",
-        customer_id.get_string_repr(),
-        locker_id
-    )
-}
-
-#[cfg(feature = "v1")]
-pub async fn perform_payment_method_duplication_check(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
-    payment_method_id: &str,
-    customer_id: &id_type::CustomerId,
-    card_detail: &api::CardDetailFromLocker,
-) -> RouterResult<Option<payment_methods::transformers::DataDuplicationCheck>> {
-    let db = &*state.store;
-    let existing_pm_by_locker_id = db
-        .find_payment_method_by_locker_id_customer_id_merchant_id(
-            &(state.into()),
-            merchant_context.get_merchant_key_store(),
-            payment_method_id,
-            customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await;
-
-    let duplication_check = match &existing_pm_by_locker_id {
-        Ok(pm) => {
-            //check for duplication
-            let card_decrypted = pm
-                .payment_method_data
-                .clone()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
-                .and_then(|pmd| match pmd {
-                    api::PaymentMethodsData::Card(card) => {
-                        Some(api::CardDetailFromLocker::from(card))
-                    }
-                    _ => None,
-                })
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to obtain decrypted token object from db")?;
-
-            // Use the duplication check function to compare card details
-            check_for_duplication_of_card_data(card_detail, &card_decrypted)
-        }
-        Err(err) => {
-            logger::error!(
-                "Error fetching existing payment method for locker_id: {}, customer_id: {}: {:?}",
-                payment_method_id,
-                customer_id.get_string_repr(),
-                err
-            );
-            None
-        }
-    };
-
-    Ok(duplication_check)
-}
-
-#[cfg(feature = "v1")]
-pub fn check_for_duplication_of_card_data(
-    card_details: &api::CardDetailFromLocker,
-    card_decrypted: &api::CardDetailFromLocker,
-) -> Option<payment_methods::transformers::DataDuplicationCheck> {
-    if card_details.eq(card_decrypted) {
-        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
-    } else {
-        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
     }
 }

@@ -6,6 +6,7 @@ use api_models::revenue_recovery_data_backfill::{
     UnlockStatusResponse, UpdateTokenStatusRequest, UpdateTokenStatusResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
+use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
@@ -62,20 +63,46 @@ pub async fn revenue_recovery_data_backfill(
     Ok(ApplicationResponse::Json(response))
 }
 
-pub async fn unlock_connector_customer_status(
+pub async fn unlock_connector_customer_status_handler(
     state: SessionState,
     connector_customer_id: String,
+    payment_id: id_type::GlobalPaymentId,
 ) -> RouterResult<ApplicationResponse<UnlockStatusResponse>> {
     let unlocked = storage::revenue_recovery_redis_operation::
-        RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id)
+        RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id, &payment_id)
         .await
         .map_err(|e| {
             logger::error!(
-                "Failed to unlock connector customer status for {}: {}",
+                "Failed to unlock connector customer status for {}: {:?}",
                 connector_customer_id,
                 e
             );
-            errors::ApiErrorResponse::InternalServerError
+            match e.current_context() {
+                errors::StorageError::RedisError(redis_error) => {
+                    match redis_error.current_context() {
+                        storage_impl::errors::RedisError::DeleteFailed => {
+                            // This indicates the payment_id doesn't own the lock
+                            errors::ApiErrorResponse::InvalidPaymentIdProvided {
+                                resource: format!("The Status token for connector costumer id:- {} is locked by different PaymentIntent ID", connector_customer_id)
+                            }
+                        }
+                        _ => {
+                            // Other Redis errors - infrastructure issue
+                            errors::ApiErrorResponse::InternalServerError
+                        }
+                    }
+                }
+                errors::StorageError::ValueNotFound(_) => {
+                    // Lock doesn't exist
+                    errors::ApiErrorResponse::GenericNotFoundError {
+                        message: format!("Lock not found for connector customer id: {}", connector_customer_id)
+                    }
+                }
+                _ => {
+                    // Fallback for other storage errors
+                    errors::ApiErrorResponse::InternalServerError
+                }
+            }
         })?;
 
     let response = UnlockStatusResponse { unlocked };
@@ -362,7 +389,7 @@ fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<ComprehensiveCardData, BackfillError> {
     // Extract card type from request, if not present then update it with 'card'
-    let card_type = Some(determine_card_type(record.payment_method_sub_type));
+    let card_type = determine_card_type(record.payment_method_sub_type);
 
     // Parse expiration date
     let (exp_month, exp_year) = parse_expiration_date(
@@ -409,7 +436,7 @@ fn build_comprehensive_card_data(
 }
 
 /// Determine card type with fallback logic: payment_method_sub_type if not present -> "Card"
-fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> String {
+fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> Option<String> {
     match payment_method_sub_type {
         Some(card_type_enum) => {
             let mapped_type = match card_type_enum {
@@ -424,11 +451,11 @@ fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> St
                 card_type_enum,
                 mapped_type
             );
-            mapped_type
+            Some(mapped_type)
         }
         None => {
-            logger::info!("In CSV payment_method_sub_type not present, defaulting to 'card'");
-            "card".to_string()
+            logger::info!("In CSV payment_method_sub_type not present...");
+            None
         }
     }
 }

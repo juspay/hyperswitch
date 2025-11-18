@@ -773,7 +773,7 @@ pub fn build_unified_connector_service_payment_method(
                     )?,
                 ),
                 card_exp_month: Some(card_exp_month.into()),
-                card_exp_year: Some(card.get_expiry_year_4_digit().expose().into()),
+                card_exp_year: Some(card.card_exp_year.expose().into()),
                 card_cvc: Some(card.card_cvc.expose().into()),
                 card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: card.card_issuer.clone(),
@@ -1610,6 +1610,139 @@ where
     router_result.map(|mut router_data| {
         router_data.0.external_latency =
             Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
+        router_data
+    })
+}
+
+/// new UCS Event Logging Wrapper Function with UCS error response
+/// This function wraps UCS calls with comprehensive event logging.
+/// It logs the actual gRPC request/response data, timing, and error information.
+#[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
+pub async fn ucs_logging_wrapper_new<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+    router_data: RouterData<T, Req, Resp>,
+    state: &SessionState,
+    grpc_request: GrpcReq,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
+    handler: F,
+) -> CustomResult<RouterData<T, Req, Resp>, UnifiedConnectorServiceError>
+where
+    T: std::fmt::Debug + Clone + Send + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    GrpcReq: serde::Serialize,
+    GrpcResp: serde::Serialize,
+    F: FnOnce(
+            RouterData<T, Req, Resp>,
+            GrpcReq,
+            external_services::grpc_client::GrpcHeadersUcs,
+        ) -> Fut
+        + Send,
+    Fut: std::future::Future<
+            Output = CustomResult<
+                (RouterData<T, Req, Resp>, GrpcResp),
+                UnifiedConnectorServiceError,
+            >,
+        > + Send,
+{
+    tracing::Span::current().record("connector_name", &router_data.connector);
+    tracing::Span::current().record("flow_type", std::any::type_name::<T>());
+    tracing::Span::current().record("payment_id", &router_data.payment_id);
+
+    // Capture request data for logging
+    let connector_name = router_data.connector.clone();
+    let payment_id = router_data.payment_id.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let refund_id = router_data.refund_id.clone();
+    let dispute_id = router_data.dispute_id.clone();
+    let grpc_header = grpc_header_builder.build();
+    // Log the actual gRPC request with masking
+    let grpc_request_body = masking::masked_serialize(&grpc_request)
+        .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+
+    // Update connector call count metrics for UCS operations
+    crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector_name.clone()),
+            (
+                "flow",
+                std::any::type_name::<T>()
+                    .split("::")
+                    .last()
+                    .unwrap_or_default()
+            ),
+        ),
+    );
+
+    // Execute UCS function and measure timing
+    let start_time = Instant::now();
+    let result = handler(router_data, grpc_request, grpc_header).await;
+    let external_latency = start_time.elapsed().as_millis();
+
+    // Create and emit connector event after UCS call
+    let (status_code, response_body, router_result) = match result {
+        Ok((updated_router_data, grpc_response)) => {
+            let status = updated_router_data
+                .connector_http_status_code
+                .unwrap_or(200);
+
+            // Log the actual gRPC response
+            let grpc_response_body = serde_json::to_value(&grpc_response).unwrap_or_else(
+                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+            );
+
+            (status, Some(grpc_response_body), Ok(updated_router_data))
+        }
+        Err(error) => {
+            // Update error metrics for UCS calls
+            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                1,
+                router_env::metric_attributes!(("connector", connector_name.clone(),)),
+            );
+
+            let error_body = serde_json::json!({
+                "error": error.to_string(),
+                "error_type": "ucs_call_failed"
+            });
+            (500, Some(error_body), Err(error))
+        }
+    };
+
+    let mut connector_event = ConnectorEvent::new(
+        state.tenant.tenant_id.clone(),
+        connector_name,
+        std::any::type_name::<T>(),
+        grpc_request_body,
+        "grpc://unified-connector-service".to_string(),
+        Method::Post,
+        payment_id,
+        merchant_id,
+        state.request_id.as_ref(),
+        external_latency,
+        refund_id,
+        dispute_id,
+        status_code,
+    );
+
+    // Set response body based on status code
+    if let Some(body) = response_body {
+        match status_code {
+            400..=599 => {
+                connector_event.set_error_response_body(&body);
+            }
+            _ => {
+                connector_event.set_response_body(&body);
+            }
+        }
+    }
+
+    // Emit event
+    state.event_handler.log_event(&connector_event);
+
+    // Set external latency on router data
+    router_result.map(|mut router_data| {
+        router_data.external_latency =
+            Some(router_data.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
 }

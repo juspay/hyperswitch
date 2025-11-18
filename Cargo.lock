@@ -4411,6 +4411,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time",
+ "tokio 1.48.0",
 ]
 
 [[package]]
@@ -7370,6 +7371,7 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "cargo_metadata 0.18.1",
  "config",
  "error-stack 0.4.1",
@@ -7391,6 +7393,7 @@ dependencies = [
  "tracing-attributes",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "uuid",
  "vergen",
 ]
 

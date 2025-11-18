@@ -138,7 +138,6 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         }
     }
 }
