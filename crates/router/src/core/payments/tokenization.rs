@@ -79,8 +79,7 @@ async fn save_in_locker(
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
-            save_in_locker_internal(state, platform, payment_method_request, card_detail)
-                .await
+            save_in_locker_internal(state, platform, payment_method_request, card_detail).await
         }
     }
 }
@@ -133,10 +132,7 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    let cards = PmCards {
-        state,
-        platform,
-    };
+    let cards = PmCards { state, platform };
     match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -407,7 +403,8 @@ where
                                                 platform.get_processor().get_key_store(),
                                                 &payment_method_id,
                                                 platform
-                                                    .get_processor().get_account()
+                                                    .get_processor()
+                                                    .get_account()
                                                     .storage_scheme,
                                             )
                                             .await;
@@ -510,7 +507,8 @@ where
                                                     platform.get_processor().get_key_store(),
                                                     &payment_method_id,
                                                     platform
-                                                        .get_processor().get_account()
+                                                        .get_processor()
+                                                        .get_account()
                                                         .storage_scheme,
                                                 )
                                                 .await;
@@ -828,7 +826,8 @@ where
                                     let callback_mapper_data =
                                         CallbackMapperData::NetworkTokenWebhook {
                                             merchant_id: platform
-                                                .get_processor().get_account()
+                                                .get_processor()
+                                                .get_account()
                                                 .get_id()
                                                 .clone(),
                                             customer_id,

@@ -866,7 +866,8 @@ pub async fn sync_refund_with_gateway(
 
     let connector_response = perform_integrity_check(connector_response);
 
-    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response.clone());
+    let refund_update =
+        build_refund_update_for_rsync(&connector, platform, connector_response.clone());
 
     let response = state
         .store
@@ -950,7 +951,8 @@ pub async fn internal_sync_refund_with_gateway(
 
     let connector_response = perform_integrity_check(connector_response);
 
-    let refund_update = build_refund_update_for_rsync(&connector, platform, connector_response.clone());
+    let refund_update =
+        build_refund_update_for_rsync(&connector, platform, connector_response.clone());
 
     let response = state
         .store
