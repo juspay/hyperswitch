@@ -27535,6 +27535,11 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
+            "nullable": true
+          },
           "payment_experience": {
             "allOf": [
               {
@@ -29069,6 +29074,11 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
             "nullable": true
           },
           "unified_code": {
