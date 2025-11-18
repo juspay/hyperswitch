@@ -6,6 +6,9 @@ pub const NO_ERROR_MESSAGE: &str = "No error message";
 /// No error code string const
 pub const NO_ERROR_CODE: &str = "No error code";
 
+/// No error reason string const
+pub const NO_ERROR_REASON: &str = "No error reason";
+
 /// Accepted format for request
 pub const ACCEPT_HEADER: &str = "text/html,application/json";
 
