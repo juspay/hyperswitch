@@ -1397,7 +1397,7 @@ pub struct PaymentsRequest {
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    #[schema(value_type = Option<Tokenization>, example = "psp_managed")]
+    #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
 }
 

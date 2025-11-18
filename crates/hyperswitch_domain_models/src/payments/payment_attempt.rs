@@ -1257,6 +1257,18 @@ impl PaymentAttempt {
             .ok()
             .flatten()
     }
+    pub fn get_tokenization_strategy(&self) -> Option<common_enums::Tokenization> {
+        match self.setup_future_usage_applied {
+            Some(common_enums::FutureUsage::OnSession) | None => None,
+            Some(common_enums::FutureUsage::OffSession) => Some(
+                self.connector_mandate_detail
+                    .as_ref()
+                    .and_then(|detail| detail.connector_mandate_id.as_ref())
+                    .map(|_| common_enums::Tokenization::TokenizeAtPsp)
+                    .unwrap_or(common_enums::Tokenization::SkipPsp),
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

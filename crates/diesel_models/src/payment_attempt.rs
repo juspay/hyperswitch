@@ -33,22 +33,6 @@ impl ConnectorMandateReferenceId {
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
     }
-
-    pub fn get_tokenization_strategy(
-        &self,
-        setup_future_usage: Option<common_enums::FutureUsage>,
-    ) -> Option<common_enums::Tokenization> {
-        match setup_future_usage {
-            Some(common_enums::FutureUsage::OnSession) | None => None,
-            Some(common_enums::FutureUsage::OffSession) => {
-                if self.connector_mandate_id.is_some() {
-                    Some(common_enums::Tokenization::TokenizeAtPsp)
-                } else {
-                    Some(common_enums::Tokenization::SkipPsp)
-                }
-            }
-        }
-    }
 }
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
 #[derive(
