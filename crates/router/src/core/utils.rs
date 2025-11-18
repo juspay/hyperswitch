@@ -1865,15 +1865,15 @@ pub fn get_connector_customer_reference_id(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| "Failed to construct connector data")?;
 
-    let connector_request_reference_id = connector_data
+    connector_data
         .connector
         .generate_connector_customer_reference_id(
             connector_customer_id,
             customer_id,
             payment_method_info,
             payment_attempt,
-        );
-    Ok(connector_request_reference_id)
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
 
 #[cfg(feature = "v2")]
@@ -1884,7 +1884,7 @@ pub fn get_connector_customer_reference_id(
     customer_id: &Option<common_utils::id_type::CustomerId>,
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-) -> Option<String> {
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     todo!()
 }
 
@@ -1896,15 +1896,15 @@ pub fn get_payout_connector_customer_reference_id(
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
     payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let payout_connector_request_reference_id = connector_data
+    connector_data
         .connector
         .generate_payout_connector_customer_reference_id(
             connector_customer_id,
             customer_id,
             payment_method_info,
             payout_attempt,
-        );
-    Ok(payout_connector_request_reference_id)
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
 
 #[cfg(feature = "v2")]

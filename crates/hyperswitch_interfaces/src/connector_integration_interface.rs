@@ -681,7 +681,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> Option<String> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.generate_connector_customer_reference_id(
                 connector_customer_id,
@@ -705,7 +705,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> Option<String> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         todo!()
     }
 
@@ -716,7 +716,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    ) -> Option<String> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.generate_payout_connector_customer_reference_id(
                 connector_customer_id,
@@ -740,7 +740,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    ) -> Option<String> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         todo!()
     }
 

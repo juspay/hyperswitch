@@ -3348,34 +3348,23 @@ impl ConnectorSpecifications for Adyen {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> Option<String> {
-        // Try mandate-based lookup (payments section only)
-        payment_method_info
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let mandate_customer_id = payment_method_info
             .as_ref()
-            .and_then(|pm| pm.get_common_mandate_reference().ok())
-            .and_then(|mandate_ref| {
-                payment_attempt
-                    .merchant_connector_id
-                    .as_ref()
-                    .and_then(|mci| {
-                        mandate_ref
-                            .payments
-                            .as_ref()
-                            .and_then(|payments| payments.get(mci))
-                            .and_then(|record| record.connector_customer_id.clone())
-                    })
+            .zip(payment_attempt.merchant_connector_id.as_ref())
+            .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
+            .transpose()
+            .change_context(errors::ConnectorError::ParsingFailed)?
+            .flatten();
+
+        Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+            customer_id.as_ref().map(|cid| {
+                format!(
+                    "{}_{}",
+                    payment_attempt.merchant_id.get_string_repr(),
+                    cid.get_string_repr()
+                )
             })
-            // Fallback to provided connector_customer_id
-            .or(connector_customer_id)
-            // Final fallback: generate {merchant_id}_{customer_id}
-            .or_else(|| {
-                customer_id.as_ref().map(|cid| {
-                    format!(
-                        "{}_{}",
-                        payment_attempt.merchant_id.get_string_repr(),
-                        cid.get_string_repr()
-                    )
-                })
-            })
+        }))
     }
 }

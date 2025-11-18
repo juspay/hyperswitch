@@ -493,35 +493,23 @@ impl ConnectorSpecifications for Adyenplatform {
         customer_id: &Option<common_utils::id_type::CustomerId>,
         payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
         payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    ) -> Option<String> {
-        // Try mandate-based lookup (payouts section only)
-        payment_method_info
+    ) -> CustomResult<Option<String>, ConnectorError> {
+        let mandate_customer_id = payment_method_info
             .as_ref()
-            .and_then(|pm| pm.get_common_mandate_reference().ok())
-            .and_then(|mandate_ref| {
-                payout_attempt
-                    .merchant_connector_id
-                    .as_ref()
-                    .and_then(|mci| {
-                        mandate_ref
-                            .payouts
-                            .as_ref()?
-                            .get(mci)?
-                            .connector_customer_id
-                            .clone()
-                    })
+            .zip(payout_attempt.merchant_connector_id.as_ref())
+            .map(|(pm, mci)| pm.get_payout_connector_customer_id(mci.clone()))
+            .transpose()
+            .change_context(ConnectorError::ParsingFailed)?
+            .flatten();
+
+        Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+            customer_id.as_ref().map(|cid| {
+                format!(
+                    "{}_{}",
+                    payout_attempt.merchant_id.get_string_repr(),
+                    cid.get_string_repr()
+                )
             })
-            // Fallback to provided connector_customer_id
-            .or(connector_customer_id)
-            // Final fallback: generate {merchant_id}_{customer_id}
-            .or_else(|| {
-                customer_id.as_ref().map(|cid| {
-                    format!(
-                        "{}_{}",
-                        payout_attempt.merchant_id.get_string_repr(),
-                        cid.get_string_repr()
-                    )
-                })
-            })
+        }))
     }
 }
