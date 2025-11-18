@@ -2,10 +2,7 @@ use actix_web::{web, Responder};
 use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_domain_models::{
-    payments as payments_domain,
-    platform::{Context, Platform},
-};
+use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
 
 use crate::{
     core::{
@@ -43,10 +40,12 @@ pub async fn call_psync_api(
         return_raw_connector_response: None,
         merchant_connector_details: None,
     };
-    let platform_from_revenue_recovery_data = Platform::NormalMerchant(Box::new(Context(
+    let platform_from_revenue_recovery_data = Platform::new(
         revenue_recovery_data.merchant_account.clone(),
         revenue_recovery_data.key_store.clone(),
-    )));
+        revenue_recovery_data.merchant_account.clone(),
+        revenue_recovery_data.key_store.clone(),
+    );
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
     let get_tracker_response = operation
@@ -107,10 +106,12 @@ pub async fn call_proxy_api(
         "Call made to payments proxy api , with the request body {:?}",
         req
     );
-    let platform_from_revenue_recovery_payment_data = Platform::NormalMerchant(Box::new(Context(
+    let platform_from_revenue_recovery_payment_data = Platform::new(
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
-    )));
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
@@ -156,10 +157,12 @@ pub async fn update_payment_intent_api(
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
-    let platform_from_revenue_recovery_payment_data = Platform::NormalMerchant(Box::new(Context(
+    let platform_from_revenue_recovery_payment_data = Platform::new(
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
-    )));
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
     let (payment_data, _req, _) = payments::payments_intent_operation_core::<
         api_types::PaymentUpdateIntent,
         _,
@@ -216,10 +219,12 @@ pub async fn record_internal_attempt_api(
             message: "Cannot Create the payment record Request".to_string(),
         })?;
 
-    let platform_from_revenue_recovery_payment_data = Platform::NormalMerchant(Box::new(Context(
+    let platform_from_revenue_recovery_payment_data = Platform::new(
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
-    )));
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
 
     let attempt_response = Box::pin(payments::record_attempt_core(
         state.clone(),

@@ -86,7 +86,7 @@ impl From<AuthenticationData> for domain::Platform {
         match val.platform_merchant_context {
             Some(platform_merchant_context) => {
                 // Platform / provider merchant is different from processor
-                domain::Platform::new(
+                Self::new(
                     platform_merchant_context.account,
                     platform_merchant_context.key_store,
                     val.merchant_account,
@@ -95,7 +95,7 @@ impl From<AuthenticationData> for domain::Platform {
             }
             None => {
                 // Standard merchant - same provider and processor
-                domain::Platform::new(
+                Self::new(
                     val.merchant_account.clone(),
                     val.key_store.clone(),
                     val.merchant_account,

@@ -1703,7 +1703,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -1781,7 +1781,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -2288,7 +2288,7 @@ where
 {
     operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     let get_tracker_response = operation
         .to_get_tracker()?
@@ -2367,7 +2367,7 @@ where
 {
     operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     let get_tracker_response = operation
         .to_get_tracker()?
@@ -2438,7 +2438,7 @@ pub async fn record_attempt_core(
 
     let _validate_result = boxed_operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -2737,7 +2737,7 @@ where
     // Validate the request fields
     operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     // Get the tracker related information. This includes payment intent and payment attempt
     let get_tracker_response = operation

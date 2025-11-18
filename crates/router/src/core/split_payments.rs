@@ -240,7 +240,8 @@ pub(crate) async fn split_payments_execute_core(
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::AttemptGroupUpdate {
             updated_by: platform
-                .get_merchant_account()
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
             active_attempt_id_type: enums::ActiveAttemptIDType::GroupID,
@@ -324,7 +325,8 @@ pub(crate) async fn split_payments_execute_core(
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
                 updated_by: platform
-                    .get_merchant_account()
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
@@ -416,7 +418,8 @@ pub(crate) async fn split_payments_execute_core(
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
                 updated_by: platform
-                    .get_merchant_account()
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
@@ -450,7 +453,8 @@ pub(crate) async fn split_payments_execute_core(
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
             status: split_pm_response_data.get_intent_status(),
             updated_by: platform
-                .get_merchant_account()
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
         };

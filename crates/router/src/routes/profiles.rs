@@ -81,13 +81,7 @@ pub async fn profile_create(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationDataWithoutProfile {
-             merchant_account,
-             key_store,
-         },
-         req,
-         _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let platform = auth.into();
             create_profile(state, req, platform)
         },

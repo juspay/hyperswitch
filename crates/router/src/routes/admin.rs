@@ -555,7 +555,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
+            let platform = auth_data.into();
             create_connector(state, req, platform, None)
         },
         auth::auth_type(
@@ -637,14 +637,7 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationData {
-             merchant_account,
-             key_store,
-             ..
-         },
-         req,
-         _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let platform = auth.into();
             retrieve_connector(state, platform, req.id.clone())
         },
@@ -896,14 +889,7 @@ pub async fn connector_delete(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationData {
-             merchant_account,
-             key_store,
-             ..
-         },
-         req,
-         _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let platform = auth.into();
             delete_connector(state, platform, req.id)
         },

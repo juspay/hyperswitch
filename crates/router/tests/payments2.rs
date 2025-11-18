@@ -74,10 +74,12 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let platform = Platform::NormalMerchant(Box::new(Context(
+    let platform = Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
@@ -375,10 +377,12 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
-    let platform = Platform::NormalMerchant(Box::new(Context(
+    let platform = Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),

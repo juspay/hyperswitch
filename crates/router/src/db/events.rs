@@ -1229,7 +1229,7 @@ mod tests {
             merchant_account.clone(),
             merchant_key_store.clone(),
             merchant_account.clone(),
-            merchant_key_store,
+            merchant_key_store.clone(),
         );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 

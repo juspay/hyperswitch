@@ -135,7 +135,7 @@ pub async fn recovery_payments_create(
         &req.clone(),
         payload,
         |state, auth: auth::AuthenticationData, req_payload, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             recovery::custom_revenue_recovery_core(
                 state.to_owned(),
                 req_state,
@@ -178,7 +178,7 @@ pub async fn payments_create_intent(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
 
             payments::payments_intent_core::<
                 api_types::PaymentCreateIntent,
@@ -248,7 +248,7 @@ pub async fn payments_get_intent(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::payments_intent_core::<
                 api_types::PaymentGetIntent,
                 payment_types::PaymentsIntentResponse,
@@ -311,7 +311,7 @@ pub async fn list_payment_attempts(
         &req,
         payload.clone(),
         |session_state, auth, req_payload, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
 
             payments::payments_list_attempts_using_payment_intent_id::<
                 payments::operations::PaymentGetListAttempts,
@@ -389,7 +389,7 @@ pub async fn payments_create_and_confirm_intent(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, request, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::payments_create_and_confirm_intent(
                 state,
                 req_state,
@@ -436,7 +436,7 @@ pub async fn payments_update_intent(
         &req,
         internal_payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::payments_intent_core::<
                 api_types::PaymentUpdateIntent,
                 payment_types::PaymentsIntentResponse,
@@ -1097,7 +1097,7 @@ pub async fn payments_connector_session(
             let payment_id = req.global_payment_id;
             let request = req.payload;
             let operation = payments::operations::PaymentSessionIntent;
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::payments_session_core::<
                 api_types::Session,
                 payment_types::PaymentsSessionResponse,
@@ -1544,7 +1544,7 @@ pub async fn payments_cancel(
             let request = req.payload;
 
             let operation = payments::operations::payment_cancel_v2::PaymentsCancel;
-            let platform = auth.into();
+            let platform = auth.clone().into();
 
             Box::pin(payments::payments_core::<
                 hyperswitch_domain_models::router_flow_types::Void,
@@ -1860,7 +1860,7 @@ pub async fn get_payment_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::get_payment_filters(
                 state,
                 platform,
@@ -2921,7 +2921,7 @@ pub async fn get_payments_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::get_aggregates_for_payments(
                 state,
                 platform,
@@ -3073,7 +3073,7 @@ pub async fn payment_confirm_intent(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
 
             Box::pin(payments::payments_execute_wrapper(
                 state,
@@ -3128,7 +3128,7 @@ pub async fn payments_apply_pm_data(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
             Box::pin(
                 payment_method_balance::payments_check_and_apply_pm_data_core(
                     state,
@@ -3201,7 +3201,7 @@ pub async fn proxy_confirm_intent(
             // Define the operation for proxy payments intent
             let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
             // Call the core proxy logic
             Box::pin(payments::proxy_for_payments_core::<
                 api_types::Authorize,
@@ -3277,7 +3277,7 @@ pub async fn confirm_intent_with_external_vault_proxy(
             // Define the operation for proxy payments intent
             let operation = payments::operations::external_vault_proxy_payment_intent::ExternalVaultProxyPaymentIntent;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
             // Call the core proxy logic
             Box::pin(payments::external_vault_proxy_for_payments_core::<
                 api_types::ExternalVaultProxy,
@@ -3365,7 +3365,7 @@ pub async fn payment_status(
 
             let operation = payments::operations::PaymentGet;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
             Box::pin(payments::payments_core::<
                 api_types::PSync,
                 api_models::payments::PaymentsResponse,
@@ -3466,7 +3466,7 @@ pub async fn payments_status_with_gateway_creds(
 
             let operation = payments::operations::PaymentGet;
 
-            let platform = auth.into();
+            let platform = auth.clone().into();
             Box::pin(payments::payments_core::<
                 api_types::PSync,
                 api_models::payments::PaymentsResponse,
@@ -3500,8 +3500,6 @@ pub async fn payment_get_intent_using_merchant_reference_id(
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentReferenceId>,
 ) -> impl Responder {
-    use crate::db::domain::platform;
-
     let flow = Flow::PaymentsRetrieveUsingMerchantReferenceId;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -3518,7 +3516,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, req_state| async {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             Box::pin(payments::payments_get_intent_using_merchant_reference(
                 state,
                 platform,
@@ -3570,7 +3568,7 @@ pub async fn payments_finish_redirection(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             <payments::PaymentRedirectSync as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectSync {},
                 state,
@@ -3627,7 +3625,7 @@ pub async fn payments_capture(
             let request = req.payload;
 
             let operation = payments::operations::payment_capture_v2::PaymentsCapture;
-            let platform = auth.into();
+            let platform = auth.clone().into();
 
             Box::pin(payments::payments_core::<
                 api_types::Capture,
@@ -3672,8 +3670,6 @@ pub async fn list_payment_methods(
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
     query_payload: web::Query<api_models::payments::ListMethodsForPaymentsRequest>,
 ) -> impl Responder {
-    use crate::db::domain::platform;
-
     let flow = Flow::PaymentMethodsList;
     let payload = query_payload.into_inner();
     let global_payment_id = path.into_inner();
@@ -3698,7 +3694,7 @@ pub async fn list_payment_methods(
         &req,
         internal_payload,
         |state, auth, req, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payments::payment_methods::list_payment_methods(
                 state,
                 platform,

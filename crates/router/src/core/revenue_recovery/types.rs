@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
         self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
         PaymentIntent, PaymentIntentData, PaymentStatusData,
     },
-    platform::{Context, Platform},
+    platform::Platform,
     router_data_v2::{self, flow_common_types},
     router_flow_types,
     router_request_types::revenue_recovery as revenue_recovery_request,

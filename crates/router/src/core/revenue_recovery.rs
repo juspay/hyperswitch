@@ -553,11 +553,12 @@ pub async fn perform_calculate_workflow(
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-    let platform_from_revenue_recovery_payment_data =
-        domain::Platform::NormalMerchant(Box::new(domain::Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
 
     let retry_algorithm_type = match profile
         .revenue_recovery_retry_algorithm_type
@@ -1097,11 +1098,12 @@ pub async fn resume_revenue_recovery_process_tracker(
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to extract the revenue recovery data".to_owned(),
             })?;
-    let platform_from_revenue_recovery_payment_data =
-        domain::Platform::NormalMerchant(Box::new(domain::Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
     let create_intent_response = payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,

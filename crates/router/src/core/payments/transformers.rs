@@ -2803,7 +2803,8 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
         // TODO: Add support for other next actions, currently only supporting redirect to url
         let redirect_to_url = payment_intent.create_start_redirection_url(
             &state.base_url,
-            platform.get_merchant_account().publishable_key.clone(),
+            platform.get_processor()
+                .get_account().publishable_key.clone(),
         )?;
 
         let next_action = if payment_intent.status.is_in_terminal_state() {

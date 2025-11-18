@@ -87,7 +87,7 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             routing::create_routing_algorithm_under_profile(
                 state,
                 platform,
@@ -263,7 +263,7 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
                 platform,

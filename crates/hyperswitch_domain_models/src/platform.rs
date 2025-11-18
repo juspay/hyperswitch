@@ -8,7 +8,6 @@ pub struct Provider {
 }
 
 impl Provider {
-    // private constructor
     fn new(account: MerchantAccount, key_store: MerchantKeyStore) -> Self {
         Self { account, key_store }
     }
@@ -24,7 +23,7 @@ impl Provider {
     }
 }
 
-/// Processor (credential/connector side)
+/// Processor (connector side)
 #[derive(Clone, Debug)]
 pub struct Processor {
     account: MerchantAccount,
@@ -32,7 +31,6 @@ pub struct Processor {
 }
 
 impl Processor {
-    // private constructor
     fn new(account: MerchantAccount, key_store: MerchantKeyStore) -> Self {
         Self { account, key_store }
     }
@@ -59,12 +57,12 @@ impl Platform {
     // public constructor
     pub fn new(
         provider_account: MerchantAccount,
-        provider_keys: MerchantKeyStore,
+        provider_key_store: MerchantKeyStore,
         processor_account: MerchantAccount,
-        processor_keys: MerchantKeyStore,
+        processor_key_store: MerchantKeyStore,
     ) -> Self {
-        let provider = Provider::new(provider_account, provider_keys);
-        let processor = Processor::new(processor_account, processor_keys);
+        let provider = Provider::new(provider_account, provider_key_store);
+        let processor = Processor::new(processor_account, processor_key_store);
         Self {
             provider: Box::new(provider),
             processor: Box::new(processor),

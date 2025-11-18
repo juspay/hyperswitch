@@ -212,7 +212,7 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
         },
         auth::auth_type(
@@ -273,7 +273,7 @@ pub async fn refunds_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
         },
         auth_type,

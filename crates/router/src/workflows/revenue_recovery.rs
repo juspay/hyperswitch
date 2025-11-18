@@ -114,11 +114,12 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         };
         let revenue_recovery_payment_data =
             extract_data_and_perform_action(state, &tracking_data).await?;
-        let platform_from_revenue_recovery_payment_data =
-            domain::Platform::NormalMerchant(Box::new(domain::Context(
-                revenue_recovery_payment_data.merchant_account.clone(),
-                revenue_recovery_payment_data.key_store.clone(),
-            )));
+        let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,

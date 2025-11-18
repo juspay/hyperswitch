@@ -547,11 +547,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                                     state,
                                     payment_token,
                                     payment_data.payment_attempt.payment_method_type,
-                                    platform
-                                        .get_processor
-                                        .get_merchant_key_store()
-                                        .key
-                                        .get_inner(),
+                                    platform.get_processor().get_key_store().key.get_inner(),
                                 )
                                 .await,
                             )

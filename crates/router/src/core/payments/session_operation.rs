@@ -132,7 +132,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, platform.get_processor())?;
+        .validate_request(&req, &platform)?;
 
     let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?

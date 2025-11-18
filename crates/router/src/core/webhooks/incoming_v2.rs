@@ -532,7 +532,7 @@ async fn payments_incoming_webhook_flow(
                         1,
                         router_env::metric_attributes!((
                             "merchant_id",
-                            platform.get_processor.get_account().get_id().clone()
+                            platform.get_processor().get_account().get_id().clone()
                         )),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);

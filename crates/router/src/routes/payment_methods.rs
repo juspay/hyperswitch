@@ -76,7 +76,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, req_state| async move {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             Box::pin(payment_methods_routes::create_payment_method(
                 &state,
                 &req_state,
@@ -169,7 +169,7 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::update_payment_method(
                 state,
                 platform,
@@ -237,7 +237,7 @@ pub async fn payment_method_delete_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::delete_payment_method(state, pm, platform, auth.profile)
         },
         &auth::V2ApiKeyAuth {
@@ -1356,7 +1356,7 @@ pub async fn payment_method_session_list_payment_methods(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::list_payment_methods_for_session(
                 state,
                 platform,
@@ -1416,7 +1416,7 @@ pub async fn payment_method_session_confirm(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, req_state| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::payment_methods_session_confirm(
                 state,
                 req_state,
@@ -1461,7 +1461,7 @@ pub async fn payment_method_session_update_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
                 platform,
@@ -1505,7 +1505,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
+            let platform = auth.clone().into();
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
                 platform,
