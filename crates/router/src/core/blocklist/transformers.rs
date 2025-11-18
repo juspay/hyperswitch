@@ -7,7 +7,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use josekit::jwe;
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing};
 
 use crate::{
     configs::settings,
@@ -39,7 +39,7 @@ async fn generate_fingerprint_request(
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
     tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
+    request_id: Option<router_env::RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
         .encode_to_vec()
@@ -65,7 +65,7 @@ async fn generate_fingerprint_request(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().into(),
+            req_id.to_string().into(),
         );
     }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
@@ -156,7 +156,7 @@ async fn call_to_locker_for_fingerprint(
         payload,
         locker_choice,
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
     )
     .await?;
     let response = services::call_connector_api(state, request, "call_locker_to_get_fingerprint")
