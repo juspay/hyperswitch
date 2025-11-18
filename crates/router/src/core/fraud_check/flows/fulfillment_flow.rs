@@ -21,7 +21,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     _state: &'a SessionState,
     _payment_intent: &'a storage::PaymentIntent,
     _payment_attempt: &storage::PaymentAttempt,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
     _connector: String,
     _fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
@@ -34,7 +34,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector: String,
     fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
@@ -50,9 +50,9 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         &profile_id,
         &connector,
         None,
@@ -69,7 +69,7 @@ pub async fn construct_fulfillment_router_data<'a>(
 
     let router_data = RouterData {
         flow: std::marker::PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         connector,
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -108,7 +108,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             payment_intent,
             payment_attempt,
             &connector_id,

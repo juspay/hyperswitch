@@ -574,10 +574,12 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         };
         PmCards {
             state: self.state,
-            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            platform: &domain::Platform::new(
                 self.merchant_account.clone(),
                 self.key_store.clone(),
-            ))),
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ),
         }
         .create_payment_method(
             &payment_method_create,

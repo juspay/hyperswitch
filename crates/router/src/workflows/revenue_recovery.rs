@@ -108,8 +108,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         };
         let revenue_recovery_payment_data =
             extract_data_and_perform_action(state, &tracking_data).await?;
-        let merchant_context_from_revenue_recovery_payment_data =
-            domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform_from_revenue_recovery_payment_data =
+            domain::Platform::NormalMerchant(Box::new(domain::Context(
                 revenue_recovery_payment_data.merchant_account.clone(),
                 revenue_recovery_payment_data.key_store.clone(),
             )));
@@ -121,7 +121,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         >(
             state,
             state.get_req_state(),
-            merchant_context_from_revenue_recovery_payment_data.clone(),
+            platform_from_revenue_recovery_payment_data.clone(),
             revenue_recovery_payment_data.profile.clone(),
             payments::operations::PaymentGetIntent,
             request,
@@ -136,7 +136,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data.clone(),
+                    platform_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -148,7 +148,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data.clone(),
+                    platform_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -161,7 +161,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data,
+                    platform_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,

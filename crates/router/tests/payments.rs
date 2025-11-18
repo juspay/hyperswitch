@@ -277,7 +277,7 @@ fn connector_list() {
 #[ignore] // AWS
 async fn payments_create_core() {
     use configs::settings::Settings;
-    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+    use hyperswitch_domain_models::platform::{Context, Platform};
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -314,7 +314,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let platform = Platform::NormalMerchant(Box::new(Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
@@ -484,7 +484,7 @@ async fn payments_create_core() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_context,
+        platform,
         None,
         payments::PaymentCreate,
         req,
@@ -565,7 +565,7 @@ async fn payments_create_core() {
 #[actix_rt::test]
 #[ignore]
 async fn payments_create_core_adyen_no_redirect() {
-    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+    use hyperswitch_domain_models::platform::{Context, Platform};
 
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
@@ -607,7 +607,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let platform = Platform::NormalMerchant(Box::new(Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
@@ -774,7 +774,7 @@ async fn payments_create_core_adyen_no_redirect() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_context,
+        platform,
         None,
         payments::PaymentCreate,
         req,

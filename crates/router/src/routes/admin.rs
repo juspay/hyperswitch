@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking, errors},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::{api::admin, domain},
+    types::api::admin,
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -522,10 +522,8 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
-            create_connector(state, req, merchant_context, auth_data.profile_id)
+            let platform = auth_data.clone().into();
+            create_connector(state, req, platform, auth_data.profile_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
@@ -557,10 +555,8 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
-            create_connector(state, req, merchant_context, None)
+            let platform = auth.into();
+            create_connector(state, req, platform, None)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -649,10 +645,8 @@ pub async fn connector_retrieve(
          },
          req,
          _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
-            retrieve_connector(state, merchant_context, req.id.clone())
+            let platform = auth.into();
+            retrieve_connector(state, platform, req.id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -910,10 +904,8 @@ pub async fn connector_delete(
          },
          req,
          _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
-            delete_connector(state, merchant_context, req.id)
+            let platform = auth.into();
+            delete_connector(state, platform, req.id)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

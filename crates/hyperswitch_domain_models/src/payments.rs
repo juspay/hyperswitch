@@ -40,8 +40,8 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
-    merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
-    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
+    merchant_connector_account::MerchantConnectorAccountTypeDetails, payment_address,
+    payment_method_data, payment_methods, platform, revenue_recovery, routing,
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
@@ -653,7 +653,7 @@ impl PaymentIntent {
 
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
-        merchant_context: &merchant_context::MerchantContext,
+        platform: &platform::Platform,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
@@ -679,7 +679,7 @@ impl PaymentIntent {
 
         Ok(Self {
             id: payment_id.clone(),
-            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            merchant_id: platform.get_processor().get_account().get_id().clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
             amount_details: AmountDetails::from(request.amount_details),
@@ -705,8 +705,9 @@ impl PaymentIntent {
             profile_id: profile.get_id().clone(),
             payment_link_id: None,
             frm_merchant_decision: None,
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
             request_incremental_authorization,
@@ -743,8 +744,9 @@ impl PaymentIntent {
             capture_method: request.capture_method.unwrap_or_default(),
             authentication_type: request.authentication_type,
             prerouting_algorithm: None,
-            organization_id: merchant_context
-                .get_merchant_account()
+            organization_id: platform
+                .get_processor()
+                .get_account()
                 .organization_id
                 .clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
@@ -757,7 +759,7 @@ impl PaymentIntent {
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
             created_by: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,

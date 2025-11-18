@@ -24,15 +24,9 @@ pub async fn create_profile_acquirer(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
-            crate::core::profile_acquirer::create_profile_acquirer(
-                state,
-                req,
-                merchant_context.clone(),
-            )
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
+            let platform: domain::Platform = auth_data.into();
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, platform.clone())
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -69,16 +63,14 @@ pub async fn profile_acquirer_update(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
+            let platform: domain::Platform = auth_data.into(); // check for type annotation here
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,
                 profile_id.clone(),
                 profile_acquirer_id.clone(),
                 req,
-                merchant_context.clone(),
+                platform.clone(),
             )
         },
         auth::auth_type(

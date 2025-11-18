@@ -34,7 +34,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -49,7 +49,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -71,7 +71,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -83,7 +83,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -138,7 +138,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -182,7 +182,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -201,12 +201,10 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Capture Request")?;
 
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata =
+            build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()

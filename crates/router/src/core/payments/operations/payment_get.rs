@@ -133,11 +133,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsRetrieveRequest, Payment
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsRetrieveRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: platform.get_merchant_account().get_id().to_owned(),
+            storage_scheme: platform.get_processor().get_account().storage_scheme,
             requeue: false,
         };
 
@@ -155,20 +155,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsRetrieveRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
                 key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -185,7 +185,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         let mut payment_attempt = db
             .find_payment_attempt_by_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 active_attempt_id,
                 storage_scheme,
             )
@@ -226,7 +226,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                     db.find_payment_attempts_by_payment_intent_id(
                         key_manager_state,
                         payment_id,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         storage_scheme,
                     )
                     .await
@@ -307,7 +307,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
