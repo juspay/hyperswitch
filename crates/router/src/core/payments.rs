@@ -5780,7 +5780,7 @@ where
             .unwrap_or(false);
         match (pre_decrypted_token, enable_predecrypted_token) {
             (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Predecrypted token config is not enabled for ApplePay".to_string(),
+                message: "Predecrypted token is not enabled for ApplePay".to_string(),
             }
             .into()),
             (Some(token), true) => Ok(Some(token)),
@@ -5906,7 +5906,7 @@ where
             .unwrap_or(false);
         match (pre_decrypted_token, enable_predecrypted_token) {
             (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Predecrypted token config is not enabled for ApplePay".to_string(),
+                message: "Predecrypted token config is not enabled for GooglePay".to_string(),
             }
             .into()),
             (Some(token), true) => Ok(Some(token)),
