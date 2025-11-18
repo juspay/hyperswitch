@@ -3762,7 +3762,7 @@ where
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
-            partner_merchant_identifier: payment_intent.partner_merchant_identifier, //response mein rakhna hai ???
+            partner_merchant_identifier: payment_intent.partner_merchant_identifier,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4080,7 +4080,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
-            partner_merchant_identifier: pi.partner_merchant_identifier, //response mein rakhna hai ??
+            partner_merchant_identifier: pi.partner_merchant_identifier,
         }
     }
 }
