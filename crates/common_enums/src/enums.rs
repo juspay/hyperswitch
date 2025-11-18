@@ -2492,6 +2492,7 @@ pub enum ExecutionMode {
     #[default]
     Primary,
     Shadow,
+    NotApplicable,
 }
 
 #[derive(
